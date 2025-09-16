@@ -10,5 +10,9 @@
     enable = true;
     userName = "willweaver";
     userEmail = "me@willweaver.dev";
+    aliases = {
+      co = "checkout";
+      st = "status";
+    };
   };
 }
