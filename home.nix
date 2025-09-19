@@ -4,6 +4,15 @@
   home.username = "willweaver";
   home.stateVersion = "25.05";
 
+  home.packages = with pkgs; [
+    docker
+  ];
+
+  home.shellAliases = {
+    g = "git";
+    "..." = "cd ../..";
+  };
+
   programs.home-manager.enable = true;
 
   programs.git = {
