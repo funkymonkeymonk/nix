@@ -20,55 +20,48 @@
   outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, ... }:
   let
     configuration = { pkgs, ... }: {
-      # List packages installed in system profile. To search by name, run:
-      # $ nix-env -qaP | grep wget
-      environment.systemPackages =
-        [ pkgs.vim
-          pkgs.emacs
-	      pkgs.google-chrome
-	      pkgs.trippy
-	      pkgs.logseq
-	      pkgs.ripgrep
-	      pkgs.fd
-	      pkgs.coreutils
-	      pkgs.clang
-	      pkgs.git
-          pkgs.slack
-          pkgs.karabiner-elements
-          pkgs.alacritty
-          pkgs.gh
-          pkgs.devenv
-          pkgs.direnv
-          pkgs.home-manager
-        ];
-
       nix.enable = false;
-
-      # Set Git commit hash for darwin-version.
       system.configurationRevision = self.rev or self.dirtyRev or null;
 
       # Used for backwards compatibility, please read the changelog before changing.
       # $ darwin-rebuild changelog
       system.stateVersion = 6;
 
-      # The platform the configuration will be used on.
       nixpkgs.hostPlatform = "aarch64-darwin";
       nixpkgs.config.allowUnfree = true;
+
+      environment.systemPackages = with pkgs; [
+        vim
+        emacs
+ 	      google-chrome
+ 	      trippy
+ 	      logseq
+ 	      ripgrep
+ 	      fd
+ 	      coreutils
+ 	      clang
+ 	      git
+        slack
+        karabiner-elements
+        alacritty
+        gh
+        devenv
+        direnv
+        home-manager
+        colima
+      ];
 
       # Homebrew configuration
       homebrew = {
         enable = true;
         onActivation.cleanup = "uninstall";
-	
+
 	    #caskArgs.no_quarantine = true;
         casks = [
 	      "raycast"
           "1password"
           "1password-cli"
-          "syncthing"
           "zed"
-          "docker"
-          # "amethyst"
         ];
       };
     # TODO generate ssh-key if it does not already exist
@@ -78,8 +71,6 @@
     };
   in
   {
-    # Build darwin flake using:
-    # $ darwin-rebuild build --flake .#Will-Stride-MBP
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
