@@ -49,6 +49,7 @@
         direnv
         home-manager
         colima
+        go-task
       ];
 
       # Homebrew configuration
@@ -62,6 +63,8 @@
           "1password"
           "1password-cli"
           "zed"
+          "sigmaos"
+          "orion"
         ];
       };
     # TODO generate ssh-key if it does not already exist

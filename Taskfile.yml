@@ -1,0 +1,9 @@
+version: "3"
+
+tasks:
+  build-osx: sudo darwin-rebuild switch --flake ./
+  build-linux: echo "Not Yet Implemented"
+
+  default:
+    cmds:
+      - task: build-osx
