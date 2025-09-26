@@ -4,6 +4,8 @@ tasks:
   build-osx: sudo darwin-rebuild switch --flake ./
   build-linux: echo "Not Yet Implemented"
 
+  test: nix flake check
+
   default:
     cmds:
       - task: build-osx
