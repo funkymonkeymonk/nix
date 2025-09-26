@@ -1,11 +1,22 @@
 version: "3"
 
 tasks:
-  build-osx: sudo darwin-rebuild switch --flake ./
-  build-linux: echo "Not Yet Implemented"
+  build-osx:
+    aliases:
+      - osx
+    cmd: sudo darwin-rebuild switch --flake ./
+  build-linux:
+    aliases:
+      - linux
+    cmd: echo "Not Yet Implemented"
 
-  test: nix flake check
+  test:
+    aliases:
+      - t
+    cmd: nix flake check
+
+  list: task --list-all
 
   default:
     cmds:
-      - task: build-osx
+      - task: list
