@@ -59,7 +59,7 @@
 
 	    #caskArgs.no_quarantine = true;
         casks = [
-	      "raycast"
+          "raycast"
           "1password"
           "1password-cli"
           "zed"
