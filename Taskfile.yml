@@ -17,6 +17,8 @@ tasks:
 
   list: task --list-all
 
+  fmt: nix fmt
+
   default:
     cmds:
       - task: list
