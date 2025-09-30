@@ -55,6 +55,7 @@
         home-manager
         colima
         go-task
+        _1password-cli
       ];
 
       # Homebrew configuration
@@ -66,10 +67,9 @@
         casks = [
           "raycast"
           "1password"
-          "1password-cli"
           "zed"
           "sigmaos"
-          "orion"
+          "zen"
         ];
       };
       # TODO generate ssh-key if it does not already exist
