@@ -1,29 +1,44 @@
 version: "3"
 
 tasks:
+  default:
+    aliases:
+      - list
+      - l
+    desc: List all tasks if none is specified
+    cmd: task --list-all
+
   build-osx:
+    desc: Perform osx build
     aliases:
       - osx
     cmd: sudo darwin-rebuild switch --flake ./
   build-linux:
+    desc: Perform linux based build
     aliases:
       - linux
     cmd: echo "Not Yet Implemented"
 
   test:
+    desc: Run nix flake check
     aliases:
       - t
     cmd: nix flake check
 
-  list: task --list-all
-
   fmt:
+    desc: Run formatter on all nix files.
     aliases:
       - f
     cmds:
       - nix profile install github:kamadorueda/alejandra/4.0.0
       - alejandra *.nix
 
-  default:
+  secrets-get:
+    desc: "Get secrets file using 1Password cli"
+    cmd: echo "Not Yet Implemented"
+
+  secrets-set:
+    desc: "Set secrets file using 1Password cli"
     cmds:
-      - task: list
+      - op --version
+      - echo "Not Yet Implemented"
