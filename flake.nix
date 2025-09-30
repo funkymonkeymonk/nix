@@ -36,6 +36,8 @@
       nixpkgs.config.allowUnfree = true;
 
       environment.systemPackages = with pkgs; [
+        # _1password-gui
+        _1password-cli
         vim
         emacs
         google-chrome
@@ -55,7 +57,11 @@
         home-manager
         colima
         go-task
-        _1password-cli
+        the-unarchiver
+        hidden-bar
+        glow
+        rclone
+        zinit
       ];
 
       # Homebrew configuration
@@ -65,10 +71,10 @@
 
         #caskArgs.no_quarantine = true;
         casks = [
-          "raycast"
           "1password"
-          "zed"
+          "raycast"
           "sigmaos"
+          "zed"
           "zen"
         ];
       };
