@@ -17,7 +17,12 @@ tasks:
 
   list: task --list-all
 
-  fmt: nix fmt
+  fmt:
+    aliases:
+      - f
+    cmds:
+      - nix profile install github:kamadorueda/alejandra/4.0.0
+      - alejandra *.nix
 
   default:
     cmds:

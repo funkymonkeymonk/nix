@@ -17,9 +17,14 @@
     homebrew-cask.flake = false;
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, ... }:
-  let
-    configuration = { pkgs, ... }: {
+  outputs = inputs @ {
+    self,
+    nix-darwin,
+    nixpkgs,
+    home-manager,
+    ...
+  }: let
+    configuration = {pkgs, ...}: {
       nix.enable = false;
       system.configurationRevision = self.rev or self.dirtyRev or null;
 
@@ -33,14 +38,14 @@
       environment.systemPackages = with pkgs; [
         vim
         emacs
- 	      google-chrome
- 	      trippy
- 	      logseq
- 	      ripgrep
- 	      fd
- 	      coreutils
- 	      clang
- 	      git
+        google-chrome
+        trippy
+        logseq
+        ripgrep
+        fd
+        coreutils
+        clang
+        git
         slack
         karabiner-elements
         alacritty
@@ -57,7 +62,7 @@
         enable = true;
         onActivation.cleanup = "uninstall";
 
-	    #caskArgs.no_quarantine = true;
+        #caskArgs.no_quarantine = true;
         casks = [
           "raycast"
           "1password"
@@ -67,20 +72,20 @@
           "orion"
         ];
       };
-    # TODO generate ssh-key if it does not already exist
-    # TODO register the ssh key in git locally
-    # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-    # https://discourse.nixos.org/t/how-to-set-up-a-system-wide-ssh-agent-that-would-work-on-all-terminals/14156/5
+      # TODO generate ssh-key if it does not already exist
+      # TODO register the ssh key in git locally
+      # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
+      # https://discourse.nixos.org/t/how-to-set-up-a-system-wide-ssh-agent-that-would-work-on-all-terminals/14156/5
     };
-  in
-  {
+  in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
         {
           system.primaryUser = "willweaver";
-	    }
-        home-manager.darwinModules.home-manager {
+        }
+        home-manager.darwinModules.home-manager
+        {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.willweaver = import ./home.nix;
