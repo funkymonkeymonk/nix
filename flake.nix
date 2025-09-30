@@ -66,6 +66,7 @@
         jq
         tree
         watchman
+        jnv
       ];
 
       # Homebrew configuration

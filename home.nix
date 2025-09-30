@@ -68,6 +68,8 @@
     gauc = "git add -u && git commit -m ";
     gst = "git status";
     gaum = "git add -u && git commit --amend";
+    gpush = "git push";
+    gpull = "git pull";
   };
 
   programs.git = {
@@ -77,6 +79,10 @@
     aliases = {
       co = "checkout";
       st = "status";
+    };
+    difftastic = {
+      enable = true;
+      background = "dark";
     };
   };
 
