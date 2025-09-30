@@ -63,6 +63,9 @@
         rclone
         zinit
         bat
+        jq
+        tree
+        watchman
       ];
 
       # Homebrew configuration
