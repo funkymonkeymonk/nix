@@ -62,6 +62,7 @@
         glow
         rclone
         zinit
+        bat
       ];
 
       # Homebrew configuration
