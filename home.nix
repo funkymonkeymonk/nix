@@ -67,4 +67,8 @@
       st = "status";
     };
   };
+
+  services.syncthing = {
+    enable = true;
+  };
 }
