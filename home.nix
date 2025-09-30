@@ -56,6 +56,9 @@
     dip = "docker inspect --format '{{ .NetworkSettings.IPAddress }}'";
     dkd = "docker run -d -P";
     dki = "docker run -t -i -P";
+    gauc = "git add -u && git commit -m ";
+    gst = "git status";
+    gaum = "git add -u && git commit --amend";
   };
 
   programs.git = {
