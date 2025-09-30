@@ -16,3 +16,4 @@ TODO:
   - [ ] git
   - [ ] github
 - [ ] secrets integration with 1Password as secret store
+- [ ] Set up notify
