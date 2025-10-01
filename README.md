@@ -1,19 +1,36 @@
 #My Configs
 
 TODO:
-- [ ] Set up watchman to lint this repo
-- [ ] Set up CI to lint this repo
-- [ ] Set up flake checks
-- [ ] Set up deconstruct flake into submodules.
-- [ ] Review home-manager options
-- [ ] Review nix-darwin options
-- [ ] Migrate dotfiles
-- [ ] configs
-  - [ ] emacs
-  - [ ] zsh
-  - [ ] syncthing
-  - [ ] vim
-  - [ ] git
-  - [ ] github
-- [ ] secrets integration with 1Password as secret store
-- [ ] Set up notify
+- Repo work
+  - [ ] Set up watchman to lint this repo
+  - [ ] Set up CI to lint this repo
+  - [ ] Set up flake checks
+- Parity Work
+  - [ ] Configure existing environments
+    - [ ] Megaman X
+  - [ ] Set up deconstruct flake into submodules.
+  - [x] Migrate dotfiles
+  - [ ] Migrate brewfiles
+    - [x] General
+    - [x] Dev
+    - [ ] Entertainment https://github.com/funkymonkeymonk/dotfiles/blob/master/Brewfile.entertainment
+    - [ ] Maker https://github.com/funkymonkeymonk/dotfiles/blob/master/Brewfile.maker
+  - [ ] configs
+    - [ ] zsh
+    - [ ] syncthing
+    - [x] git
+    - [ ] p10k
+    - [ ] Antigen
+- Environment Emprovements
+  - [ ] NixOS build
+  - [ ] Review home-manager options for apps/configs
+  - [ ] Review nix-darwin options for apps/configs
+  - [ ] Set up secret management flow with 1Password
+  - [ ] Improve/create configs
+    - [ ] emacs
+    - [ ] vim
+    - [ ] github
+    - [ ] notify
+    - [ ] git
+    - [ ] p10k
+    - [ ] Antigen
