@@ -70,6 +70,8 @@
     gaum = "git add -u && git commit --amend";
     gpush = "git push";
     gpull = "git pull";
+    gd = "git diff";
+    gdc = "git diff --cached";
   };
 
   programs.git = {
