@@ -42,3 +42,8 @@ tasks:
     cmds:
       - op --version
       - echo "Not Yet Implemented"
+
+  init:
+    desc: Initial setup commands
+    cmds:
+      - sudo nix run nix-darwin/master#darwin-rebuild -- switch --flake ./
