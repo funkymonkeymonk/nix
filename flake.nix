@@ -67,6 +67,9 @@
         tree
         watchman
         jnv
+        goose-cli
+        zinit
+        antigen
       ];
 
       # Homebrew configuration
@@ -78,7 +81,6 @@
         casks = [
           "1password"
           "raycast"
-          "sigmaos"
           "zed"
           "zen"
         ];
@@ -101,6 +103,39 @@
           home-manager.useUserPackages = true;
           home-manager.users.willweaver = import ./home.nix;
           users.users.willweaver.home = "/Users/willweaver/";
+        }
+      ];
+    };
+
+    darwinConfigurations."MegamanX" = nix-darwin.lib.darwinSystem {
+      modules = [
+        configuration
+        {
+          system.primaryUser = "monkey";
+        }
+        home-manager.darwinModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.monkey = import ./home.nix;
+          users.users.monkey.home = "/Users/monkey/";
+        }
+        {
+          homebrew.casks = [
+            "autodesk-fusion"
+            "deezer"
+            "discord"
+            "ha-menu"
+            "xtool-creative-space"
+            "orcaslicer"
+            "openscad"
+            "ollama-app"
+            "block-goose"
+            "obs"
+            "pocket-casts"
+            "steam"
+            "sensei"
+          ];
         }
       ];
     };
