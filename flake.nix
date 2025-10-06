@@ -15,6 +15,8 @@
     homebrew-core.flake = false;
     homebrew-cask.url = "github:homebrew/homebrew-cask";
     homebrew-cask.flake = false;
+
+    mac-app-util.url = "github:hraban/mac-app-util";
   };
 
   outputs = inputs @ {
@@ -22,6 +24,7 @@
     nix-darwin,
     nixpkgs,
     home-manager,
+    mac-app-util,
     ...
   }: let
     configuration = {pkgs, ...}: {
@@ -31,6 +34,13 @@
       # Used for backwards compatibility, please read the changelog before changing.
       # $ darwin-rebuild changelog
       system.stateVersion = 6;
+
+      system.defaults = {
+        NSGlobalDomain.AppleInterfaceStyle = "Dark";
+        dock = {
+                autohide = true;
+              };
+      };
 
       nixpkgs.hostPlatform = "aarch64-darwin";
       nixpkgs.config.allowUnfree = true;
@@ -70,6 +80,7 @@
         goose-cli
         zinit
         antigen
+        alacritty-theme
       ];
 
       # Homebrew configuration
@@ -80,7 +91,7 @@
         #caskArgs.no_quarantine = true;
         casks = [
           "1password"
-          "raycast"
+          "raycast" # The version in nixpkgs is out of date
           "zed"
           "zen"
         ];
@@ -109,6 +120,7 @@
 
     darwinConfigurations."MegamanX" = nix-darwin.lib.darwinSystem {
       modules = [
+        mac-app-util.darwinModules.default
         configuration
         {
           system.primaryUser = "monkey";
