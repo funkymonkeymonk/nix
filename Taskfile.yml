@@ -12,6 +12,7 @@ tasks:
     desc: Perform osx build
     aliases:
       - osx
+      - build
     cmd: sudo darwin-rebuild switch --flake ./
   build-linux:
     desc: Perform linux based build

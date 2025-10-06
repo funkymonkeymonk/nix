@@ -80,6 +80,12 @@
         zinit
         antigen
         alacritty-theme
+        #atuin - check this out later
+        claude-code
+	k3d
+	kubectl
+	kubernetes-helm
+	k9s
       ];
 
       # Homebrew configuration
@@ -93,8 +99,12 @@
           "raycast" # The version in nixpkgs is out of date
           "zed"
           "zen"
+          "ollama-app"
         ];
       };
+
+      #fonts.packages = with pkgs; [ nerd-fonts.droid-sans-mono ];
+
       # TODO generate ssh-key if it does not already exist
       # TODO register the ssh key in git locally
       # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
@@ -137,7 +147,7 @@
             "deezer"
             "discord"
             "ha-menu"
-            "xtool-creative-space"
+            "xtool-studio"
             "orcaslicer"
             "openscad"
             "ollama-app"
