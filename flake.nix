@@ -60,7 +60,6 @@
         git
         slack
         karabiner-elements
-        alacritty
         gh
         devenv
         direnv
