@@ -15,82 +15,148 @@
     homebrew-core.flake = false;
     homebrew-cask.url = "github:homebrew/homebrew-cask";
     homebrew-cask.flake = false;
+
+    mac-app-util.url = "github:hraban/mac-app-util";
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager, ... }:
-  let
-    configuration = { pkgs, ... }: {
-      # List packages installed in system profile. To search by name, run:
-      # $ nix-env -qaP | grep wget
-      environment.systemPackages =
-        [ pkgs.vim
-          pkgs.emacs
-	      pkgs.google-chrome
-	      pkgs.trippy
-	      pkgs.logseq
-	      pkgs.ripgrep
-	      pkgs.fd
-	      pkgs.coreutils
-	      pkgs.clang
-	      pkgs.git
-          pkgs.slack
-          pkgs.karabiner-elements
-          pkgs.alacritty
-          pkgs.gh
-          pkgs.devenv
-          pkgs.direnv
-          pkgs.home-manager
-        ];
-
+  outputs = inputs @ {
+    self,
+    nix-darwin,
+    nixpkgs,
+    home-manager,
+    mac-app-util,
+    ...
+  }: let
+    configuration = {pkgs, ...}: {
       nix.enable = false;
-
-      # Set Git commit hash for darwin-version.
       system.configurationRevision = self.rev or self.dirtyRev or null;
 
       # Used for backwards compatibility, please read the changelog before changing.
       # $ darwin-rebuild changelog
       system.stateVersion = 6;
 
-      # The platform the configuration will be used on.
+      system.defaults = {
+        NSGlobalDomain.AppleInterfaceStyle = "Dark";
+        dock = {
+                autohide = true;
+              };
+      };
+
       nixpkgs.hostPlatform = "aarch64-darwin";
       nixpkgs.config.allowUnfree = true;
+
+      environment.systemPackages = with pkgs; [
+        # _1password-gui
+        _1password-cli
+        vim
+        emacs
+        google-chrome
+        trippy
+        logseq
+        ripgrep
+        fd
+        coreutils
+        clang
+        git
+        slack
+        karabiner-elements
+        gh
+        devenv
+        direnv
+        home-manager
+        colima
+        go-task
+        the-unarchiver
+        hidden-bar
+        glow
+        rclone
+        zinit
+        bat
+        jq
+        tree
+        watchman
+        jnv
+        goose-cli
+        zinit
+        antigen
+        alacritty-theme
+        #atuin - check this out later
+        claude-code
+	k3d
+	kubectl
+	kubernetes-helm
+	k9s
+      ];
 
       # Homebrew configuration
       homebrew = {
         enable = true;
         onActivation.cleanup = "uninstall";
-	
-	    #caskArgs.no_quarantine = true;
+
+        #caskArgs.no_quarantine = true;
         casks = [
-	      "raycast"
           "1password"
-          "1password-cli"
-          "syncthing"
+          "raycast" # The version in nixpkgs is out of date
           "zed"
-          "docker"
-          # "amethyst"
+          "zen"
+          "ollama-app"
         ];
       };
-    # TODO generate ssh-key if it does not already exist
-    # TODO register the ssh key in git locally
-    # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-    # https://discourse.nixos.org/t/how-to-set-up-a-system-wide-ssh-agent-that-would-work-on-all-terminals/14156/5
+
+      #fonts.packages = with pkgs; [ nerd-fonts.droid-sans-mono ];
+
+      # TODO generate ssh-key if it does not already exist
+      # TODO register the ssh key in git locally
+      # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
+      # https://discourse.nixos.org/t/how-to-set-up-a-system-wide-ssh-agent-that-would-work-on-all-terminals/14156/5
     };
-  in
-  {
-    # Build darwin flake using:
-    # $ darwin-rebuild build --flake .#Will-Stride-MBP
+  in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
         {
           system.primaryUser = "willweaver";
-	    }
-        home-manager.darwinModules.home-manager {
+        }
+        home-manager.darwinModules.home-manager
+        {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.willweaver = import ./home.nix;
           users.users.willweaver.home = "/Users/willweaver/";
+        }
+      ];
+    };
+
+    darwinConfigurations."MegamanX" = nix-darwin.lib.darwinSystem {
+      modules = [
+        mac-app-util.darwinModules.default
+        configuration
+        {
+          system.primaryUser = "monkey";
+        }
+        home-manager.darwinModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.monkey = import ./home.nix;
+          users.users.monkey.home = "/Users/monkey/";
+        }
+        {
+          homebrew.casks = [
+            "autodesk-fusion"
+            "deezer"
+            "discord"
+            "ha-menu"
+            "xtool-studio"
+            "orcaslicer"
+            "openscad"
+            "ollama-app"
+            "block-goose"
+            "obs"
+            "pocket-casts"
+            "steam"
+            "sensei"
+          ];
         }
       ];
     };

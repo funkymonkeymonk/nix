@@ -1,0 +1,29 @@
+name: Nix Flake Test on macOS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# TODO: Add caching for /nix/store. Check out cachix-action
+# TODO: Check out DeterminateSystems/ci action for publishing my flake
+
+jobs:
+  test:
+    runs-on: macos-latest # Specify macOS runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10 # Use the Determinate Nix Installer Action
+        with:
+          extra-nix-config: |
+            sandbox = false # Disable sandboxing on macOS for easier setup if needed
+
+      - name: Run Nix Flake Check
+        run: nix flake check
