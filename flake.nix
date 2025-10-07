@@ -108,6 +108,10 @@
       };
 
       #fonts.packages = with pkgs; [ nerd-fonts.droid-sans-mono ];
+      stylix = {
+        enable = false;
+	base16Scheme = "${pkgs.base16-schemes}/share/themes/darktooth.yaml";
+      };
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
@@ -158,12 +162,6 @@
             "sensei"
           ];
         }
-	{
-	  stylix = {
-	    #enable = true;
-	    
-	  };
-	}
       ];
     };
   };
