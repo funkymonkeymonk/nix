@@ -17,6 +17,9 @@
     homebrew-cask.flake = false;
 
     mac-app-util.url = "github:hraban/mac-app-util";
+
+    stylix.url = "github:nix-community/stylix";
+    stylix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs @ {
@@ -25,6 +28,7 @@
     nixpkgs,
     home-manager,
     mac-app-util,
+    stylix,
     ...
   }: let
     configuration = {pkgs, ...}: {
@@ -104,11 +108,6 @@
       };
 
       #fonts.packages = with pkgs; [ nerd-fonts.droid-sans-mono ];
-
-      # TODO generate ssh-key if it does not already exist
-      # TODO register the ssh key in git locally
-      # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-      # https://discourse.nixos.org/t/how-to-set-up-a-system-wide-ssh-agent-that-would-work-on-all-terminals/14156/5
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
@@ -130,6 +129,7 @@
     darwinConfigurations."MegamanX" = nix-darwin.lib.darwinSystem {
       modules = [
         mac-app-util.darwinModules.default
+	stylix.darwinModules.stylix
         configuration
         {
           system.primaryUser = "monkey";
@@ -139,7 +139,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.monkey = import ./home.nix;
-          users.users.monkey.home = "/Users/monkey/";
+	  users.users.monkey.home = "/Users/monkey/";
         }
         {
           homebrew.casks = [
@@ -158,6 +158,12 @@
             "sensei"
           ];
         }
+	{
+	  stylix = {
+	    #enable = true;
+	    
+	  };
+	}
       ];
     };
   };
