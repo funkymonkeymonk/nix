@@ -85,18 +85,27 @@
       enable = true;
       background = "dark";
     };
+    extraConfig = {
+      pull = {
+        rebase = "true";
+      };
+      push = {
+        default = "current";
+      };
+      # "core.editor" = "emacsclient -c -a 'emacs'";
+    };
   };
 
   programs.alacritty = {
     enable = true;
     settings = {
      	font.size = 14;
-	window.decorations = "Buttonless";
-	window.padding = {
-	  x = 10;
-	  y = 6;
-	};
-	mouse.hide_when_typing = true;
+      window.decorations = "Buttonless";
+      window.padding = {
+        x = 10;
+        y = 6;
+      };
+      mouse.hide_when_typing = true;
     };
   };
 
