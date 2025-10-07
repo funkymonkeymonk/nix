@@ -91,7 +91,18 @@
     enable = true;
     settings = {
      	font.size = 14;
+	window.decorations = "Buttonless";
+	window.padding = {
+	  x = 10;
+	  y = 6;
+	};
+	mouse.hide_when_typing = true;
     };
+  };
+
+  programs.kitty = {
+    enable = true;
+    shellIntegration.enableZshIntegration = true;
   };
 
   services.syncthing = {
@@ -101,5 +112,8 @@
   programs.emacs = {
     enable = true;
     package = pkgs.emacs-macport;
+    extraConfig = ''
+      (setq standard-indent 2)
+    '';
   };
 }
