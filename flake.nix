@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-25.05-darwin";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     nix-darwin.url = "github:nix-darwin/nix-darwin/nix-darwin-25.05";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -23,6 +24,7 @@
     self,
     nix-darwin,
     nixpkgs,
+    nixpkgs-unstable,
     home-manager,
     mac-app-util,
     ...
@@ -38,12 +40,20 @@
       system.defaults = {
         NSGlobalDomain.AppleInterfaceStyle = "Dark";
         dock = {
-                autohide = true;
-              };
+          autohide = true;
+        };
       };
 
       nixpkgs.hostPlatform = "aarch64-darwin";
       nixpkgs.config.allowUnfree = true;
+      # Access unstable pkgs with pkgs.unstable
+      nixpkgs.overlays = [
+        (final: _prev: {
+          unstable = import nixpkgs-unstable {
+            inherit (final) system config;
+          };
+        })
+      ];
 
       environment.systemPackages = with pkgs; [
         # _1password-gui
@@ -82,10 +92,10 @@
         alacritty-theme
         #atuin - check this out later
         claude-code
-	k3d
-	kubectl
-	kubernetes-helm
-	k9s
+        k3d
+        kubectl
+        kubernetes-helm
+        k9s
       ];
 
       # Homebrew configuration
@@ -102,13 +112,6 @@
           "ollama-app"
         ];
       };
-
-      #fonts.packages = with pkgs; [ nerd-fonts.droid-sans-mono ];
-
-      # TODO generate ssh-key if it does not already exist
-      # TODO register the ssh key in git locally
-      # https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-      # https://discourse.nixos.org/t/how-to-set-up-a-system-wide-ssh-agent-that-would-work-on-all-terminals/14156/5
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
@@ -131,6 +134,7 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
+        ./aerospace.nix
         {
           system.primaryUser = "monkey";
         }
