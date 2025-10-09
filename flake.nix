@@ -100,7 +100,8 @@
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
-	./homebrew.nix
+        ./homebrew.nix
+        ./aerospace.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "willweaver";
@@ -119,7 +120,7 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
-	./homebrew.nix
+        ./homebrew.nix
         ./aerospace.nix
         {
 	  nixpkgs.hostPlatform = "aarch64-darwin";
