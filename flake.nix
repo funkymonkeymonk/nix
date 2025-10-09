@@ -44,7 +44,6 @@
         };
       };
 
-      nixpkgs.hostPlatform = "aarch64-darwin";
       nixpkgs.config.allowUnfree = true;
       # Access unstable pkgs with pkgs.unstable
       nixpkgs.overlays = [
@@ -69,7 +68,6 @@
         clang
         git
         slack
-        karabiner-elements
         gh
         devenv
         direnv
@@ -97,27 +95,14 @@
         kubernetes-helm
         k9s
       ];
-
-      # Homebrew configuration
-      homebrew = {
-        enable = true;
-        onActivation.cleanup = "uninstall";
-
-        #caskArgs.no_quarantine = true;
-        casks = [
-          "1password"
-          "raycast" # The version in nixpkgs is out of date
-          "zed"
-          "zen"
-          "ollama-app"
-        ];
-      };
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
+	./homebrew.nix
         {
+          nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "willweaver";
         }
         home-manager.darwinModules.home-manager
@@ -134,9 +119,11 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
+	./homebrew.nix
         ./aerospace.nix
         {
-          system.primaryUser = "monkey";
+	  nixpkgs.hostPlatform = "aarch64-darwin";
+	  system.primaryUser = "monkey";
         }
         home-manager.darwinModules.home-manager
         {
