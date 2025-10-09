@@ -73,39 +73,39 @@
 
       on-window-detected = [
         {
-	  "if" = {
-	    app-id = "com.hnc.Discord";
-	  };
-	  run = ["move-node-to-workspace 1"];
-	}
-	{
-	  "if" = {
-	    app-id = "com.readdle.smartemail-Mac";
-	  };
-	  run = ["move-node-to-workspace 1"];
-	}
-	{
-	  "if" = {
-	    app-id = "com.deezer.deezer-desktop";
-	  };
-	  run = ["move-node-to-workspace 2"];
-	}
-	{
-	  "if" = {
-	    app-id = "com.electron.logseq";
-	  };
-	  run = ["move-node-to-workspace 2"];
-	}
+          "if" = {
+            app-id = "com.hnc.Discord";
+          };
+          run = ["move-node-to-workspace 1"];
+        }
+        {
+          "if" = {
+            app-id = "com.readdle.smartemail-Mac";
+          };
+          run = ["move-node-to-workspace 1"];
+        }
+        {
+          "if" = {
+            app-id = "com.deezer.deezer-desktop";
+          };
+          run = ["move-node-to-workspace 2"];
+        }
+        {
+          "if" = {
+            app-id = "com.electron.logseq";
+          };
+          run = ["move-node-to-workspace 2"];
+        }
       ];
       workspace-to-monitor-force-assignment = {
         "1" = [
-	  "1"
-	  "3"
-	];
-	"2" = [
-	  "3"
-	  "1"
-	];
+          "1"
+          "3"
+        ];
+        "2" = [
+          "3"
+          "1"
+        ];
       };
     };
   };

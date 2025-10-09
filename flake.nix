@@ -123,8 +123,8 @@
         ./homebrew.nix
         ./aerospace.nix
         {
-	  nixpkgs.hostPlatform = "aarch64-darwin";
-	  system.primaryUser = "monkey";
+          nixpkgs.hostPlatform = "aarch64-darwin";
+          system.primaryUser = "monkey";
         }
         home-manager.darwinModules.home-manager
         {

@@ -10,10 +10,10 @@
     #caskArgs.no_quarantine = true;
     casks = [
       "1password"
-       "raycast" # The version in nixpkgs is out of date
-       "zed"
-       "zen"
-       "ollama-app"
+      "raycast" # The version in nixpkgs is out of date
+      "zed"
+      "zen"
+      "ollama-app"
     ];
   };
 }
