@@ -63,12 +63,11 @@
         #shift-ctrl-alt-pageUp = "resize smart +200";
         #shift-ctrl-alt-pageDown = "resize smart +200";
 
-        shift-ctrl-alt-1 = "move-node-to-workspace 1";
-        shift-ctrl-alt-2 = "move-node-to-workspace 2";
-        shift-ctrl-alt-3 = "move-node-to-workspace 3";
-        shift-ctrl-alt-4 = "workspace 1";
-        shift-ctrl-alt-5 = "workspace 2";
-        shift-ctrl-alt-6 = "workspace 3";
+        #shift-ctrl-alt-semicolon = "workspace";
+        shift-ctrl-alt-4 = "move-node-to-workspace --wrap-around prev";
+        shift-ctrl-alt-5 = "workspace --wrap-around prev";
+        shift-ctrl-alt-6 = "workspace --wrap-around next";
+        shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
       };
 
       on-window-detected = [
@@ -76,35 +75,41 @@
           "if" = {
             app-id = "com.hnc.Discord";
           };
-          run = ["move-node-to-workspace 1"];
+          run = ["move-node-to-workspace 2.Comms"];
         }
         {
           "if" = {
             app-id = "com.readdle.smartemail-Mac";
           };
-          run = ["move-node-to-workspace 1"];
+          run = ["move-node-to-workspace 2.Comms"];
         }
         {
           "if" = {
             app-id = "com.deezer.deezer-desktop";
           };
-          run = ["move-node-to-workspace 2"];
+          run = ["move-node-to-workspace 3.Dash"];
         }
         {
           "if" = {
             app-id = "com.electron.logseq";
           };
-          run = ["move-node-to-workspace 2"];
+           run = ["move-node-to-workspace 3.Dash"];
         }
       ];
       workspace-to-monitor-force-assignment = {
-        "1" = [
+        "1.Main" = [
+          "Main"
+        ];
+	"2.Comms" = [
           "1"
           "3"
         ];
-        "2" = [
+        "3.Dash" = [
           "3"
           "1"
+        ];
+	"4.Distracted" = [
+          "Main"
         ];
       };
     };
