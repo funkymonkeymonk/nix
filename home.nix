@@ -71,6 +71,10 @@
     gpull = "git pull";
     gd = "git diff";
     gdc = "git diff --cached";
+    gco = "git checkout";
+    ghv = "gh repo view --web";
+    gs = "git stash";
+    gsp = "git stash pop";
   };
 
   programs.git = {
