@@ -75,6 +75,10 @@
     ghv = "gh repo view --web";
     gs = "git stash";
     gsp = "git stash pop";
+    git = "git rebase main";
+    grc = "git rebase --continue";
+    gm = "git merge";
+    gmm = "git fetch origin && git git merge origin/main";
   };
 
   programs.git = {
