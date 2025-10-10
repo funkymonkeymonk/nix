@@ -60,6 +60,8 @@
   home.shellAliases = {
     g = "git";
     t = "task";
+    tb = "task build";
+    tt = "task test";
     "..." = "cd ../..";
     dip = "docker inspect --format '{{ .NetworkSettings.IPAddress }}'";
     dkd = "docker run -d -P";
@@ -75,10 +77,11 @@
     ghv = "gh repo view --web";
     gs = "git stash";
     gsp = "git stash pop";
-    git = "git rebase main";
+    grm = "git fetch origin && git rebase main";
     grc = "git rebase --continue";
     gm = "git merge";
     gmm = "git fetch origin && git git merge origin/main";
+    gf = "git fetch --prune";
   };
 
   programs.git = {
