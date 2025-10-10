@@ -138,7 +138,6 @@
             "autodesk-fusion"
             "deezer"
             "discord"
-            "ha-menu"
             "xtool-studio"
             "orcaslicer"
             "openscad"
