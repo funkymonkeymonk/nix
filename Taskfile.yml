@@ -36,7 +36,6 @@ tasks:
     aliases:
       - f
     cmds:
-      - nix profile install github:kamadorueda/alejandra/4.0.0
       - alejandra *.nix
 
   secrets-get:
