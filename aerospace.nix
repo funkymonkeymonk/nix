@@ -93,14 +93,14 @@
           "if" = {
             app-id = "com.electron.logseq";
           };
-           run = ["move-node-to-workspace 3.Dash"];
+          run = ["move-node-to-workspace 3.Dash"];
         }
       ];
       workspace-to-monitor-force-assignment = {
         "1.Main" = [
           "Main"
         ];
-	"2.Comms" = [
+        "2.Comms" = [
           "1"
           "3"
         ];
@@ -108,7 +108,7 @@
           "3"
           "1"
         ];
-	"4.Distracted" = [
+        "4.Distracted" = [
           "Main"
         ];
       };
