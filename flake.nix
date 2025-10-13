@@ -55,8 +55,6 @@
       ];
 
       environment.systemPackages = with pkgs; [
-        # _1password-gui
-        _1password-cli
         vim
         emacs
         google-chrome
@@ -94,7 +92,18 @@
         kubectl
         kubernetes-helm
         k9s
+        unstable.fzf
       ];
+
+      programs._1password = {
+        enable = true;
+        package = pkgs.unstable._1password-cli;
+      };
+
+      programs._1password-gui = {
+        enable = true;
+        package = pkgs.unstable._1password-gui;
+      };
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
