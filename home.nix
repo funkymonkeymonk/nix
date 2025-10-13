@@ -131,13 +131,6 @@
     enable = true;
   };
 
-  programs.emacs = {
-    enable = true;
-    package = pkgs.emacs-macport;
-    extraConfig = ''
-      (setq standard-indent 2)
-    '';
-  };
   programs.ssh = {
     enable = true;
 

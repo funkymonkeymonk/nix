@@ -56,7 +56,6 @@
 
       environment.systemPackages = with pkgs; [
         vim
-        emacs
         google-chrome
         trippy
         logseq
@@ -110,6 +109,7 @@
       modules = [
         configuration
         ./homebrew.nix
+        ./emacs.nix
         ./aerospace.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
@@ -130,6 +130,7 @@
         mac-app-util.darwinModules.default
         configuration
         ./homebrew.nix
+        ./emacs.nix
         ./aerospace.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
