@@ -109,12 +109,13 @@
       system = "x86_64-linux";
       modules = [
         {
-          #imports = [./hardware-configuration.nix];
+          imports = [./hardware-configuration.nix];
           networking.hostName = "drlight";
           boot.loader.systemd-boot.enable = true;
           boot.loader.efi.canTouchEfiVariables = true;
           nixpkgs.hostPlatform = "aarch64-linux";
         }
+        configuration
         ./minimal.nix
       ];
     };
