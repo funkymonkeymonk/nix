@@ -2,8 +2,8 @@
   description = "Will Weaver system setup flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-25.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
     nix-darwin.url = "github:nix-darwin/nix-darwin/nix-darwin-25.05";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -105,19 +105,19 @@
       ];
     };
 
-    nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        {
-          imports = [./hardware-configuration.nix];
-          networking.hostName = "drlight";
-          boot.loader.systemd-boot.enable = true;
-          boot.loader.efi.canTouchEfiVariables = true;
-          nixpkgs.hostPlatform = "x86_64-linux";
-        }
-        configuration
-        ./minimal.nix
-      ];
-    };
+    #nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
+    #  system = "x86_64-linux";
+    #  modules = [
+    #    {
+    #      #imports = [./hardware-configuration.nix];
+    #      networking.hostName = "drlight";
+    #      boot.loader.systemd-boot.enable = true;
+    #      boot.loader.efi.canTouchEfiVariables = true;
+    #      nixpkgs.hostPlatform = "x86_64-linux";
+    #    }
+    #    configuration
+    #   ./minimal.nix
+    #  ];
+    #};
   };
 }
