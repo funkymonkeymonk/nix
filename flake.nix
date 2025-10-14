@@ -113,7 +113,7 @@
           networking.hostName = "drlight";
           boot.loader.systemd-boot.enable = true;
           boot.loader.efi.canTouchEfiVariables = true;
-          nixpkgs.hostPlatform = "aarch64-linux";
+          nixpkgs.hostPlatform = "x86_64-linux";
         }
         configuration
         ./minimal.nix
