@@ -105,19 +105,17 @@
       ];
     };
 
-    #nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
-    #  system = "x86_64-linux";
-    #  modules = [
-    #    {
-    #      #imports = [./hardware-configuration.nix];
-    #      networking.hostName = "drlight";
-    #      boot.loader.systemd-boot.enable = true;
-    #      boot.loader.efi.canTouchEfiVariables = true;
-    #      nixpkgs.hostPlatform = "x86_64-linux";
-    #    }
-    #    configuration
-    #   ./minimal.nix
-    #  ];
-    #};
+    nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./configuration.nix
+        ./hardware-configuration.nix
+        {
+          nixpkgs.hostPlatform = "x86_64-linux";
+        }
+        configuration
+        ./minimal.nix
+      ];
+    };
   };
 }
