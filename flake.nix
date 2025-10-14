@@ -32,19 +32,10 @@
     configuration = {pkgs, ...}: {
       nix.enable = false;
       system.configurationRevision = self.rev or self.dirtyRev or null;
-
-      # Used for backwards compatibility, please read the changelog before changing.
-      # $ darwin-rebuild changelog
-      system.stateVersion = 6;
-
-      system.defaults = {
-        NSGlobalDomain.AppleInterfaceStyle = "Dark";
-        dock = {
-          autohide = true;
-        };
-      };
+      system.stateVersion = "25.05";
 
       nixpkgs.config.allowUnfree = true;
+
       # Access unstable pkgs with pkgs.unstable
       nixpkgs.overlays = [
         (final: _prev: {
@@ -53,62 +44,13 @@
           };
         })
       ];
-
-      environment.systemPackages = with pkgs; [
-        vim
-        emacs
-        google-chrome
-        trippy
-        logseq
-        ripgrep
-        fd
-        coreutils
-        clang
-        git
-        slack
-        gh
-        devenv
-        direnv
-        home-manager
-        colima
-        go-task
-        the-unarchiver
-        hidden-bar
-        glow
-        rclone
-        zinit
-        bat
-        jq
-        tree
-        watchman
-        jnv
-        goose-cli
-        zinit
-        antigen
-        alacritty-theme
-        #atuin - check this out later
-        claude-code
-        k3d
-        kubectl
-        kubernetes-helm
-        k9s
-        unstable.fzf
-      ];
-
-      programs._1password = {
-        enable = true;
-        package = pkgs.unstable._1password-cli;
-      };
-
-      programs._1password-gui = {
-        enable = true;
-        package = pkgs.unstable._1password-gui;
-      };
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
+        ./minimal.nix
+        ./darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -129,6 +71,8 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
+        ./minimal.nix
+        ./darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -158,6 +102,17 @@
             "sensei"
           ];
         }
+      ];
+    };
+
+    nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        configuration
+        {
+          nixpkgs.hostPlatform = "aarch64-linux";
+        }
+        ./minimal.nix
       ];
     };
   };
