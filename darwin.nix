@@ -17,7 +17,7 @@
     ripgrep
     fd
     coreutils
-    clkang
+    clang
     slack
     home-manager
     colima
