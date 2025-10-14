@@ -108,8 +108,11 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        configuration
         {
+          #imports = [./hardware-configuration.nix];
+          networking.hostName = "drlight";
+          boot.loader.systemd-boot.enable = true;
+          boot.loader.efi.canTouchEfiVariables = true;
           nixpkgs.hostPlatform = "aarch64-linux";
         }
         ./minimal.nix
