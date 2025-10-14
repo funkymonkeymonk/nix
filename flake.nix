@@ -118,7 +118,7 @@
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.monkey = import ./home.nix;
+          home-manager.users.monkey = import ./linux-home.nix;
         }
       ];
     };
