@@ -32,6 +32,7 @@
     kubectl
     kubernetes-helm
     k9s
+    the-unarchiver
   ];
 
   programs._1password = {

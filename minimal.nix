@@ -11,7 +11,6 @@
     devenv
     direnv
     go-task
-    the-unarchiver
     rclone
     bat
     jq
