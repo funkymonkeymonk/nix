@@ -30,7 +30,6 @@
     ...
   }: let
     configuration = {pkgs, ...}: {
-      nix.enable = false;
       system.configurationRevision = self.rev or self.dirtyRev or null;
       system.stateVersion = "25.05";
 

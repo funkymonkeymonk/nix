@@ -3,6 +3,8 @@
   pkgs,
   ...
 }: {
+  nix.enable = false;
+
   system.defaults = {
     NSGlobalDomain.AppleInterfaceStyle = "Dark";
     dock = {
