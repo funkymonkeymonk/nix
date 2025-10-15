@@ -2,8 +2,8 @@
   description = "Will Weaver system setup flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-25.05-darwin";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
     nix-darwin.url = "github:nix-darwin/nix-darwin/nix-darwin-25.05";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
@@ -30,21 +30,11 @@
     ...
   }: let
     configuration = {pkgs, ...}: {
-      nix.enable = false;
       system.configurationRevision = self.rev or self.dirtyRev or null;
-
-      # Used for backwards compatibility, please read the changelog before changing.
-      # $ darwin-rebuild changelog
-      system.stateVersion = 6;
-
-      system.defaults = {
-        NSGlobalDomain.AppleInterfaceStyle = "Dark";
-        dock = {
-          autohide = true;
-        };
-      };
+      system.stateVersion = "25.05";
 
       nixpkgs.config.allowUnfree = true;
+
       # Access unstable pkgs with pkgs.unstable
       nixpkgs.overlays = [
         (final: _prev: {
@@ -53,62 +43,13 @@
           };
         })
       ];
-
-      environment.systemPackages = with pkgs; [
-        vim
-        emacs
-        google-chrome
-        trippy
-        logseq
-        ripgrep
-        fd
-        coreutils
-        clang
-        git
-        slack
-        gh
-        devenv
-        direnv
-        home-manager
-        colima
-        go-task
-        the-unarchiver
-        hidden-bar
-        glow
-        rclone
-        zinit
-        bat
-        jq
-        tree
-        watchman
-        jnv
-        goose-cli
-        zinit
-        antigen
-        alacritty-theme
-        #atuin - check this out later
-        claude-code
-        k3d
-        kubectl
-        kubernetes-helm
-        k9s
-        unstable.fzf
-      ];
-
-      programs._1password = {
-        enable = true;
-        package = pkgs.unstable._1password-cli;
-      };
-
-      programs._1password-gui = {
-        enable = true;
-        package = pkgs.unstable._1password-gui;
-      };
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
+        ./minimal.nix
+        ./darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -129,6 +70,8 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
+        ./minimal.nix
+        ./darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -157,6 +100,41 @@
             "steam"
             "sensei"
           ];
+        }
+      ];
+    };
+
+    nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./nixos.nix
+        ./hardware-configuration.nix
+        {
+          users.users.monkey = {
+            isNormalUser = true;
+            description = "monkey";
+            extraGroups = ["networkmanager" "wheel"];
+          };
+        }
+        {
+          networking.hostName = "drlight"; # Define your hostname.
+          # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+          networking.networkmanager.enable = true;
+          time.timeZone = "America/New_York";
+
+          services.openssh.enable = true;
+        }
+        {
+          nixpkgs.hostPlatform = "x86_64-linux";
+        }
+        configuration
+        ./minimal.nix
+        ./1password.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.monkey = import ./linux-home.nix;
         }
       ];
     };

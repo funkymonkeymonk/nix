@@ -17,7 +17,7 @@ tasks:
     desc: Perform linux based build
     aliases:
       - linux
-    cmd: echo "Not Yet Implemented"
+    cmd: sudo nixos-rebuild switch --flake ./
   switch:
     desc: Runs the appropriate switch command for the platform
     aliases:
