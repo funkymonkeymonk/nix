@@ -107,8 +107,23 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        ./configuration.nix
+        ./nixos.nix
         ./hardware-configuration.nix
+        {
+          users.users.monkey = {
+            isNormalUser = true;
+            description = "monkey";
+            extraGroups = ["networkmanager" "wheel"];
+          };
+        }
+        {
+          networking.hostName = "drlight"; # Define your hostname.
+          # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+          networking.networkmanager.enable = true;
+          time.timeZone = "America/New_York";
+
+          services.openssh.enable = true;
+        }
         {
           nixpkgs.hostPlatform = "x86_64-linux";
         }
