@@ -43,59 +43,6 @@
           };
         })
       ];
-<<<<<<< HEAD
-
-      environment.systemPackages = with pkgs; [
-        vim
-        google-chrome
-        trippy
-        logseq
-        ripgrep
-        fd
-        coreutils
-        clang
-        git
-        slack
-        gh
-        devenv
-        direnv
-        home-manager
-        colima
-        go-task
-        the-unarchiver
-        hidden-bar
-        glow
-        rclone
-        zinit
-        bat
-        jq
-        tree
-        watchman
-        jnv
-        goose-cli
-        zinit
-        antigen
-        alacritty-theme
-        #atuin - check this out later
-        claude-code
-        k3d
-        kubectl
-        kubernetes-helm
-        k9s
-        unstable.fzf
-      ];
-
-      programs._1password = {
-        enable = true;
-        package = pkgs.unstable._1password-cli;
-      };
-
-      programs._1password-gui = {
-        enable = true;
-        package = pkgs.unstable._1password-gui;
-      };
-=======
->>>>>>> 34a9bce (Nixos (#3))
     };
   in {
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
