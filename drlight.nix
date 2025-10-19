@@ -52,8 +52,8 @@
     fi
 
     # Source user's ~/.zshrc to allow per-user customizations
-    if [ -n "${HOME}" ] && [ -f "${HOME}/.zshrc" ]; then
-      . "${HOME}/.zshrc"
+    if [ -n "$HOME" ] && [ -f "$HOME/.zshrc" ]; then
+      . "$HOME/.zshrc"
     fi
   '';
 
