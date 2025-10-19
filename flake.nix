@@ -109,34 +109,67 @@
       modules = [
         ./nixos.nix
         ./hardware-configuration.nix
-        {
-          users.users.monkey = {
-            isNormalUser = true;
-            description = "monkey";
-            extraGroups = ["networkmanager" "wheel"];
-          };
-        }
-        {
-          networking.hostName = "drlight"; # Define your hostname.
-          # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-          networking.networkmanager.enable = true;
-          time.timeZone = "America/New_York";
 
-          services.openssh.enable = true;
-        }
-        {
-          nixpkgs.hostPlatform = "x86_64-linux";
-        }
-        configuration
-        ./minimal.nix
-        ./1password.nix
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.users.monkey = import ./linux-home.nix;
-        }
-        ./jellyfin.nix
+        # Configure the `monkey` user and ensure zsh is installed system-wide
+        {pkgs, ...}:
+          {
+            users.users.monkey = {
+              isNormalUser = true;
+              description = "monkey";
+              extraGroups = ["networkmanager" "wheel"];
+              # Set the user's login shell to the zsh provided by nixpkgs
+              shell = pkgs.zsh;
+              # Optionally set the home directory if desired (keeps parity with darwin entries)
+              home = "/home/monkey";
+            };
+
+            # Install zsh system-wide so it's available as a login shell
+            environment.systemPackages = with pkgs; [
+              zsh
+            ];
+
+            # Enable NixOS-provided zsh support
+            programs.zsh = {
+              enable = true;
+            };
+
+            # Provide a system-wide /etc/zshrc managed by Nix
+            environment.etc."zshrc".text = ''
+              # /etc/zshrc - system-wide zsh configuration managed by Nix
+              export SHELL=${pkgs.zsh}/bin/zsh
+              # Load zshenv if present
+              if [ -f /etc/zsh/zshenv ]; then
+                . /etc/zsh/zshenv
+              fi
+              # Initialize completion (safe)
+              autoload -Uz compinit && compinit || true
+              # Source user's ~/.zshrc if present
+              if [ -n "${HOME}" ] && [ -f "${HOME}/.zshrc" ]; then
+                . "${HOME}/.zshrc"
+              fi
+            '';
+
+            # Host and network settings
+            networking.hostName = "drlight"; # Define your hostname.
+            # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+            networking.networkmanager.enable = true;
+            time.timeZone = "America/New_York";
+
+            services.openssh.enable = true;
+          }
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+          }
+          configuration
+          ./minimal.nix
+          ./1password.nix
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.monkey = import ./linux-home.nix;
+          }
+          ./jellyfin.nix
       ];
     };
   };
