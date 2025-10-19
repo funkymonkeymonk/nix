@@ -33,13 +33,15 @@
     flake-utils,
     ...
   }: let
-    systems = ["x86_64-linux"];
-    forSystems = flake-utils.lib.eachSystem systems;
+    # Use the standard helper to expose the flake on common systems.
+    forAllSystems = flake-utils.lib.eachDefaultSystem;
   in
-    forSystems (
+    forAllSystems (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = pkgs.lib;
+
+        isX86Linux = system == "x86_64-linux";
 
         # Fetch the tubearchivist repository (main branch).
         # NOTE: you must replace the sha256 with the correct hash after the first build.
@@ -50,26 +52,38 @@
           sha256 = "0000000000000000000000000000000000000000000000000000";
         };
 
-        # Load uv workspace from the fetched source.
-        workspace = uv2nix.lib.workspace.loadWorkspace {workspaceRoot = src;};
+        # On x86_64-linux build the real package using uv2nix; on other systems provide a tiny stub
+        # so the flake can be inspected or queried without failing.
+        realBuild =
+          if isX86Linux
+          then let
+            # Load uv workspace from the fetched source.
+            workspace = uv2nix.lib.workspace.loadWorkspace {workspaceRoot = src;};
 
-        # Create a pyproject overlay for the workspace; prefer wheels where available.
-        overlay = workspace.mkPyprojectOverlay {sourcePreference = "wheel";};
+            # Create a pyproject overlay for the workspace; prefer wheels where available.
+            overlay = workspace.mkPyprojectOverlay {sourcePreference = "wheel";};
 
-        # Build python set using pyproject.nix and the wheel overlay
-        pythonSet =
-          (pkgs.callPackage pyproject-nix.build.packages {
-            python = pkgs.python3;
-          }).overrideScope (lib.composeManyExtensions [
-            pyproject-build-systems.overlays.wheel
-            overlay
-          ]);
+            # Build python set using pyproject.nix and the wheel overlay
+            pythonSet =
+              (pkgs.callPackage pyproject-nix.build.packages {
+                python = pkgs.python3;
+              }).overrideScope (lib.composeManyExtensions [
+                pyproject-build-systems.overlays.wheel
+                overlay
+              ]);
 
-        # Create a virtualenv package with the project's default deps.
-        tubearchivistPkg = pythonSet.mkVirtualEnv "tubearchivist-env" workspace.deps.default;
+            # Create a virtualenv package with the project's default deps.
+            tubearchivistPkg = pythonSet.mkVirtualEnv "tubearchivist-env" workspace.deps.default;
+          in
+            tubearchivistPkg
+          else
+            # Minimal stub that is cheap to build and clearly indicates unsupported platform.
+            pkgs.runCommand "tubearchivist-not-supported" {} ''
+              echo "tubearchivist is only built for x86_64-linux in this flake" > $out
+            '';
       in {
         packages = {
-          tubearchivist = tubearchivistPkg;
+          tubearchivist = realBuild;
         };
 
         # Make the package the default package for this flake/system.
