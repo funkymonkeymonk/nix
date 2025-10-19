@@ -84,6 +84,7 @@
     gmm = "git fetch origin && git git merge origin/main";
     gf = "git fetch --prune";
     gr = "git restore --source";
+    grh = "git reset --hard";
   };
 
   programs.git = {
