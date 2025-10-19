@@ -29,6 +29,8 @@
     # home = "/home/<username>";
   };
 
+  # nix.settings.trustedUsers = [ "<username>" ];
+
   # Ensure the package is available system-wide so paths like ${pkgs.zsh}
   # reference a real derivation and the binary exists for login shells.
   environment.systemPackages = with pkgs; [
@@ -71,12 +73,4 @@
 
   # Time zone example; change to your local zone.
   time.timeZone = "America/New_York";
-
-  # Enable OpenSSH server (adjust options as needed).
-  services.openssh.enable = true;
-
-  # Add any machine-specific options below.
-  # For example:
-  # networking.firewall.allowedTCPPorts = [ 22 80 443 ];
-  # nix.settings.trustedUsers = [ "<username>" ];
 }
