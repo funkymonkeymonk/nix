@@ -61,6 +61,36 @@ This repository includes a preferred assistant behavior for rendering option lis
 4. Put the index only at the start of each option; do not include additional parenthetical shorthand.
 5. For lists with more than 20 items, attempt to minimize the number of top-level groups.
 
+## Branch-before-main workflow
+
+This repository follows a "branch-before-main" workflow for assistant-made changes. Assistants working on this repo should follow these rules and prompt the repository owner before modifying `main`.
+
+1. Proposal before main
+   1. Before making any code change that would commit to or otherwise modify the `main` branch (except pulling/merging `main` locally), the assistant will propose creating a new branch and offer to create it.
+   2. The assistant will wait for the user's explicit approval before creating the branch or committing changes that would affect `main`.
+
+2. Branch creation and commits
+   1. If approved, the assistant will create the branch and perform commits there.
+   2. By default the assistant will create the branch locally and will not push to `origin` unless the user explicitly asks.
+
+3. Push and PR behavior
+   1. The assistant will not push to `origin` by default — it will ask before pushing any branch.
+   2. The assistant will not open a pull request by default — it will ask before creating one.
+   3. If the user requests a PR, the assistant will create a draft PR by default.
+
+4. Branch naming
+   1. The assistant will check the repository for a consistent branch naming pattern. If a clear pattern exists, the assistant will show that pattern and prompt the user for a branch name that follows it.
+   2. If no consistent pattern exists, the assistant will follow the Conventional Branch Naming scheme (https://conventional-branch.github.io/about/) and propose a name accordingly (for docs changes use the `docs/` type).
+   3. Example branch name for this change: `docs/assistant-branch-policy`.
+
+5. Changing main
+   1. The assistant will only modify `main` if the user explicitly instructs it to do so.
+
+6. Transparency
+   1. When proposing a branch the assistant will include the exact commands it will run and the commit message it plans to use, and will wait for the user's approval.
+
+These are workflow preferences only — they do not change repository code or CI behavior.
+
 ## Retrospection
 
 - When the user tells the assistant that are done offer to do a retrospective of the conversation.
