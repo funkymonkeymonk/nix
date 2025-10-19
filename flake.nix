@@ -136,7 +136,7 @@
           home-manager.useUserPackages = true;
           home-manager.users.monkey = import ./linux-home.nix;
         }
-        ./linkwarden.nix
+        ./jellyfin.nix
       ];
     };
   };
