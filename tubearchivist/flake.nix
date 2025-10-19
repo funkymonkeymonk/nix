@@ -48,8 +48,9 @@
         src = pkgs.fetchFromGitHub {
           owner = "tubearchivist";
           repo = "tubearchivist";
-          rev = "main";
-          sha256 = "0000000000000000000000000000000000000000000000000000";
+          # upstream default branch is `develop`; build from `develop` so fetch works
+          rev = "develop";
+          sha256 = "05bfr65gx2j51h97vgs2y8k1ln1ypjyl1qpr69f1pzcnfnwqhcc4";
         };
 
         # On x86_64-linux build the real package using uv2nix; on other systems provide a tiny stub
