@@ -108,9 +108,7 @@
       system = "x86_64-linux";
       modules = [
         ./nixos.nix
-        ./hardware-configuration.nix
-
-        ./drlight.nix
+        ./targets/drlight
         {
           nixpkgs.hostPlatform = "x86_64-linux";
         }
@@ -124,6 +122,26 @@
           home-manager.users.monkey = import ./linux-home.nix;
         }
         ./jellyfin.nix
+      ];
+    };
+
+    nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./nixos.nix
+        ./targets/zero
+        {
+          nixpkgs.hostPlatform = "x86_64-linux";
+        }
+        configuration
+        ./minimal.nix
+        ./1password.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.monkey = import ./linux-home.nix;
+        }
       ];
     };
   };

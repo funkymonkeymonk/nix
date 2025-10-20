@@ -11,6 +11,10 @@
 # - Provides a system-wide /etc/zshrc that sources each user's ~/.zshrc
 # - Configures basic networking / SSH settings used in flake.nix
 {
+  imports = [
+    ./hardware-configuration.nix
+  ];
+
   # Ensure the user exists with the desired shell and groups
   users.users.monkey = {
     isNormalUser = true;
