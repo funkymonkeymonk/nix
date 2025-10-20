@@ -11,6 +11,11 @@
     pkgs.alejandra
   ];
 
+  # Disable automatic Cachix management so devenv can run without being a trusted Nix user
+  cachix = {
+    enable = false;
+  };
+
   # https://devenv.sh/git-hooks/
   git-hooks = {
     hooks = {
