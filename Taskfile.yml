@@ -58,3 +58,21 @@ tasks:
     desc: Initial setup commands
     cmds:
       - sudo nix run nix-darwin/master#darwin-rebuild -- switch --flake ./
+
+  git:set-remote-ssh:
+    desc: Switch
+    cmds:
+      - git remote -v
+      - git remote set-url origin git@github.com:funkymonkeymonk/nix.git
+      - git remote -v
+
+  git:set-remote-https:
+    desc: Switch
+    cmds:
+      - git remote -v
+      - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
+      - git remote -v
+
+# TODO: Add gh auth workflow
+# TODO: Add a 1Password setup flow
+# TODO: Add a git setup flow
