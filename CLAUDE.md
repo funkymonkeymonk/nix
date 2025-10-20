@@ -51,6 +51,12 @@ The project uses devenv for development tooling:
 
 Always run `task test` (nix flake check) before applying changes to validate the configuration. The formatter (`task fmt`) should be run before commits to maintain code style consistency.
 
+Important: any time you change the development environment — for example, when you add/remove packages in `devenv.nix`, update `devenv.lock`, or otherwise modify flake inputs that affect the build environment — run:
+
+- `devenv test`
+
+This ensures the devenv shells and tests are rebuilt and validated locally (and catches environment-related issues early). If you are running CI, ensure CI also invokes `devenv test` or `task test` as appropriate.
+
 ## Assistant list-formatting preference
 
 This repository includes a preferred assistant behavior for rendering option lists when interacting about this project. When an assistant provides lists of options, it should render them as Markdown lists following these rules:
