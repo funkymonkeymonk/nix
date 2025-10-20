@@ -5,7 +5,11 @@
   inputs,
   ...
 }: {
-  packages = [pkgs.git];
+  packages = [
+    pkgs.git
+    pkgs.task
+    pkgs.alejandra
+  ];
 
   # https://devenv.sh/git-hooks/
   git-hooks.hooks.alejandra.enable = true;

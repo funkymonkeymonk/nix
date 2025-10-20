@@ -1,0 +1,153 @@
+name: Nix CI (devenv)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - '**' # optional: run on pushes for all branches
+
+jobs:
+  fmt-and-test:
+    name: Format check and flake test (via devenv)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Nix (with flakes)
+        uses: cachix/install-nix-action@v18
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Restore Nix caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nix
+            /nix/var/nix/gcroots
+          key: ${{ runner.os }}-nix-${{ hashFiles('**/flake.lock','**/flake.nix','devenv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-
+
+      - name: Cachix cache (optional)
+        if: ${{ secrets.CACHIX_CACHES != '' && secrets.CACHIX_AUTH_TOKEN != '' }}
+        uses: cachix/cachix-action@v10
+        with:
+          name: ${{ secrets.CACHIX_CACHES }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Add nix profile bin to PATH for later steps
+        run: |
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+
+      - name: Install devenv CLI via Nix (and provide fallbacks)
+        id: install_tools
+        run: |
+          set -euo pipefail
+
+          # Try to install devenv into the user profile.
+          # If install fails, we'll record that and continue to the fallback installer.
+          echo "Installing devenv..."
+          if nix profile install nixpkgs#devenv; then
+            echo "devenv_installed=true" >> $GITHUB_OUTPUT
+          else
+            echo "devenv_installed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Also prepare fallback tools in case devenv cannot be used.
+          echo "Installing fallback tools (task and alejandra) into profile..."
+          if nix profile install nixpkgs#task nixpkgs#alejandra; then
+            echo "fallback_tools_installed=true" >> $GITHUB_OUTPUT
+          else
+            echo "fallback_tools_installed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Debug: show environment & git status
+        run: |
+          echo "===== PATH ====="
+          echo "$PATH"
+          echo "===== $HOME/.nix-profile/bin contents ====="
+          ls -la "$HOME/.nix-profile/bin" || true
+          echo "===== git status ====="
+          git status --porcelain --untracked-files=all || true
+          echo "===== git branch ====="
+          git rev-parse --abbrev-ref HEAD || true
+
+      - name: Verify tools
+        run: |
+          echo "Which devenv (if any):"
+          command -v devenv || echo "devenv not found"
+          echo "Which task (if any):"
+          command -v task || echo "task not found"
+          echo "Which alejandra (if any):"
+          command -v alejandra || echo "alejandra not found"
+          echo "Versions (best-effort):"
+          devenv --version || true
+          task --version || true
+          alejandra --version || true
+
+      - name: Run formatter (use devenv if available, otherwise fallback)
+        env:
+          DEENV_OK: ${{ steps.install_tools.outputs.devenv_installed }}
+          FALLBACK_OK: ${{ steps.install_tools.outputs.fallback_tools_installed }}
+        run: |
+          set -euo pipefail
+
+          # Prefer using devenv to ensure the same environment developers use
+          if [ "${DEENV_OK:-false}" = "true" ] && command -v devenv >/dev/null 2>&1; then
+            echo "Running formatter via devenv..."
+            if ! devenv run -- task fmt; then
+              echo "devenv run task fmt failed; attempting to continue with fallback tools"
+            fi
+          fi
+
+          # If formatter not present via devenv, try installed fallback task/alejandra
+          if command -v task >/dev/null 2>&1; then
+            echo "Running formatter via local 'task'..."
+            task fmt || true
+          else
+            echo "No 'task' available to run formatter. Marking as failed."
+            exit 1
+          fi
+
+          # If formatting changed files, show them and fail the job so PRs must include formatted changes.
+          if ! git diff --quiet; then
+            echo "Formatting changes were made by 'task fmt'. Please run 'task fmt' locally and include the changes in your PR."
+            echo "Files changed:"
+            git --no-pager diff --name-only
+            echo "Full diff:"
+            git --no-pager diff || true
+            exit 1
+          else
+            echo "No formatting changes detected."
+          fi
+
+      - name: Run tests (use devenv if available, otherwise fallback)
+        env:
+          DEENV_OK: ${{ steps.install_tools.outputs.devenv_installed }}
+          FALLBACK_OK: ${{ steps.install_tools.outputs.fallback_tools_installed }}
+        run: |
+          set -euo pipefail
+
+          if [ "${DEENV_OK:-false}" = "true" ] && command -v devenv >/dev/null 2>&1; then
+            echo "Running tests via devenv (task test -> nix flake check)..."
+            devenv run -- task test
+          else
+            echo "devenv not available; using fallback 'task test' if present..."
+            if command -v task >/dev/null 2>&1; then
+              task test
+            else
+              echo "task is not available; cannot run tests."
+              exit 1
+            fi
+          fi
+
+      - name: Final debug (show successful completion context)
+        if: always()
+        run: |
+          echo "CI job finished. Current git status (post-steps):"
+          git status --porcelain --untracked-files=all || true
+          echo "List of modified files (if any):"
+          git --no-pager diff --name-only || true
