@@ -71,7 +71,12 @@
 
   services.xserver.videoDrivers = ["nvidia"];
   hardware.graphics.enable = true;
-  hardware.nvidia.open = false;
+  # Temporary fix for nvidia driver issue
+  boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_16;
+  hardware.nvidia = {
+    open = false;
+    package = config.boot.kernelPackages.nvidiaPackages.stable;
+  };
 
   programs.steam = {
     enable = true;
