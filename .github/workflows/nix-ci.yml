@@ -1,0 +1,58 @@
+name: Nix CI (devenv)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - '**' # optional: run on pushes for all branches
+
+jobs:
+  fmt-and-test:
+    name: Format check and flake test (via devenv)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Nix (with flakes)
+        uses: cachix/install-nix-action@v18
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Install devenv CLI via Nix
+        run: |
+          # Install the devenv CLI into the user profile
+          nix profile install nixpkgs#devenv
+
+          # Ensure the nix profile bin is on PATH for subsequent steps
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+
+      - name: Verify devenv installation
+        run: |
+          echo "PATH=$PATH"
+          command -v devenv || { echo "devenv not found"; exit 1; }
+          devenv --version || true
+
+      - name: Run formatter via devenv (fail CI if formatting required)
+        run: |
+          # Run formatter inside the devenv-provided environment
+          devenv run -- task fmt
+
+          # If any formatting changes were made, show them and fail the job
+          if ! git diff --quiet; then
+            echo "Formatting changes were made by 'task fmt'. Please run 'task fmt' locally and include the changes in your PR."
+            echo "Files changed:"
+            git --no-pager diff --name-only
+            echo "Full diff:"
+            git --no-pager diff || true
+            exit 1
+          else
+            echo "No formatting changes detected."
+          fi
+
+      - name: Run nix flake checks via devenv
+        run: |
+          # Run the repo's test task (which runs `nix flake check`)
+          devenv run -- task test
