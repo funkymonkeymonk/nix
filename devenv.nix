@@ -7,7 +7,7 @@
 }: {
   packages = [
     pkgs.git
-    pkgs.task
+    pkgs.go-task
     pkgs.alejandra
   ];
 
