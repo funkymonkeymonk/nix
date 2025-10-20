@@ -49,7 +49,7 @@
       modules = [
         configuration
         ./minimal.nix
-        ./darwin.nix
+        ./os/darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -71,7 +71,7 @@
         mac-app-util.darwinModules.default
         configuration
         ./minimal.nix
-        ./darwin.nix
+        ./os/darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -107,7 +107,7 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        ./nixos.nix
+        ./os/nixos.nix
         ./targets/drlight
         {
           nixpkgs.hostPlatform = "x86_64-linux";
@@ -128,7 +128,7 @@
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        ./nixos.nix
+        ./os/nixos.nix
         ./targets/zero
         {
           nixpkgs.hostPlatform = "x86_64-linux";
