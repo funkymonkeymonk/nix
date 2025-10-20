@@ -49,7 +49,7 @@
       modules = [
         configuration
         ./minimal.nix
-        ./darwin.nix
+        ./os/darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -71,7 +71,7 @@
         mac-app-util.darwinModules.default
         configuration
         ./minimal.nix
-        ./darwin.nix
+        ./os/darwin.nix
         ./homebrew.nix
         ./aerospace.nix
         {
@@ -107,10 +107,8 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        ./nixos.nix
-        ./hardware-configuration.nix
-
-        ./drlight.nix
+        ./os/nixos.nix
+        ./targets/drlight
         {
           nixpkgs.hostPlatform = "x86_64-linux";
         }
@@ -124,6 +122,26 @@
           home-manager.users.monkey = import ./linux-home.nix;
         }
         ./jellyfin.nix
+      ];
+    };
+
+    nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./os/nixos.nix
+        ./targets/zero
+        {
+          nixpkgs.hostPlatform = "x86_64-linux";
+        }
+        configuration
+        ./minimal.nix
+        ./1password.nix
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.monkey = import ./linux-home.nix;
+        }
       ];
     };
   };

@@ -19,5 +19,10 @@
     jnv
     zinit
     fzf
+    zsh
   ];
+
+  programs.zsh = {
+    enable = true;
+  };
 }
