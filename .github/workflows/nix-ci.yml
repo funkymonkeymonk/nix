@@ -1,153 +1,175 @@
-name: Nix CI (devenv)
+name: Nix CI/CD Pipeline
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - '**' # optional: run on pushes for all branches
+      - main
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  fmt-and-test:
-    name: Format check and flake test (via devenv)
-    runs-on: ubuntu-latest
+  # Matrix build for different architectures
+  test-matrix:
+    name: Test (${{ matrix.system }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+            test-target: build:nixos
+          - system: aarch64-darwin
+            runner: macos-latest
+            test-target: build:darwin
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Nix (with flakes)
-        uses: cachix/install-nix-action@v18
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
         with:
-          extra_nix_config: |
+          extra-conf: |
             experimental-features = nix-command flakes
+            ${{ matrix.system == 'aarch64-darwin' && 'sandbox = false' || '' }}
 
-      - name: Restore Nix caches
+      - name: Setup Nix cache
+        uses: DeterminateSystems/nix-cache-action@v1
+
+      - name: Install Task
+        run: nix profile install nixpkgs#go-task
+
+      - name: Cache Nix store
         uses: actions/cache@v4
         with:
           path: |
+            /nix/store
             ~/.cache/nix
-            /nix/var/nix/gcroots
-          key: ${{ runner.os }}-nix-${{ hashFiles('**/flake.lock','**/flake.nix','devenv.lock') }}
+          key: ${{ runner.os }}-nix-store-${{ hashFiles('**/flake.lock') }}
           restore-keys: |
-            ${{ runner.os }}-nix-
+            ${{ runner.os }}-nix-store-
 
-      - name: Cachix cache (optional)
-        if: ${{ secrets.CACHIX_CACHES != '' && secrets.CACHIX_AUTH_TOKEN != '' }}
-        uses: cachix/cachix-action@v10
+      - name: Run formatter
+        run: task fmt
+
+      - name: Run configuration tests
+        run: task test
+
+      - name: Build system configurations
+        run: task ${{ matrix.test-target }}
+
+      - name: Upload build artifacts
+        if: matrix.system == 'x86_64-linux'
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ secrets.CACHIX_CACHES }}
+          name: nixos-configurations-${{ github.sha }}
+          path: |
+            result
+          retention-days: 7
+
+  # macOS-specific testing
+  macos-integration:
+    name: macOS Integration Tests
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/nix-cache-action@v1
+
+      - name: Install Task
+        run: nix profile install nixpkgs#go-task
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: macos-nix-store-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            macos-nix-store-
+
+      - name: Test individual Darwin configurations
+        run: |
+          task build:darwin:will-stride-mbp
+          task build:darwin:megamanx
+
+      - name: Test macOS-specific features
+        run: |
+          echo "Testing macOS-specific configurations..."
+          # Test that aerospace configuration builds
+          nix build .#darwinConfigurations."Will-Stride-MBP".config.services.aerospace.package
+          # Test that homebrew casks are valid
+          nix build .#darwinConfigurations."Will-Stride-MBP".config.homebrew.casks
+
+  # Publish to Cachix (optional)
+  publish-cache:
+    name: Publish to Cachix
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.CACHIX_AUTH_TOKEN != ''
+    environment: cachix
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: ${{ secrets.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Add nix profile bin to PATH for later steps
+      - name: Build and cache all configurations
         run: |
-          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+          nix build .#darwinConfigurations."Will-Stride-MBP".config.system.build.toplevel
+          nix build .#darwinConfigurations."MegamanX".config.system.build.toplevel
+          nix build .#nixosConfigurations."drlight".config.system.build.toplevel
+          nix build .#nixosConfigurations."zero".config.system.build.toplevel
 
-      - name: Install devenv CLI via Nix (and provide fallbacks)
-        id: install_tools
+  # Release artifacts
+  release-artifacts:
+    name: Release Build Artifacts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+    needs: [test-matrix]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nixos-configurations-${{ github.sha }}
+
+      - name: Create release archives
         run: |
-          set -euo pipefail
+          tar -czf nixos-configurations.tar.gz result/
+          sha256sum nixos-configurations.tar.gz > nixos-configurations.tar.gz.sha256
 
-          # Try to install devenv into the user profile.
-          # If install fails, we'll record that and continue to the fallback installer.
-          echo "Installing devenv..."
-          if nix profile install nixpkgs#devenv; then
-            echo "devenv_installed=true" >> $GITHUB_OUTPUT
-          else
-            echo "devenv_installed=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Also prepare fallback tools in case devenv cannot be used.
-          echo "Installing fallback tools (task and alejandra) into profile..."
-          if nix profile install nixpkgs#task nixpkgs#alejandra; then
-            echo "fallback_tools_installed=true" >> $GITHUB_OUTPUT
-          else
-            echo "fallback_tools_installed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Debug: show environment & git status
-        run: |
-          echo "===== PATH ====="
-          echo "$PATH"
-          echo "===== $HOME/.nix-profile/bin contents ====="
-          ls -la "$HOME/.nix-profile/bin" || true
-          echo "===== git status ====="
-          git status --porcelain --untracked-files=all || true
-          echo "===== git branch ====="
-          git rev-parse --abbrev-ref HEAD || true
-
-      - name: Verify tools
-        run: |
-          echo "Which devenv (if any):"
-          command -v devenv || echo "devenv not found"
-          echo "Which task (if any):"
-          command -v task || echo "task not found"
-          echo "Which alejandra (if any):"
-          command -v alejandra || echo "alejandra not found"
-          echo "Versions (best-effort):"
-          devenv --version || true
-          task --version || true
-          alejandra --version || true
-
-      - name: Run formatter (use devenv if available, otherwise fallback)
-        env:
-          DEENV_OK: ${{ steps.install_tools.outputs.devenv_installed }}
-          FALLBACK_OK: ${{ steps.install_tools.outputs.fallback_tools_installed }}
-        run: |
-          set -euo pipefail
-
-          # Prefer using devenv to ensure the same environment developers use
-          if [ "${DEENV_OK:-false}" = "true" ] && command -v devenv >/dev/null 2>&1; then
-            echo "Running formatter via devenv..."
-            if ! devenv run -- task fmt; then
-              echo "devenv run task fmt failed; attempting to continue with fallback tools"
-            fi
-          fi
-
-          # If formatter not present via devenv, try installed fallback task/alejandra
-          if command -v task >/dev/null 2>&1; then
-            echo "Running formatter via local 'task'..."
-            task fmt || true
-          else
-            echo "No 'task' available to run formatter. Marking as failed."
-            exit 1
-          fi
-
-          # If formatting changed files, show them and fail the job so PRs must include formatted changes.
-          if ! git diff --quiet; then
-            echo "Formatting changes were made by 'task fmt'. Please run 'task fmt' locally and include the changes in your PR."
-            echo "Files changed:"
-            git --no-pager diff --name-only
-            echo "Full diff:"
-            git --no-pager diff || true
-            exit 1
-          else
-            echo "No formatting changes detected."
-          fi
-
-      - name: Run tests (use devenv if available, otherwise fallback)
-        env:
-          DEENV_OK: ${{ steps.install_tools.outputs.devenv_installed }}
-          FALLBACK_OK: ${{ steps.install_tools.outputs.fallback_tools_installed }}
-        run: |
-          set -euo pipefail
-
-          if [ "${DEENV_OK:-false}" = "true" ] && command -v devenv >/dev/null 2>&1; then
-            echo "Running tests via devenv (task test -> nix flake check)..."
-            devenv run -- task test
-          else
-            echo "devenv not available; using fallback 'task test' if present..."
-            if command -v task >/dev/null 2>&1; then
-              task test
-            else
-              echo "task is not available; cannot run tests."
-              exit 1
-            fi
-          fi
-
-      - name: Final debug (show successful completion context)
-        if: always()
-        run: |
-          echo "CI job finished. Current git status (post-steps):"
-          git status --porcelain --untracked-files=all || true
-          echo "List of modified files (if any):"
-          git --no-pager diff --name-only || true
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            nixos-configurations.tar.gz
+            nixos-configurations.tar.gz.sha256
+          generate_release_notes: true
