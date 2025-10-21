@@ -124,7 +124,7 @@ tasks:
     desc: "Set secrets file using 1Password CLI"
     cmds:
       - echo "🔐 Storing secrets to 1Password..."
-      - op create document secrets.nix --title "Nix Secrets" --vault personal --tags nix,secrets
+      - op document create secrets.nix --vault personal --title "Nix Secrets" --tags nix,secrets
       - echo "✅ Secrets stored in 1Password"
 
   1password:setup:
