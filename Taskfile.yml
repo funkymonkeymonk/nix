@@ -114,14 +114,45 @@ tasks:
     cmd: devenv update
 
   secrets-get:
-    desc: "Get secrets file using 1Password cli"
-    cmd: echo "Not Yet Implemented"
+    desc: "Get secrets file using 1Password CLI"
+    cmds:
+      - echo "🔐 Retrieving secrets from 1Password..."
+      - op read "op://personal/nix-secrets/secrets.nix" > secrets.nix
+      - echo "✅ Secrets retrieved and saved to secrets.nix"
 
   secrets-set:
-    desc: "Set secrets file using 1Password cli"
+    desc: "Set secrets file using 1Password CLI"
     cmds:
-      - op --version
-      - echo "Not Yet Implemented"
+      - echo "🔐 Storing secrets to 1Password..."
+      - op create document secrets.nix --title "Nix Secrets" --vault personal --tags nix,secrets
+      - echo "✅ Secrets stored in 1Password"
+
+  1password:setup:
+    desc: "Set up 1Password CLI authentication"
+    cmds:
+      - echo "🔐 Setting up 1Password CLI..."
+      - echo "Please sign in to 1Password CLI:"
+      - op signin
+      - echo "✅ 1Password CLI authenticated"
+
+  1password:status:
+    desc: "Check 1Password CLI authentication status"
+    cmds:
+      - echo "🔐 Checking 1Password CLI status..."
+      - op account list
+      - echo "✅ 1Password CLI is authenticated"
+
+  secrets:init:
+    desc: "Initialize secrets management with 1Password"
+    cmds:
+      - echo "🔐 Initializing secrets management..."
+      - echo "1. Copy secrets.nix.template to secrets.nix"
+      - echo "2. Fill in your secrets in secrets.nix"
+      - echo "3. Run 'task secrets-set' to store in 1Password"
+      - echo "4. Run 'task secrets-get' to retrieve from 1Password"
+      - 'echo "5. Enable secrets in your configuration: myConfig.secrets.enable = true"'
+      - cp secrets.nix.template secrets.nix
+      - echo "✅ Template copied to secrets.nix - edit it with your secrets"
 
   init:
     desc: Initial setup commands

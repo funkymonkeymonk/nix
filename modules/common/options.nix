@@ -64,6 +64,14 @@ with lib;
         description = "Enable media applications and tools";
       };
     };
+
+    secrets = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable secret management with 1Password";
+      };
+    };
   };
 
 

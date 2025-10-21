@@ -69,6 +69,13 @@ task lint              # Run linters (deadnix)
 task quality           # Run all code quality checks (fmt + lint)
 task dev               # Enter development shell with all tools
 task devenv:update     # Update devenv lock file
+
+# Secrets Management (requires 1Password CLI)
+task 1password:setup   # Set up 1Password CLI authentication
+task 1password:status  # Check 1Password CLI status
+task secrets:init      # Initialize secrets template
+task secrets-get       # Retrieve secrets from 1Password
+task secrets-set       # Store secrets in 1Password
 ```
 
 #### Development Tools
@@ -78,6 +85,31 @@ The development environment includes:
 - **Language server**: nil
 - **Analysis tools**: nix-tree, nvd
 - **Utilities**: ripgrep, fd, jq, mdbook
+
+### Secrets Management
+
+This configuration supports secure secret management using 1Password CLI. Secrets are stored encrypted in 1Password and retrieved at build time.
+
+#### Setup
+1. **Install 1Password CLI**: Ensure `op` command is available
+2. **Authenticate**: Run `task 1password:setup` to sign in
+3. **Initialize secrets**: Run `task secrets:init` to create a secrets template
+4. **Configure secrets**: Edit `secrets.nix` with your sensitive data
+5. **Store securely**: Run `task secrets-set` to store in 1Password
+6. **Enable in config**: Set `myConfig.secrets.enable = true` in your target
+
+#### Supported Secrets
+- Git configuration (username, email, GitHub tokens)
+- API keys (OpenAI, Anthropic, etc.)
+- Database credentials
+- Cloud service credentials (AWS, DigitalOcean)
+- Personal information
+
+#### Security Notes
+- Secrets file is gitignored and never committed
+- 1Password provides end-to-end encryption
+- Secrets are only accessible during Nix builds
+- No secrets are stored in the Nix store
 
 ## 🤖 CI/CD Pipeline
 
