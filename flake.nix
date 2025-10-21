@@ -60,6 +60,7 @@
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
+          system.primaryUser = "willweaver";
           # Configure users through the modular system
           myConfig.users = [
             {
@@ -97,6 +98,7 @@
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
+          system.primaryUser = "monkey";
           # Configure users through the modular system
           myConfig.users = [
             {

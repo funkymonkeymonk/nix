@@ -17,10 +17,14 @@ with lib;
     ];
 
     # Configure users based on myConfig.users
-    # Note: Shell and home directories are handled by target-specific configurations
+    # Note: Shell is handled by target-specific configurations
     users.users = listToAttrs (map (user: {
       name = user.name;
-      value = {} // optionalAttrs user.isAdmin {
+      value = {
+        home = if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+               then "/Users/${user.name}"
+               else "/home/${user.name}";
+      } // optionalAttrs user.isAdmin {
         # Additional admin configuration if needed
       };
     }) config.myConfig.users);
@@ -31,10 +35,7 @@ with lib;
       value = {
         home = {
           username = user.name;
-          homeDirectory = config.users.users.${user.name}.home or
-                         (if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
-                          then "/Users/${user.name}"
-                          else "/home/${user.name}");
+          homeDirectory = lib.mkDefault "/home/${user.name}";
           stateVersion = "25.05";
         };
 
