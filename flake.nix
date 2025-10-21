@@ -48,7 +48,7 @@
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
-        ./minimal.nix
+        ./bundles/minimal
         ./os/darwin.nix
         ./homebrew.nix
         ./aerospace.nix
@@ -70,7 +70,7 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
-        ./minimal.nix
+        ./bundles/minimal
         ./os/darwin.nix
         ./homebrew.nix
         ./aerospace.nix
@@ -113,7 +113,7 @@
           nixpkgs.hostPlatform = "x86_64-linux";
         }
         configuration
-        ./minimal.nix
+        ./bundles/minimal
         ./1password.nix
         home-manager.nixosModules.home-manager
         {
@@ -134,7 +134,7 @@
           nixpkgs.hostPlatform = "x86_64-linux";
         }
         configuration
-        ./minimal.nix
+        ./bundles/minimal
         ./1password.nix
         home-manager.nixosModules.home-manager
         {

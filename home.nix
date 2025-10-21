@@ -85,6 +85,7 @@
     gf = "git fetch --prune";
     gr = "git restore --source";
     grh = "git reset --hard";
+    try = "nix-shell -p";
   };
 
   programs.git = {
@@ -110,6 +111,10 @@
     };
   };
 
+  services.syncthing = {
+    enable = true;
+  };
+
   programs.alacritty = {
     enable = true;
     settings = {
@@ -128,10 +133,6 @@
     shellIntegration.enableZshIntegration = true;
   };
 
-  services.syncthing = {
-    enable = true;
-  };
-
   programs.emacs = {
     enable = true;
     package = pkgs.emacs-macport;
@@ -139,6 +140,7 @@
       (setq standard-indent 2)
     '';
   };
+
   programs.ssh = {
     enable = true;
 
