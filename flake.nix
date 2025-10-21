@@ -48,20 +48,33 @@
     darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
-        ./bundles/minimal
+        ./modules/common/options.nix
+        ./modules/common/users.nix
+        ./modules/common/packages.nix
+        ./bundles/base
+        ./bundles/roles/developer
+        ./bundles/roles/workstation
+        ./bundles/platforms/darwin
         ./os/darwin.nix
         ./homebrew.nix
-        ./aerospace.nix
+        ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "willweaver";
+          # Configure users through the modular system
+          myConfig.users = [
+            {
+              name = "willweaver";
+              email = "me@willweaver.dev";
+              fullName = "Will Weaver";
+              isAdmin = true;
+            }
+          ];
+          myConfig.development.enable = true;
         }
         home-manager.darwinModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.willweaver = import ./home.nix;
-          users.users.willweaver.home = "/Users/willweaver/";
         }
       ];
     };
@@ -70,20 +83,36 @@
       modules = [
         mac-app-util.darwinModules.default
         configuration
-        ./bundles/minimal
+        ./modules/common/options.nix
+        ./modules/common/users.nix
+        ./modules/common/packages.nix
+        ./bundles/base
+        ./bundles/roles/developer
+        ./bundles/roles/creative
+        ./bundles/roles/gaming
+        ./bundles/roles/workstation
+        ./bundles/platforms/darwin
         ./os/darwin.nix
         ./homebrew.nix
-        ./aerospace.nix
+        ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "monkey";
+          # Configure users through the modular system
+          myConfig.users = [
+            {
+              name = "monkey";
+              email = "monkey@willweaver.dev";
+              fullName = "Monkey";
+              isAdmin = true;
+            }
+          ];
+          myConfig.development.enable = true;
+          myConfig.media.enable = true;
         }
         home-manager.darwinModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.monkey = import ./home.nix;
-          users.users.monkey.home = "/Users/monkey/";
         }
         {
           homebrew.casks = [
@@ -107,40 +136,72 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
+        ./modules/common/options.nix
+        ./modules/common/users.nix
+        ./modules/common/packages.nix
+        ./modules/nixos/hardware.nix
+        ./modules/nixos/services.nix
+        ./bundles/base
+        ./bundles/roles/developer
+        ./bundles/roles/creative
+        ./bundles/platforms/linux
         ./os/nixos.nix
         ./targets/drlight
         {
           nixpkgs.hostPlatform = "x86_64-linux";
+          # Configure users through the modular system
+          myConfig.users = [
+            {
+              name = "monkey";
+              email = "monkey@willweaver.dev";
+              fullName = "Monkey";
+              isAdmin = true;
+            }
+          ];
+          myConfig.development.enable = true;
+          myConfig.media.enable = true;
         }
         configuration
-        ./bundles/minimal
         ./1password.nix
         home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.monkey = import ./linux-home.nix;
         }
-        ./jellyfin.nix
       ];
     };
 
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
+        ./modules/common/options.nix
+        ./modules/common/users.nix
+        ./modules/common/packages.nix
+        ./modules/nixos/hardware.nix
+        ./bundles/base
+        ./bundles/roles/developer
+        ./bundles/platforms/linux
         ./os/nixos.nix
         ./targets/zero
         {
           nixpkgs.hostPlatform = "x86_64-linux";
+          # Configure users through the modular system
+          myConfig.users = [
+            {
+              name = "monkey";
+              email = "monkey@willweaver.dev";
+              fullName = "Monkey";
+              isAdmin = true;
+            }
+          ];
+          myConfig.development.enable = true;
         }
         configuration
-        ./bundles/minimal
         ./1password.nix
         home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-          home-manager.users.monkey = import ./linux-home.nix;
         }
       ];
     };
