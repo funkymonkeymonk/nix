@@ -7,8 +7,9 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 - **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS)
 - **Modular architecture**: Shared configurations with role-based bundles
 - **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing
-- **Development environment**: Devenv integration with pre-commit hooks
+- **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
 - **Task automation**: Go-task integration for local and CI workflows
+- **Code quality**: Automated formatting and linting with alejandra and deadnix
 
 ## 📁 Project Structure
 
@@ -49,14 +50,34 @@ task build
 task fmt
 ```
 
-### Available Tasks
+### Development Environment
+
+The project uses [devenv](https://devenv.sh) for a consistent development environment with pre-commit hooks and development tools.
+
+#### Pre-commit Hooks
+- **Alejandra**: Nix code formatter (runs automatically on commit)
+- **Deadnix**: Dead code detection (runs automatically on commit)
+
+#### Available Tasks
 ```bash
 task test              # Validate all configurations
 task build             # Build all systems
 task build:darwin      # Build macOS configurations
 task build:nixos       # Build Linux configurations
-task fmt               # Format Nix files
+task fmt               # Format Nix files with alejandra
+task lint              # Run linters (deadnix)
+task quality           # Run all code quality checks (fmt + lint)
+task dev               # Enter development shell with all tools
+task devenv:update     # Update devenv lock file
 ```
+
+#### Development Tools
+The development environment includes:
+- **Code formatting**: alejandra, nixpkgs-fmt
+- **Linting**: deadnix
+- **Language server**: nil
+- **Analysis tools**: nix-tree, nvd
+- **Utilities**: ripgrep, fd, jq, mdbook
 
 ## 🤖 CI/CD Pipeline
 

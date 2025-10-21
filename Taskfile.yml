@@ -87,6 +87,32 @@ tasks:
     cmds:
       - alejandra *.nix
 
+  lint:
+    desc: Run linters on all nix files.
+    aliases:
+      - l
+    cmds:
+      - echo "🔍 Running deadnix (dead code finder)..."
+      - devenv shell -- deadnix .
+
+  quality:
+    desc: Run all code quality checks (format + lint).
+    aliases:
+      - q
+    cmds:
+      - task: fmt
+      - task: lint
+
+  dev:
+    desc: Enter development shell with all tools available.
+    aliases:
+      - d
+    cmd: devenv shell
+
+  devenv:update:
+    desc: Update devenv lock file.
+    cmd: devenv update
+
   secrets-get:
     desc: "Get secrets file using 1Password cli"
     cmd: echo "Not Yet Implemented"
