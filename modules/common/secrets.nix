@@ -1,11 +1,14 @@
-{ config, lib, ... }:
-
-let
+{
+  config,
+  lib,
+  ...
+}: let
   cfg = config.myConfig.secrets;
 
   # Try to load secrets from various sources
   secretsFile = ../secrets.nix;
-  secretsFromFile = if builtins.pathExists secretsFile
+  secretsFromFile =
+    if builtins.pathExists secretsFile
     then import secretsFile
     else {};
 
@@ -48,7 +51,6 @@ let
 
   # Merge defaults with loaded secrets
   secrets = lib.recursiveUpdate defaultSecrets secretsFromFile;
-
 in {
   options.myConfig.secrets = {
     # Allow overriding secrets file path

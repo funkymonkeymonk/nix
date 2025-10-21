@@ -1,6 +1,5 @@
-{ lib, ... }:
-with lib;
-{
+{lib, ...}:
+with lib; {
   options.myConfig = {
     users = mkOption {
       type = types.listOf (types.submodule {
@@ -73,6 +72,4 @@ with lib;
       };
     };
   };
-
-
 }
