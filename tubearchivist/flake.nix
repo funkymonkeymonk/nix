@@ -18,9 +18,11 @@
 
     pyproject-build-systems = {
       url = "github:pyproject-nix/build-system-pkgs";
-      inputs.pyproject-nix.follows = "pyproject-nix";
-      inputs.uv2nix.follows = "uv2nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        pyproject-nix.follows = "pyproject-nix";
+        uv2nix.follows = "uv2nix";
+        nixpkgs.follows = "nixpkgs";
+      };
     };
   };
 
@@ -68,10 +70,13 @@
             pythonSet =
               (pkgs.callPackage pyproject-nix.build.packages {
                 python = pkgs.python3;
-              }).overrideScope (lib.composeManyExtensions [
-                pyproject-build-systems.overlays.wheel
-                overlay
-              ]);
+              }).overrideScope
+              (
+                lib.composeManyExtensions [
+                  pyproject-build-systems.overlays.wheel
+                  overlay
+                ]
+              );
 
             # Create a virtualenv package with the project's default deps.
             tubearchivistPkg = pythonSet.mkVirtualEnv "tubearchivist-env" workspace.deps.default;

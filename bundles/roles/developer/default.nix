@@ -1,5 +1,4 @@
-{ config, lib, pkgs, ... }:
-{
+{pkgs, ...}: {
   # Developer role bundle - tools for software development
   environment.systemPackages = with pkgs; [
     # Version control
@@ -46,5 +45,8 @@
     fzf
     zinit
     antigen
+
+    # AI Tools
+    unstable.opencode
   ];
 }

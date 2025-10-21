@@ -4,43 +4,24 @@
   lib,
   ...
 }: {
+  # Networking & basic system settings
   networking = {
     hostName = "zero";
     networkmanager.enable = true;
   };
+
   time.timeZone = "America/New_York";
-  services.openssh.enable = true;
-  # networking.wireless.enable = true;
 
   imports = [
     ./hardware-configuration.nix
   ];
 
-  services.displayManager.sddm.enable = true;
-  services.displayManager.sddm.wayland.enable = true;
-  services.desktopManager.plasma6.enable = true;
-
-  services.printing.enable = true;
-
-  # Enable sound with pipewire.
-  services.pulseaudio.enable = false;
-  security.rtkit.enable = true;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-  };
-
-  # Enable automatic login for the user.
-  services.displayManager.autoLogin.enable = true;
-  services.displayManager.autoLogin.user = "monkey";
-
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # Packages
   environment.systemPackages = with pkgs; [
-    vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    vim
     wget
     lutris
     protonup-qt
@@ -50,14 +31,10 @@
 
   networking.firewall.enable = false;
 
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It‘s perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  # Before changing this value read the documentation for this option
-  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "25.05"; # Did you read the comment?
+  # System state version
+  system.stateVersion = "25.05";
 
+  # Sleep/hibernate policy
   systemd.sleep.extraConfig = ''
     AllowSuspend=no
     AllowHibernation=no
@@ -65,59 +42,132 @@
     AllowSuspendThenHibernate=no
   '';
 
-  services.xserver.videoDrivers = ["nvidia"];
-  hardware.graphics.enable = true;
-  # Temporary fix for nvidia driver issue
+  # Kernel / boot overrides
   boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_16;
-  hardware.nvidia = {
-    open = false;
-    package = config.boot.kernelPackages.nvidiaPackages.stable;
+
+  # Security/runtime
+  security.rtkit.enable = true;
+
+  #
+  # Consolidated `services` attribute set
+  #
+  services = {
+    # SSH
+    openssh.enable = true;
+
+    # Display manager & desktop
+    displayManager = {
+      sddm = {
+        enable = true;
+        wayland.enable = true;
+      };
+      autoLogin = {
+        enable = true;
+        user = "monkey";
+      };
+    };
+
+    desktopManager.plasma6.enable = true;
+
+    # Printing
+    printing.enable = true;
+
+    # Audio
+    pulseaudio.enable = false;
+
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+    };
+
+    # X / graphics-related services
+    xserver = {
+      videoDrivers = ["nvidia"];
+    };
+
+    # Sunshine (game streaming)
+    sunshine = {
+      enable = true;
+      autoStart = true;
+      capSysAdmin = true; # only needed for Wayland -- omit this when using with Xorg
+      openFirewall = true;
+    };
+
+    # Bluetooth helpers
+    blueman = {
+      enable = true;
+    };
+
+    # Tailscale
+    tailscale = {
+      enable = true;
+    };
+
+    # Keep a placeholder so other modules that reference services.sunshine still work
+    # (the actual value is defined above).
   };
 
-  programs.steam = {
-    enable = true;
-    remotePlay.openFirewall = true;
-    gamescopeSession.enable = true;
-  };
+  #
+  # Consolidated `hardware` attribute set
+  #
+  hardware = {
+    graphics.enable = true;
 
-  # environment.systemPackages = with pkgs; [
-  #  mangohud
-  # ];
+    nvidia = {
+      open = false;
+      package = config.boot.kernelPackages.nvidiaPackages.stable;
+    };
 
-  programs.gamemode.enable = true;
+    xone.enable = true;
+    xpadneo.enable = true;
 
-  services.sunshine = {
-    enable = true;
-    autoStart = true;
-    capSysAdmin = true; # only needed for Wayland -- omit this when using with Xorg
-    openFirewall = true;
-  };
-
-  programs.kdeconnect.enable = true;
-
-  hardware.xone.enable = true;
-  hardware.xpadneo.enable = true;
-
-  hardware.bluetooth = {
-    enable = true;
-    powerOnBoot = true;
-    settings = {
-      General = {
-        Experimental = true;
+    bluetooth = {
+      enable = true;
+      powerOnBoot = true;
+      settings = {
+        General = {
+          Experimental = true;
+        };
       };
     };
   };
 
-  services.blueman.enable = true;
+  #
+  # Consolidated `programs` attribute set
+  #
+  programs = {
+    steam = {
+      enable = true;
+      remotePlay.openFirewall = true;
+      gamescopeSession.enable = true;
+    };
 
-  # enable the tailscale service
-  services.tailscale.enable = true;
+    gamemode = {
+      enable = true;
+    };
+
+    kdeconnect = {
+      enable = true;
+    };
+  };
+
+  #
+  # systemd helper service (left at top-level as a systemd service)
+  #
   systemd.services.tailscale-autoconnect = {
     description = "Automatic connection to Tailscale";
 
     # make sure tailscale is running before trying to connect to tailscale
-    after = ["network-pre.target" "tailscale.service"];
-    wants = ["network-pre.target" "tailscale.service"];
+    after = [
+      "network-pre.target"
+      "tailscale.service"
+    ];
+    wants = [
+      "network-pre.target"
+      "tailscale.service"
+    ];
     wantedBy = ["multi-user.target"];
 
     # set this service as a oneshot job
@@ -130,7 +180,8 @@
 
       # check if we are already authenticated to tailscale
       status="$(${tailscale}/bin/tailscale status -json | ${jq}/bin/jq -r .BackendState)"
-      if [ $status = "Running" ]; then # if so, then do nothing
+      if [ "$status" = "Running" ]; then
+        # if so, then do nothing
         exit 0
       fi
 
@@ -139,17 +190,23 @@
     '';
   };
 
+  #
+  # Users
+  #
   users.users.monkey = {
     isNormalUser = true;
     description = "monkey";
-    extraGroups = ["networkmanager" "wheel"];
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+    ];
     shell = pkgs.zsh;
     home = "/home/monkey";
   };
 
-  # Provide a minimal system-wide /etc/zshrc managed by Nix.
-  # It sets SHELL to the Nix-provided zsh, initializes completion safely,
-  # and sources the user's ~/.zshrc if present.
+  #
+  # /etc/zshrc managed by Nix
+  #
   environment.etc."zshrc".text = ''
     # /etc/zshrc - system-wide configuration managed by Nix
     export SHELL=${pkgs.zsh}/bin/zsh
