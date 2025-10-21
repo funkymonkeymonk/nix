@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }: let
   cfg = config.myConfig.secrets;
@@ -23,6 +22,30 @@
     ssh = {
       privateKey = null;
       publicKey = null;
+    };
+    apiKeys = {
+      openai = null;
+      anthropic = null;
+      huggingface = null;
+    };
+    databases = {};
+    cloud = {
+      aws = {
+        accessKeyId = null;
+        secretAccessKey = null;
+        region = "us-east-1";
+      };
+      digitalocean = {
+        token = null;
+      };
+    };
+    personal = {
+      homeAddress = null;
+      phoneNumbers = {
+        primary = null;
+        work = null;
+      };
+      birthday = null;
     };
   };
 
@@ -59,19 +82,31 @@ in {
       };
     };
 
-    ssh = {
-      privateKey = lib.mkOption {
+    apiKeys = {
+      openai = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
-        default = secrets.ssh.privateKey;
+        default = secrets.apiKeys.openai;
         readOnly = true;
-        description = "SSH private key";
+        description = "OpenAI API key";
       };
-      publicKey = lib.mkOption {
+      anthropic = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
-        default = secrets.ssh.publicKey;
+        default = secrets.apiKeys.anthropic;
         readOnly = true;
-        description = "SSH public key";
+        description = "Anthropic API key";
       };
     };
+  };
+
+  config = lib.mkIf cfg.enable {
+    # Set up environment variables for API keys
+    environment.sessionVariables = lib.mkMerge [
+      (lib.mkIf (cfg.apiKeys.openai != null) {
+        OPENAI_API_KEY = cfg.apiKeys.openai;
+      })
+      (lib.mkIf (cfg.apiKeys.anthropic != null) {
+        ANTHROPIC_API_KEY = cfg.apiKeys.anthropic;
+      })
+    ];
   };
 }
