@@ -154,6 +154,80 @@ tasks:
       - cp secrets.nix.template secrets.nix
       - echo "✅ Template copied to secrets.nix - edit it with your secrets"
 
+  secrets:populate:
+    desc: "Automatically populate secrets.nix from 1Password items"
+    cmds:
+      - echo "🔐 Populating secrets from 1Password..."
+      - |
+        # Read secrets from 1Password with fallbacks
+        GIT_USERNAME=$(op read "op://personal/git/username" 2>/dev/null || echo "Your Name")
+        GIT_EMAIL=$(op read "op://personal/git/email" 2>/dev/null || echo "your.email@example.com")
+        GITHUB_TOKEN=$(op read "op://personal/github/token" 2>/dev/null || echo "")
+        OPENAI_KEY=$(op read "op://personal/openai/api-key" 2>/dev/null || echo "")
+        ANTHROPIC_KEY=$(op read "op://personal/anthropic/api-key" 2>/dev/null || echo "")
+        HUGGINGFACE_TOKEN=$(op read "op://personal/huggingface/token" 2>/dev/null || echo "")
+        AWS_ACCESS_KEY=$(op read "op://personal/aws/access-key-id" 2>/dev/null || echo "")
+        AWS_SECRET_KEY=$(op read "op://personal/aws/secret-access-key" 2>/dev/null || echo "")
+        AWS_REGION=$(op read "op://personal/aws/region" 2>/dev/null || echo "us-east-1")
+        DO_TOKEN=$(op read "op://personal/digitalocean/token" 2>/dev/null || echo "")
+        HOME_ADDRESS=$(op read "op://personal/address/home" 2>/dev/null || echo "")
+        PHONE_PRIMARY=$(op read "op://personal/phone/primary" 2>/dev/null || echo "")
+        PHONE_WORK=$(op read "op://personal/phone/work" 2>/dev/null || echo "")
+        BIRTHDAY=$(op read "op://personal/birthday" 2>/dev/null || echo "")
+
+        # Generate secrets.nix file
+        cat > secrets.nix << EOF
+        # Auto-generated secrets from 1Password
+        # Generated on $(date)
+        {
+          # Git configuration
+          git = {
+            userName = "$GIT_USERNAME";
+            userEmail = "$GIT_EMAIL";
+            githubToken = "$GITHUB_TOKEN";
+          };
+
+          # SSH keys (optional)
+          ssh = {
+            privateKey = "";
+            publicKey = "";
+          };
+
+          # API keys and tokens
+          apiKeys = {
+            openai = "$OPENAI_KEY";
+            anthropic = "$ANTHROPIC_KEY";
+            huggingface = "$HUGGINGFACE_TOKEN";
+          };
+
+          # Database credentials
+          databases = {};
+
+          # Cloud service credentials
+          cloud = {
+            aws = {
+              accessKeyId = "$AWS_ACCESS_KEY";
+              secretAccessKey = "$AWS_SECRET_KEY";
+              region = "$AWS_REGION";
+            };
+            digitalocean = {
+              token = "$DO_TOKEN";
+            };
+          };
+
+          # Personal/private configuration
+          personal = {
+            homeAddress = "$HOME_ADDRESS";
+            phoneNumbers = {
+              primary = "$PHONE_PRIMARY";
+              work = "$PHONE_WORK";
+            };
+            birthday = "$BIRTHDAY";
+          };
+        }
+        EOF
+      - echo "✅ Secrets populated from 1Password (missing values left empty)"
+
   init:
     desc: Initial setup commands
     cmds:
