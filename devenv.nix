@@ -1,7 +1,4 @@
-{
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   packages = [
     pkgs.git
     pkgs.go-task
@@ -32,9 +29,9 @@
       alejandra = {
         enable = true;
       };
-      # statix = {
-      #   enable = true;  # Disabled due to many existing repeated attribute warnings
-      # };
+      statix = {
+        enable = true;
+      };
       deadnix = {
         enable = true;
       };

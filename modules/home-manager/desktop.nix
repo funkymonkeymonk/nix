@@ -1,5 +1,4 @@
-{ config, lib, pkgs, ... }:
-{
+{pkgs, ...}: {
   services.aerospace = {
     enable = true;
     package = pkgs.unstable.aerospace;
@@ -12,10 +11,12 @@
       gaps = {
         inner.horizontal = 0;
         inner.vertical = 0;
-        outer.left = 0;
-        outer.bottom = 0;
-        outer.top = 0;
-        outer.right = 0;
+        outer = {
+          left = 0;
+          bottom = 0;
+          top = 0;
+          right = 0;
+        };
       };
 
       mode.main.binding = {

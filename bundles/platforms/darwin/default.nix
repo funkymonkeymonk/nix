@@ -1,5 +1,4 @@
-{ config, lib, pkgs, ... }:
-{
+{pkgs, ...}: {
   # macOS-specific packages and configuration
   environment.systemPackages = with pkgs; [
     # macOS-specific utilities
@@ -10,12 +9,14 @@
     alacritty-theme
 
     # Development tools with macOS support
-    colima  # Docker alternative for macOS
+    colima # Docker alternative for macOS
   ];
 
   # 1Password integration
-  programs._1password.enable = true;
-  programs._1password-gui.enable = true;
-  programs._1password.package = pkgs.unstable._1password-cli;
-  programs._1password-gui.package = pkgs.unstable._1password-gui;
+  programs = {
+    _1password.enable = true;
+    _1password-gui.enable = true;
+    _1password.package = pkgs.unstable._1password-cli;
+    _1password-gui.package = pkgs.unstable._1password-gui;
+  };
 }

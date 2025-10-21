@@ -39,7 +39,7 @@
     forAllSystems (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        lib = pkgs.lib;
+        inherit (pkgs) lib;
 
         isX86Linux = system == "x86_64-linux";
 

@@ -4,8 +4,10 @@
   lib,
   ...
 }: {
-  networking.hostName = "zero";
-  networking.networkmanager.enable = true;
+  networking = {
+    hostName = "zero";
+    networkmanager.enable = true;
+  };
   time.timeZone = "America/New_York";
   services.openssh.enable = true;
   # networking.wireless.enable = true;
@@ -37,20 +39,14 @@
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
-  environment.systemPackages = let
-    unstable = import <nixos-unstable> {};
-  in
-    with pkgs;
-      [
-        vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-        wget
-        lutris
-        protonup-qt
-        discord
-        tailscale
-      ]
-      ++ [
-      ];
+  environment.systemPackages = with pkgs; [
+    vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    wget
+    lutris
+    protonup-qt
+    discord
+    tailscale
+  ];
 
   networking.firewall.enable = false;
 

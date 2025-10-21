@@ -20,7 +20,7 @@
     mac-app-util.url = "github:hraban/mac-app-util";
   };
 
-  outputs = inputs @ {
+  outputs = {
     self,
     nix-darwin,
     nixpkgs,
@@ -29,7 +29,7 @@
     mac-app-util,
     ...
   }: let
-    configuration = {pkgs, ...}: {
+    configuration = {...}: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
       system.stateVersion = "25.05";
 
@@ -62,15 +62,17 @@
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "willweaver";
           # Configure users through the modular system
-          myConfig.users = [
-            {
-              name = "willweaver";
-              email = "me@willweaver.dev";
-              fullName = "Will Weaver";
-              isAdmin = true;
-            }
-          ];
-          myConfig.development.enable = true;
+          myConfig = {
+            users = [
+              {
+                name = "willweaver";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
+                isAdmin = true;
+              }
+            ];
+            development.enable = true;
+          };
         }
         home-manager.darwinModules.home-manager
         {
@@ -100,16 +102,18 @@
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
           # Configure users through the modular system
-          myConfig.users = [
-            {
-              name = "monkey";
-              email = "monkey@willweaver.dev";
-              fullName = "Monkey";
-              isAdmin = true;
-            }
-          ];
-          myConfig.development.enable = true;
-          myConfig.media.enable = true;
+          myConfig = {
+            users = [
+              {
+                name = "monkey";
+                email = "monkey@willweaver.dev";
+                fullName = "Monkey";
+                isAdmin = true;
+              }
+            ];
+            development.enable = true;
+            media.enable = true;
+          };
         }
         home-manager.darwinModules.home-manager
         {
@@ -152,16 +156,18 @@
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           # Configure users through the modular system
-          myConfig.users = [
-            {
-              name = "monkey";
-              email = "monkey@willweaver.dev";
-              fullName = "Monkey";
-              isAdmin = true;
-            }
-          ];
-          myConfig.development.enable = true;
-          myConfig.media.enable = true;
+          myConfig = {
+            users = [
+              {
+                name = "monkey";
+                email = "monkey@willweaver.dev";
+                fullName = "Monkey";
+                isAdmin = true;
+              }
+            ];
+            development.enable = true;
+            media.enable = true;
+          };
         }
         configuration
         ./1password.nix
@@ -188,15 +194,17 @@
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           # Configure users through the modular system
-          myConfig.users = [
-            {
-              name = "monkey";
-              email = "monkey@willweaver.dev";
-              fullName = "Monkey";
-              isAdmin = true;
-            }
-          ];
-          myConfig.development.enable = true;
+          myConfig = {
+            users = [
+              {
+                name = "monkey";
+                email = "monkey@willweaver.dev";
+                fullName = "Monkey";
+                isAdmin = true;
+              }
+            ];
+            development.enable = true;
+          };
         }
         configuration
         ./1password.nix

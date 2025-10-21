@@ -1,7 +1,10 @@
-{ config, lib, ... }:
-with lib;
 {
-  imports = [ ./options.nix ];
+  config,
+  lib,
+  ...
+}:
+with lib; {
+  imports = [./options.nix];
 
   config = {
     # Validation assertions
@@ -19,50 +22,57 @@ with lib;
     # Configure users based on myConfig.users
     # Note: Shell is handled by target-specific configurations
     users.users = listToAttrs (map (user: {
-      name = user.name;
-      value = {
-        home = if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
-               then "/Users/${user.name}"
-               else "/home/${user.name}";
-      } // optionalAttrs user.isAdmin {
-        # Additional admin configuration if needed
-      };
-    }) config.myConfig.users);
+        inherit (user) name;
+        value =
+          {
+            home =
+              if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+              then "/Users/${user.name}"
+              else "/home/${user.name}";
+          }
+          // optionalAttrs user.isAdmin {
+            # Additional admin configuration if needed
+          };
+      })
+      config.myConfig.users);
 
     # Configure home-manager for each user
     home-manager.users = listToAttrs (map (user: {
-      name = user.name;
-      value = {
-        home = {
-          username = user.name;
-          homeDirectory = lib.mkDefault "/home/${user.name}";
-          stateVersion = "25.05";
-        };
-
-        programs.git = {
-          enable = true;
-          userName = user.name;
-          userEmail = user.email;
-          aliases = {
-            co = "checkout";
-            st = "status";
+        inherit (user) name;
+        value = {
+          home = {
+            username = user.name;
+            homeDirectory = lib.mkDefault "/home/${user.name}";
+            stateVersion = "25.05";
           };
-          difftastic = {
+
+          programs.git = {
             enable = true;
-            background = "dark";
+            userName = user.name;
+            userEmail = user.email;
+            aliases = {
+              co = "checkout";
+              st = "status";
+            };
+            difftastic = {
+              enable = true;
+              background = "dark";
+            };
+            extraConfig = {
+              pull.rebase = true;
+              push.default = "current";
+            };
           };
-          extraConfig = {
-            pull.rebase = true;
-            push.default = "current";
-          };
-        };
 
-        # Include shared home-manager modules
-        imports = [
-          ../../modules/home-manager/shell.nix
-        ] ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
-          ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix;
-      };
-    }) config.myConfig.users);
+          # Include shared home-manager modules
+          imports =
+            [
+              ../../modules/home-manager/shell.nix
+            ]
+            ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
+            ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix;
+        };
+      })
+      config.myConfig.users);
   };
 }
