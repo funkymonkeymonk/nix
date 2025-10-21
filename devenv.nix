@@ -1,8 +1,5 @@
 {
   pkgs,
-  lib,
-  config,
-  inputs,
   ...
 }: {
   packages = [
@@ -11,6 +8,7 @@
     pkgs.alejandra
     # Additional Nix development tools
     pkgs.nixpkgs-fmt
+    pkgs.statix
     pkgs.deadnix
     pkgs.nil
     pkgs.nix-tree
@@ -34,6 +32,9 @@
       alejandra = {
         enable = true;
       };
+      # statix = {
+      #   enable = true;  # Disabled due to many existing repeated attribute warnings
+      # };
       deadnix = {
         enable = true;
       };
