@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }: {
@@ -90,8 +91,8 @@
 
   programs.git = {
     enable = true;
-    userName = "willweaver";
-    userEmail = "me@willweaver.dev";
+    userName = config.home.username;
+    userEmail = "${config.home.username}@willweaver.dev";
     aliases = {
       co = "checkout";
       st = "status";
@@ -144,11 +145,13 @@
   programs.ssh = {
     enable = true;
 
-    extraConfig = ''
+    extraConfig = lib.optionalString pkgs.stdenv.isDarwin ''
       Host *
         IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
     '';
 
-    includes = ["/Users/monkey/.colima/ssh_config"];
+    includes = lib.optionals (config.home.username == "monkey") [
+      "/Users/monkey/.colima/ssh_config"
+    ];
   };
 }

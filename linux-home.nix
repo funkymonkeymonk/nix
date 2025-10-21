@@ -88,8 +88,8 @@
 
   programs.git = {
     enable = true;
-    userName = "willweaver";
-    userEmail = "me@willweaver.dev";
+    userName = config.home.username;
+    userEmail = "${config.home.username}@willweaver.dev";
     aliases = {
       co = "checkout";
       st = "status";
