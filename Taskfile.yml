@@ -23,8 +23,6 @@ tasks:
   switch:
     desc: Runs the appropriate switch command for the platform
     aliases:
-      - build
-      - b
       - s
     cmds:
       - cmd: task build-osx
@@ -32,10 +30,55 @@ tasks:
       - cmd: task build-linux
         platforms: [linux]
   test:
-    desc: Run nix flake check
+    desc: Run flake check
     aliases:
       - t
-    cmd: nix flake check
+    cmds:
+      - echo "🔍 building flake configurations..."
+      - nix flake check
+      - echo "✅ All configurations (NixOS and Darwin) validated successfully"
+
+  build:
+    desc: build all configurations
+    aliases:
+      - b
+    cmds:
+      - echo "🔍 building flake configurations..."
+      - task: build:darwin
+      - task: build:nixos
+      - echo "✅ All configurations (NixOS and Darwin) validated successfully"
+
+  build:darwin:
+    desc: build all Darwin (macOS) configurations
+    cmds:
+      - echo "🍎 building Darwin configurations..."
+      - task: build:darwin:will-stride-mbp
+      - task: build:darwin:megamanx
+      - echo "✅ All Darwin configurations validated successfully"
+
+  build:nixos:
+    desc: build all NixOS configurations
+    cmds:
+      - echo "🐧 building NixOS configurations..."
+      - task: build:nixos:drlight
+      - task: build:nixos:zero
+      - echo "✅ All NixOS configurations validated successfully"
+
+  build:darwin:will-stride-mbp:
+    desc: Build Will-Stride-MBP Darwin configuration
+    cmd: nix build .#darwinConfigurations."Will-Stride-MBP".config.system.build.toplevel
+
+  build:darwin:megamanx:
+    desc: build MegamanX Darwin configuration
+    cmd: nix build .#darwinConfigurations."MegamanX".config.system.build.toplevel
+
+  build:nixos:drlight:
+    desc: build drlight NixOS configuration
+    cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel
+
+  build:nixos:zero:
+    desc: build zero NixOS configuration
+    cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel
 
   fmt:
     desc: Run formatter on all nix files.
@@ -72,7 +115,6 @@ tasks:
       - git remote -v
       - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
       - git remote -v
-
 # TODO: Add gh auth workflow
 # TODO: Add a 1Password setup flow
 # TODO: Add a git setup flow
