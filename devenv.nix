@@ -16,6 +16,7 @@
     pkgs.jq
     # Documentation
     pkgs.mdbook
+    pkgs.nixd
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user
