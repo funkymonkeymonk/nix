@@ -76,8 +76,11 @@
         }
         home-manager.darwinModules.home-manager
         {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            users.monkey = import ./home.nix;
+          };
         }
       ];
     };
@@ -117,8 +120,11 @@
         }
         home-manager.darwinModules.home-manager
         {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            users.monkey = import ./home.nix;
+          };
         }
         {
           homebrew.casks = [

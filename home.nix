@@ -98,9 +98,6 @@
         background = "dark";
       };
       extraConfig = {
-        pull = {
-          rebase = "true";
-        };
         push = {
           default = "current";
         };
@@ -124,14 +121,6 @@
     kitty = {
       enable = true;
       shellIntegration.enableZshIntegration = true;
-    };
-
-    emacs = {
-      enable = true;
-      package = pkgs.emacs-macport;
-      extraConfig = ''
-        (setq standard-indent 2)
-      '';
     };
 
     ssh = {

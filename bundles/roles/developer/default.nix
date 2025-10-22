@@ -47,6 +47,6 @@
     antigen
 
     # AI Tools
-    unstable.opencode
+    # unstable.opencode
   ];
 }
