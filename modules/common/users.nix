@@ -42,7 +42,11 @@ with lib; {
         value = {
           home = {
             username = user.name;
-            homeDirectory = lib.mkDefault "/home/${user.name}";
+            homeDirectory = lib.mkDefault (
+              if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+              then "/Users/${user.name}"
+              else "/home/${user.name}"
+            );
             stateVersion = "25.05";
           };
 

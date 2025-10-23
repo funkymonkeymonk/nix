@@ -79,7 +79,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            users.monkey = import ./home.nix;
+            users.willweaver = import ./home.nix;
           };
         }
       ];
@@ -148,6 +148,7 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
+        configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
@@ -175,7 +176,6 @@
             media.enable = true;
           };
         }
-        configuration
         ./1password.nix
         home-manager.nixosModules.home-manager
         {
@@ -188,6 +188,7 @@
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
+        configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
@@ -212,7 +213,6 @@
             development.enable = true;
           };
         }
-        configuration
         ./1password.nix
         home-manager.nixosModules.home-manager
         {

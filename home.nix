@@ -85,26 +85,6 @@
       '';
     };
 
-    git = {
-      enable = true;
-      userName = config.home.username;
-      userEmail = "${config.home.username}@willweaver.dev";
-      aliases = {
-        co = "checkout";
-        st = "status";
-      };
-      difftastic = {
-        enable = true;
-        background = "dark";
-      };
-      extraConfig = {
-        push = {
-          default = "current";
-        };
-        # "core.editor" = "emacsclient -c -a 'emacs'";
-      };
-    };
-
     alacritty = {
       enable = true;
       settings = {

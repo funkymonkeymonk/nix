@@ -1,5 +1,5 @@
+---
 version: "3"
-
 tasks:
   default:
     aliases:
@@ -52,7 +52,7 @@ tasks:
     desc: build all Darwin (macOS) configurations
     cmds:
       - echo "🍎 building Darwin configurations..."
-      - task: build:darwin:will-stride-mbp
+      # - task: build:darwin:will-stride-mbp
       - task: build:darwin:megamanx
       - echo "✅ All Darwin configurations validated successfully"
 
@@ -61,16 +61,20 @@ tasks:
     cmds:
       - echo "🐧 building NixOS configurations..."
       - task: build:nixos:drlight
-      - task: build:nixos:zero
+      # - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
 
   build:darwin:will-stride-mbp:
     desc: Build Will-Stride-MBP Darwin configuration
-    cmd: nix build .#darwinConfigurations."Will-Stride-MBP".config.system.build.toplevel
+    cmd: |
+      nix build .#darwinConfigurations."Will-Stride-MBP".\
+      config.system.build.toplevel
 
   build:darwin:megamanx:
     desc: build MegamanX Darwin configuration
-    cmd: nix build .#darwinConfigurations."MegamanX".config.system.build.toplevel
+    cmd: |
+      nix build .#darwinConfigurations."MegamanX".\
+      config.system.build.toplevel
 
   build:nixos:drlight:
     desc: build drlight NixOS configuration
@@ -246,6 +250,18 @@ tasks:
       - git remote -v
       - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
       - git remote -v
-# TODO: Add gh auth workflow
-# TODO: Add a 1Password setup flow
-# TODO: Add a git setup flow
+
+  # TODO: Add gh auth workflow
+  # TODO: Add a 1Password setup flow
+  # TODO: Add a git setup flow
+  #
+
+  op:signin:
+    desc: Signin to 1password
+    cmd: op signin
+
+  opencode:
+    desc: Run opencode with env from 1password
+    cmds:
+      - task op:signin
+      - op run -- opencode
