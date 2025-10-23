@@ -15,7 +15,6 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 
 ```
 .
-├── .github/                    # GitHub Actions workflows
 ├── bundles/                    # Package collections by role/platform
 │   ├── base/                   # Essential packages
 │   ├── roles/                  # Role-based bundles (developer, creative, etc.)
@@ -26,11 +25,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
-├── templates/                  # Templates for new configurations
-├── flake.nix                   # Main Nix flake definition
-├── devenv.nix                  # Development environment configuration
-├── Taskfile.yml               # Task automation
-└── README.md                   # This file
+└── Taskfile.yml               # Task automation
 ```
 
 ## 🛠️ Development
@@ -74,88 +69,35 @@ task lint              # Run linters (deadnix)
 task quality           # Run all code quality checks (fmt + lint)
 task dev               # Enter development shell with all tools
 task devenv:update     # Update devenv lock file
-
-# Secrets Management (requires 1Password CLI)
-task 1password:setup   # Set up 1Password CLI authentication
-task 1password:status  # Check 1Password CLI status
-task secrets:init      # Initialize secrets template (manual setup)
-task secrets:populate  # Auto-populate secrets from 1Password items
-task secrets-get       # Retrieve secrets from 1Password
-task secrets-set       # Store secrets in 1Password
 ```
 
 #### Development Tools
 The development environment includes:
-- **Code formatting**: alejandra, nixpkgs-fmt, yamlfmt
-- **Linting**: deadnix, statix, yamllint
-- **Language server**: nil, nixd
+- **Code formatting**: alejandra, nixpkgs-fmt
+- **Linting**: deadnix
+- **Language server**: nil
 - **Analysis tools**: nix-tree, nvd
 - **Utilities**: ripgrep, fd, jq, mdbook
 
-### Secrets Management
-
-This configuration supports secure secret management using 1Password CLI. Secrets are stored encrypted in 1Password and retrieved at build time.
-
-#### Setup
-1. **Install 1Password CLI**: Ensure `op` command is available
-2. **Authenticate**: Run `task 1password:setup` to sign in
-3. **Populate secrets**: Choose one of the following:
-   - **Automatic**: Run `task secrets:populate` to auto-fill from existing 1Password items
-   - **Manual**: Run `task secrets:init` to create a template, then edit `secrets.nix`
-4. **Store securely**: Run `task secrets-set` to store in 1Password
-5. **Enable in config**: Set `myConfig.secrets.enable = true` in your target
-
-#### Supported Secrets
-- Git configuration (username, email, GitHub tokens)
-- API keys (OpenAI, Anthropic, etc.)
-- Database credentials
-- Cloud service credentials (AWS, DigitalOcean)
-- Personal information
-
-#### 1Password Item Structure (for auto-population)
-The `secrets:populate` task expects 1Password items with these reference paths:
-
-```
-op://personal/git/username          # Git user name
-op://personal/git/email             # Git email address
-op://personal/github/token          # GitHub personal access token
-op://personal/openai/api-key        # OpenAI API key
-op://personal/anthropic/api-key     # Anthropic API key
-op://personal/huggingface/token     # HuggingFace token
-op://personal/aws/access-key-id     # AWS access key ID
-op://personal/aws/secret-access-key # AWS secret access key
-op://personal/aws/region            # AWS region
-op://personal/digitalocean/token    # DigitalOcean API token
-op://personal/address/home          # Home address
-op://personal/phone/primary         # Primary phone number
-op://personal/phone/work            # Work phone number
-op://personal/birthday              # Birthday (YYYY-MM-DD)
-```
-
-Items that don't exist will be left empty in the generated `secrets.nix` file.
-
-#### Security Notes
-- Secrets file is gitignored and never committed
-- 1Password provides end-to-end encryption
-- Secrets are only accessible during Nix builds
-- No secrets are stored in the Nix store
-
 ## 🤖 CI/CD Pipeline
 
-The repository includes automated testing and validation:
+The repository includes a comprehensive CI/CD pipeline with:
 
 ### Matrix Builds
-- **x86_64-linux**: Ubuntu runners for NixOS configuration testing
-- **aarch64-darwin**: macOS runners for Darwin configuration testing
+- **x86_64-linux**: Ubuntu runners for NixOS testing
+- **aarch64-darwin**: macOS runners for Darwin testing
 
 ### Features
-- **Multi-architecture testing**: Validates flake configurations on both platforms
-- **Automated formatting**: Ensures code style consistency with alejandra
-- **Caching**: Nix store caching for faster CI runs
+- **Multi-architecture testing**: Validates configurations on both platforms
+
+- **Artifact publishing**: Build artifacts for releases
+- **macOS integration testing**: Aerospace, Homebrew, and macOS-specific features
+- **Optional Cachix publishing**: For faster downstream builds
 
 ### Workflows
-- **Pull requests**: Matrix testing and formatting validation
-- **Main branch**: Matrix testing and formatting validation
+- **Pull requests**: Full matrix testing and formatting validation
+- **Main branch**: Additional macOS integration tests and caching
+- **Tagged releases**: Artifact publishing and release creation
 
 ## 🏗️ Architecture
 
@@ -197,13 +139,14 @@ The repository includes automated testing and validation:
 ### ✅ Completed
 - Modular configuration system
 - Multi-platform support (macOS + Linux)
-- CI/CD pipeline with matrix testing
+- Comprehensive CI/CD pipeline
 - Task automation
 - Configuration validation
-- Role-based bundles (developer, creative, gaming, workstation)
-- Secret management with 1Password
+- Role-based bundles
 
 ### 🔄 In Progress
+- Secret management with 1Password
+- Additional role bundles (gaming, workstation)
 - Performance optimizations
 
 ### 📝 Future
