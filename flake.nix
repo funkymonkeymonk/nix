@@ -148,6 +148,7 @@
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
+        configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
@@ -187,6 +188,7 @@
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
+        configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix

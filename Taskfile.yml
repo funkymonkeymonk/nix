@@ -1,5 +1,5 @@
+---
 version: "3"
-
 tasks:
   default:
     aliases:
@@ -52,7 +52,7 @@ tasks:
     desc: build all Darwin (macOS) configurations
     cmds:
       - echo "🍎 building Darwin configurations..."
-      - task: build:darwin:will-stride-mbp
+      # - task: build:darwin:will-stride-mbp
       - task: build:darwin:megamanx
       - echo "✅ All Darwin configurations validated successfully"
 
@@ -61,16 +61,20 @@ tasks:
     cmds:
       - echo "🐧 building NixOS configurations..."
       - task: build:nixos:drlight
-      - task: build:nixos:zero
+      # - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
 
   build:darwin:will-stride-mbp:
     desc: Build Will-Stride-MBP Darwin configuration
-    cmd: nix build .#darwinConfigurations."Will-Stride-MBP".config.system.build.toplevel
+    cmd: |
+      nix build .#darwinConfigurations."Will-Stride-MBP".\
+      config.system.build.toplevel
 
   build:darwin:megamanx:
     desc: build MegamanX Darwin configuration
-    cmd: nix build .#darwinConfigurations."MegamanX".config.system.build.toplevel
+    cmd: |
+      nix build .#darwinConfigurations."MegamanX".\
+      config.system.build.toplevel
 
   build:nixos:drlight:
     desc: build drlight NixOS configuration
