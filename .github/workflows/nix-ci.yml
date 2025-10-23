@@ -40,20 +40,6 @@ jobs:
       - name: Install Task
         run: nix profile install nixpkgs#go-task nixpkgs#alejandra
 
-      - name: Free up disk space
-        run: |
-          echo "🧹 Cleaning up disk space..."
-          # Remove unnecessary packages and clear caches
-          sudo apt-get clean
-          sudo apt-get autoremove -y
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          # Clean up Docker if it exists
-          docker system prune -af || true
-          # Clean up Nix garbage
-          nix-collect-garbage -d || true
-          # Show disk usage
-          df -h
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
