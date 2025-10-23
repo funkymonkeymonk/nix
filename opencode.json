@@ -66,15 +66,6 @@
   "tools": {
     "run": true
   },
-  "mcp": {
-    "github": {
-      "type": "local",
-      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
-      "environment": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "op://Private/GitHub Personal Access Token/token"
-      },
-      "enabled": true
-    }
-  },
+  "mcp": {},
   "share": "manual"
 }
