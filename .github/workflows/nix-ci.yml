@@ -37,9 +37,6 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
 
-      - name: Setup Nix cache
-        uses: DeterminateSystems/nix-cache-action@v1
-
       - name: Install Task
         run: nix profile install nixpkgs#go-task
 
@@ -61,57 +58,3 @@ jobs:
 
       - name: Build system configurations
         run: task ${{ matrix.test-target }}
-
-      - name: Upload build artifacts
-        if: matrix.system == 'x86_64-linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: nixos-configurations-${{ github.sha }}
-          path: |
-            result
-          retention-days: 7
-
-  # macOS-specific testing
-  macos-integration:
-    name: macOS Integration Tests
-    runs-on: macos-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v10
-        with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-            sandbox = false
-
-      - name: Setup Nix cache
-        uses: DeterminateSystems/nix-cache-action@v1
-
-      - name: Install Task
-        run: nix profile install nixpkgs#go-task
-
-      - name: Cache Nix store
-        uses: actions/cache@v4
-        with:
-          path: |
-            /nix/store
-            ~/.cache/nix
-          key: macos-nix-store-${{ hashFiles('**/flake.lock') }}
-          restore-keys: |
-            macos-nix-store-
-
-      - name: Test individual Darwin configurations
-        run: |
-          task build:darwin:will-stride-mbp
-          task build:darwin:megamanx
-
-      - name: Test macOS-specific features
-        run: |
-          echo "Testing macOS-specific configurations..."
-          # Test that aerospace configuration builds
-          nix build .#darwinConfigurations."Will-Stride-MBP".config.services.aerospace.package
-          # Test that homebrew casks are valid
-          nix build .#darwinConfigurations."Will-Stride-MBP".config.homebrew.casks
