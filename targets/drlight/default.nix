@@ -1,7 +1,7 @@
 {
-  config,
+  _config,
   pkgs,
-  lib,
+  _lib,
   ...
 }:
 # NixOS module for the `drlight` machine.

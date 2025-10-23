@@ -93,7 +93,7 @@ tasks:
       - l
     cmds:
       - echo "🔍 Running deadnix (dead code finder)..."
-      - devenv shell -- deadnix .
+      - devenv shell -- deadnix --no-underscore .
 
   quality:
     desc: Run all code quality checks (format + lint).

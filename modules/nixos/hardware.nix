@@ -1,5 +1,10 @@
-{ config, lib, pkgs, modulesPath, ... }:
 {
+  _config,
+  _lib,
+  _pkgs,
+  _modulesPath,
+  ...
+}: {
   # Hardware-specific configurations
   # Boot loader and kernel settings are handled in os/nixos.nix
 

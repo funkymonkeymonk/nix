@@ -1,5 +1,9 @@
-{ config, lib, pkgs, ... }:
 {
+  _config,
+  _lib,
+  pkgs,
+  ...
+}: {
   # Gaming role bundle - tools for gaming and entertainment
   environment.systemPackages = with pkgs; [
     # Gaming platforms will be added here
