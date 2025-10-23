@@ -115,31 +115,3 @@ jobs:
           nix build .#darwinConfigurations."Will-Stride-MBP".config.services.aerospace.package
           # Test that homebrew casks are valid
           nix build .#darwinConfigurations."Will-Stride-MBP".config.homebrew.casks
-
-  # Release artifacts
-  release-artifacts:
-    name: Release Build Artifacts
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
-    needs: [test-matrix]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: nixos-configurations-${{ github.sha }}
-
-      - name: Create release archives
-        run: |
-          tar -czf nixos-configurations.tar.gz result/
-          sha256sum nixos-configurations.tar.gz > nixos-configurations.tar.gz.sha256
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            nixos-configurations.tar.gz
-            nixos-configurations.tar.gz.sha256
-          generate_release_notes: true
