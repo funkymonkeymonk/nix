@@ -16,6 +16,8 @@
     pkgs.jq
     # Documentation
     pkgs.mdbook
+    # YAML linting
+    pkgs.yamllint
     pkgs.nixd
   ];
 
@@ -36,6 +38,9 @@
       deadnix = {
         enable = true;
         entry = "${pkgs.deadnix}/bin/deadnix --no-underscore";
+      };
+      yamllint = {
+        enable = true;
       };
     };
   };
