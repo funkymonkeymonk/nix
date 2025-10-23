@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - develop
   workflow_dispatch:
 
 concurrency:
@@ -36,7 +35,7 @@ jobs:
         with:
           extra-conf: |
             experimental-features = nix-command flakes
-            ${{ matrix.system == 'aarch64-darwin' && 'sandbox = false' || '' }}
+            sandbox = false
 
       - name: Setup Nix cache
         uses: DeterminateSystems/nix-cache-action@v1
@@ -116,35 +115,6 @@ jobs:
           nix build .#darwinConfigurations."Will-Stride-MBP".config.services.aerospace.package
           # Test that homebrew casks are valid
           nix build .#darwinConfigurations."Will-Stride-MBP".config.homebrew.casks
-
-  # Publish to Cachix (optional)
-  publish-cache:
-    name: Publish to Cachix
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.CACHIX_AUTH_TOKEN != ''
-    environment: cachix
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v10
-        with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
-        with:
-          name: ${{ secrets.CACHIX_CACHE_NAME }}
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
-      - name: Build and cache all configurations
-        run: |
-          nix build .#darwinConfigurations."Will-Stride-MBP".config.system.build.toplevel
-          nix build .#darwinConfigurations."MegamanX".config.system.build.toplevel
-          nix build .#nixosConfigurations."drlight".config.system.build.toplevel
-          nix build .#nixosConfigurations."zero".config.system.build.toplevel
 
   # Release artifacts
   release-artifacts:
