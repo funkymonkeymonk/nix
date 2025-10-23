@@ -79,7 +79,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            users.monkey = import ./home.nix;
+            users.willweaver = import ./home.nix;
           };
         }
       ];
@@ -175,7 +175,6 @@
             media.enable = true;
           };
         }
-        configuration
         ./1password.nix
         home-manager.nixosModules.home-manager
         {
@@ -212,7 +211,6 @@
             development.enable = true;
           };
         }
-        configuration
         ./1password.nix
         home-manager.nixosModules.home-manager
         {

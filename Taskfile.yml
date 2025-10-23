@@ -141,6 +141,18 @@ tasks:
       - git remote -v
       - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
       - git remote -v
-# TODO: Add gh auth workflow
-# TODO: Add a 1Password setup flow
-# TODO: Add a git setup flow
+
+  # TODO: Add gh auth workflow
+  # TODO: Add a 1Password setup flow
+  # TODO: Add a git setup flow
+  #
+
+  op:signin:
+    desc: Signin to 1password
+    cmd: op signin
+
+  opencode:
+    desc: Run opencode with env from 1password
+    cmds:
+      - task op:signin
+      - op run -- opencode

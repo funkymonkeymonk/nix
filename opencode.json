@@ -1,0 +1,80 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "small_model": "anthropic/claude-3-5-haiku-20241022",
+  "theme": "opencode",
+  "autoupdate": true,
+  "instructions": ["CLAUDE.md", "README.md"],
+  "formatter": {
+    "alejandra": {
+      "command": ["alejandra"],
+      "extensions": [".nix"]
+    }
+  },
+  "command": {
+    "test": {
+      "template": "Run nix flake check to validate all configurations",
+      "description": "Validate Nix configurations",
+      "agent": "build"
+    },
+    "build": {
+      "template": "Build all system configurations using task build",
+      "description": "Build all configurations",
+      "agent": "build"
+    },
+    "fmt": {
+      "template": "Format all Nix files using alejandra",
+      "description": "Format Nix files",
+      "agent": "build"
+    },
+    "lint": {
+      "template": "Run deadnix linter on all Nix files",
+      "description": "Lint Nix files",
+      "agent": "build"
+    },
+    "quality": {
+      "template": "Run all code quality checks (format + lint)",
+      "description": "Run quality checks",
+      "agent": "build"
+    },
+    "switch": {
+      "template": "Apply system configuration changes using task switch",
+      "description": "Apply system configuration",
+      "agent": "build"
+    }
+  },
+  "agent": {
+    "build": {
+      "description": "Agent for Nix build and system configuration tasks",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "You are a Nix expert working on system configuration. Focus on Nix Flakes, nix-darwin, and home-manager. Always run validation commands before suggesting changes. Use the task commands for common operations."
+    },
+    "code-reviewer": {
+      "description": "Reviews Nix code for best practices and potential issues",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "You are a Nix code reviewer. Focus on security, performance, maintainability, and Nix best practices. Check for proper use of flakes, overlays, and module structure.",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false
+      }
+    }
+  },
+  "permission": {
+    "bash": "ask",
+    "run": "ask"
+  },
+  "tools": {
+    "run": true
+  },
+  "mcp": {
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "op://Private/GitHub Personal Access Token/token"
+      },
+      "enabled": true
+    }
+  },
+  "share": "manual"
+}
