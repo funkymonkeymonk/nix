@@ -1,6 +1,5 @@
----
 name: Nix CI/CD Pipeline
-# yamllint disable-line rule:truthy
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -8,9 +7,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   # Matrix build for different architectures
   test-matrix:
@@ -21,17 +22,27 @@ jobs:
         include:
           - system: x86_64-linux
             runner: ubuntu-latest
+            test-target: build:nixos
           - system: aarch64-darwin
             runner: macos-latest
+            test-target: build:darwin
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/nix-cache-action@v1
+
+      - name: Install Task
+        run: nix profile install nixpkgs#go-task
+
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -41,9 +52,94 @@ jobs:
           key: ${{ runner.os }}-nix-store-${{ hashFiles('**/flake.lock') }}
           restore-keys: |
             ${{ runner.os }}-nix-store-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
+
       - name: Run formatter
-        run: devenv shell task fmt
+        run: task fmt
+
       - name: Run configuration tests
-        run: devenv shell task test
+        run: task test
+
+      - name: Build system configurations
+        run: task ${{ matrix.test-target }}
+
+      - name: Upload build artifacts
+        if: matrix.system == 'x86_64-linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nixos-configurations-${{ github.sha }}
+          path: |
+            result
+          retention-days: 7
+
+  # macOS-specific testing
+  macos-integration:
+    name: macOS Integration Tests
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/nix-cache-action@v1
+
+      - name: Install Task
+        run: nix profile install nixpkgs#go-task
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: macos-nix-store-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            macos-nix-store-
+
+      - name: Test individual Darwin configurations
+        run: |
+          task build:darwin:will-stride-mbp
+          task build:darwin:megamanx
+
+      - name: Test macOS-specific features
+        run: |
+          echo "Testing macOS-specific configurations..."
+          # Test that aerospace configuration builds
+          nix build .#darwinConfigurations."Will-Stride-MBP".config.services.aerospace.package
+          # Test that homebrew casks are valid
+          nix build .#darwinConfigurations."Will-Stride-MBP".config.homebrew.casks
+
+  # Release artifacts
+  release-artifacts:
+    name: Release Build Artifacts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+    needs: [test-matrix]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nixos-configurations-${{ github.sha }}
+
+      - name: Create release archives
+        run: |
+          tar -czf nixos-configurations.tar.gz result/
+          sha256sum nixos-configurations.tar.gz > nixos-configurations.tar.gz.sha256
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            nixos-configurations.tar.gz
+            nixos-configurations.tar.gz.sha256
+          generate_release_notes: true
