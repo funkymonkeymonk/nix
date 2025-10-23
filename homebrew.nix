@@ -1,6 +1,6 @@
 {
-  config,
-  pkgs,
+  _config,
+  _pkgs,
   ...
 }: {
   homebrew = {

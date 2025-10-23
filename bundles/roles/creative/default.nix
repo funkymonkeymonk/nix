@@ -1,5 +1,9 @@
-{ config, lib, pkgs, ... }:
 {
+  _config,
+  _lib,
+  pkgs,
+  ...
+}: {
   # Creative role bundle - tools for media creation and editing
   environment.systemPackages = with pkgs; [
     # Media processing

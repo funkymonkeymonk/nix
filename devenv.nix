@@ -35,6 +35,7 @@
       };
       deadnix = {
         enable = true;
+        entry = "${pkgs.deadnix}/bin/deadnix --no-underscore";
       };
     };
   };
