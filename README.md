@@ -89,7 +89,7 @@ The repository includes a comprehensive CI/CD pipeline with:
 
 ### Features
 - **Multi-architecture testing**: Validates configurations on both platforms
-- **Nix caching**: Fast builds with DeterminateSystems/nix-cache-action
+
 - **Artifact publishing**: Build artifacts for releases
 - **macOS integration testing**: Aerospace, Homebrew, and macOS-specific features
 - **Optional Cachix publishing**: For faster downstream builds

@@ -38,7 +38,7 @@ jobs:
             sandbox = false
 
       - name: Install Task
-        run: nix profile install nixpkgs#go-task
+        run: nix profile install nixpkgs#go-task nixpkgs#alejandra
 
       - name: Cache Nix store
         uses: actions/cache@v4
