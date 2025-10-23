@@ -1,5 +1,8 @@
-{ config, lib, ... }:
 {
+  _config,
+  _lib,
+  ...
+}: {
   # Jellyfin media server
   services.jellyfin = {
     enable = true;

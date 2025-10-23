@@ -1,5 +1,5 @@
 {
-  config,
+  _config,
   pkgs,
   ...
 }: {
@@ -36,6 +36,4 @@
     k9s
     the-unarchiver
   ];
-
-
 }

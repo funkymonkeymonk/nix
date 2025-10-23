@@ -1,5 +1,9 @@
-{ config, lib, pkgs, ... }:
 {
+  _config,
+  _lib,
+  pkgs,
+  ...
+}: {
   # Linux-specific packages and configuration
   environment.systemPackages = with pkgs; [
     # Linux-specific utilities

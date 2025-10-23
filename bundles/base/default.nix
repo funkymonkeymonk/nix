@@ -1,5 +1,9 @@
-{ config, lib, pkgs, ... }:
 {
+  _config,
+  _lib,
+  pkgs,
+  ...
+}: {
   # Base system packages - essential tools available on all systems
   environment.systemPackages = with pkgs; [
     # Core utilities (already in modules/common/packages.nix)

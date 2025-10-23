@@ -1,7 +1,7 @@
 {
-  config,
+  _config,
   pkgs,
-  lib,
+  _lib,
   ...
 }:
 # Per-machine NixOS module template for this repository.
