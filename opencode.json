@@ -60,8 +60,20 @@
     }
   },
   "permission": {
-    "bash": "ask",
-    "run": "ask"
+    "bash": {
+      "git push": "ask",
+      "gh secret": "ask",
+      "gh api": "ask",
+      "gh pr ": "ask",
+      "gh pr merge": "ask",
+      "gh pr create": "ask",
+      "gh auth": "ask",
+      "gh org": "ask",
+      "gh project": "ask",
+      "gh release": "ask",
+      "gh repo": "ask",
+      "task *": "allow"
+    }
   },
   "tools": {
     "run": true
