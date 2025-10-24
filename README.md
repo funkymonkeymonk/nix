@@ -15,6 +15,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 
 ```
 .
+├── .github/                    # GitHub Actions workflows
 ├── bundles/                    # Package collections by role/platform
 │   ├── base/                   # Essential packages
 │   ├── roles/                  # Role-based bundles (developer, creative, etc.)
@@ -25,7 +26,11 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
-└── Taskfile.yml               # Task automation
+├── templates/                  # Templates for new configurations
+├── flake.nix                   # Main Nix flake definition
+├── devenv.nix                  # Development environment configuration
+├── Taskfile.yml               # Task automation
+└── README.md                   # This file
 ```
 
 ## 🛠️ Development
@@ -81,9 +86,9 @@ task secrets-set       # Store secrets in 1Password
 
 #### Development Tools
 The development environment includes:
-- **Code formatting**: alejandra, nixpkgs-fmt
-- **Linting**: deadnix
-- **Language server**: nil
+- **Code formatting**: alejandra, nixpkgs-fmt, yamlfmt
+- **Linting**: deadnix, statix, yamllint
+- **Language server**: nil, nixd
 - **Analysis tools**: nix-tree, nvd
 - **Utilities**: ripgrep, fd, jq, mdbook
 
@@ -137,23 +142,20 @@ Items that don't exist will be left empty in the generated `secrets.nix` file.
 
 ## 🤖 CI/CD Pipeline
 
-The repository includes a comprehensive CI/CD pipeline with:
+The repository includes automated testing and validation:
 
 ### Matrix Builds
-- **x86_64-linux**: Ubuntu runners for NixOS testing
-- **aarch64-darwin**: macOS runners for Darwin testing
+- **x86_64-linux**: Ubuntu runners for NixOS configuration testing
+- **aarch64-darwin**: macOS runners for Darwin configuration testing
 
 ### Features
-- **Multi-architecture testing**: Validates configurations on both platforms
-
-- **Artifact publishing**: Build artifacts for releases
-- **macOS integration testing**: Aerospace, Homebrew, and macOS-specific features
-- **Optional Cachix publishing**: For faster downstream builds
+- **Multi-architecture testing**: Validates flake configurations on both platforms
+- **Automated formatting**: Ensures code style consistency with alejandra
+- **Caching**: Nix store caching for faster CI runs
 
 ### Workflows
-- **Pull requests**: Full matrix testing and formatting validation
-- **Main branch**: Additional macOS integration tests and caching
-- **Tagged releases**: Artifact publishing and release creation
+- **Pull requests**: Matrix testing and formatting validation
+- **Main branch**: Matrix testing and formatting validation
 
 ## 🏗️ Architecture
 
@@ -195,14 +197,13 @@ The repository includes a comprehensive CI/CD pipeline with:
 ### ✅ Completed
 - Modular configuration system
 - Multi-platform support (macOS + Linux)
-- Comprehensive CI/CD pipeline
+- CI/CD pipeline with matrix testing
 - Task automation
 - Configuration validation
-- Role-based bundles
+- Role-based bundles (developer, creative, gaming, workstation)
+- Secret management with 1Password
 
 ### 🔄 In Progress
-- Secret management with 1Password
-- Additional role bundles (gaming, workstation)
 - Performance optimizations
 
 ### 📝 Future
