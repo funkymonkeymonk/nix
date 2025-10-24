@@ -4,7 +4,7 @@
   ...
 }:
 with lib; {
-  imports = [./options.nix];
+  imports = [./options.nix ./secrets.nix];
 
   config = {
     # Validation assertions

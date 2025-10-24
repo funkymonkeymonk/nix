@@ -1,12 +1,24 @@
-{
-  _config,
-  _lib,
-  pkgs,
-  ...
-}: {
-  # Base system packages - essential tools available on all systems
+{pkgs, ...}: {
   environment.systemPackages = with pkgs; [
-    # Core utilities (already in modules/common/packages.nix)
-    # This bundle can be empty or contain platform-specific essentials
+    vim
+    emacs
+    git
+    gh
+    devenv
+    direnv
+    go-task
+    rclone
+    bat
+    jq
+    tree
+    watchman
+    jnv
+    zinit
+    fzf
+    zsh
   ];
+
+  programs.zsh = {
+    enable = true;
+  };
 }
