@@ -7,7 +7,6 @@ tasks:
       - l
     desc: List all tasks if none is specified
     cmd: task --list-all
-
   build-osx:
     desc: Perform osx build
     aliases:
@@ -37,7 +36,6 @@ tasks:
       - echo "🔍 building flake configurations..."
       - nix flake check
       - echo "✅ All configurations (NixOS and Darwin) validated successfully"
-
   build:
     desc: build all configurations
     aliases:
@@ -47,7 +45,6 @@ tasks:
       - task: build:darwin
       - task: build:nixos
       - echo "✅ All configurations (NixOS and Darwin) validated successfully"
-
   build:darwin:
     desc: build all Darwin (macOS) configurations
     cmds:
@@ -55,7 +52,6 @@ tasks:
       # - task: build:darwin:will-stride-mbp
       - task: build:darwin:megamanx
       - echo "✅ All Darwin configurations validated successfully"
-
   build:nixos:
     desc: build all NixOS configurations
     cmds:
@@ -63,42 +59,36 @@ tasks:
       - task: build:nixos:drlight
       # - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
-
   build:darwin:will-stride-mbp:
     desc: Build Will-Stride-MBP Darwin configuration
     cmd: |
       nix build .#darwinConfigurations."Will-Stride-MBP".\
       config.system.build.toplevel
-
   build:darwin:megamanx:
     desc: build MegamanX Darwin configuration
     cmd: |
       nix build .#darwinConfigurations."MegamanX".\
       config.system.build.toplevel
-
   build:nixos:drlight:
     desc: build drlight NixOS configuration
     cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel
-
   build:nixos:zero:
     desc: build zero NixOS configuration
     cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel
-
   fmt:
-    desc: Run formatter on all nix files.
+    desc: Run formatter on all files.
     aliases:
       - f
     cmds:
       - alejandra *.nix
-
+      - yamlfmt .
   lint:
     desc: Run linters on all nix files.
     aliases:
       - l
     cmds:
-      - echo "🔍 Running deadnix (dead code finder)..."
       - devenv shell -- deadnix --no-underscore .
-
+      - yamllint .
   quality:
     desc: Run all code quality checks (format + lint).
     aliases:
@@ -106,31 +96,26 @@ tasks:
     cmds:
       - task: fmt
       - task: lint
-
   dev:
     desc: Enter development shell with all tools available.
     aliases:
       - d
     cmd: devenv shell
-
   devenv:update:
     desc: Update devenv lock file.
     cmd: devenv update
-
   secrets-get:
     desc: "Get secrets file using 1Password CLI"
     cmds:
       - echo "🔐 Retrieving secrets from 1Password..."
       - op read "op://personal/nix-secrets/secrets.nix" > secrets.nix
       - echo "✅ Secrets retrieved and saved to secrets.nix"
-
   secrets-set:
     desc: "Set secrets file using 1Password CLI"
     cmds:
       - echo "🔐 Storing secrets to 1Password..."
       - op document create secrets.nix --vault personal --title "Nix Secrets" --tags nix,secrets
       - echo "✅ Secrets stored in 1Password"
-
   1password:setup:
     desc: "Set up 1Password CLI authentication"
     cmds:
@@ -138,14 +123,12 @@ tasks:
       - echo "Please sign in to 1Password CLI:"
       - op signin
       - echo "✅ 1Password CLI authenticated"
-
   1password:status:
     desc: "Check 1Password CLI authentication status"
     cmds:
       - echo "🔐 Checking 1Password CLI status..."
       - op account list
       - echo "✅ 1Password CLI is authenticated"
-
   secrets:init:
     desc: "Initialize secrets management with 1Password"
     cmds:
@@ -157,7 +140,6 @@ tasks:
       - 'echo "5. Enable secrets in your configuration: myConfig.secrets.enable = true"'
       - cp secrets.nix.template secrets.nix
       - echo "✅ Template copied to secrets.nix - edit it with your secrets"
-
   secrets:populate:
     desc: "Automatically populate secrets.nix from 1Password items"
     cmds:
@@ -231,37 +213,34 @@ tasks:
         }
         EOF
       - echo "✅ Secrets populated from 1Password (missing values left empty)"
-
   init:
     desc: Initial setup commands
     cmds:
       - sudo nix run nix-darwin/master#darwin-rebuild -- switch --flake ./
-
   git:set-remote-ssh:
     desc: Switch
     cmds:
       - git remote -v
       - git remote set-url origin git@github.com:funkymonkeymonk/nix.git
       - git remote -v
-
   git:set-remote-https:
     desc: Switch
     cmds:
       - git remote -v
       - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
       - git remote -v
-
   # TODO: Add gh auth workflow
   # TODO: Add a 1Password setup flow
   # TODO: Add a git setup flow
   #
-
   op:signin:
     desc: Signin to 1password
     cmd: op signin
-
   opencode:
     desc: Run opencode with env from 1password
     cmds:
       - task op:signin
       - op run -- opencode
+  flake:update:
+    desc: Update the nix flake to latest versions
+    cmd: nix flake update

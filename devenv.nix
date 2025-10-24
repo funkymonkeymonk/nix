@@ -18,6 +18,7 @@
     pkgs.mdbook
     # YAML linting
     pkgs.yamllint
+    pkgs.yamlfmt
     pkgs.nixd
   ];
 

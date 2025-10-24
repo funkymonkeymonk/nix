@@ -1,6 +1,5 @@
 ---
 name: Nix CI/CD Pipeline
-
 # yamllint disable-line rule:truthy
 on:
   pull_request:
@@ -9,11 +8,9 @@ on:
     branches:
       - main
   workflow_dispatch:
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   # Matrix build for different architectures
   test-matrix:
@@ -29,17 +26,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Install Task
         run: nix profile install nixpkgs#go-task nixpkgs#alejandra
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -49,13 +43,10 @@ jobs:
           key: ${{ runner.os }}-nix-store-${{ hashFiles('**/flake.lock') }}
           restore-keys: |
             ${{ runner.os }}-nix-store-
-
       - name: Run formatter
         run: task fmt
-
       - name: Run configuration tests
         run: task test
-
       - name: Post-build cleanup
         if: always()
         run: |

@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }: let
   cfg = config.myConfig.secrets;
@@ -99,14 +100,14 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    # Set up environment variables for API keys
-    environment.sessionVariables = lib.mkMerge [
+    # Set up environment variables for API keys (NixOS only)
+    environment.sessionVariables = lib.mkIf (!pkgs.stdenv.isDarwin) (lib.mkMerge [
       (lib.mkIf (cfg.apiKeys.openai != null) {
         OPENAI_API_KEY = cfg.apiKeys.openai;
       })
       (lib.mkIf (cfg.apiKeys.anthropic != null) {
         ANTHROPIC_API_KEY = cfg.apiKeys.anthropic;
       })
-    ];
+    ]);
   };
 }
