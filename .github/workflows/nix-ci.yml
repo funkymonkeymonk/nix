@@ -32,6 +32,8 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+      - name: Install Task
+        run: nix profile install nixpkgs#go-task nixpkgs#alejandra
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -41,9 +43,17 @@ jobs:
           key: ${{ runner.os }}-nix-store-${{ hashFiles('**/flake.lock') }}
           restore-keys: |
             ${{ runner.os }}-nix-store-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
       - name: Run formatter
-        run: devenv shell task fmt
+        run: task fmt
       - name: Run configuration tests
-        run: devenv shell task test
+        run: task test
+      - name: Post-build cleanup
+        if: always()
+        run: |
+          echo "🧹 Post-build cleanup..."
+          # Clean up build artifacts
+          rm -rf result* || true
+          # Run Nix garbage collection
+          nix-collect-garbage -d || true
+          # Show final disk usage
+          df -h
