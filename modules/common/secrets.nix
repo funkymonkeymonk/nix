@@ -20,34 +20,6 @@
       userEmail = null;
       githubToken = null;
     };
-    ssh = {
-      privateKey = null;
-      publicKey = null;
-    };
-    apiKeys = {
-      openai = null;
-      anthropic = null;
-      huggingface = null;
-    };
-    databases = {};
-    cloud = {
-      aws = {
-        accessKeyId = null;
-        secretAccessKey = null;
-        region = "us-east-1";
-      };
-      digitalocean = {
-        token = null;
-      };
-    };
-    personal = {
-      homeAddress = null;
-      phoneNumbers = {
-        primary = null;
-        work = null;
-      };
-      birthday = null;
-    };
   };
 
   # Merge defaults with loaded secrets

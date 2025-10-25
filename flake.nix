@@ -51,12 +51,12 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/common/macos.nix
         ./bundles/base
         ./bundles/roles/developer
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
-        ./os/darwin.nix
-        ./homebrew.nix
+        ./modules/homebrew
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
@@ -65,13 +65,15 @@
           myConfig = {
             users = [
               {
-                name = "willweaver";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
+                name = "monkey";
+                email = "monkey@willweaver.dev";
+                fullName = "Monkey";
                 isAdmin = true;
               }
             ];
             development.enable = true;
+            media.enable = true;
+            macos.enable = true;
           };
         }
         home-manager.darwinModules.home-manager
@@ -92,14 +94,14 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/common/macos.nix
         ./bundles/base
         ./bundles/roles/developer
         ./bundles/roles/creative
         ./bundles/roles/gaming
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
-        ./os/darwin.nix
-        ./homebrew.nix
+        ./modules/homebrew
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
