@@ -45,12 +45,10 @@
   "agent": {
     "build": {
       "description": "Agent for Nix build and system configuration tasks",
-      "model": "anthropic/claude-sonnet-4-20250514",
       "prompt": "You are a Nix expert working on system configuration. Focus on Nix Flakes, nix-darwin, and home-manager. Always run validation commands before suggesting changes. Use the task commands for common operations."
     },
     "code-reviewer": {
       "description": "Reviews Nix code for best practices and potential issues",
-      "model": "anthropic/claude-sonnet-4-20250514",
       "prompt": "You are a Nix code reviewer. Focus on security, performance, maintainability, and Nix best practices. Check for proper use of flakes, overlays, and module structure.",
       "tools": {
         "write": false,
