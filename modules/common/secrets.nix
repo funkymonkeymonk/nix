@@ -20,6 +20,10 @@
       userEmail = null;
       githubToken = null;
     };
+    linkwarden = {
+      nextAuthSecret = null;
+      databasePassword = null;
+    };
   };
 
   # Merge defaults with loaded secrets
@@ -52,6 +56,22 @@ in {
         default = secrets.git.githubToken;
         readOnly = true;
         description = "GitHub personal access token";
+      };
+    };
+
+    # Linkwarden secrets
+    linkwarden = {
+      nextAuthSecret = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = secrets.linkwarden.nextAuthSecret;
+        readOnly = true;
+        description = "NextAuth secret for Linkwarden session encryption";
+      };
+      databasePassword = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = secrets.linkwarden.databasePassword;
+        readOnly = true;
+        description = "PostgreSQL password for Linkwarden database user";
       };
     };
   };
