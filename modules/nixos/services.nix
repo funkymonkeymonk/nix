@@ -1,11 +1,13 @@
 {
   _config,
   _lib,
+  pkgs,
   ...
 }: {
   # Jellyfin media server
   services.jellyfin = {
     enable = true;
+    package = pkgs.unstable.jellyfin;
     openFirewall = true;
   };
 
