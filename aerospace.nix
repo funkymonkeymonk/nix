@@ -5,7 +5,19 @@
 
     settings = {
       after-startup-command = [
-        "layout tiles"
+        "layout tiles horizontal" # Root container horizontal
+        "join-with right" # Create Secondary Section 1
+        "join-with right" # Create Primary Section (middle)
+        "join-with right" # Create Secondary Section 2
+        # Set layouts for each section
+        "focus left"
+        "focus left"
+        "focus left"
+        "layout tiles" # Left section (secondary 1)
+        "focus right"
+        "layout accordion" # Middle section (primary)
+        "focus right"
+        "layout tiles" # Right section (secondary 2)
       ];
 
       gaps = {
@@ -61,6 +73,33 @@
         #shift-ctrl-alt-pageUp = "resize smart +200";
         #shift-ctrl-alt-pageDown = "resize smart +200";
 
+        # Section navigation
+        alt-1 = [
+          "focus left"
+          "focus left"
+          "focus left"
+        ]; # Secondary Section 1
+        alt-2 = [
+          "focus right"
+          "focus left"
+        ]; # Primary Section (accordion)
+        alt-3 = [
+          "focus right"
+          "focus right"
+        ]; # Secondary Section 2
+
+        # Layout reset
+        alt-shift-r = [
+          "focus left"
+          "focus left"
+          "focus left"
+          "layout tiles" # Reset left section
+          "focus right"
+          "layout accordion" # Reset middle section
+          "focus right"
+          "layout tiles" # Reset right section
+        ];
+
         #shift-ctrl-alt-semicolon = "workspace";
         shift-ctrl-alt-4 = "move-node-to-workspace --wrap-around prev";
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
@@ -69,6 +108,13 @@
       };
 
       on-window-detected = [
+        {
+          check-further-callbacks = true;
+          run = [
+            "focus right"
+            "focus left"
+          ]; # Navigate to primary section (middle)
+        }
         {
           "if" = {
             app-id = "com.hnc.Discord";
