@@ -10,3 +10,6 @@ devenv.local.nix
 
 # Secrets
 secrets.nix
+
+# Build artifacts
+result

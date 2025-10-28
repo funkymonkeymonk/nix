@@ -4,6 +4,11 @@
   pkgs,
   ...
 }: {
+  home = {
+    username = lib.mkForce "willweaver";
+    homeDirectory = lib.mkForce "/Users/willweaver";
+    stateVersion = "25.05";
+  };
   programs.ssh = {
     enable = true;
 
