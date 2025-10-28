@@ -57,6 +57,15 @@ Important: any time you change the development environment — for example, when
 
 This ensures the devenv shells and tests are rebuilt and validated locally (and catches environment-related issues early). If you are running CI, ensure CI also invokes `devenv test` or `task test` as appropriate.
 
+## Commit Message Generation
+
+When committing changes, automatically analyze the diff to suggest conventional commit types:
+- `feat:` for new features/functionality
+- `fix:` for bug fixes
+- `docs:` for documentation changes
+- `refactor:` for code restructuring
+- `chore:` for maintenance tasks
+
 ## Assistant list-formatting preference
 
 This repository includes a preferred assistant behavior for rendering option lists when interacting about this project. When an assistant provides lists of options, it should render them as Markdown lists following these rules:
