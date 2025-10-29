@@ -29,9 +29,8 @@
     mac-app-util,
     ...
   }: let
-    configuration = _: {
+    configuration = {lib, ...}: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
-      system.stateVersion = "25.05";
 
       nixpkgs.config.allowUnfree = true;
 
@@ -61,14 +60,16 @@
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "willweaver";
+          system.stateVersion = 4;
           # Configure users through the modular system
           myConfig = {
             users = [
               {
-                name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                name = "willweaver";
+                email = "will@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
+                sshIncludes = [];
               }
             ];
             development.enable = true;
@@ -78,11 +79,8 @@
         }
         home-manager.darwinModules.home-manager
         {
-          home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            users.willweaver = import ./home.nix;
-          };
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
         }
       ];
     };
@@ -106,6 +104,7 @@
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
+          system.stateVersion = 4;
           # Configure users through the modular system
           myConfig = {
             users = [
@@ -114,6 +113,7 @@
                 email = "monkey@willweaver.dev";
                 fullName = "Monkey";
                 isAdmin = true;
+                sshIncludes = ["/Users/monkey/.colima/ssh_config"];
               }
             ];
             development.enable = true;
@@ -122,11 +122,8 @@
         }
         home-manager.darwinModules.home-manager
         {
-          home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            users.monkey = import ./home.nix;
-          };
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
         }
         {
           homebrew.casks = [
@@ -164,6 +161,7 @@
         ./targets/drlight
         {
           nixpkgs.hostPlatform = "x86_64-linux";
+          system.stateVersion = "25.05";
           # Configure users through the modular system
           myConfig = {
             users = [
@@ -172,6 +170,7 @@
                 email = "monkey@willweaver.dev";
                 fullName = "Monkey";
                 isAdmin = true;
+                sshIncludes = [];
               }
             ];
             development.enable = true;
@@ -202,6 +201,7 @@
         ./targets/zero
         {
           nixpkgs.hostPlatform = "x86_64-linux";
+          system.stateVersion = "25.05";
           # Configure users through the modular system
           myConfig = {
             users = [
@@ -210,6 +210,7 @@
                 email = "monkey@willweaver.dev";
                 fullName = "Monkey";
                 isAdmin = true;
+                sshIncludes = [];
               }
             ];
             development.enable = true;

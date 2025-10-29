@@ -22,6 +22,11 @@ with lib; {
             default = false;
             description = "Whether the user should have admin privileges";
           };
+          sshIncludes = mkOption {
+            type = types.listOf types.str;
+            default = [];
+            description = "Additional SSH config files to include";
+          };
         };
       });
       default = [];

@@ -68,6 +68,24 @@ with lib; {
             };
           };
 
+          programs.ssh = {
+            enable = true;
+
+            extraConfig = lib.optionalString (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) ''
+              Host *
+                IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+            '';
+
+            includes = user.sshIncludes;
+          };
+
+          # Ensure a managed per-user SSH config is created on macOS so the 1Password
+          # IdentityAgent socket is available to the SSH client. This writes ~/.ssh/config.
+          home.file.".ssh/config".text = lib.optionalString (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) ''
+            Host *
+              IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+          '';
+
           # Include shared home-manager modules
           imports =
             [

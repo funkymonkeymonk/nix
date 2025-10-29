@@ -61,14 +61,10 @@ tasks:
       - echo "✅ All NixOS configurations validated successfully"
   build:darwin:will-stride-mbp:
     desc: Build Will-Stride-MBP Darwin configuration
-    cmd: |
-      nix build .#darwinConfigurations."Will-Stride-MBP".\
-      config.system.build.toplevel
+    cmd: darwin-rebuild build --flake .#Will-Stride-MBP
   build:darwin:megamanx:
     desc: build MegamanX Darwin configuration
-    cmd: |
-      nix build .#darwinConfigurations."MegamanX".\
-      config.system.build.toplevel
+    cmd: darwin-rebuild build --flake .#MegamanX
   build:nixos:drlight:
     desc: build drlight NixOS configuration
     cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel
