@@ -62,8 +62,11 @@
   '';
 
   # Host/network/time/SSH settings for drlight
-  networking.hostName = "drlight";
-  networking.networkmanager.enable = true;
+  networking = {
+    hostName = "drlight";
+    networkmanager.enable = true;
+    firewall.allowedTCPPorts = [9000];
+  };
   time.timeZone = "America/New_York";
 
   services.openssh.enable = true;
