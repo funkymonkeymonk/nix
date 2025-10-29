@@ -17,4 +17,11 @@
   #   enable = true;
   #   # ... configuration
   # };
+
+  # Mealie recipe manager
+  services.mealie = {
+    enable = true;
+    database.createLocally = true;
+    port = 9000;
+  };
 }
