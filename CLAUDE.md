@@ -90,8 +90,9 @@ This repository follows a "branch-before-main" workflow for assistant-made chang
 
 3. Push and PR behavior
    1. The assistant will not push to `origin` by default — it will ask before pushing any branch.
-   2. The assistant will not open a pull request by default — it will ask before creating one.
-   3. If the user requests a PR, the assistant will create a draft PR by default.
+   2. The assistant will **never** force push (`git push --force` or `git push --force-with-lease`) without explicit user permission.
+   3. The assistant will not open a pull request by default — it will ask before creating one.
+   4. If the user requests a PR, the assistant will create a draft PR by default.
 
 4. Branch naming
    1. The assistant will check the repository for a consistent branch naming pattern. If a clear pattern exists, the assistant will show that pattern and prompt the user for a branch name that follows it.
