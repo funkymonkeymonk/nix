@@ -53,14 +53,16 @@
     dip = "docker inspect --format '{{ .NetworkSettings.IPAddress }}'";
     dkd = "docker run -d -P";
     dki = "docker run -t -i -P";
+    gau = "git add -u";
     gauc = "git add -u && git commit -m ";
-    gst = "git status";
     gaum = "git add -u && git commit --amend";
+    gst = "git status";
     gpush = "git push";
     gpull = "git pull";
     gd = "git diff";
     gdc = "git diff --cached";
     gco = "git checkout";
+    gcob = "git checkout -b";
     ghv = "gh repo view --web";
     gs = "git stash";
     gsp = "git stash pop";
@@ -73,6 +75,7 @@
     gr = "git restore --source";
     grh = "git reset --hard";
     try = "nix-shell -p";
+    ops = "op signin";
   };
 
   programs.home-manager.enable = true;
