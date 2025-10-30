@@ -70,8 +70,8 @@
         shift-ctrl-alt-quote = "balance-sizes";
         shift-ctrl-alt-slash = "resize smart -200";
 
-        #shift-ctrl-alt-pageUp = "resize smart +200";
-        #shift-ctrl-alt-pageDown = "resize smart +200";
+        shift-ctrl-alt-pageUp = "resize smart +200";
+        shift-ctrl-alt-pageDown = "resize smart -200";
 
         # Section navigation
         shift-ctrl-alt-1 = [
@@ -117,7 +117,7 @@
           "layout tiles" # Right section (secondary 2)
         ];
 
-        #shift-ctrl-alt-semicolon = "workspace";
+        shift-ctrl-alt-semicolon = "workspace";
         shift-ctrl-alt-4 = "move-node-to-workspace --wrap-around prev";
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";

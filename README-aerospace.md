@@ -37,7 +37,9 @@ All keybindings use the `shift-ctrl-alt` modifier combination for consistency.
 ### Layout Management
 - `shift-ctrl-alt-left/down/up/right` - Join windows in different directions
 - `shift-ctrl-alt-p` - Increase window size (+200px)
+- `shift-ctrl-alt-pageUp` - Increase window size (+200px, alternative)
 - `shift-ctrl-alt-/` - Decrease window size (-200px)
+- `shift-ctrl-alt-pageDown` - Decrease window size (-200px, alternative)
 - `shift-ctrl-alt-'` - Balance all window sizes
 
 ### Section Navigation
@@ -48,6 +50,7 @@ All keybindings use the `shift-ctrl-alt` modifier combination for consistency.
 - `shift-ctrl-alt-t` - Full layout refresh (recreate 3-section startup layout)
 
 ### Workspace Management
+- `shift-ctrl-alt-semicolon` - Interactive workspace selection
 - `shift-ctrl-alt-4` - Move window to previous workspace
 - `shift-ctrl-alt-5` - Switch to previous workspace
 - `shift-ctrl-alt-6` - Switch to next workspace
@@ -94,13 +97,6 @@ To modify this configuration:
 1. Edit `aerospace.nix` in the repository root
 2. Test changes with `task test`
 3. Apply with `task build` or `task switch`
-
-## Future Enhancements
-
-The configuration includes commented keybindings that can be enabled for additional functionality:
-
-- **Alternative resize keys**: `shift-ctrl-alt-pageUp/pageDown` for window resizing
-- **Workspace selection**: `shift-ctrl-alt-semicolon` for interactive workspace selection
 
 ## Integration with Nix Flakes
 
