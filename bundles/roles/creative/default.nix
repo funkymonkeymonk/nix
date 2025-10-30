@@ -14,7 +14,6 @@
     logseq
 
     # Text processing and viewing
-    glow
     pandoc
   ];
 }

@@ -13,9 +13,5 @@
     # System utilities
     coreutils
     the-unarchiver
-
-    # Development support
-    watchman
-    jnv
   ];
 }
