@@ -57,6 +57,19 @@ Important: any time you change the development environment — for example, when
 
 This ensures the devenv shells and tests are rebuilt and validated locally (and catches environment-related issues early). If you are running CI, ensure CI also invokes `devenv test` or `task test` as appropriate.
 
+## Commit Workflow
+
+Before committing changes, follow this workflow to ensure transparency and allow for review:
+
+1. **Make changes** to files as needed
+2. **Run tests** (`task test`) to validate configuration
+3. **Fix formatting** - allow tools like alejandra to format code automatically
+4. **Display diff summary** with clear explanation of all changes made
+5. **Wait for user feedback/approval** before proceeding with commit
+6. **Commit** with descriptive conventional commit message only after approval
+
+This ensures all changes are reviewed and approved before being committed to the repository.
+
 ## Commit Message Generation
 
 When committing changes, automatically analyze the diff to suggest conventional commit types:
