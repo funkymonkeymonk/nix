@@ -36,4 +36,35 @@
     _1password.package = pkgs.unstable._1password-cli;
     _1password-gui.package = pkgs.unstable._1password-gui;
   };
+
+  # Homebrew configuration
+  homebrew = {
+    enable = true;
+    onActivation.cleanup = "uninstall";
+
+    casks = [
+      # Common macOS applications
+      "raycast" # The version in nixpkgs is out of date
+      "zed"
+      "zen"
+      "ollama-app"
+
+      # Creative and development tools
+      "autodesk-fusion"
+      "xtool-studio"
+      "orcaslicer"
+      "openscad"
+
+      # Entertainment and communication
+      "deezer"
+      "discord"
+      "block-goose"
+      "pocket-casts"
+      "steam"
+
+      # Productivity and utilities
+      "obs"
+      "sensei"
+    ];
+  };
 }

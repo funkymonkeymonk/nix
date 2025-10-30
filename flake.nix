@@ -55,7 +55,6 @@
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
         ./os/darwin.nix
-        ./homebrew.nix
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
@@ -97,7 +96,6 @@
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
         ./os/darwin.nix
-        ./homebrew.nix
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
@@ -122,22 +120,6 @@
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
-        }
-        {
-          homebrew.casks = [
-            "autodesk-fusion"
-            "deezer"
-            "discord"
-            "xtool-studio"
-            "orcaslicer"
-            "openscad"
-            "ollama-app"
-            "block-goose"
-            "obs"
-            "pocket-casts"
-            "steam"
-            "sensei"
-          ];
         }
       ];
     };
