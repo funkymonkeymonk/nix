@@ -28,23 +28,28 @@
     enable = true;
     onActivation.cleanup = "uninstall";
 
-    casks = [
-      # Common macOS applications
-      "raycast" # The version in nixpkgs is out of date
-      "zed"
-      "zen"
-      "ollama-app"
+    casks =
+      [
+        # Common macOS applications
+        "raycast" # The version in nixpkgs is out of date
+        "zed"
+        "zen"
+        "ollama-app"
 
-      # Entertainment and communication
-      "deezer"
-      "discord"
-      "block-goose"
-      "pocket-casts"
-      "steam"
-
-      # Productivity and utilities
-      "obs"
-      "sensei"
-    ];
+        # Entertainment and communication
+        "deezer"
+        "block-goose"
+        "pocket-casts"
+        "steam"
+      ]
+      ++ (lib.optionals (config.system.primaryUser == "monkey") [
+        # Only install Discord on MegamanX system
+        "discord"
+      ])
+      ++ [
+        # Productivity and utilities
+        "obs"
+        "sensei"
+      ];
   };
 }
