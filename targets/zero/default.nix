@@ -16,9 +16,6 @@
     ./hardware-configuration.nix
   ];
 
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
-
   # Packages
   environment.systemPackages = with pkgs; [
     vim
