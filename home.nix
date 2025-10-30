@@ -11,6 +11,37 @@
     packages = with pkgs; [
       docker
     ];
+
+    shellAliases = {
+      g = "git";
+      t = "task";
+      tb = "task build";
+      tt = "task test";
+      "..." = "cd ../..";
+      dip = "docker inspect --format '{{ .NetworkSettings.IPAddress }}'";
+      dkd = "docker run -d -P";
+      dki = "docker run -t -i -P";
+      gauc = "git add -u && git commit -m ";
+      gst = "git status";
+      gaum = "git add -u && git commit --amend";
+      gpush = "git push";
+      gpull = "git pull";
+      gd = "git diff";
+      gdc = "git diff --cached";
+      gco = "git checkout";
+      ghv = "gh repo view --web";
+      gs = "git stash";
+      gsp = "git stash pop";
+      gshow = "git stash show -p";
+      grm = "git fetch origin && git rebase main";
+      grc = "git rebase --continue";
+      gm = "git merge";
+      gmm = "git fetch origin && git git merge origin/main";
+      gf = "git fetch --prune";
+      gr = "git restore --source";
+      grh = "git reset --hard";
+      try = "nix-shell -p";
+    };
   };
 
   # Consolidated `programs` attribute set
