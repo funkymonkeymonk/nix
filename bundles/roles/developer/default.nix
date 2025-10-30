@@ -1,17 +1,12 @@
 {pkgs, ...}: {
   # Developer role bundle - tools for software development
   environment.systemPackages = with pkgs; [
-    # Version control
-    git
-    gh
-
     # Development environments
     devenv
     direnv
     go-task
 
     # Text editors and IDEs
-    vim
     emacs
 
     # Terminal utilities
@@ -41,7 +36,6 @@
     rclone
 
     # Shell tools
-    zsh
     fzf
     zinit
     antigen

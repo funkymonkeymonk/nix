@@ -121,6 +121,22 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
         }
+        {
+          homebrew.casks = [
+            "autodesk-fusion"
+            "deezer"
+            "discord"
+            "xtool-studio"
+            "orcaslicer"
+            "openscad"
+            "ollama-app"
+            "block-goose"
+            "obs"
+            "pocket-casts"
+            "steam"
+            "sensei"
+          ];
+        }
       ];
     };
 
