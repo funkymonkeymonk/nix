@@ -4,21 +4,21 @@
     package = pkgs.unstable.aerospace;
 
     settings = {
-      after-startup-command = [
-        "layout tiles horizontal" # Root container horizontal
-        "join-with right" # Create Secondary Section 1
-        "join-with right" # Create Primary Section (middle)
-        "join-with right" # Create Secondary Section 2
-        # Set layouts for each section
-        "focus left"
-        "focus left"
-        "focus left"
-        "layout tiles" # Left section (secondary 1)
-        "focus right"
-        "layout accordion" # Middle section (primary)
-        "focus right"
-        "layout tiles" # Right section (secondary 2)
-      ];
+      # after-startup-command = [
+      #   "layout tiles horizontal" # Root container horizontal
+      #   "join-with right" # Create Secondary Section 1
+      #   "join-with right" # Create Primary Section (middle)
+      #   "join-with right" # Create Secondary Section 2
+      #   # Set layouts for each section
+      #   "focus left"
+      #   "focus left"
+      #   "focus left"
+      #   "layout tiles" # Left section (secondary 1)
+      #   "focus right"
+      #   "layout accordion" # Middle section (primary)
+      #   "focus right"
+      #   "layout tiles" # Right section (secondary 2)
+      # ];
 
       gaps = {
         inner.horizontal = 0;
@@ -73,51 +73,41 @@
         shift-ctrl-alt-pageUp = "resize smart +200";
         shift-ctrl-alt-pageDown = "resize smart -200";
 
-        # Section navigation
-        shift-ctrl-alt-1 = [
-          "focus left"
-          "focus left"
-          "focus left"
-        ]; # Secondary Section 1
-        shift-ctrl-alt-2 = [
-          "focus right"
-          "focus left"
-        ]; # Primary Section (accordion)
-        shift-ctrl-alt-3 = [
-          "focus right"
-          "focus right"
-        ]; # Secondary Section 2
+        # Section navigation - temporarily disabled due to binding syntax issues
+        # shift-ctrl-alt-1 = "focus left; focus left; focus left"; # Secondary Section 1
+        # shift-ctrl-alt-2 = "focus right; focus left"; # Primary Section (accordion)
+        # shift-ctrl-alt-3 = "focus right; focus right"; # Secondary Section 2
 
-        # Layout reset
-        shift-ctrl-alt-r = [
-          "focus left"
-          "focus left"
-          "focus left"
-          "layout tiles" # Reset left section
-          "focus right"
-          "layout accordion" # Reset middle section
-          "focus right"
-          "layout tiles" # Reset right section
-        ];
+        # # Layout reset
+        # shift-ctrl-alt-r = [
+        #   "focus left"
+        #   "focus left"
+        #   "focus left"
+        #   "layout tiles" # Reset left section
+        #   "focus right"
+        #   "layout accordion" # Reset middle section
+        #   "focus right"
+        #   "layout tiles" # Reset right section
+        # ];
 
         # Full layout refresh (recreate startup layout)
-        shift-ctrl-alt-t = [
-          "layout tiles horizontal" # Root container horizontal
-          "join-with right" # Create Secondary Section 1
-          "join-with right" # Create Primary Section (middle)
-          "join-with right" # Create Secondary Section 2
-          # Set layouts for each section
-          "focus left"
-          "focus left"
-          "focus left"
-          "layout tiles" # Left section (secondary 1)
-          "focus right"
-          "layout accordion" # Middle section (primary)
-          "focus right"
-          "layout tiles" # Right section (secondary 2)
-        ];
+        # shift-ctrl-alt-t = [
+        #   "layout tiles horizontal" # Root container horizontal
+        #   "join-with right" # Create Secondary Section 1
+        #   "join-with right" # Create Primary Section (middle)
+        #   "join-with right" # Create Secondary Section 2
+        #   # Set layouts for each section
+        #   "focus left"
+        #   "focus left"
+        #   "focus left"
+        #   "layout tiles" # Left section (secondary 1)
+        #   "focus right"
+        #   "layout accordion" # Middle section (primary)
+        #   "focus right"
+        #   "layout tiles" # Right section (secondary 2)
+        # ];
 
-        shift-ctrl-alt-semicolon = "workspace";
+        shift-ctrl-alt-semicolon = "workspace next";
         shift-ctrl-alt-4 = "move-node-to-workspace --wrap-around prev";
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";
@@ -127,10 +117,7 @@
       on-window-detected = [
         {
           check-further-callbacks = true;
-          run = [
-            "focus right"
-            "focus left"
-          ]; # Navigate to primary section (middle)
+          run = []; # New windows will appear in current focus location
         }
         {
           "if" = {
