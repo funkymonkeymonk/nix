@@ -63,12 +63,37 @@ Before committing changes, follow this workflow to ensure transparency and allow
 
 1. **Make changes** to files as needed
 2. **Run tests** (`task test`) to validate configuration
-3. **Fix formatting** - allow tools like alejandra to format code automatically
+3. **Check quality** - (`test quality`) to run linters and formatters. Fix any errors.
 4. **Display diff summary** with clear explanation of all changes made
-5. **Wait for user feedback/approval** before proceeding with commit
-6. **Commit** with descriptive conventional commit message only after approval
+5. **Request explicit approval** - Ask "Should I proceed with committing these changes?" and wait for affirmative response
+6. **Verify staging status** - Confirm all intended changes are staged before committing
+7. **Commit** with descriptive conventional commit message only after explicit approval
+8. **Verify commit success** - Check that the commit contains expected changes and working tree is clean
 
-This ensures all changes are reviewed and approved before being committed to the repository.
+**Approval Requirements:**
+- User must explicitly say "yes", "proceed", "commit", "make it so", "do it", or similar affirmative response.
+- If user provides new instructions, restart the workflow from step 1
+
+## Commit Safety Checks
+To prevent commit confusion and ensure accuracy:
+
+1. **Always verify staged changes** before committing:
+   ```bash
+   git diff --staged  # Review what will be committed
+   git status         # Confirm staging status
+   ```
+
+2. **Never assume implicit approval** - always request explicit confirmation
+
+3. **Ensure pre-commit hooks pass** - Ensure all git precommit hooks return successfully.
+
+4. **Confirm that that commit happened** after committing:
+   ```bash
+   git show HEAD      # Verify commit contents
+   git status         # Ensure working tree is clean
+   ```
+
+5. **If confusion arises**, abort and restart the process rather than forcing through
 
 ## Commit Message Generation
 
