@@ -50,6 +50,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/home-manager
         ./bundles/base
         ./bundles/roles/developer
         ./bundles/roles/workstation
@@ -75,10 +76,6 @@
           };
         }
         home-manager.darwinModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-        }
       ];
     };
 
@@ -89,6 +86,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/home-manager
         ./bundles/base
         ./bundles/roles/developer
         ./bundles/roles/creative
@@ -118,10 +116,6 @@
         }
         home-manager.darwinModules.home-manager
         {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-        }
-        {
           homebrew.casks = [
             "autodesk-fusion"
             "deezer"
@@ -148,6 +142,7 @@
         ./modules/common/users.nix
         ./modules/common/packages.nix
         ./modules/common/shell.nix
+        ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./modules/nixos/services.nix
         ./bundles/base
@@ -176,10 +171,6 @@
         }
         ./1password.nix
         home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-        }
       ];
     };
 
@@ -191,6 +182,7 @@
         ./modules/common/users.nix
         ./modules/common/packages.nix
         ./modules/common/shell.nix
+        ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./bundles/base
         ./bundles/roles/developer
@@ -216,10 +208,6 @@
         }
         ./1password.nix
         home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-        }
       ];
     };
   };
