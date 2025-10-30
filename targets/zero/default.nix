@@ -16,9 +16,6 @@
     ./hardware-configuration.nix
   ];
 
-  # Allow unfree packages
-  nixpkgs.config.allowUnfree = true;
-
   # Packages
   environment.systemPackages = with pkgs; [
     vim
@@ -203,27 +200,4 @@
     shell = pkgs.zsh;
     home = "/home/monkey";
   };
-
-  #
-  # /etc/zshrc managed by Nix
-  #
-  environment.etc."zshrc".text = ''
-    # /etc/zshrc - system-wide configuration managed by Nix
-    export SHELL=${pkgs.zsh}/bin/zsh
-
-    # Load zshenv if present (follow distribution's behavior)
-    if [ -f /etc/zsh/zshenv ]; then
-      . /etc/zsh/zshenv
-    fi
-
-    # Initialize completion if available (safe/optional)
-    if command -v compinit >/dev/null 2>&1; then
-      autoload -Uz compinit && compinit || true
-    fi
-
-    # Source user's ~/.zshrc to allow per-user customizations
-    if [ -n "$HOME" ] && [ -f "$HOME/.zshrc" ]; then
-      . "$HOME/.zshrc"
-    fi
-  '';
 }
