@@ -147,6 +147,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/common/shell.nix
         ./modules/nixos/hardware.nix
         ./modules/nixos/services.nix
         ./bundles/base
@@ -189,6 +190,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/common/shell.nix
         ./modules/nixos/hardware.nix
         ./bundles/base
         ./bundles/roles/developer
