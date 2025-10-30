@@ -20,6 +20,10 @@
       userEmail = null;
       githubToken = null;
     };
+    ssh = {
+      privateKey = null;
+      publicKey = null;
+    };
   };
 
   # Merge defaults with loaded secrets
@@ -52,6 +56,21 @@ in {
         default = secrets.git.githubToken;
         readOnly = true;
         description = "GitHub personal access token";
+      };
+    };
+
+    ssh = {
+      privateKey = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = secrets.ssh.privateKey;
+        readOnly = true;
+        description = "SSH private key";
+      };
+      publicKey = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = secrets.ssh.publicKey;
+        readOnly = true;
+        description = "SSH public key";
       };
     };
   };
