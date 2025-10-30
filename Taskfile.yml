@@ -12,7 +12,10 @@ tasks:
     aliases:
       - osx
     platforms: [darwin]
-    cmd: sudo darwin-rebuild switch --flake ./
+    cmd: |
+      op run \
+        --env-file=<(echo "SUDO_PASSWORD=$(op read 'op://Private/macOS Sudo Password/password')") \
+        -- bash -c 'echo "$SUDO_PASSWORD" | sudo -S darwin-rebuild switch --flake ./'
   build-linux:
     desc: Perform linux based build
     aliases:
