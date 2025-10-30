@@ -91,6 +91,7 @@
         ./bundles/roles/developer
         ./bundles/roles/creative
         ./bundles/roles/gaming
+        ./bundles/roles/entertainment.nix
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
         ./os/darwin.nix
