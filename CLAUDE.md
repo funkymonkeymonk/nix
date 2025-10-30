@@ -22,7 +22,7 @@ Use the `task` command (go-task) for all operations:
 - `flake.nix` - Main flake definition with system configurations for two machines: "Will-Stride-MBP" and "MegamanX"
 - `home.nix` - Home-manager configuration (user-level packages, shell aliases, dotfiles)
 - `homebrew.nix` - Homebrew cask definitions for GUI applications
-- `aerospace.nix` - AeroSpace window manager configuration
+- `modules/home-manager/aerospace.nix` - AeroSpace window manager configuration
 
 ### System Structure
 The flake defines two darwinConfigurations:

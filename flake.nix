@@ -56,7 +56,7 @@
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
         ./os/darwin.nix
-        ./modules/home-manager/desktop.nix
+        ./modules/home-manager/aerospace.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "willweaver";
@@ -95,7 +95,7 @@
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
         ./os/darwin.nix
-        ./modules/home-manager/desktop.nix
+        ./modules/home-manager/aerospace.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";

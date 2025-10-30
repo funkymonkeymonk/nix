@@ -94,7 +94,7 @@ Workspace-to-monitor assignments ensure consistent placement across multiple dis
 
 ### Customization
 To modify this configuration:
-1. Edit `aerospace.nix` in the repository root
+1. Edit `modules/home-manager/aerospace.nix`
 2. Test changes with `task test`
 3. Apply with `task build` or `task switch`
 
