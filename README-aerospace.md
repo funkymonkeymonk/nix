@@ -4,7 +4,7 @@ This document describes the AeroSpace tiling window manager configuration used i
 
 ## Overview
 
-AeroSpace is a tiling window manager for macOS that provides efficient window management through keyboard-driven workflows. This configuration creates a sophisticated 3-section workspace layout optimized for productivity.
+AeroSpace is a tiling window manager for macOS that provides efficient window management through keyboard-driven workflows. This configuration creates a sophisticated 3-section workspace layout optimized for productivity, with automatic window placement rules and multi-monitor support.
 
 ## Core Features
 
@@ -19,6 +19,11 @@ The `after-startup-command` automatically configures a 3-section horizontal layo
 1. **Left Section** (Secondary 1): Tiles layout - windows stack vertically
 2. **Middle Section** (Primary): Accordion layout - windows expand to fill available space
 3. **Right Section** (Secondary 2): Tiles layout - windows stack vertically
+
+### Default Window Behavior
+- **New windows** automatically appear in the primary (middle) section by default
+- **Application-specific rules** automatically move certain apps to designated workspaces (see Automatic Window Placement below)
+- **Window detection callbacks** ensure new windows are properly positioned in the layout
 
 ## Keybindings
 
@@ -75,6 +80,8 @@ Workspace-to-monitor assignments ensure consistent placement across multiple dis
 1. AeroSpace starts automatically with the system
 2. New windows appear in the primary (middle) section by default
 3. Use `shift-ctrl-alt-1/2/3` to navigate between sections
+4. Communication apps automatically move to workspace 2
+5. Dashboard/productivity apps automatically move to workspace 3
 
 ### Layout Philosophy
 - **Left/Right Sections**: Use tiles layout for consistent, predictable window sizing
@@ -87,6 +94,13 @@ To modify this configuration:
 1. Edit `aerospace.nix` in the repository root
 2. Test changes with `task test`
 3. Apply with `task build` or `task switch`
+
+## Future Enhancements
+
+The configuration includes commented keybindings that can be enabled for additional functionality:
+
+- **Alternative resize keys**: `shift-ctrl-alt-pageUp/pageDown` for window resizing
+- **Workspace selection**: `shift-ctrl-alt-semicolon` for interactive workspace selection
 
 ## Integration with Nix Flakes
 
@@ -102,7 +116,14 @@ This configuration integrates with the broader Nix Flakes setup:
 - **Windows not moving**: Check that AeroSpace is running (`ps aux | grep aerospace`)
 - **Keybindings not working**: Verify modifier keys are pressed simultaneously
 - **Layout not applying**: Run `aerospace reload-config` after configuration changes
+- **Windows appearing in wrong section**: Check `on-window-detected` rules in configuration
+- **Multi-monitor issues**: Verify `workspace-to-monitor-force-assignment` settings
 
 ### Reset Layout
 - Use `shift-ctrl-alt-r` to reset all sections to their default layouts if things get disorganized
 - Use `shift-ctrl-alt-t` for a complete layout refresh that recreates the original 3-section startup layout
+
+### Debug Commands
+- `aerospace list-windows` - Show all windows and their current state
+- `aerospace list-workspaces` - Display workspace information
+- `aerospace debug-window` - Get detailed information about the focused window
