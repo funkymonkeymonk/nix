@@ -44,6 +44,15 @@
     '';
   };
 
+  # I don't want to lose this function during the transitional period
+  # but I want to migrate out of the shell.dotfile. So this is disk-usage.
+  # I may want to replace this but I also may want to keep it around.
+  #
+  # disk-usage() {
+  #   path=${1-${PWD}}
+  #   du -k $path | sort -n | perl -ne 'if ( /^(\d+)\s+(.*$)/){$l=log($1+.1);$m=int($l/log(1024)); printf  ("%6.1f\t%s\t%25s  %s\n",($1/(2**(10*$m))),(("K","M","G","T","P")[$m]),"*"x (1.5*$l),$2);}'
+  # }
+
   home.shellAliases = {
     g = "git";
     t = "task";
