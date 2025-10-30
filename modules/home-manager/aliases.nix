@@ -16,6 +16,6 @@
     # Development tools
     try = "nix-shell -p";
     ops = "op signin"; # 1Password CLI (available on NixOS systems)
-    opc = "op run -- opencode"; # One-off opencode commands with 1Password env
+    opc = "opencode run"; # One-off opencode commands
   };
 }
