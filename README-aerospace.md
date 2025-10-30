@@ -30,8 +30,8 @@ The `after-startup-command` automatically configures a 3-section horizontal layo
 All keybindings use the `shift-ctrl-alt` modifier combination for consistency.
 
 ### Window Navigation
-- `shift-ctrl-alt-h/j/k/l` - Focus windows (vim-style: left/down/up/right)
-- `shift-ctrl-alt-y/u/i/o` - Swap windows with focus
+- `shift-ctrl-alt-y/j/k/o` - Focus windows (left/down/up/right)
+- `shift-ctrl-alt-h/u/i/l` - Swap windows with focus
 - `shift-ctrl-alt-n/m/,/.` - Move windows in cardinal directions
 
 ### Layout Management
@@ -43,11 +43,11 @@ All keybindings use the `shift-ctrl-alt` modifier combination for consistency.
 - `shift-ctrl-alt-'` - Balance all window sizes
 
 ### Section Navigation
-- `shift-ctrl-alt-1` - Jump to left section (Secondary 1)
-- `shift-ctrl-alt-2` - Jump to middle section (Primary/Accordion)
-- `shift-ctrl-alt-3` - Jump to right section (Secondary 2)
-- `shift-ctrl-alt-r` - Reset all section layouts to defaults
-- `shift-ctrl-alt-t` - Full layout refresh (recreate 3-section startup layout)
+- `shift-ctrl-alt-1` - Jump to left section (Secondary 1) *[Currently disabled]*
+- `shift-ctrl-alt-2` - Jump to middle section (Primary/Accordion) *[Currently disabled]*
+- `shift-ctrl-alt-3` - Jump to right section (Secondary 2) *[Currently disabled]*
+- `shift-ctrl-alt-r` - Reset all section layouts to defaults *[Currently disabled]*
+- `shift-ctrl-alt-t` - Full layout refresh (recreate 3-section startup layout) *[Currently disabled]*
 
 ### Workspace Management
 - `shift-ctrl-alt-semicolon` - Interactive workspace selection
@@ -82,7 +82,7 @@ Workspace-to-monitor assignments ensure consistent placement across multiple dis
 ### Getting Started
 1. AeroSpace starts automatically with the system
 2. New windows appear in the primary (middle) section by default
-3. Use `shift-ctrl-alt-1/2/3` to navigate between sections
+3. Use `shift-ctrl-alt-y/j/k/o` to navigate between windows in the current section
 4. Communication apps automatically move to workspace 2
 5. Dashboard/productivity apps automatically move to workspace 3
 
@@ -116,8 +116,9 @@ This configuration integrates with the broader Nix Flakes setup:
 - **Multi-monitor issues**: Verify `workspace-to-monitor-force-assignment` settings
 
 ### Reset Layout
-- Use `shift-ctrl-alt-r` to reset all sections to their default layouts if things get disorganized
-- Use `shift-ctrl-alt-t` for a complete layout refresh that recreates the original 3-section startup layout
+- Section navigation and layout reset commands are currently disabled due to binding syntax issues
+- Use window focus commands (`shift-ctrl-alt-y/j/k/o`) to navigate within sections
+- Use window swap commands (`shift-ctrl-alt-h/u/i/l`) to reorganize window positions
 
 ### Debug Commands
 - `aerospace list-windows` - Show all windows and their current state

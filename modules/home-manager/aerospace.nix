@@ -46,15 +46,15 @@
         # - Arrows.         left, down, up, right
         # All possible modifiers: cmd, alt, ctrl, shift
 
-        shift-ctrl-alt-h = "focus left";
+        shift-ctrl-alt-y = "focus left";
         shift-ctrl-alt-j = "focus down";
         shift-ctrl-alt-k = "focus up";
-        shift-ctrl-alt-l = "focus right";
+        shift-ctrl-alt-o = "focus right";
 
-        shift-ctrl-alt-y = "swap --swap-focus left";
+        shift-ctrl-alt-h = "swap --swap-focus left";
         shift-ctrl-alt-u = "swap --swap-focus down";
         shift-ctrl-alt-i = "swap --swap-focus up";
-        shift-ctrl-alt-o = "swap --swap-focus right";
+        shift-ctrl-alt-l = "swap --swap-focus right";
 
         shift-ctrl-alt-n = "move left";
         shift-ctrl-alt-m = "move down";
