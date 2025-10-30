@@ -14,9 +14,6 @@ with lib; {
     environment.systemPackages = with pkgs;
       [
         # Core utilities
-        vim
-        git
-        gh
         bat
         jq
         tree
@@ -30,7 +27,6 @@ with lib; {
         go-task
 
         # Shell and terminal
-        zsh
         fzf
         zinit
 

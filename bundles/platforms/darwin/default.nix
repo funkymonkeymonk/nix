@@ -1,29 +1,8 @@
 {pkgs, ...}: {
   # macOS-specific packages and configuration
   environment.systemPackages = with pkgs; [
-    # Web browsers and communication
-    google-chrome
-    slack
-
-    # Development tools
-    ripgrep
-    fd
-    coreutils
-    clang
-    home-manager
-    glow
-    antigen
-    k3d
-    kubectl
-    kubernetes-helm
-    k9s
-
-    # Productivity and utilities
-    trippy
-    logseq
-    the-unarchiver
-
     # macOS-specific utilities
+    google-chrome
     hidden-bar
     goose-cli
     claude-code
@@ -31,6 +10,23 @@
 
     # Development tools with macOS support
     colima # Docker alternative for macOS
+
+    # Additional system packages
+    trippy
+    logseq
+    ripgrep
+    fd
+    coreutils
+    clang
+    slack
+    home-manager
+    glow
+    antigen
+    k3d
+    kubectl
+    kubernetes-helm
+    k9s
+    the-unarchiver
   ];
 
   # 1Password integration
@@ -39,5 +35,36 @@
     _1password-gui.enable = true;
     _1password.package = pkgs.unstable._1password-cli;
     _1password-gui.package = pkgs.unstable._1password-gui;
+  };
+
+  # Homebrew configuration
+  homebrew = {
+    enable = true;
+    onActivation.cleanup = "uninstall";
+
+    casks = [
+      # Common macOS applications
+      "raycast" # The version in nixpkgs is out of date
+      "zed"
+      "zen"
+      "ollama-app"
+
+      # Creative and development tools
+      "autodesk-fusion"
+      "xtool-studio"
+      "orcaslicer"
+      "openscad"
+
+      # Entertainment and communication
+      "deezer"
+      "discord"
+      "block-goose"
+      "pocket-casts"
+      "steam"
+
+      # Productivity and utilities
+      "obs"
+      "sensei"
+    ];
   };
 }
