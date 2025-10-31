@@ -116,10 +116,6 @@
 
       on-window-detected = [
         {
-          check-further-callbacks = true;
-          run = []; # New windows will appear in current focus location
-        }
-        {
           "if" = {
             app-id = "com.hnc.Discord";
           };
