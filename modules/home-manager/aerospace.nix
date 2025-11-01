@@ -73,7 +73,6 @@
         shift-ctrl-alt-pageUp = "resize smart +200";
         shift-ctrl-alt-pageDown = "resize smart -200";
 
-        # Section navigation - temporarily disabled due to binding syntax issues
         # shift-ctrl-alt-1 = "focus left; focus left; focus left"; # Secondary Section 1
         # shift-ctrl-alt-2 = "focus right; focus left"; # Primary Section (accordion)
         # shift-ctrl-alt-3 = "focus right; focus right"; # Secondary Section 2
