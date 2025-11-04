@@ -61,9 +61,11 @@ opencode will handle all common development tasks including:
 opencode shall not:
 - Replace human expertise or decision-making authority
 - Process personal or sensitive data without explicit authorization
+<<<<<<< HEAD
 - Make autonomous commits to version control systems without explicit user approval
 - Execute commands that could compromise system security
 - Push changes to remote repositories without explicit user review and approval
+>>>>>>> 3d05043 (Add AGENTS.md: AI Assistant Development Services Agreement)
 
 ## Communication Protocols
 
@@ -153,9 +155,14 @@ The User agrees to:
 1. **Provide context** about the specific system or configuration being worked on
 2. **Specify the scope** of changes (e.g., "update home-manager config for user X" vs "refactor entire flake")
 3. **Review all suggestions** before implementation
+<<<<<<< HEAD
 4. **Review and approve all commits** before they are pushed to remote repositories
 5. **Test changes** in a safe environment before applying to production systems
 6. **Document decisions** for future reference and team knowledge sharing
+=======
+4. **Test changes** in a safe environment before applying to production systems
+5. **Document decisions** for future reference and team knowledge sharing
+>>>>>>> 3d05043 (Add AGENTS.md: AI Assistant Development Services Agreement)
 
 ## Reusability and Adaptation
 
