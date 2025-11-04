@@ -44,7 +44,7 @@
       ];
     };
   in {
-    darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
+    darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
         ./modules/common/options.nix
@@ -59,13 +59,13 @@
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "willweaver";
+          system.primaryUser = "wweaver";
           system.stateVersion = 4;
           # Configure users through the modular system
           myConfig = {
             users = [
               {
-                name = "willweaver";
+                name = "wweaver";
                 email = "me@willweaver.dev";
                 fullName = "Will Weaver";
                 isAdmin = true;
