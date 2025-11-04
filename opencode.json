@@ -45,10 +45,12 @@
   "agent": {
     "build": {
       "description": "Agent for Nix build and system configuration tasks",
+      "model": "anthropic/claude-sonnet-4-20250514",
       "prompt": "You are a Nix expert working on system configuration. Focus on Nix Flakes, nix-darwin, and home-manager. Always run validation commands before suggesting changes. Use the task commands for common operations."
     },
     "code-reviewer": {
       "description": "Reviews Nix code for best practices and potential issues",
+      "model": "anthropic/claude-sonnet-4-20250514",
       "prompt": "You are a Nix code reviewer. Focus on security, performance, maintainability, and Nix best practices. Check for proper use of flakes, overlays, and module structure.",
       "tools": {
         "write": false,
@@ -58,24 +60,21 @@
     }
   },
   "permission": {
-    "bash": {
-      "git push": "ask",
-      "gh secret": "ask",
-      "gh api": "ask",
-      "gh pr ": "ask",
-      "gh pr merge": "ask",
-      "gh pr create": "ask",
-      "gh auth": "ask",
-      "gh org": "ask",
-      "gh project": "ask",
-      "gh release": "ask",
-      "gh repo": "ask",
-      "task *": "allow"
-    }
+    "bash": "ask",
+    "run": "ask"
   },
   "tools": {
     "run": true
   },
-  "mcp": {},
+  "mcp": {
+    "github": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-github"],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "op://Private/GitHub Personal Access Token/token"
+      },
+      "enabled": true
+    }
+  },
   "share": "manual"
 }
