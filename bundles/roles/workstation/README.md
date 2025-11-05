@@ -15,6 +15,9 @@ This bundle supports general computing tasks including:
 ### Communication
 - `slack` - Team communication platform
 
+### Productivity
+- `logseq` - Note-taking and knowledge graph application
+
 ### Networking
 - `trippy` - Network diagnostic tool
 
