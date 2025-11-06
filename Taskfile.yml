@@ -256,7 +256,8 @@ tasks:
     desc: Run opencode with env from 1password
     cmds:
       - task op:signin
-      - op run --env-file=<(echo "LITELLM_API_KEY=$(op read 'op://personal/litellm/api-key' 2>/dev/null || echo '')") -- opencode
+      - export LITELLM_API_KEY=$(op read 'op://personal/litellm/api-key' 2>/dev/null || echo '')
+      - op run --env LITELLM_API_KEY -- opencode
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
