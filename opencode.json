@@ -1,6 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "small_model": "anthropic/claude-3-5-haiku-20241022",
+  "base_url": "http://localhost:8000/v1",
+  "api_key": "${LITELLM_API_KEY}",
   "theme": "opencode",
   "autoupdate": true,
   "instructions": ["CLAUDE.md", "README.md"],
