@@ -3,7 +3,7 @@
   "small_model": "anthropic/claude-3-5-haiku-20241022",
   "theme": "opencode",
   "autoupdate": true,
-  "instructions": ["CLAUDE.md", "README.md"],
+  "instructions": ["AGENTS.md", "README.md"],
   "formatter": {
     "alejandra": {
       "command": ["alejandra"],

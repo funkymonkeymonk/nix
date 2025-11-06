@@ -22,7 +22,7 @@ Use the `task` command (go-task) for all operations:
 - `flake.nix` - Main flake definition with system configurations for two machines: "Will-Stride-MBP" and "MegamanX"
 - `home.nix` - Home-manager configuration (user-level packages, shell aliases, dotfiles)
 - `homebrew.nix` - Homebrew cask definitions for GUI applications
-- `aerospace.nix` - AeroSpace window manager configuration
+- `modules/home-manager/aerospace.nix` - AeroSpace window manager configuration
 
 ### System Structure
 The flake defines two darwinConfigurations:
@@ -56,6 +56,44 @@ Important: any time you change the development environment — for example, when
 - `devenv test`
 
 This ensures the devenv shells and tests are rebuilt and validated locally (and catches environment-related issues early). If you are running CI, ensure CI also invokes `devenv test` or `task test` as appropriate.
+
+## Commit Workflow
+
+Before committing changes, follow this workflow to ensure transparency and allow for review:
+
+1. **Make changes** to files as needed
+2. **Run tests** (`task test`) to validate configuration
+3. **Check quality** - (`test quality`) to run linters and formatters. Fix any errors.
+4. **Display diff summary** with clear explanation of all changes made
+5. **Request explicit approval** - Ask "Should I proceed with committing these changes?" and wait for affirmative response
+6. **Verify staging status** - Confirm all intended changes are staged before committing
+7. **Commit** with descriptive conventional commit message only after explicit approval
+8. **Verify commit success** - Check that the commit contains expected changes and working tree is clean
+
+**Approval Requirements:**
+- User must explicitly say "yes", "proceed", "commit", "make it so", "do it", or similar affirmative response.
+- If user provides new instructions, restart the workflow from step 1
+
+## Commit Safety Checks
+To prevent commit confusion and ensure accuracy:
+
+1. **Always verify staged changes** before committing:
+   ```bash
+   git diff --staged  # Review what will be committed
+   git status         # Confirm staging status
+   ```
+
+2. **Never assume implicit approval** - always request explicit confirmation
+
+3. **Ensure pre-commit hooks pass** - Ensure all git precommit hooks return successfully.
+
+4. **Confirm that that commit happened** after committing:
+   ```bash
+   git show HEAD      # Verify commit contents
+   git status         # Ensure working tree is clean
+   ```
+
+5. **If confusion arises**, abort and restart the process rather than forcing through
 
 ## Commit Message Generation
 
