@@ -140,6 +140,55 @@ Items that don't exist will be left empty in the generated `secrets.nix` file.
 - Secrets are only accessible during Nix builds
 - No secrets are stored in the Nix store
 
+## 🤖 AI Assistant Configuration (opencode)
+
+This configuration includes setup for [opencode](https://opencode.ai), an AI-powered coding assistant that integrates with your development environment.
+
+### LiteLLM Integration
+
+The opencode configuration supports connecting to an existing [LiteLLM](https://litellm.ai) instance for AI model proxying. This allows you to use various AI models through a unified API while maintaining control over your AI infrastructure.
+
+#### Setup
+
+1. **Install opencode**: Ensure opencode is available in your environment
+2. **Configure LiteLLM**: Set up your LiteLLM instance with desired models
+3. **Store API Key**: Add your LiteLLM API key to 1Password:
+   ```bash
+   op create document "your-litellm-api-key" --vault personal --title "LiteLLM API Key"
+   ```
+4. **Launch opencode**: Use the configured task:
+   ```bash
+   task opencode
+   ```
+
+#### Configuration Details
+
+- **Model**: `anthropic/claude-3-5-haiku-20241022` (routes through LiteLLM proxy)
+- **Endpoint**: `http://localhost:8000/v1` (OpenAI-compatible API)
+- **Authentication**: API key retrieved securely from 1Password at `op://personal/litellm/api-key`
+- **Environment**: Automatically configured via `task opencode`
+
+#### Files Modified
+
+- **`opencode.json`**: Contains base configuration with LiteLLM proxy settings
+- **`Taskfile.yml`**: `opencode` task injects API key from 1Password
+- **`secrets.nix.template`**: Includes LiteLLM API key structure
+- **`secrets:populate`**: Auto-populates LiteLLM key from 1Password vault
+
+#### Customizing LiteLLM Configuration
+
+To modify the LiteLLM setup:
+
+1. **Change endpoint**: Edit `base_url` in `opencode.json`
+2. **Change model**: Update `small_model` in `opencode.json`
+3. **Update API key path**: Modify the 1Password reference in `Taskfile.yml`
+
+#### Troubleshooting
+
+- **Connection issues**: Verify your LiteLLM instance is running on the configured endpoint
+- **Authentication errors**: Check that the API key exists in 1Password at the correct path
+- **Model not found**: Ensure the configured model is available in your LiteLLM instance
+
 ## 🤖 CI/CD Pipeline
 
 The repository includes automated testing and validation:
