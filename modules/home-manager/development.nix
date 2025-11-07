@@ -70,5 +70,33 @@
     };
   };
 
-  services.syncthing.enable = true;
+  services.syncthing = {
+    enable = true;
+    overrideDevices = false;
+    overrideFolders = false;
+    settings = {
+      devices = {
+        "MegamanX" = {
+          id = "YST7RD6-6IZE4J6-KUWLNXV-B32ZKEN-3TN57OE-MGY4YHU-HZUFRFW-Z7VQOQ6";
+        };
+        "Oldfriend" = {
+          id = "7R75WU3-HTCGE6Z-AD6YCOA-HUTVJKT-PIXBDUV-JQSJITU-I6J4FFL-L4D6PQ3";
+        };
+        "Will's Phone" = {
+          id = "652Z7Y4-72TMMIC-TKTAWNQ-5BWDWP6-DIJF2MA-7INIX5T-TY2ZOPF-SV274QH";
+        };
+      };
+      folders = {
+        "Logseq" = {
+          path = "~/logseq";
+          devices = [
+            "Oldfriend"
+            "Will's Phone"
+            "MegamanX"
+          ];
+          ignorePerms = false; # By default, Syncthing doesn't sync file permissions. This line enables it for this folder.
+        };
+      };
+    };
+  };
 }
