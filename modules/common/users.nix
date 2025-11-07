@@ -92,7 +92,8 @@ with lib; {
               ../../modules/home-manager/shell.nix
             ]
             ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
-            ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix;
+            ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix
+            ++ optional config.myConfig.syncthing.enable ../../modules/home-manager/syncthing.nix;
         };
       })
       config.myConfig.users);

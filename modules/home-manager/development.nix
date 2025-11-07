@@ -34,5 +34,5 @@
     };
   };
 
-  services.syncthing.enable = true;
+  # Syncthing configuration moved to dedicated module
 }

@@ -25,6 +25,7 @@
 
     # Cloud tools
     rclone
+    syncthing
 
     # Shell tools
     antigen

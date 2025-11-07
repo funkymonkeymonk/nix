@@ -17,6 +17,7 @@
     tree
     watchman
     jnv
+    syncthing
     zinit
     fzf
     zsh
