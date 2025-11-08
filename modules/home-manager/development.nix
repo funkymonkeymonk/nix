@@ -8,10 +8,17 @@
       enable = true;
       settings = {
         font.size = 14;
-        window.decorations = "Buttonless";
-        window.padding = {
-          x = 10;
-          y = 6;
+        window = {
+          decorations = "Buttonless";
+          padding = {
+            x = 10;
+            y = 6;
+          };
+          opacity = 0.95;
+          class = {
+            instance = "dropdown";
+            general = "Alacritty";
+          };
         };
         mouse.hide_when_typing = true;
       };

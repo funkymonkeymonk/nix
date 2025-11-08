@@ -66,6 +66,9 @@
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";
         shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
+
+        # Drop-down terminal toggle
+        cmd-alt-space = "exec-and-forget dropdown_terminal";
       };
 
       on-window-detected = [
@@ -92,6 +95,17 @@
             app-id = "com.electron.logseq";
           };
           run = ["move-node-to-workspace 3.Dash"];
+        }
+        {
+          "if" = {
+            app-id = "org.alacritty";
+            window-title-regex-substring = "dropdown";
+          };
+          run = [
+            "layout floating"
+            "move-node-to-workspace 4.Distracted"
+            "resize smart 100% 35%"
+          ];
         }
       ];
       workspace-to-monitor-force-assignment = {
