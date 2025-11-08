@@ -74,6 +74,7 @@
     enable = true;
     overrideDevices = false;
     overrideFolders = false;
+    group = "staff";
     settings = {
       devices = {
         "MegamanX" = {
