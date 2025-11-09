@@ -27,7 +27,7 @@
           if pgrep -f "alacritty.*dropdown" > /dev/null; then
             osascript -e "
             tell application \"Alacritty\"
-              set visible of window 1 to not (visible of window 1)
+              set miniaturized of window 1 to not (miniaturized of window 1)
             end tell
             "
           else
