@@ -39,6 +39,7 @@ The flake defines two darwinConfigurations:
 - Integrates 1Password for secret management
 - Configures git, zsh, emacs, alacritty, and other development tools
 - Sets up AeroSpace tiling window manager with custom keybindings
+- **Floating Dropdown Terminal**: Toggleable floating Alacritty terminal (Cmd+Alt+Space or `dt` command) that appears on the active workspace
 - Includes Docker utilities and custom shell functions
 
 ## Development Environment
@@ -56,6 +57,30 @@ Important: any time you change the development environment — for example, when
 - `devenv test`
 
 This ensures the devenv shells and tests are rebuilt and validated locally (and catches environment-related issues early). If you are running CI, ensure CI also invokes `devenv test` or `task test` as appropriate.
+
+## Dropdown Terminal Implementation
+
+The system includes a floating dropdown terminal feature that works alongside regular Alacritty terminals:
+
+### Usage
+- **Toggle**: `Cmd + Alt + Space` (AeroSpace keybinding) or `dt` (shell alias)
+- **Quit**: `Ctrl + Shift + Escape` when focused on the dropdown terminal
+
+### Technical Details
+- **Function**: `dropdown_terminal()` in `modules/home-manager/shell.nix`
+- **Window Detection**: AeroSpace matches on `window-title-regex-substring = "dropdown-terminal"`
+- **Behavior**: Floating layout, 100% width × 35% height, appears on active workspace
+- **Process Matching**: Uses `pgrep -f "alacritty.*dropdown"` for toggle detection
+
+### Key Files
+- `modules/home-manager/shell.nix`: Dropdown terminal function
+- `aerospace.nix`: Window management rules
+- `modules/home-manager/development.nix`: Alacritty configuration with keyboard shortcuts
+
+### Implementation Notes
+- Regular Alacritty terminals remain tiled (not affected by dropdown rules)
+- Dropdown terminals are distinguished by `--title "dropdown-terminal"` flag
+- AeroSpace automatically manages floating behavior and sizing
 
 ## Commit Message Generation
 
