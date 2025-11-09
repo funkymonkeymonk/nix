@@ -27,7 +27,7 @@
           if pgrep -f "alacritty.*dropdown" > /dev/null; then
             pkill -f "alacritty.*dropdown"
           else
-            /etc/profiles/per-user/monkey/bin/alacritty --class dropdown > /dev/null 2>&1 &
+            nohup /etc/profiles/per-user/monkey/bin/alacritty --class dropdown >/dev/null 2>&1 &
           fi
         }
       ''}
