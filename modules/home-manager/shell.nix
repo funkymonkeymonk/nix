@@ -25,11 +25,7 @@
       ${lib.optionalString pkgs.stdenv.isDarwin ''
         dropdown_terminal() {
           if pgrep -f "alacritty.*dropdown" > /dev/null; then
-            osascript -e "
-            tell application \"Alacritty\"
-              set miniaturized of window 1 to not (miniaturized of window 1)
-            end tell
-            "
+            pkill -f "alacritty.*dropdown"
           else
             /etc/profiles/per-user/monkey/bin/alacritty --class dropdown > /dev/null 2>&1 &
           fi
