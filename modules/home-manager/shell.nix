@@ -29,7 +29,7 @@
             try
               set visible of window 1 to not (visible of window 1)
             on error
-              do shell script \"open -n /Applications/Alacritty.app --args --class dropdown\"
+              do shell script \"/etc/profiles/per-user/monkey/bin/alacritty --class dropdown &\"
             end try
           end tell
           "
