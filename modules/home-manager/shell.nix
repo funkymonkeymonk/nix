@@ -24,15 +24,15 @@
       # Drop-down terminal toggle function (macOS specific)
       ${lib.optionalString pkgs.stdenv.isDarwin ''
         dropdown_terminal() {
-          osascript -e "
-          tell application \"Alacritty\"
-            try
+          if pgrep -f "alacritty.*dropdown" > /dev/null; then
+            osascript -e "
+            tell application \"Alacritty\"
               set visible of window 1 to not (visible of window 1)
-            on error
-              do shell script \"/etc/profiles/per-user/monkey/bin/alacritty --class dropdown > /dev/null 2>&1 &\"
-            end try
-          end tell
-          "
+            end tell
+            "
+          else
+            /etc/profiles/per-user/monkey/bin/alacritty --class dropdown > /dev/null 2>&1 &
+          fi
         }
       ''}
 
