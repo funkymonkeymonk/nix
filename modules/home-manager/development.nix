@@ -16,11 +16,24 @@
           };
           opacity = 0.95;
           class = {
-            instance = "dropdown";
+            instance = "Alacritty";
             general = "Alacritty";
           };
         };
         mouse.hide_when_typing = true;
+
+        # Dropdown terminal specific configuration
+        # This will be applied when alacritty is launched with --class dropdown
+        keyboard.bindings = [
+          {
+            key = "Escape";
+            mods = "Control|Shift";
+            action = "Quit";
+          }
+        ];
+
+        # Window rules for dropdown terminal (handled by aerospace)
+        # The aerospace config will position and size the dropdown window
       };
     };
 

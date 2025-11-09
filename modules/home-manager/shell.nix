@@ -21,13 +21,13 @@
       # Direnv
       eval "$(direnv hook zsh)"
 
-      # Drop-down terminal toggle function (macOS specific)
-      ${lib.optionalString pkgs.stdenv.isDarwin ''
+       # Drop-down terminal toggle function (macOS specific)
+       ${lib.optionalString pkgs.stdenv.isDarwin ''
         dropdown_terminal() {
           if pgrep -f "alacritty.*dropdown" > /dev/null; then
             pkill -f "alacritty.*dropdown"
           else
-            nohup /etc/profiles/per-user/monkey/bin/alacritty --class dropdown >/dev/null 2>&1 &
+            nohup alacritty --class dropdown --title "dropdown-terminal" >/dev/null 2>&1 &
           fi
         }
       ''}

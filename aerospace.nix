@@ -98,11 +98,10 @@
         }
         {
           "if" = {
-            app-name = "Alacritty";
+            window-title-regex-substring = "dropdown-terminal";
           };
           run = [
             "layout floating"
-            "move-node-to-workspace 4.Distracted"
             "resize smart 100% 35%"
           ];
         }
