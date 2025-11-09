@@ -98,7 +98,7 @@
         }
         {
           "if" = {
-            app-bundle-id = "org.alacritty";
+            app-name = "Alacritty";
           };
           run = [
             "layout floating"
