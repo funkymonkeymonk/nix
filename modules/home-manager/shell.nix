@@ -27,7 +27,7 @@
           osascript -e "
           tell application \"Alacritty\"
             if (count of windows) > 0 then
-              set visible of front window to not (visible of front window)
+              set visible of window 1 to not (visible of window 1)
             else
               do shell script \"open -n /Applications/Alacritty.app --args --class dropdown\"
             end if
