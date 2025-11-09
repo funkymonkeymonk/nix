@@ -26,11 +26,11 @@
         dropdown_terminal() {
           osascript -e "
           tell application \"Alacritty\"
-            if (count of windows) > 0 then
+            try
               set visible of window 1 to not (visible of window 1)
-            else
+            on error
               do shell script \"open -n /Applications/Alacritty.app --args --class dropdown\"
-            end if
+            end try
           end tell
           "
         }
