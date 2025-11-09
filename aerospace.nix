@@ -98,8 +98,7 @@
         }
         {
           "if" = {
-            app-id = "org.alacritty";
-            window-title-regex-substring = "dropdown";
+            app-bundle-id = "org.alacritty";
           };
           run = [
             "layout floating"
