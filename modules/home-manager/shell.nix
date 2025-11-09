@@ -24,15 +24,15 @@
       # Drop-down terminal toggle function (macOS specific)
       ${lib.optionalString pkgs.stdenv.isDarwin ''
         dropdown_terminal() {
-          osascript << 'EOF'
-          tell application "Alacritty"
+          osascript -e "
+          tell application \"Alacritty\"
             if (count of windows) > 0 then
               set visible of front window to not (visible of front window)
             else
-              do shell script "open -n /Applications/Alacritty.app --args --class dropdown"
+              do shell script \"open -n /Applications/Alacritty.app --args --class dropdown\"
             end if
           end tell
-          EOF
+          "
         }
       ''}
 
