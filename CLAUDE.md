@@ -1,86 +1,15 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-This is a personal macOS system configuration using Nix Flakes, nix-darwin, and home-manager. It manages system packages, homebrew applications, dotfiles, and various system configurations across multiple machines.
-
 ## Common Development Commands
-
-Use the `task` command (go-task) for all operations:
-
-- `task` or `task list` - List all available tasks
-- `task build` or `task switch` - Apply system configuration (runs `darwin-rebuild switch --flake ./`)
-- `task test` - Run nix flake check to validate configuration
-- `task fmt` - Format all Nix files using alejandra formatter
-- `task init` - Initial setup for first-time installation
-
-## Architecture Overview
-
-### Core Files
-- `flake.nix` - Main flake definition with system configurations for two machines: "Will-Stride-MBP" and "MegamanX"
-- `home.nix` - Home-manager configuration (user-level packages, shell aliases, dotfiles)
-- `homebrew.nix` - Homebrew cask definitions for GUI applications
-- `aerospace.nix` - AeroSpace window manager configuration
-
-### System Structure
-The flake defines two darwinConfigurations:
-1. **Will-Stride-MBP** - Basic configuration for user "willweaver"
-2. **MegamanX** - Extended configuration for user "monkey" with additional maker/entertainment apps
-
-### Package Management Strategy
-- **Nix packages**: Core CLI tools and development utilities (defined in flake.nix environment.systemPackages)
-- **Homebrew casks**: GUI applications that aren't well-supported in Nix on macOS
-- **Home-manager**: User-specific configurations and packages
-
-### Key Components
-- Uses unstable nixpkgs overlay for newer packages (accessed as `pkgs.unstable`)
-- Integrates 1Password for secret management
-- Configures git, zsh, emacs, alacritty, and other development tools
-- Sets up AeroSpace tiling window manager with custom keybindings
-- **Floating Dropdown Terminal**: Toggleable floating Alacritty terminal (Cmd+Alt+Space or `dt` command) that appears on the active workspace
-- Includes Docker utilities and custom shell functions
-
-## Development Environment
-
-The project uses devenv for development tooling:
-- Pre-commit hook with alejandra formatter enabled
-- Git integration for formatting validation
+Review the contents of Taskfile.yml for common development commands
 
 ## Testing and Validation
 
 Always run `task test` (nix flake check) before applying changes to validate the configuration. The formatter (`task fmt`) should be run before commits to maintain code style consistency.
 
-Important: any time you change the development environment — for example, when you add/remove packages in `devenv.nix`, update `devenv.lock`, or otherwise modify flake inputs that affect the build environment — run:
+Important: any time you change the development environment — for example, when you add/remove packages or modify flake inputs that affect the build environment — run:
 
 - `devenv test`
 
 This ensures the devenv shells and tests are rebuilt and validated locally (and catches environment-related issues early). If you are running CI, ensure CI also invokes `devenv test` or `task test` as appropriate.
-
-## Dropdown Terminal Implementation
-
-The system includes a floating dropdown terminal feature that works alongside regular Alacritty terminals:
-
-### Usage
-- **Toggle**: `Cmd + Alt + Space` (AeroSpace keybinding) or `dt` (shell alias)
-- **Quit**: `Ctrl + Shift + Escape` when focused on the dropdown terminal
-
-### Technical Details
-- **Function**: `dropdown_terminal()` in `modules/home-manager/shell.nix`
-- **Window Detection**: AeroSpace matches on `window-title-regex-substring = "dropdown-terminal"`
-- **Behavior**: Floating layout, 100% width × 35% height, appears on active workspace
-- **Process Matching**: Uses `pgrep -f "alacritty.*dropdown"` for toggle detection
-
-### Key Files
-- `modules/home-manager/shell.nix`: Dropdown terminal function
-- `aerospace.nix`: Window management rules
-- `modules/home-manager/development.nix`: Alacritty configuration with keyboard shortcuts
-
-### Implementation Notes
-- Regular Alacritty terminals remain tiled (not affected by dropdown rules)
-- Dropdown terminals are distinguished by `--title "dropdown-terminal"` flag
-- AeroSpace automatically manages floating behavior and sizing
 
 ## Commit Message Generation
 
