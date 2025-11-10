@@ -56,6 +56,7 @@ opencode will handle all common development tasks including:
 - Documentation updates and generation
 - CI/CD pipeline modifications
 - Code refactoring and improvements
+- **Window Manager Integration**: Implementing floating dropdown terminals, AeroSpace window rules, and workspace management
 
 ### Limitations
 opencode shall not:
