@@ -12,6 +12,9 @@
   programs.zsh = {
     enable = true;
     initContent = ''
+      # Add local bin to PATH
+      export PATH="$HOME/.local/bin:$PATH"
+
       # Docker functions
       drm() { docker rm $(docker ps -q -a); }
       dri() { docker rmi $(docker images -q); }
@@ -21,12 +24,17 @@
       # Direnv
       eval "$(direnv hook zsh)"
 
-       # Drop-down terminal toggle function (macOS specific)
-       ${lib.optionalString pkgs.stdenv.isDarwin ''
+      # Drop-down terminal toggle function (macOS specific)
+      ${lib.optionalString pkgs.stdenv.isDarwin ''
         dropdown_terminal() {
-          if pgrep -f "alacritty.*dropdown" > /dev/null; then
-            pkill -f "alacritty.*dropdown"
+          # Check if dropdown terminal window exists (Alacritty only)
+          WINID=$(aerospace list-windows --all --json | jq '.[] | select(."app-name" == "alacritty" and ."window-title" == "dropdown-terminal") | ."window-id"' | head -1)
+
+          if [ -n "$WINID" ]; then
+            # Window exists, close it (hide)
+            aerospace close --window-id "$WINID"
           else
+            # Window doesn't exist, create it
             nohup alacritty --class dropdown --title "dropdown-terminal" >/dev/null 2>&1 &
           fi
         }

@@ -1,4 +1,26 @@
 {pkgs, ...}: {
+  home.packages = [
+    (pkgs.writeShellScriptBin "dropdown-terminal-toggle" ''
+      #!/bin/bash
+
+      # Dropdown terminal toggle script for AeroSpace window manager
+      # Toggles a floating Alacritty terminal window between visible and hidden workspaces
+
+      CURRENT_WS=$(aerospace list-workspaces --focused --format "%{workspace}")
+      WIN_EXISTS=$(aerospace list-windows --all --json | jq ".[] | select(.\"app-name\" == \"alacritty\" and .\"window-title\" == \"dropdown-terminal\") | .\"window-id\"" | head -1)
+
+      if [ -n "$WIN_EXISTS" ]; then
+        if [ "$CURRENT_WS" = "dropdown-hidden" ]; then
+          aerospace move-node-to-workspace --focus-follows-window 1.Main
+        else
+          aerospace move-node-to-workspace --focus-follows-window dropdown-hidden
+        fi
+      else
+        alacritty --class dropdown --title "dropdown-terminal" &
+      fi
+    '')
+  ];
+
   services.aerospace = {
     enable = true;
     package = pkgs.unstable.aerospace;
@@ -48,6 +70,8 @@
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";
         shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
+
+        shift-ctrl-alt-t = "exec-and-forget dropdown-terminal-toggle";
       };
 
       on-window-detected = [
@@ -74,6 +98,13 @@
             app-id = "com.electron.logseq";
           };
           run = ["move-node-to-workspace 3.Dash"];
+        }
+        {
+          "if" = {
+            app-name-regex-substring = "alacritty";
+            window-title-regex-substring = "dropdown-terminal";
+          };
+          run = ["layout floating"];
         }
       ];
       workspace-to-monitor-force-assignment = {

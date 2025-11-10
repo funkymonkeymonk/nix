@@ -6,7 +6,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 
 - **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS)
 - **Modular architecture**: Shared configurations with role-based bundles
-- **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
+- **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+T)
 - **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing
 - **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
 - **Task automation**: Go-task integration for local and CI workflows
@@ -27,6 +27,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
+├── scripts/                    # Shell scripts and utilities
 ├── templates/                  # Templates for new configurations
 ├── flake.nix                   # Main Nix flake definition
 ├── devenv.nix                  # Development environment configuration
@@ -58,7 +59,7 @@ task fmt
 
 ### Keyboard Shortcuts
 
-- **Shift+Ctrl+Alt+G**: Toggle floating dropdown terminal (AeroSpace window manager)
+- **Shift+Ctrl+Alt+T**: Toggle floating dropdown terminal (AeroSpace window manager)
 
 ### Development Environment
 
