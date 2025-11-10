@@ -17,6 +17,5 @@
     try = "nix-shell -p";
     ops = "op signin"; # 1Password CLI (available on NixOS systems)
     oc = "opencode"; # AI assistant (available when developer role is enabled)
-    dt = "dropdown_terminal"; # Drop-down terminal toggle
   };
 }
