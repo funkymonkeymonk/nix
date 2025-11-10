@@ -6,6 +6,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 
 - **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS)
 - **Modular architecture**: Shared configurations with role-based bundles
+- **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
 - **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing
 - **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
 - **Task automation**: Go-task integration for local and CI workflows
@@ -54,6 +55,10 @@ task build
 # Format code
 task fmt
 ```
+
+### Keyboard Shortcuts
+
+- **Shift+Ctrl+Alt+G**: Toggle floating dropdown terminal (AeroSpace window manager)
 
 ### Development Environment
 
@@ -202,6 +207,7 @@ The repository includes automated testing and validation:
 - Configuration validation
 - Role-based bundles (developer, creative, gaming, workstation)
 - Secret management with 1Password
+- Window manager integration with AeroSpace (dropdown terminal, window rules)
 
 ### 🔄 In Progress
 - Performance optimizations
