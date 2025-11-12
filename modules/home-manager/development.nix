@@ -8,7 +8,7 @@
     text = ''
       # Ghostty configuration
       font-size = 14
-      theme = dark:catppuccin-mocha
+      theme = Earthsong
       window-decoration = false
       window-padding-x = 10
       window-padding-y = 6
@@ -16,6 +16,9 @@
       font-family = "JetBrains Mono"
       cursor-style = block
       shell-integration = zsh
+
+      # Keybindings
+      keybind = global:ctrl+shift+alt+t=toggle_quick_terminal
     '';
   };
 
