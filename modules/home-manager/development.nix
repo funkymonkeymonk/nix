@@ -19,6 +19,10 @@
 
       # Keybindings
       keybind = global:ctrl+shift+alt+t=toggle_quick_terminal
+
+      # Keep ghostty running in background for global keybinds
+      initial-window = false
+      quit-after-last-window-closed = false
     '';
   };
 
@@ -103,6 +107,18 @@
           ];
         };
       };
+    };
+  };
+
+  # Launch agent to keep ghostty running in background for global keybinds
+  launchd.agents.ghostty = {
+    enable = true;
+    config = {
+      ProgramArguments = ["/opt/homebrew/bin/ghostty"];
+      RunAtLoad = true;
+      KeepAlive = true;
+      StandardOutPath = "/tmp/ghostty-launchd.log";
+      StandardErrorPath = "/tmp/ghostty-launchd.err";
     };
   };
 }
