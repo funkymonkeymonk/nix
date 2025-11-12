@@ -35,6 +35,9 @@
       "zen"
       "ollama-app"
 
+      # Terminal emulators
+      "ghostty"
+
       # Entertainment and communication
       "deezer"
       "block-goose"

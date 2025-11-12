@@ -42,19 +42,6 @@
       shellIntegration.enableZshIntegration = true;
     };
 
-    ghostty = {
-      enable = true;
-      enableZshIntegration = true;
-      settings = {
-        font-size = 14;
-        theme = "dark:catppuccin-mocha";
-        window-decoration = false;
-        window-padding-x = 10;
-        window-padding-y = 6;
-        background-opacity = 0.95;
-      };
-    };
-
     emacs = {
       enable = true;
       package =
