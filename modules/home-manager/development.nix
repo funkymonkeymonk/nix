@@ -74,7 +74,6 @@
     enable = true;
     overrideDevices = false;
     overrideFolders = false;
-    group = "staff";
     settings = {
       devices = {
         "MegamanX" = {
@@ -86,16 +85,19 @@
         "Will's Phone" = {
           id = "652Z7Y4-72TMMIC-TKTAWNQ-5BWDWP6-DIJF2MA-7INIX5T-TY2ZOPF-SV274QH";
         };
+        "wweaver" = {
+          id = "Y4UMT3P-LS5AXTF-JGKJ2Z3-VI7RCRP-WQ6IO5D-5K24J2N-6WJAMEL-YIRQ6QU";
+        };
       };
       folders = {
-        "Logseq" = {
+        "logseq" = {
           path = "~/logseq";
           devices = [
             "Oldfriend"
             "Will's Phone"
             "MegamanX"
+            "wweaver"
           ];
-          ignorePerms = false; # By default, Syncthing doesn't sync file permissions. This line enables it for this folder.
         };
       };
     };
