@@ -3,6 +3,22 @@
     docker
   ];
 
+  # Ghostty configuration (installed via Homebrew)
+  xdg.configFile."ghostty/config" = {
+    text = ''
+      # Ghostty configuration
+      font-size = 14
+      theme = dark:catppuccin-mocha
+      window-decoration = false
+      window-padding-x = 10
+      window-padding-y = 6
+      background-opacity = 0.95
+      font-family = "JetBrains Mono"
+      cursor-style = block
+      shell-integration = zsh
+    '';
+  };
+
   programs = {
     alacritty = {
       enable = true;
