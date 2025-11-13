@@ -16,6 +16,11 @@
     ./hardware-configuration.nix
   ];
 
+  # Temporarily allow insecure lima package until updated
+  nixpkgs.config.permittedInsecurePackages = [
+    "lima-1.0.7"
+  ];
+
   # Packages
   environment.systemPackages = with pkgs; [
     vim
@@ -40,7 +45,7 @@
   '';
 
   # Kernel / boot overrides
-  boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_16;
+  boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_12;
 
   # Security/runtime
   security.rtkit.enable = true;

@@ -13,6 +13,11 @@
     ./hardware-configuration.nix
   ];
 
+  # Temporarily allow insecure lima package until updated
+  nixpkgs.config.permittedInsecurePackages = [
+    "lima-1.0.7"
+  ];
+
   # Ensure the user exists with the desired shell and groups
   users.users.monkey = {
     isNormalUser = true;
