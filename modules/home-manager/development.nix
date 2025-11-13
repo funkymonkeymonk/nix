@@ -8,7 +8,7 @@
     text = ''
       # Ghostty configuration
       font-size = 14
-      theme = dark:catppuccin-mocha
+      theme = Earthsong
       window-decoration = false
       window-padding-x = 10
       window-padding-y = 6
@@ -16,6 +16,13 @@
       font-family = "JetBrains Mono"
       cursor-style = block
       shell-integration = zsh
+
+      # Keybindings
+      keybind = global:ctrl+shift+alt+t=toggle_quick_terminal
+
+      # Keep ghostty running in background for global keybinds
+      initial-window = false
+      quit-after-last-window-closed = false
     '';
   };
 
@@ -70,5 +77,38 @@
     };
   };
 
-  services.syncthing.enable = true;
+  services.syncthing = {
+    enable = true;
+    overrideDevices = false;
+    overrideFolders = false;
+    settings = {
+      devices = {
+        "MegamanX" = {
+          id = "YST7RD6-6IZE4J6-KUWLNXV-B32ZKEN-3TN57OE-MGY4YHU-HZUFRFW-Z7VQOQ6";
+        };
+        "Oldfriend" = {
+          id = "7R75WU3-HTCGE6Z-AD6YCOA-HUTVJKT-PIXBDUV-JQSJITU-I6J4FFL-L4D6PQ3";
+        };
+        "Will's Phone" = {
+          id = "652Z7Y4-72TMMIC-TKTAWNQ-5BWDWP6-DIJF2MA-7INIX5T-TY2ZOPF-SV274QH";
+        };
+        "wweaver" = {
+          id = "Y4UMT3P-LS5AXTF-JGKJ2Z3-VI7RCRP-WQ6IO5D-5K24J2N-6WJAMEL-YIRQ6QU";
+        };
+      };
+      folders = {};
+    };
+  };
+
+  # Launch agent to keep ghostty running in background for global keybinds
+  launchd.agents.ghostty = {
+    enable = true;
+    config = {
+      ProgramArguments = ["/Applications/Ghostty.app/Contents/MacOS/ghostty"];
+      RunAtLoad = true;
+      KeepAlive = true;
+      StandardOutPath = "/tmp/ghostty-launchd.log";
+      StandardErrorPath = "/tmp/ghostty-launchd.err";
+    };
+  };
 }
