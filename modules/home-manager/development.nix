@@ -96,17 +96,7 @@
           id = "Y4UMT3P-LS5AXTF-JGKJ2Z3-VI7RCRP-WQ6IO5D-5K24J2N-6WJAMEL-YIRQ6QU";
         };
       };
-      folders = {
-        "logseq" = {
-          path = "~/logseq";
-          devices = [
-            "Oldfriend"
-            "Will's Phone"
-            "MegamanX"
-            "wweaver"
-          ];
-        };
-      };
+      folders = {};
     };
   };
 
