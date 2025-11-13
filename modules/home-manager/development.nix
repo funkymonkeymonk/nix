@@ -114,7 +114,7 @@
   launchd.agents.ghostty = {
     enable = true;
     config = {
-      ProgramArguments = ["/opt/homebrew/bin/ghostty"];
+      ProgramArguments = ["/Applications/Ghostty.app/Contents/MacOS/ghostty"];
       RunAtLoad = true;
       KeepAlive = true;
       StandardOutPath = "/tmp/ghostty-launchd.log";
