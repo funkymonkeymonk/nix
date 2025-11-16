@@ -20,6 +20,7 @@
     pkgs.yamllint
     pkgs.yamlfmt
     pkgs.nixd
+    pkgs.optnix
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user
