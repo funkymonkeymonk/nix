@@ -6,18 +6,6 @@
     settings = {
       after-startup-command = [
         "layout tiles horizontal" # Root container horizontal
-        "join-with right" # Create Secondary Section 1
-        "join-with right" # Create Primary Section (middle)
-        "join-with right" # Create Secondary Section 2
-        # Set layouts for each section
-        "focus left"
-        "focus left"
-        "focus left"
-        "layout tiles" # Left section (secondary 1)
-        "focus right"
-        "layout accordion" # Middle section (primary)
-        "focus right"
-        "layout tiles" # Right section (secondary 2)
       ];
 
       gaps = {
@@ -66,54 +54,15 @@
         shift-ctrl-alt-up = "join-with up";
         shift-ctrl-alt-right = "join-with right";
 
-        shift-ctrl-alt-p = "resize smart +200";
         shift-ctrl-alt-quote = "balance-sizes";
-        shift-ctrl-alt-slash = "resize smart -200";
-
-        shift-ctrl-alt-pageUp = "resize smart +200";
-        shift-ctrl-alt-pageDown = "resize smart -200";
-
-        # shift-ctrl-alt-1 = "focus left; focus left; focus left"; # Secondary Section 1
-        # shift-ctrl-alt-2 = "focus right; focus left"; # Primary Section (accordion)
-        # shift-ctrl-alt-3 = "focus right; focus right"; # Secondary Section 2
-
-        # # Layout reset
-        # shift-ctrl-alt-r = [
-        #   "focus left"
-        #   "focus left"
-        #   "focus left"
-        #   "layout tiles" # Reset left section
-        #   "focus right"
-        #   "layout accordion" # Reset middle section
-        #   "focus right"
-        #   "layout tiles" # Reset right section
-        # ];
-
-        # Full layout refresh (recreate startup layout)
-        # shift-ctrl-alt-t = [
-        #   "layout tiles horizontal" # Root container horizontal
-        #   "join-with right" # Create Secondary Section 1
-        #   "join-with right" # Create Primary Section (middle)
-        #   "join-with right" # Create Secondary Section 2
-        #   # Set layouts for each section
-        #   "focus left"
-        #   "focus left"
-        #   "focus left"
-        #   "layout tiles" # Left section (secondary 1)
-        #   "focus right"
-        #   "layout accordion" # Middle section (primary)
-        #   "focus right"
-        #   "layout tiles" # Right section (secondary 2)
-        # ];
+        shift-ctrl-alt-pageUp = "resize smart +100";
+        shift-ctrl-alt-pageDown = "resize smart -100";
 
         shift-ctrl-alt-semicolon = "workspace next";
         shift-ctrl-alt-4 = "move-node-to-workspace --wrap-around prev";
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";
         shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
-
-        # Drop-down terminal toggle
-        cmd-alt-space = "exec-and-forget dropdown_terminal";
       };
 
       on-window-detected = [
@@ -140,15 +89,6 @@
             app-id = "com.electron.logseq";
           };
           run = ["move-node-to-workspace 3.Dash"];
-        }
-        {
-          "if" = {
-            window-title-regex-substring = "dropdown-terminal";
-          };
-          run = [
-            "layout floating"
-            "resize smart 100% 35%"
-          ];
         }
       ];
       workspace-to-monitor-force-assignment = {
