@@ -183,6 +183,45 @@ This contract is designed to be adaptable for use in other repositories. To cust
 
 This modular approach ensures the agent configuration remains flexible while maintaining consistent safety and quality standards across different projects.
 
+## Documentation Standards
+
+### Mutual Agreement on Documentation Practices
+Both parties agree to prioritize documentation as a core component of all development work. Documentation shall be written, read, and updated regularly throughout the development process to ensure clarity, maintainability, and effective collaboration.
+
+### Documentation Requirements
+All documentation must be:
+- **Human-readable**: Clear, concise, and accessible to developers of varying experience levels
+- **Machine-readable**: Structured in formats that enable automated processing (Markdown, JSON, YAML, etc.)
+- **Version-controlled**: Maintained alongside code with proper change tracking
+- **Regularly updated**: Reviewed and updated whenever code changes impact functionality or usage
+
+### Documentation Types and Standards
+- **Code comments**: Inline documentation explaining complex logic, assumptions, and edge cases
+- **API documentation**: Clear interfaces, parameters, return values, and usage examples
+- **Configuration documentation**: Setup instructions, configuration options, and troubleshooting guides
+- **Process documentation**: Development workflows, deployment procedures, and operational runbooks
+- **Architecture documentation**: System design, component relationships, and data flows
+
+### Documentation Maintenance Obligations
+- **opencode** agrees to:
+  - Generate documentation alongside code changes
+  - Suggest documentation improvements proactively
+  - Use structured formats (Markdown, YAML) for machine readability
+  - Include documentation in commit messages and pull request descriptions
+
+- **The User** agrees to:
+  - Review and provide feedback on generated documentation
+  - Maintain documentation accuracy during code reviews
+  - Update documentation when making changes that affect interfaces or usage
+  - Ensure documentation is accessible and discoverable
+
+### Documentation Quality Standards
+Documentation shall be considered complete when it enables:
+- **New developers** to understand and contribute to the codebase within reasonable timeframes
+- **Automated tools** to parse and process documentation for validation, testing, or integration
+- **Future maintenance** by providing clear context for code decisions and system behavior
+- **Troubleshooting** through comprehensive error handling and debugging information
+
 ## Amendments and Review
 
 ### Contract Maintenance
@@ -191,6 +230,7 @@ This contract shall be reviewed quarterly or when significant changes occur to:
 - Team composition or processes
 - Security requirements or compliance needs
 - AI capabilities or limitations
+- Documentation practices and standards
 
 ### Amendment Process
 Amendments to this contract require:

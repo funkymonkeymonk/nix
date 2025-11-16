@@ -5,7 +5,7 @@
 
     settings = {
       after-startup-command = [
-        "layout tiles"
+        "layout tiles horizontal" # Root container horizontal
       ];
 
       gaps = {
@@ -34,15 +34,15 @@
         # - Arrows.         left, down, up, right
         # All possible modifiers: cmd, alt, ctrl, shift
 
-        shift-ctrl-alt-h = "focus left";
+        shift-ctrl-alt-y = "focus left";
         shift-ctrl-alt-j = "focus down";
         shift-ctrl-alt-k = "focus up";
-        shift-ctrl-alt-l = "focus right";
+        shift-ctrl-alt-o = "focus right";
 
-        shift-ctrl-alt-y = "swap --swap-focus left";
+        shift-ctrl-alt-h = "swap --swap-focus left";
         shift-ctrl-alt-u = "swap --swap-focus down";
         shift-ctrl-alt-i = "swap --swap-focus up";
-        shift-ctrl-alt-o = "swap --swap-focus right";
+        shift-ctrl-alt-l = "swap --swap-focus right";
 
         shift-ctrl-alt-n = "move left";
         shift-ctrl-alt-m = "move down";
@@ -54,21 +54,15 @@
         shift-ctrl-alt-up = "join-with up";
         shift-ctrl-alt-right = "join-with right";
 
-        shift-ctrl-alt-p = "resize smart +200";
         shift-ctrl-alt-quote = "balance-sizes";
-        shift-ctrl-alt-slash = "resize smart -200";
+        shift-ctrl-alt-pageUp = "resize smart +100";
+        shift-ctrl-alt-pageDown = "resize smart -100";
 
-        #shift-ctrl-alt-pageUp = "resize smart +200";
-        #shift-ctrl-alt-pageDown = "resize smart +200";
-
-        #shift-ctrl-alt-semicolon = "workspace";
+        shift-ctrl-alt-semicolon = "workspace next";
         shift-ctrl-alt-4 = "move-node-to-workspace --wrap-around prev";
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";
         shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
-
-        # Drop-down terminal toggle
-        cmd-alt-space = "exec-and-forget dropdown_terminal";
       };
 
       on-window-detected = [
@@ -95,15 +89,6 @@
             app-id = "com.electron.logseq";
           };
           run = ["move-node-to-workspace 3.Dash"];
-        }
-        {
-          "if" = {
-            window-title-regex-substring = "dropdown-terminal";
-          };
-          run = [
-            "layout floating"
-            "resize smart 100% 35%"
-          ];
         }
       ];
       workspace-to-monitor-force-assignment = {
