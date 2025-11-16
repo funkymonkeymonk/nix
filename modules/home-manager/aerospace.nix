@@ -4,21 +4,21 @@
     package = pkgs.unstable.aerospace;
 
     settings = {
-      # after-startup-command = [
-      #   "layout tiles horizontal" # Root container horizontal
-      #   "join-with right" # Create Secondary Section 1
-      #   "join-with right" # Create Primary Section (middle)
-      #   "join-with right" # Create Secondary Section 2
-      #   # Set layouts for each section
-      #   "focus left"
-      #   "focus left"
-      #   "focus left"
-      #   "layout tiles" # Left section (secondary 1)
-      #   "focus right"
-      #   "layout accordion" # Middle section (primary)
-      #   "focus right"
-      #   "layout tiles" # Right section (secondary 2)
-      # ];
+      after-startup-command = [
+        "layout tiles horizontal" # Root container horizontal
+        "join-with right" # Create Secondary Section 1
+        "join-with right" # Create Primary Section (middle)
+        "join-with right" # Create Secondary Section 2
+        # Set layouts for each section
+        "focus left"
+        "focus left"
+        "focus left"
+        "layout tiles" # Left section (secondary 1)
+        "focus right"
+        "layout accordion" # Middle section (primary)
+        "focus right"
+        "layout tiles" # Right section (secondary 2)
+      ];
 
       gaps = {
         inner.horizontal = 0;

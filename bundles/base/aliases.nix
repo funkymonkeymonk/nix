@@ -21,7 +21,7 @@
     grm = "git fetch origin && git rebase main";
     grc = "git rebase --continue";
     gm = "git merge";
-    gmm = "git fetch origin && git git merge origin/main";
+    gmm = "git fetch origin && git merge origin/main";
     gf = "git fetch --prune";
     gr = "git restore --source";
     grh = "git reset --hard";
