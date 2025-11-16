@@ -8,36 +8,15 @@ with lib; {
   imports = [./options.nix];
 
   config = {
-    # Enable zsh system-wide
-    programs.zsh.enable = true;
-
     environment.systemPackages = with pkgs;
       [
         # Core utilities
-        vim
-        git
-        gh
-        bat
-        jq
-        tree
         ripgrep
         fd
         coreutils
 
-        # Development tools
-        devenv
-        direnv
-        go-task
-
-        # Shell and terminal
-        zsh
-        fzf
-        zinit
-
         # System monitoring
         htop
-        watchman
-        jnv
 
         # Text processing
         glow

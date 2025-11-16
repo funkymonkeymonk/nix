@@ -4,6 +4,11 @@
   pkgs,
   ...
 }: {
+  # Import shell aliases module
+  imports = [
+    ./aliases.nix
+  ];
+
   programs.zsh = {
     enable = true;
     initContent = ''
@@ -15,6 +20,17 @@
 
       # Direnv
       eval "$(direnv hook zsh)"
+
+       # Drop-down terminal toggle function (macOS specific)
+       ${lib.optionalString pkgs.stdenv.isDarwin ''
+        dropdown_terminal() {
+          if pgrep -f "alacritty.*dropdown" > /dev/null; then
+            pkill -f "alacritty.*dropdown"
+          else
+            nohup alacritty --class dropdown --title "dropdown-terminal" >/dev/null 2>&1 &
+          fi
+        }
+      ''}
 
       # ISO to USB function (macOS specific)
       ${lib.optionalString pkgs.stdenv.isDarwin ''
@@ -42,49 +58,6 @@
         }
       ''}
     '';
-  };
-
-  # I don't want to lose this function during the transitional period
-  # but I want to migrate out of the shell.dotfile. So this is disk-usage.
-  # I may want to replace this but I also may want to keep it around.
-  #
-  # disk-usage() {
-  #   path=${1-${PWD}}
-  #   du -k $path | sort -n | perl -ne 'if ( /^(\d+)\s+(.*$)/){$l=log($1+.1);$m=int($l/log(1024)); printf  ("%6.1f\t%s\t%25s  %s\n",($1/(2**(10*$m))),(("K","M","G","T","P")[$m]),"*"x (1.5*$l),$2);}'
-  # }
-
-  home.shellAliases = {
-    g = "git";
-    t = "task";
-    tb = "task build";
-    tt = "task test";
-    "..." = "cd ../..";
-    dip = "docker inspect --format '{{ .NetworkSettings.IPAddress }}'";
-    dkd = "docker run -d -P";
-    dki = "docker run -t -i -P";
-    gau = "git add -u";
-    gauc = "git add -u && git commit -m ";
-    gaum = "git add -u && git commit --amend";
-    gst = "git status";
-    gpush = "git push";
-    gpull = "git pull";
-    gd = "git diff";
-    gdc = "git diff --cached";
-    gco = "git checkout";
-    gcob = "git checkout -b";
-    ghv = "gh repo view --web";
-    gs = "git stash";
-    gsp = "git stash pop";
-    gshow = "git stash show -p";
-    grm = "git fetch origin && git rebase main";
-    grc = "git rebase --continue";
-    gm = "git merge";
-    gmm = "git fetch origin && git git merge origin/main";
-    gf = "git fetch --prune";
-    gr = "git restore --source";
-    grh = "git reset --hard";
-    try = "nix-shell -p";
-    ops = "op signin";
   };
 
   programs.home-manager.enable = true;

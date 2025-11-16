@@ -16,8 +16,7 @@ This bundle supports creative workflows including:
 - `ffmpeg` - Video/audio processing
 - `imagemagick` - Image manipulation
 
-### Knowledge Management
-- `logseq` - Note-taking and knowledge graph application
+
 
 ### Content Creation
 - `glow` - Markdown renderer

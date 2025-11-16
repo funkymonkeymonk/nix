@@ -1,4 +1,8 @@
 {pkgs, ...}: {
+  imports = [
+    ./aliases.nix
+  ];
+
   environment.systemPackages = with pkgs; [
     vim
     emacs

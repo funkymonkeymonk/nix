@@ -29,9 +29,8 @@
     mac-app-util,
     ...
   }: let
-    configuration = _: {
+    configuration = {lib, ...}: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
-      system.stateVersion = "25.05";
 
       nixpkgs.config.allowUnfree = true;
 
@@ -45,45 +44,38 @@
       ];
     };
   in {
-    darwinConfigurations."Will-Stride-MBP" = nix-darwin.lib.darwinSystem {
+    darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
-        ./modules/common/macos.nix
+        ./modules/home-manager
         ./bundles/base
         ./bundles/roles/developer
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
-        ./modules/homebrew
+        ./os/darwin.nix
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "willweaver";
+          system.primaryUser = "wweaver";
+          system.stateVersion = 4;
           # Configure users through the modular system
           myConfig = {
             users = [
               {
-                name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                name = "wweaver";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
+                sshIncludes = [];
               }
             ];
             development.enable = true;
-            media.enable = true;
-            macos.enable = true;
           };
         }
         home-manager.darwinModules.home-manager
-        {
-          home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            users.willweaver = import ./home.nix;
-          };
-        }
       ];
     };
 
@@ -94,18 +86,20 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
-        ./modules/common/macos.nix
+        ./modules/home-manager
         ./bundles/base
         ./bundles/roles/developer
         ./bundles/roles/creative
         ./bundles/roles/gaming
+        ./bundles/roles/entertainment.nix
         ./bundles/roles/workstation
         ./bundles/platforms/darwin
-        ./modules/homebrew
+        ./os/darwin.nix
         ./modules/home-manager/desktop.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
+          system.stateVersion = 4;
           # Configure users through the modular system
           myConfig = {
             users = [
@@ -114,6 +108,7 @@
                 email = "monkey@willweaver.dev";
                 fullName = "Monkey";
                 isAdmin = true;
+                sshIncludes = ["/Users/monkey/.colima/ssh_config"];
               }
             ];
             development.enable = true;
@@ -121,13 +116,6 @@
           };
         }
         home-manager.darwinModules.home-manager
-        {
-          home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            users.monkey = import ./home.nix;
-          };
-        }
         {
           homebrew.casks = [
             "autodesk-fusion"
@@ -154,6 +142,8 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/common/shell.nix
+        ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./modules/nixos/services.nix
         ./bundles/base
@@ -164,6 +154,7 @@
         ./targets/drlight
         {
           nixpkgs.hostPlatform = "x86_64-linux";
+          system.stateVersion = "25.05";
           # Configure users through the modular system
           myConfig = {
             users = [
@@ -172,6 +163,7 @@
                 email = "monkey@willweaver.dev";
                 fullName = "Monkey";
                 isAdmin = true;
+                sshIncludes = [];
               }
             ];
             development.enable = true;
@@ -180,10 +172,6 @@
         }
         ./1password.nix
         home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-        }
       ];
     };
 
@@ -194,6 +182,8 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/packages.nix
+        ./modules/common/shell.nix
+        ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./bundles/base
         ./bundles/roles/developer
@@ -202,6 +192,7 @@
         ./targets/zero
         {
           nixpkgs.hostPlatform = "x86_64-linux";
+          system.stateVersion = "25.05";
           # Configure users through the modular system
           myConfig = {
             users = [
@@ -210,6 +201,7 @@
                 email = "monkey@willweaver.dev";
                 fullName = "Monkey";
                 isAdmin = true;
+                sshIncludes = [];
               }
             ];
             development.enable = true;
@@ -217,10 +209,6 @@
         }
         ./1password.nix
         home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-        }
       ];
     };
   };

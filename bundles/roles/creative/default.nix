@@ -10,11 +10,7 @@
     ffmpeg
     imagemagick
 
-    # Note-taking and knowledge management
-    logseq
-
     # Text processing and viewing
-    glow
     pandoc
   ];
 }
