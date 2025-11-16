@@ -7,6 +7,7 @@
   # Workstation role bundle - general productivity tools
   environment.systemPackages = with pkgs; [
     # Productivity tools
+    logseq
     slack
     trippy
 
