@@ -1,0 +1,1 @@
+This is a test file to verify SSH commit signing with 1Password is working correctly.
