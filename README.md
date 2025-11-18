@@ -7,6 +7,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 - **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS)
 - **Modular architecture**: Shared configurations with role-based bundles
 - **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
+- **SSH commit signing**: 1Password-based git commit signing with biometric authentication
 - **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing
 - **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
 - **Task automation**: Go-task integration for local and CI workflows
@@ -144,6 +145,33 @@ Items that don't exist will be left empty in the generated `secrets.nix` file.
 - 1Password provides end-to-end encryption
 - Secrets are only accessible during Nix builds
 - No secrets are stored in the Nix store
+
+### SSH Commit Signing
+
+This configuration supports SSH-based git commit signing using 1Password, providing a modern alternative to GPG signing.
+
+#### Features
+- **Biometric authentication**: Uses Touch ID/Face ID for commit signing
+- **Unified keys**: Same SSH key for authentication and signing
+- **Secure storage**: Private keys never leave 1Password vault
+- **Cross-platform**: Works on macOS, Linux, and Windows
+
+#### Setup
+1. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
+2. **Configure git signing**: Use 1Password's "Configure Commit Signing" feature or manually set:
+   ```bash
+   git config --global gpg.format ssh
+   git config --global user.signingkey "your-ssh-public-key"
+   git config --global commit.gpgsign true
+   git config --global gpg.ssh.program "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+   ```
+3. **Register public key**: Add SSH key to GitHub/GitLab/Bitbucket as "Signing key" type
+4. **Test signing**: `git commit -m "test"` and verify with `git log --show-signature`
+
+#### Verification
+- GitHub/GitLab/Bitbucket will show commits as "Verified"
+- Use `git log --show-signature` for local verification
+- Biometric prompt appears for each signed commit
 
 ## 🤖 CI/CD Pipeline
 
