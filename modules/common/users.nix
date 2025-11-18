@@ -1,11 +1,10 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 with lib; {
-  imports = [./options.nix ./secrets.nix];
-
   config = {
     # Validation assertions
     assertions = [
@@ -62,10 +61,16 @@ with lib; {
               enable = true;
               background = "dark";
             };
-            extraConfig = {
-              pull.rebase = true;
-              push.default = "current";
-            };
+            extraConfig =
+              {
+                pull.rebase = true;
+                push.default = "current";
+              }
+              // lib.optionalAttrs (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) {
+                gpg.format = "ssh";
+                gpg.ssh.program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
+                commit.gpgsign = true;
+              };
           };
 
           programs.ssh = {

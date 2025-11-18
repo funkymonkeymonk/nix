@@ -100,45 +100,18 @@ The development environment includes:
 
 ### Secrets Management
 
-This configuration supports secure secret management using 1Password CLI. Secrets are stored encrypted in 1Password and retrieved at build time.
+This configuration uses 1Password CLI directly for secret management. Secrets are accessed at runtime through 1Password's SSH agent and signing capabilities.
 
 #### Setup
 1. **Install 1Password CLI**: Ensure `op` command is available
 2. **Authenticate**: Run `task 1password:setup` to sign in
-3. **Populate secrets**: Choose one of the following:
-   - **Automatic**: Run `task secrets:populate` to auto-fill from existing 1Password items
-   - **Manual**: Run `task secrets:init` to create a template, then edit `secrets.nix`
-4. **Store securely**: Run `task secrets-set` to store in 1Password
-5. **Enable in config**: Set `myConfig.secrets.enable = true` in your target
+3. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
+4. **Store SSH keys**: Add your SSH keys to 1Password for authentication and signing
 
-#### Supported Secrets
-- Git configuration (username, email, GitHub tokens)
-- API keys (OpenAI, Anthropic, etc.)
-- Database credentials
-- Cloud service credentials (AWS, DigitalOcean)
-- Personal information
-
-#### 1Password Item Structure (for auto-population)
-The `secrets:populate` task expects 1Password items with these reference paths:
-
-```
-op://personal/git/username          # Git user name
-op://personal/git/email             # Git email address
-op://personal/github/token          # GitHub personal access token
-op://personal/openai/api-key        # OpenAI API key
-op://personal/anthropic/api-key     # Anthropic API key
-op://personal/huggingface/token     # HuggingFace token
-op://personal/aws/access-key-id     # AWS access key ID
-op://personal/aws/secret-access-key # AWS secret access key
-op://personal/aws/region            # AWS region
-op://personal/digitalocean/token    # DigitalOcean API token
-op://personal/address/home          # Home address
-op://personal/phone/primary         # Primary phone number
-op://personal/phone/work            # Work phone number
-op://personal/birthday              # Birthday (YYYY-MM-DD)
-```
-
-Items that don't exist will be left empty in the generated `secrets.nix` file.
+#### How It Works
+- **SSH Authentication**: Uses 1Password's SSH agent for key management
+- **Git Signing**: Uses 1Password's `op-ssh-sign` program for commit signing on macOS
+- **Runtime Access**: Secrets are accessed when needed, not stored in Nix configuration
 
 #### Security Notes
 - Secrets file is gitignored and never committed
@@ -158,15 +131,20 @@ This configuration supports SSH-based git commit signing using 1Password, provid
 
 #### Setup
 1. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
-2. **Configure git signing**: Use 1Password's "Configure Commit Signing" feature or manually set:
-   ```bash
-   git config --global gpg.format ssh
-   git config --global user.signingkey "your-ssh-public-key"
-   git config --global commit.gpgsign true
-   git config --global gpg.ssh.program "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-   ```
-3. **Register public key**: Add SSH key to GitHub/GitLab/Bitbucket as "Signing key" type
-4. **Test signing**: `git commit -m "test"` and verify with `git log --show-signature`
+2. **Store SSH key in 1Password**: Add your SSH private key to 1Password
+3. **Register public key**: Add your SSH public key to GitHub/GitLab/Bitbucket as a "Signing key" type
+4. **Rebuild system**: Run `darwin-rebuild switch` to apply the configuration
+5. **Test signing**: `git commit -m "test"` and verify with `git log --show-signature`
+
+#### Configuration Details
+The following Git configuration is applied automatically on macOS:
+```bash
+git config --global gpg.format ssh
+git config --global commit.gpgsign true
+git config --global gpg.ssh.program "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+```
+
+1Password's `op-ssh-sign` program automatically determines which SSH key to use for signing based on your 1Password vault contents.
 
 #### Verification
 - GitHub/GitLab/Bitbucket will show commits as "Verified"
