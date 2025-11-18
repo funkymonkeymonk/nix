@@ -1,1 +1,0 @@
-This validates SSH commit signing with the correct email: me@willweaver.dev
