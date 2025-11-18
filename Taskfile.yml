@@ -258,3 +258,64 @@ tasks:
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
+
+  # JJ Workflow Tasks for AI-assisted development
+  # AI preparation tasks (for opencode to use)
+  ai:prepare-branch:
+    desc: Create anonymous branch for AI changes
+    cmd: jj new
+
+  ai:commit-changes:
+    desc: Commit AI-prepared changes to anonymous branch
+    cmd: jj commit -m "AI-prepared changes"
+
+  ai:status:
+    desc: Show current JJ status for AI operations
+    cmd: jj status
+
+  # User review tasks
+  review:branches:
+    desc: Review all branches (named and anonymous)
+    cmd: jj log --branches
+
+  review:changes:
+    desc: Show changes in current anonymous branch
+    cmd: jj diff @-
+
+  review:operations:
+    desc: Show operation log for audit trail
+    cmd: jj op log
+
+  # User integration tasks
+  integrate:branch:
+    desc: Integrate approved anonymous branch to main
+    interactive: true
+    cmd: |
+      echo "Available anonymous branches:"
+      jj log --branches | grep -E "^@" | head -10
+      echo "Enter branch/commit ID to integrate:"
+      read -r branch_id
+      jj rebase -b "$branch_id" -d main
+
+  finalize:commit:
+    desc: Create final commit with user message
+    interactive: true
+    cmd: |
+      echo "Enter commit message:"
+      read -r message
+      jj commit -m "$message"
+
+  # Workflow orchestration
+  workflow:ai-review:
+    desc: Complete workflow for AI changes (user review phase)
+    cmds:
+      - task: review:branches
+      - task: review:operations
+      - echo "Review changes above, then run 'task integrate:branch' to merge approved changes"
+
+  workflow:ai-complete:
+    desc: Complete workflow for AI changes (integration phase)
+    cmds:
+      - task: integrate:branch
+      - task: finalize:commit
+      - echo "Changes integrated. Run 'jj git push' when ready to push to remote."
