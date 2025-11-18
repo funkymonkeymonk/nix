@@ -1,1 +1,0 @@
-Final verification that SSH commit signing works after merging the PR.
