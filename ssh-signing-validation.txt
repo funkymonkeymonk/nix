@@ -1,1 +1,0 @@
-This file validates that SSH commit signing works with the correct email configuration (monkey@willweaver.dev).
