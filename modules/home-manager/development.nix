@@ -1,7 +1,11 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  lib,
+  ...
+}: {
   home.packages = with pkgs; [
     docker
-    jujutsu # Git-compatible VCS with anonymous branches
+    # jujutsu is now managed via programs.jujutsu
   ];
 
   # Ghostty configuration (installed via Homebrew)
@@ -28,6 +32,27 @@
   };
 
   programs = {
+    jujutsu = {
+      enable = true;
+      settings = {
+        user = {
+          name = "Will Weaver";
+          email = "me@willweaver.dev";
+        };
+        git = {
+          sign-commits = true;
+          auto-rebase = true;
+          push-bookmark-prefix = "push-";
+          default-branch = "main";
+        };
+        signing = {
+          program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
+          key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8";
+          backend = "ssh";
+        };
+      };
+    };
+
     alacritty = {
       enable = true;
       settings = {
