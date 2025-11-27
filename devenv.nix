@@ -1,6 +1,5 @@
 {pkgs, ...}: {
   packages = [
-    pkgs.git
     pkgs.go-task
     pkgs.alejandra
     # Additional Nix development tools

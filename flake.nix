@@ -117,6 +117,9 @@
         }
         home-manager.darwinModules.home-manager
         {
+          home-manager.backupFileExtension = "backup";
+        }
+        {
           homebrew.casks = [
             "autodesk-fusion"
             "deezer"
