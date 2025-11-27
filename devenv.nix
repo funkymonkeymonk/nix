@@ -1,7 +1,5 @@
 {pkgs, ...}: {
   packages = [
-    pkgs.git
-    pkgs.jujutsu # Git-compatible VCS with anonymous branches
     pkgs.go-task
     pkgs.alejandra
     # Additional Nix development tools

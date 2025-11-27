@@ -1,6 +1,7 @@
 {pkgs, ...}: {
   home.packages = with pkgs; [
     docker
+    jujutsu # Git-compatible VCS with anonymous branches
   ];
 
   # Ghostty configuration (installed via Homebrew)
