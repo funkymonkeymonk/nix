@@ -1,0 +1,19 @@
+[scopes.drlight]
+description = "NixOS options for drlight"
+options-list-cmd = "nix eval .#nixosConfigurations.drlight --json --apply 'input: let inherit (input) options pkgs; in builtins.filter (v: v.visible && !v.internal) (pkgs.lib.optionAttrSetToDocList options)'"
+evaluator = "nix eval .#nixosConfigurations.drlight.config.{{ .Option }}"
+
+[scopes.zero]
+description = "NixOS options for zero"
+options-list-cmd = "nix eval .#nixosConfigurations.zero --json --apply 'input: let inherit (input) options pkgs; in builtins.filter (v: v.visible && !v.internal) (pkgs.lib.optionAttrSetToDocList options)'"
+evaluator = "nix eval .#nixosConfigurations.zero.config.{{ .Option }}"
+
+[scopes.wweaver]
+description = "nix-darwin options for wweaver"
+options-list-cmd = "nix eval .#darwinConfigurations.wweaver --json --apply 'input: let inherit (input) options pkgs; in builtins.filter (v: v.visible && !v.internal) (pkgs.lib.optionAttrSetToDocList options)'"
+evaluator = "nix eval .#darwinConfigurations.wweaver.config.{{ .Option }}"
+
+[scopes.MegamanX]
+description = "nix-darwin options for MegamanX"
+options-list-cmd = "nix eval .#darwinConfigurations.MegamanX --json --apply 'input: let inherit (input) options pkgs; in builtins.filter (v: v.visible && !v.internal) (pkgs.lib.optionAttrSetToDocList options)'"
+evaluator = "nix eval .#darwinConfigurations.MegamanX.config.{{ .Option }}"
