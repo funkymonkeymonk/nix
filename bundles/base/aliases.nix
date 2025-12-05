@@ -32,6 +32,17 @@
     tb = "task build";
     tt = "task test";
 
+    # Jujutsu (jj) version control aliases
+    j = "jj";
+    js = "jj status";
+    jd = "jj diff";
+    ja = "jj abandon";
+    jc = "jj commit";
+    jl = "jj log";
+    jn = "jj new";
+    je = "jj edit";
+    jg = "jj git";
+
     # Navigation
     "..." = "cd ../..";
   };

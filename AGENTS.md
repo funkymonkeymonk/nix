@@ -62,11 +62,9 @@ opencode will handle all common development tasks including:
 opencode shall not:
 - Replace human expertise or decision-making authority
 - Process personal or sensitive data without explicit authorization
-<<<<<<< HEAD
 - Make autonomous commits to version control systems without explicit user approval
 - Execute commands that could compromise system security
 - Push changes to remote repositories without explicit user review and approval
->>>>>>> 3d05043 (Add AGENTS.md: AI Assistant Development Services Agreement)
 
 ## Communication Protocols
 
@@ -81,7 +79,7 @@ opencode agrees to provide:
 opencode will:
 - **Provide proactive suggestions** for improvements while respecting explicit requests
 - **Request confirmations** before making significant changes to files or running commands
-- **Request explicit approval** before committing or pushing changes to version control
+- **Request explicit approval** before committing or pushing changes to version control (using jj commands)
 - **Deliver progress updates** for multi-step tasks with clear status indicators
 - **Ask direct questions** when clarification is needed, with context about why information is required
 
@@ -138,9 +136,11 @@ opencode agrees to:
 opencode acknowledges awareness of:
 - **Taskfile Format**: Common operations are defined using [Taskfile.dev](https://taskfile.dev/) format in `Taskfile.yml`
 - **Nix Ecosystem**: Integration with nix-darwin and home-manager configurations
+- **Version Control**: Uses Jujutsu (jj) for version control with anonymous branches workflow
 - **Key Documentation References**:
   - [home-manager options](https://nix-community.github.io/home-manager/options.xhtml)
   - [nix-darwin manual](https://nix-darwin.github.io/nix-darwin/manual/index.html)
+  - [Jujutsu documentation](https://jj-vcs.github.io/jj/)
 
 ## Usage Instructions and Best Practices
 
@@ -156,14 +156,12 @@ The User agrees to:
 1. **Provide context** about the specific system or configuration being worked on
 2. **Specify the scope** of changes (e.g., "update home-manager config for user X" vs "refactor entire flake")
 3. **Review all suggestions** before implementation
-<<<<<<< HEAD
-4. **Review and approve all commits** before they are pushed to remote repositories
+<<
+4. **Review and approve all commits** before they are pushed to remote repositories (using jj git push commands)
 5. **Test changes** in a safe environment before applying to production systems
 6. **Document decisions** for future reference and team knowledge sharing
-=======
 4. **Test changes** in a safe environment before applying to production systems
 5. **Document decisions** for future reference and team knowledge sharing
->>>>>>> 3d05043 (Add AGENTS.md: AI Assistant Development Services Agreement)
 
 ## Reusability and Adaptation
 
