@@ -34,6 +34,9 @@
   programs = {
     jujutsu = {
       enable = true;
+      ui = {
+        default = "log";
+      };
       settings = {
         user = {
           name = "Will Weaver";
