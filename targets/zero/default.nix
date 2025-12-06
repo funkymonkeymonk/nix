@@ -40,7 +40,7 @@
   '';
 
   # Kernel / boot overrides
-  boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_16;
+  boot.kernelPackages = lib.mkForce pkgs.linuxPackages_latest;
 
   # Security/runtime
   security.rtkit.enable = true;
