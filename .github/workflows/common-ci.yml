@@ -1,0 +1,148 @@
+---
+name: Common CI
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Common validation tasks
+  validate-common:
+    name: Validate Common Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          docker system prune -af --volumes || true
+          df -h
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: common-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            common-
+        timeout-minutes: 5
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Validate flake structure
+        run: |
+          # Check that flake outputs are valid
+          nix flake check --all-systems
+
+      - name: Run formatter
+        run: devenv shell task fmt
+
+      - name: Run linters
+        run: devenv shell task lint
+
+      - name: Run quality checks
+        run: devenv shell task quality
+
+      - name: Test common bundles
+        run: |
+          # Test platform-agnostic bundles
+          nix build .#bundles.base
+          nix build .#bundles.roles.developer
+          nix build .#bundles.roles.creative
+          nix build .#bundles.roles.gaming
+          nix build .#bundles.roles.workstation
+
+      - name: Test common modules
+        run: |
+          # Test common module evaluation
+          nix eval .#modules.common
+          nix eval .#modules.home-manager
+          nix eval .#modules.common.options
+
+      - name: Validate devenv configuration
+        run: |
+          # Test that devenv configuration is valid
+          nix develop --profile test-profile --command echo "Devenv works"
+          nix profile remove test-profile
+
+      - name: Cleanup Nix store
+        if: always()
+        run: |
+          nix store gc --verbose
+          nix store optimise --verbose
+          df -h
+
+  # Security and license checks
+  security-checks:
+    name: Security and License Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: security-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            security-
+            common-
+        timeout-minutes: 5
+
+      - name: Check for secrets
+        run: |
+          # Basic secret detection
+          if grep -r -E "(password|secret|key|token)\\s*=\\s*['\"][^'\"]+['\"]" \
+              --include="*.nix" .; then
+            echo "Potential secrets found in Nix files!"
+            exit 1
+          fi
+
+      - name: Validate file permissions
+        run: |
+          # Check for executable files that shouldn't be
+          find . -name "*.nix" -executable -exec echo "Warning: {} is executable" \;
+
+      - name: Check for disallowed packages
+        run: |
+          # Add any packages that should be flagged here
+          echo "Checking for disallowed packages..."
+          # This is a placeholder for any package restrictions
+
+      - name: Cleanup Nix store
+        if: always()
+        run: |
+          nix store gc --verbose || true
+          df -h

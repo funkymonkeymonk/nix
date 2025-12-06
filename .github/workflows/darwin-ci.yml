@@ -1,0 +1,134 @@
+---
+name: Darwin CI
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.nix'
+      - '.github/workflows/darwin-ci.yml'
+      - 'flake.lock'
+      - 'bundles/platforms/darwin/**'
+      - 'targets/**'
+      - 'os/darwin.nix'
+  push:
+    branches:
+      - main
+    paths:
+      - '**.nix'
+      - '.github/workflows/darwin-ci.yml'
+      - 'flake.lock'
+      - 'bundles/platforms/darwin/**'
+      - 'targets/**'
+      - 'os/darwin.nix'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Darwin-specific tests
+  test-darwin:
+    name: Test Darwin (aarch64-darwin)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: darwin-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            darwin-
+        timeout-minutes: 5
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Build Darwin configurations
+        run: |
+          # Build all Darwin targets
+          nix build .#darwinConfigurations.Will-Stride-MBP.system
+          nix build .#darwinConfigurations.MegamanX.system
+
+      - name: Test Darwin home-manager configurations
+        run: |
+          # Test home-manager activation for Darwin users
+          nix build .#homeConfigurations."will@Will-Stride-MBP".activationPackage
+          nix build .#homeConfigurations."will@MegamanX".activationPackage
+
+      - name: Validate AeroSpace configuration
+        run: |
+          # Check AeroSpace syntax and configuration
+          nix build .#homeConfigurations."will@Will-Stride-MBP".home.activation.aerospace
+          nix build .#homeConfigurations."will@MegamanX".home.activation.aerospace
+
+      - name: Run formatter
+        run: devenv shell task fmt
+
+      - name: Cleanup Nix store
+        if: always()
+        run: |
+          nix store gc --verbose
+          nix store optimise --verbose
+          df -h
+
+  # Darwin-specific integration tests
+  darwin-integration:
+    name: Darwin Integration Test
+    runs-on: macos-latest
+    needs: test-darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: darwin-integration-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            darwin-integration-
+            darwin-
+        timeout-minutes: 5
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Test Darwin-specific bundles
+        run: |
+          # Test Darwin-specific package bundles
+          nix build .#bundles.platforms.darwin
+          nix build .#bundles.roles.workstation  # Often used on Darwin
+
+      - name: Validate SSH signing configuration
+        run: |
+          # Test that SSH signing configuration is valid
+          nix eval .#darwinConfigurations.Will-Stride-MBP.config.programs.git
+          nix eval .#darwinConfigurations.MegamanX.config.programs.git
+
+      - name: Cleanup Nix store
+        if: always()
+        run: |
+          nix store gc --verbose || true
+          df -h
