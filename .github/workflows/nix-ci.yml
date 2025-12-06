@@ -32,6 +32,16 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+      - name: Free up disk space
+        run: |
+          # Clean up unnecessary files to free disk space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          docker system prune -af --volumes || true
+          df -h
+
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -41,12 +51,23 @@ jobs:
           key: ${{ runner.os }}-nix-store-${{ hashFiles('**/flake.lock') }}
           restore-keys: |
             ${{ runner.os }}-nix-store-
+        timeout-minutes: 5
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
+
       - name: Run formatter
         run: devenv shell task fmt
+
       - name: Run configuration tests
         run: devenv shell task test
+
+      - name: Cleanup Nix store
+        if: always()
+        run: |
+          # Clean up Nix store to free space
+          nix store gc --verbose
+          nix store optimise --verbose
+          df -h
 
   # NixOS VM Integration Tests
   vm-tests:
@@ -55,6 +76,7 @@ jobs:
     needs: test-matrix
     strategy:
       fail-fast: false
+      max-parallel: 2  # Limit concurrent VM tests to reduce resource pressure
       matrix:
         config:
           - drlight
@@ -74,6 +96,16 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
 
+      - name: Free up disk space
+        run: |
+          # Clean up unnecessary files to free disk space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          docker system prune -af --volumes || true
+          df -h
+
       - name: Enable KVM group permissions
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
@@ -91,6 +123,7 @@ jobs:
           restore-keys: |
             vm-${{ matrix.config }}-
             vm-
+        timeout-minutes: 5
 
       - name: Install VM dependencies
         run: |
@@ -100,7 +133,14 @@ jobs:
 
       - name: Build VM for ${{ matrix.config }}
         run: |
-          nix build .#vm-${{ matrix.config }}
+          nix build .#vm-${{ matrix.config }} --option sandbox false
+
+      - name: Pre-build cleanup
+        run: |
+          # Clean up any existing VM processes
+          pkill -f "run-${{ matrix.config }}-vm" || true
+          pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
 
       - name: Start VM in background
         run: |
@@ -110,12 +150,12 @@ jobs:
             SSH_PORT="2223"
           fi
 
-          # Start VM in daemonized mode
+          # Start VM in daemonized mode with reduced resources
           ./result/bin/run-${{ matrix.config }}-vm \
             -daemonize \
             -display none \
-            -m 2048 \
-            -smp 2
+            -m 1024 \
+            -smp 1
 
       - name: Wait for VM to be ready
         run: |
@@ -156,6 +196,11 @@ jobs:
           # Kill any remaining VM processes
           pkill -f "run-${{ matrix.config }}-vm" || true
           pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
+
+          # Clean up Nix store to free space
+          nix store gc --verbose || true
+          df -h
 
   # Comprehensive Integration Test
   integration-test:
@@ -164,6 +209,7 @@ jobs:
     needs: test-matrix
     strategy:
       fail-fast: false
+      max-parallel: 1  # Run integration tests sequentially to reduce resource pressure
       matrix:
         config:
           - drlight
@@ -178,6 +224,16 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+
+      - name: Free up disk space
+        run: |
+          # Clean up unnecessary files to free disk space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          docker system prune -af --volumes || true
+          df -h
 
       - name: Enable KVM group permissions
         run: |
@@ -196,12 +252,20 @@ jobs:
           restore-keys: |
             integration-${{ matrix.config }}-
             integration-
+        timeout-minutes: 5
 
       - name: Install VM dependencies
         run: |
           nix profile install nixpkgs#qemu
           nix profile install nixpkgs#openssh
           nix profile install nixpkgs#sshpass
+
+      - name: Pre-build cleanup
+        run: |
+          # Clean up any existing VM processes
+          pkill -f "run-${{ matrix.config }}-vm" || true
+          pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
 
       - name: Build and start VM
         run: |
@@ -212,14 +276,14 @@ jobs:
           fi
 
           # Build VM
-          nix build .#vm-${{ matrix.config }}
+          nix build .#vm-${{ matrix.config }} --option sandbox false
 
-          # Start VM in daemonized mode
+          # Start VM in daemonized mode with reduced resources
           ./result/bin/run-${{ matrix.config }}-vm \
             -daemonize \
             -display none \
-            -m 2048 \
-            -smp 2
+            -m 1024 \
+            -smp 1
 
       - name: Wait for VM and run integration test
         run: |
@@ -263,7 +327,7 @@ jobs:
               -o ConnectTimeout=10 \
               -p "$SSH_PORT" \
               test@localhost \
-              "chmod +x /tmp/nixos-integration-test.sh && /tmp/nixos-integration-test.sh"
+               "chmod +x /tmp/nixos-integration-test.sh && /tmp/nixos-integration-test.sh"
 
       - name: Cleanup VM
         if: always()
@@ -271,3 +335,8 @@ jobs:
           # Kill any remaining VM processes
           pkill -f "run-${{ matrix.config }}-vm" || true
           pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
+
+          # Clean up Nix store to free space
+          nix store gc --verbose || true
+          df -h

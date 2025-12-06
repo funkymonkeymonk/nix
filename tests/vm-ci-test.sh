@@ -12,6 +12,10 @@ SSH_PORT="2222"
 SSH_USER="test"
 SSH_HOST="localhost"
 
+# Set script start time for timeout tracking
+SCRIPT_START_TIME=$(date +%s)
+SCRIPT_TIMEOUT=480  # 8 minutes
+
 # Set different port for zero VM to avoid conflicts
 if [[ "$VM_NAME" == "zero" ]]; then
     SSH_PORT="2223"
@@ -24,8 +28,24 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Check if script is approaching timeout
+check_timeout() {
+    local current_time=$(date +%s)
+    local elapsed=$((current_time - SCRIPT_START_TIME))
+    
+    if [[ $elapsed -gt $((SCRIPT_TIMEOUT - 60)) ]]; then
+        log_warning "Approaching timeout: ${elapsed}s elapsed, ${SCRIPT_TIMEOUT}s limit"
+    fi
+    
+    if [[ $elapsed -gt $SCRIPT_TIMEOUT ]]; then
+        log_error "Script timeout exceeded: ${elapsed}s elapsed, ${SCRIPT_TIMEOUT}s limit"
+        exit 124  # timeout exit code
+    fi
+}
+
 # Logging functions
 log_info() {
+    check_timeout
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
@@ -41,47 +61,89 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# SSH command wrapper optimized for CI
+# SSH command wrapper optimized for CI with better error handling
 ssh_cmd() {
-    ssh -o UserKnownHostsFile=/dev/null \
+    local output
+    local exit_code
+    
+    # Capture both output and exit code
+    if output=$(ssh -o UserKnownHostsFile=/dev/null \
         -o StrictHostKeyChecking=no \
         -o ConnectTimeout=10 \
         -o BatchMode=yes \
+        -o ServerAliveInterval=30 \
+        -o ServerAliveCountMax=3 \
         -p "$SSH_PORT" \
         "${SSH_USER}@${SSH_HOST}" \
-        "$@"
+        "$@" 2>&1); then
+        exit_code=0
+    else
+        exit_code=$?
+    fi
+    
+    # Return the output and exit code
+    echo "$output"
+    return $exit_code
 }
 
-# Quick connectivity test
+# Quick connectivity test with retry logic
 test_connectivity() {
     log_info "Testing basic connectivity..."
     
-    if ssh_cmd "echo 'SSH connection successful'" >/dev/null 2>&1; then
-        log_success "SSH connectivity test passed"
-        return 0
-    else
-        log_error "SSH connectivity test failed"
-        return 1
-    fi
+    local max_attempts=10
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        log_info "SSH connection attempt $attempt/$max_attempts"
+        
+        if ssh_cmd "echo 'SSH connection successful'" >/dev/null 2>&1; then
+            log_success "SSH connectivity test passed after $attempt attempts"
+            return 0
+        else
+            log_warning "SSH connection attempt $attempt failed"
+            if [[ $attempt -eq $max_attempts ]]; then
+                log_error "SSH connectivity test failed after $max_attempts attempts"
+                # Debug information
+                log_info "Debugging SSH connectivity:"
+                log_info "SSH Port: $SSH_PORT"
+                log_info "SSH User: $SSH_USER"
+                log_info "SSH Host: $SSH_HOST"
+                return 1
+            fi
+            sleep 3
+            ((attempt++))
+        fi
+    done
 }
 
 # Test basic system functionality
 test_basic() {
     log_info "Running basic system tests..."
     
-    # Test Nix availability
-    if ssh_cmd "which nix" >/dev/null; then
-        log_success "Nix is available"
+    # Test Nix availability with error handling
+    if nix_output=$(ssh_cmd "which nix" 2>&1); then
+        log_success "Nix is available at: $nix_output"
     else
-        log_error "Nix is not available"
+        log_error "Nix is not available: $nix_output"
         return 1
     fi
     
-    # Test basic commands
-    if ssh_cmd "systemctl is-active sshd" | grep -q "active"; then
-        log_success "SSH service is active"
+    # Test basic commands with better error handling
+    if sshd_output=$(ssh_cmd "systemctl is-active sshd" 2>&1); then
+        if echo "$sshd_output" | grep -q "active"; then
+            log_success "SSH service is active"
+        else
+            log_warning "SSH service status: $sshd_output"
+        fi
     else
-        log_warning "SSH service is not active"
+        log_warning "Could not check SSH service status: $sshd_output"
+    fi
+    
+    # Test basic system info
+    if ssh_cmd "uname -a" >/dev/null 2>&1; then
+        log_success "System information accessible"
+    else
+        log_warning "Could not retrieve system information"
     fi
     
     return 0
@@ -180,6 +242,26 @@ test_packages() {
     return 0
 }
 
+# Function to run a test with timeout
+run_test_with_timeout() {
+    local test_function="$1"
+    local timeout_seconds="${2:-60}"  # Default 60 second timeout
+    
+    # Run the test in background with timeout
+    timeout "$timeout_seconds" bash -c "$test_function" 2>&1
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 124 ]]; then
+        log_error "Test timed out after ${timeout_seconds} seconds"
+        return 124
+    elif [[ $exit_code -ne 0 ]]; then
+        log_error "Test failed with exit code $exit_code"
+        return $exit_code
+    fi
+    
+    return 0
+}
+
 # Main test execution
 main() {
     log_info "Starting CI VM tests for ${VM_NAME} (${TEST_TYPE})"
@@ -192,33 +274,75 @@ main() {
     
     local failed_tests=0
     
-    # Run tests based on type
+    # Run tests based on type with error handling
     case "$TEST_TYPE" in
         "basic")
-            test_basic || ((failed_tests++))
+            if ! test_basic; then
+                ((failed_tests++))
+                log_error "Basic tests failed"
+            fi
             ;;
         "system")
-            test_basic || ((failed_tests++))
-            test_system || ((failed_tests++))
+            if ! test_basic; then
+                ((failed_tests++))
+                log_error "Basic tests failed"
+            fi
+            if ! test_system; then
+                ((failed_tests++))
+                log_error "System tests failed"
+            fi
             ;;
         "development")
-            test_basic || ((failed_tests++))
-            test_development || ((failed_tests++))
+            if ! test_basic; then
+                ((failed_tests++))
+                log_error "Basic tests failed"
+            fi
+            if ! test_development; then
+                ((failed_tests++))
+                log_error "Development tests failed"
+            fi
             ;;
         "home-manager")
-            test_basic || ((failed_tests++))
-            test_home_manager || ((failed_tests++))
+            if ! test_basic; then
+                ((failed_tests++))
+                log_error "Basic tests failed"
+            fi
+            if ! test_home_manager; then
+                ((failed_tests++))
+                log_error "Home-manager tests failed"
+            fi
             ;;
         "packages")
-            test_basic || ((failed_tests++))
-            test_packages || ((failed_tests++))
+            if ! test_basic; then
+                ((failed_tests++))
+                log_error "Basic tests failed"
+            fi
+            if ! test_packages; then
+                ((failed_tests++))
+                log_error "Package tests failed"
+            fi
             ;;
         "full")
-            test_basic || ((failed_tests++))
-            test_system || ((failed_tests++))
-            test_development || ((failed_tests++))
-            test_home_manager || ((failed_tests++))
-            test_packages || ((failed_tests++))
+            if ! test_basic; then
+                ((failed_tests++))
+                log_error "Basic tests failed"
+            fi
+            if ! test_system; then
+                ((failed_tests++))
+                log_error "System tests failed"
+            fi
+            if ! test_development; then
+                ((failed_tests++))
+                log_error "Development tests failed"
+            fi
+            if ! test_home_manager; then
+                ((failed_tests++))
+                log_error "Home-manager tests failed"
+            fi
+            if ! test_packages; then
+                ((failed_tests++))
+                log_error "Package tests failed"
+            fi
             ;;
         *)
             log_error "Unknown test type: ${TEST_TYPE}"

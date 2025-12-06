@@ -6,6 +6,25 @@
 
 set -euo pipefail
 
+# Set script start time for timeout tracking
+SCRIPT_START_TIME=$(date +%s)
+SCRIPT_TIMEOUT=300  # 5 minutes for integration tests
+
+# Check if script is approaching timeout
+check_timeout() {
+    local current_time=$(date +%s)
+    local elapsed=$((current_time - SCRIPT_START_TIME))
+    
+    if [[ $elapsed -gt $((SCRIPT_TIMEOUT - 30)) ]]; then
+        log_warning "Approaching timeout: ${elapsed}s elapsed, ${SCRIPT_TIMEOUT}s limit"
+    fi
+    
+    if [[ $elapsed -gt $SCRIPT_TIMEOUT ]]; then
+        log_error "Script timeout exceeded: ${elapsed}s elapsed, ${SCRIPT_TIMEOUT}s limit"
+        exit 124  # timeout exit code
+    fi
+}
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,6 +33,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 log_info() {
+    check_timeout
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
@@ -30,26 +50,29 @@ test_nixos_basic() {
     log_info "Testing NixOS basic functionality..."
     
     # Test if we're running on NixOS
-    if ! grep -q "NixOS" /etc/os-release; then
+    if grep -q "NixOS" /etc/os-release; then
+        log_success "Confirmed running on NixOS"
+        log_info "OS Release: $(grep 'PRETTY_NAME' /etc/os-release | cut -d'"' -f2)"
+    else
         log_error "Not running on NixOS"
+        log_info "OS Release content:"
+        cat /etc/os-release
         return 1
     fi
     
-    log_success "Confirmed running on NixOS"
-    
-    # Test Nix store
-    if command -v nix >/dev/null; then
-        log_success "Nix command is available"
+    # Test Nix store with better error handling
+    if nix_version=$(nix --version 2>&1); then
+        log_success "Nix command is available: $nix_version"
     else
-        log_error "Nix command not found"
+        log_error "Nix command not found or not working: $nix_version"
         return 1
     fi
     
-    # Test systemd
-    if systemctl --version >/dev/null 2>&1; then
-        log_success "systemd is working"
+    # Test systemd with better error handling
+    if systemd_version=$(systemctl --version 2>&1 | head -1); then
+        log_success "systemd is working: $systemd_version"
     else
-        log_error "systemd not working"
+        log_error "systemd not working: $systemd_version"
         return 1
     fi
     
@@ -110,19 +133,30 @@ test_package_management() {
 test_services() {
     log_info "Testing system services..."
     
-    # Test SSH service
-    if systemctl is-active --quiet sshd; then
-        log_success "SSH service is active"
+    # Test SSH service with better error handling
+    if sshd_status=$(systemctl is-active sshd 2>&1); then
+        log_success "SSH service is active: $sshd_status"
     else
-        log_error "SSH service is not active"
+        log_error "SSH service is not active: $sshd_status"
+        # Show service status for debugging
+        systemctl status sshd --no-pager || true
         return 1
     fi
     
-    # Test networking
-    if systemctl is-active --quiet network-online.target; then
-        log_success "Network is online"
+    # Test networking with better error handling
+    if network_status=$(systemctl is-active network-online.target 2>&1); then
+        log_success "Network is online: $network_status"
     else
-        log_warning "Network target not active"
+        log_warning "Network target not active: $network_status"
+        # Show network status for debugging
+        systemctl status network-online.target --no-pager || true
+    fi
+    
+    # Test basic network connectivity
+    if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+        log_success "Basic network connectivity working"
+    else
+        log_warning "Basic network connectivity failed"
     fi
     
     return 0

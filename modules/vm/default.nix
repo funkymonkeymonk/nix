@@ -12,13 +12,13 @@ in {
 
     memorySize = mkOption {
       type = types.int;
-      default = 2048;
+      default = 1024;
       description = "Memory size in MB for the VM";
     };
 
     cores = mkOption {
       type = types.int;
-      default = 2;
+      default = 1;
       description = "Number of CPU cores for the VM";
     };
 
@@ -59,8 +59,8 @@ in {
             }
           ];
 
-        # Optimize for CI/CD environments
-        diskSize = mkDefault 10240; # 10GB
+        # Optimize for CI/CD environments - reduced disk size
+        diskSize = mkDefault 8192; # 8GB
       };
 
       # Ensure SSH is enabled for testing
