@@ -32,17 +32,51 @@
     configuration = {lib, ...}: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
 
-      nixpkgs.config.allowUnfree = true;
+      nixpkgs = {
+        config.allowUnfree = true;
 
-      # Access unstable pkgs with pkgs.unstable
-      nixpkgs.overlays = [
-        (final: _prev: {
-          unstable = import nixpkgs-unstable {
-            inherit (final) system config;
-          };
-        })
-      ];
+        # Allow insecure packages for VM testing
+        config.permittedInsecurePackages = [
+          "lima-1.0.7"
+        ];
+
+        # Access unstable pkgs with pkgs.unstable
+        overlays = [
+          (final: _prev: {
+            unstable = import nixpkgs-unstable {
+              inherit (final) system config;
+            };
+          })
+        ];
+      };
     };
+
+    # Utility function to create VM apps from NixOS configurations
+    mkAppVM = name: {
+      type = "app";
+      program = "${self.nixosConfigurations.${name}.config.system.build.vm}/bin/run-${name}-vm";
+    };
+
+    # Utility function to create NixOS configurations with VM support
+    mkNixosSystem = modules:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules =
+          [
+            configuration
+            ./modules/common/options.nix
+            ./modules/common/users.nix
+            ./modules/common/packages.nix
+            ./modules/common/shell.nix
+            ./modules/home-manager
+            ./modules/nixos/hardware.nix
+            ./modules/nixos/services.nix
+            ./modules/vm # Add VM module for testing
+            ./bundles/base
+            ./os/nixos.nix
+          ]
+          ++ modules;
+      };
   in {
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules = [
@@ -138,81 +172,96 @@
       ];
     };
 
-    nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        configuration
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/packages.nix
-        ./modules/common/shell.nix
-        ./modules/home-manager
-        ./modules/nixos/hardware.nix
-        ./modules/nixos/services.nix
-        ./bundles/base
-        ./bundles/roles/developer
-        ./bundles/roles/creative
-        ./bundles/platforms/linux
-        ./os/nixos.nix
-        ./targets/drlight
-        {
-          nixpkgs.hostPlatform = "x86_64-linux";
-          system.stateVersion = "25.05";
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            media.enable = true;
-          };
-        }
-        ./1password.nix
-        home-manager.nixosModules.home-manager
-      ];
+    nixosConfigurations."drlight" = mkNixosSystem [
+      ./bundles/roles/developer
+      ./bundles/roles/creative
+      ./bundles/platforms/linux
+      ./targets/drlight
+      ./1password.nix
+      home-manager.nixosModules.home-manager
+      {
+        nixpkgs.hostPlatform = "x86_64-linux";
+        system.stateVersion = "25.05";
+        # Configure users through the modular system
+        myConfig = {
+          users = [
+            {
+              name = "monkey";
+              email = "monkey@willweaver.dev";
+              fullName = "Monkey";
+              isAdmin = true;
+              sshIncludes = [];
+            }
+          ];
+          development.enable = true;
+          media.enable = true;
+          vm.enable = true; # Enable VM testing
+        };
+      }
+    ];
+
+    nixosConfigurations."zero" = mkNixosSystem [
+      ./bundles/roles/developer
+      ./bundles/platforms/linux
+      ./targets/zero
+      ./1password.nix
+      home-manager.nixosModules.home-manager
+      {
+        nixpkgs.hostPlatform = "x86_64-linux";
+        system.stateVersion = "25.05";
+        # Configure users through the modular system
+        myConfig = {
+          users = [
+            {
+              name = "monkey";
+              email = "monkey@willweaver.dev";
+              fullName = "Monkey";
+              isAdmin = true;
+              sshIncludes = [];
+            }
+          ];
+          development.enable = true;
+          vm.enable = true; # Enable VM testing
+        };
+      }
+    ];
+
+    # System-specific outputs
+    packages.x86_64-linux = {
+      # VM outputs for direct access
+      vm-drlight = self.nixosConfigurations.drlight.config.system.build.vm;
+      vm-zero = self.nixosConfigurations.zero.config.system.build.vm;
     };
 
-    nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        configuration
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/packages.nix
-        ./modules/common/shell.nix
-        ./modules/home-manager
-        ./modules/nixos/hardware.nix
-        ./bundles/base
-        ./bundles/roles/developer
-        ./bundles/platforms/linux
-        ./os/nixos.nix
-        ./targets/zero
-        {
-          nixpkgs.hostPlatform = "x86_64-linux";
-          system.stateVersion = "25.05";
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-          };
-        }
-        ./1password.nix
-        home-manager.nixosModules.home-manager
-      ];
+    # VM apps for easy testing
+    apps.x86_64-linux = {
+      # Default VM app (drlight)
+      default = mkAppVM "drlight";
+
+      # Individual VM apps
+      vm-drlight = mkAppVM "drlight";
+      vm-zero = mkAppVM "zero";
     };
+
+    # Development shell with VM tools
+    devShells.x86_64-linux.default = let
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    in
+      pkgs.mkShell {
+        buildInputs = with pkgs; [
+          qemu
+          openssh
+          sshpass
+        ];
+
+        shellHook = ''
+          echo "🔧 NixOS VM Development Environment"
+          echo "Available commands:"
+          echo "  nix run .#vm-drlight    # Run drlight VM"
+          echo "  nix run .#vm-zero       # Run zero VM"
+          echo "  task vm:drlight         # Build and run drlight VM"
+          echo "  task vm:zero            # Build and run zero VM"
+        '';
+      };
   };
 }

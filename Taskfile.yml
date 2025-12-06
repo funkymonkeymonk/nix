@@ -258,3 +258,73 @@ tasks:
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
+  # VM Testing Tasks
+  vm:
+    desc: Build and run NixOS VMs
+    aliases:
+      - v
+    cmds:
+      - task: vm:list
+  vm:list:
+    desc: List available VM configurations
+    cmd: |
+      echo "🖥️  Available NixOS VMs:"
+      echo "  drlight - Development workstation with creative tools"
+      echo "  zero   - Gaming workstation with Steam"
+      echo ""
+      echo "Usage:"
+      echo "  task vm:drlight  # Build and run drlight VM"
+      echo "  task vm:zero     # Build and run zero VM"
+      echo "  task vm:ssh:drlight  # SSH into running drlight VM"
+      echo "  task vm:ssh:zero     # SSH into running zero VM"
+  vm:drlight:
+    desc: Build and run drlight NixOS VM
+    cmd: |
+      echo "🖥️  Building and running drlight VM..."
+      export QEMU_NET_OPTS="hostfwd=tcp::2222-:22"
+      nix run .#apps.x86_64-linux.vm-drlight
+  vm:zero:
+    desc: Build and run zero NixOS VM
+    cmd: |
+      echo "🖥️  Building and running zero VM..."
+      export QEMU_NET_OPTS="hostfwd=tcp::2223-:22"
+      nix run .#apps.x86_64-linux.vm-zero
+  vm:build:drlight:
+    desc: Build drlight VM without running
+    cmd: |
+      echo "🔨 Building drlight VM..."
+      nix build .#packages.x86_64-linux.vm-drlight
+  vm:build:zero:
+    desc: Build zero VM without running
+    cmd: |
+      echo "🔨 Building zero VM..."
+      nix build .#packages.x86_64-linux.vm-zero
+  vm:ssh:drlight:
+    desc: SSH into running drlight VM
+    cmd: |
+      echo "🔗 Connecting to drlight VM..."
+      ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p 2222 test@localhost
+  vm:ssh:zero:
+    desc: SSH into running zero VM
+    cmd: |
+      echo "🔗 Connecting to zero VM..."
+      ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p 2223 test@localhost
+  vm:test:drlight:
+    desc: Test drlight VM configuration
+    cmd: |
+      echo "🧪 Testing drlight VM configuration..."
+      task vm:build:drlight
+      echo "✅ drlight VM builds successfully"
+  vm:test:zero:
+    desc: Test zero VM configuration
+    cmd: |
+      echo "🧪 Testing zero VM configuration..."
+      task vm:build:zero
+      echo "✅ zero VM builds successfully"
+  vm:test:all:
+    desc: Test all VM configurations
+    cmd: |
+      echo "🧪 Testing all VM configurations..."
+      task vm:test:drlight
+      task vm:test:zero
+      echo "✅ All VM configurations build successfully"
