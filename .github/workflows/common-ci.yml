@@ -94,7 +94,7 @@ jobs:
           nix store optimise --verbose
           df -h
 
-  # Security and license checks
+  # Security checks
   security-checks:
     name: Security and License Checks
     runs-on: ubuntu-latest
@@ -102,44 +102,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v10
-        with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-            sandbox = false
-
-      - name: Cache Nix store
-        uses: actions/cache@v4
-        with:
-          path: |
-            /nix/store
-            ~/.cache/nix
-          key: security-${{ hashFiles('**/flake.lock') }}
-          restore-keys: |
-            security-
-            common-
-        timeout-minutes: 5
-
       - name: TruffleHog Secret Scanning
         uses: trufflesecurity/trufflehog@main
         with:
-          path: '.'
-          extra_args: '--results=verified,unknown --exclude-paths .trufflehog-ignore.txt'
-
-      - name: Validate file permissions
-        run: |
-          # Check for executable files that shouldn't be
-          find . -name "*.nix" -executable -exec echo "Warning: {} is executable" \;
-
-      - name: Check for disallowed packages
-        run: |
-          # Add any packages that should be flagged here
-          echo "Checking for disallowed packages..."
-          # This is a placeholder for any package restrictions
-
-      - name: Cleanup Nix store
-        if: always()
-        run: |
-          nix store gc --verbose || true
-          df -h
+          path: "."
+          extra_args: "--results=verified,unknown --exclude-paths .trufflehog-ignore.txt"

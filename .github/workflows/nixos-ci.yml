@@ -5,26 +5,26 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - '**.nix'
-      - '.github/workflows/nixos-ci.yml'
-      - 'flake.lock'
-      - 'bundles/platforms/linux/**'
-      - 'targets/**'
-      - 'os/nixos.nix'
-      - 'modules/nixos/**'
-      - 'tests/**'
+      - "**.nix"
+      - ".github/workflows/nixos-ci.yml"
+      - "flake.lock"
+      - "bundles/platforms/linux/**"
+      - "targets/**"
+      - "os/nixos.nix"
+      - "modules/nixos/**"
+      - "tests/**"
   push:
     branches:
       - main
     paths:
-      - '**.nix'
-      - '.github/workflows/nixos-ci.yml'
-      - 'flake.lock'
-      - 'bundles/platforms/linux/**'
-      - 'targets/**'
-      - 'os/nixos.nix'
-      - 'modules/nixos/**'
-      - 'tests/**'
+      - "**.nix"
+      - ".github/workflows/nixos-ci.yml"
+      - "flake.lock"
+      - "bundles/platforms/linux/**"
+      - "targets/**"
+      - "os/nixos.nix"
+      - "modules/nixos/**"
+      - "tests/**"
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -67,8 +67,8 @@ jobs:
       - name: Build NixOS configurations
         run: |
           # Build all NixOS targets using task commands
-          task build:nixos:drlight
-          task build:nixos:zero
+          devenv shell task build:nixos:drlight
+          devenv shell task build:nixos:zero
       - name: Test NixOS home-manager configurations
         run: |
           # Test home-manager activation for NixOS users
@@ -81,8 +81,6 @@ jobs:
           nix eval .#nixosConfigurations.zero.config.services
           nix eval .#nixosConfigurations.drlight.config.hardware
           nix eval .#nixosConfigurations.zero.config.hardware
-      - name: Run formatter
-        run: task fmt
       - name: Cleanup Nix store
         if: always()
         run: |
@@ -147,7 +145,7 @@ jobs:
           nix profile install nixpkgs#sshpass
       - name: Build VM for ${{ matrix.config }}
         run: |
-          task vm:build:${{ matrix.config }}
+          devenv shell task vm:build:${{ matrix.config }}
       - name: Pre-build cleanup
         run: |
           # Clean up any existing VM processes
