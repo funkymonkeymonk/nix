@@ -103,6 +103,19 @@ tasks:
     cmds:
       - devenv shell -- deadnix --no-underscore .
       - yamllint .
+  secrets:scan:
+    desc: Scan repository for secrets using TruffleHog
+    cmd: trufflehog filesystem . --results=verified,unknown --fail \
+      --exclude-paths .trufflehog-ignore.txt
+    aliases:
+      - secrets
+      - scan
+
+  secrets:verify:
+    desc: Scan and verify found secrets
+    cmd: trufflehog filesystem . --results=verified --fail \
+      --exclude-paths .trufflehog-ignore.txt
+
   quality:
     desc: Run all code quality checks (format + lint).
     aliases:

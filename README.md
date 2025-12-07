@@ -163,6 +163,7 @@ The repository includes automated testing and validation:
 - **Multi-architecture testing**: Validates flake configurations on both platforms
 - **Automated formatting**: Ensures code style consistency with alejandra
 - **Caching**: Nix store caching for faster CI runs
+- **Secret scanning**: TruffleHog integration for comprehensive secret detection
 
 ### Workflows
 - **Pull requests**: Matrix testing and formatting validation
@@ -184,6 +185,30 @@ The repository includes automated testing and validation:
 2. **Modules** implement configuration logic
 3. **Bundles** provide package collections
 4. **Flake** composes everything for each system
+
+## 🔒 Security
+
+### Secret Scanning
+This repository uses **TruffleHog** for comprehensive secret detection in CI/CD pipelines:
+
+- **Automated scanning**: Detects 800+ types of secrets and credentials
+- **Smart filtering**: Ignores SSH public keys and other known non-secrets
+- **Verification**: Can verify if detected secrets are active/live
+- **Integration**: Available in all GitHub Actions workflows
+
+#### Local Usage
+```bash
+# Scan for secrets
+task secrets:scan
+
+# Scan and verify only
+task secrets:verify
+```
+
+#### Configuration
+- `.trufflehog-ignore`: Excludes SSH public keys and documentation
+- Custom ignore patterns for Nix-specific files
+- Configured to focus on verified and unknown secrets
 
 ## 🔧 Customization
 

@@ -156,8 +156,16 @@ The User agrees to:
 1. **Provide context** about the specific system or configuration being worked on
 2. **Specify the scope** of changes (e.g., "update home-manager config for user X" vs "refactor entire flake")
 3. **Review all suggestions** before implementation
-<<<<<<< HEAD
-4. **Review and approve all commits** before they are pushed to remote repositories
+4. **Test changes** in a safe environment before applying to production systems
+5. **Document decisions** for future reference and team knowledge sharing
+
+### Security and Secret Management
+opencode acknowledges awareness of:
+- **TruffleHog Integration**: Comprehensive secret scanning across all CI/CD workflows
+- **Smart Filtering**: SSH public keys are properly excluded from secret detection
+- **Verification Capabilities**: TruffleHog can verify if secrets are active/live
+- **Local Scanning**: Available via `task secrets:scan` and `task secrets:verify`
+- **Configuration**: `.trufflehog-ignore` file manages exclusions for known non-secrets
 5. **Test changes** in a safe environment before applying to production systems
 6. **Document decisions** for future reference and team knowledge sharing
 =======

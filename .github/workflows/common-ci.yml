@@ -121,14 +121,11 @@ jobs:
             common-
         timeout-minutes: 5
 
-      - name: Check for secrets
-        run: |
-          # Basic secret detection
-          if grep -r -E "(password|secret|key|token)\\s*=\\s*['\"][^'\"]+['\"]" \
-              --include="*.nix" .; then
-            echo "Potential secrets found in Nix files!"
-            exit 1
-          fi
+      - name: TruffleHog Secret Scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: '.'
+          extra_args: '--results=verified,unknown --fail --exclude-paths .trufflehog-ignore.txt'
 
       - name: Validate file permissions
         run: |

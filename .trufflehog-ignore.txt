@@ -1,0 +1,21 @@
+# TruffleHog ignore file
+# SSH public keys are not secrets - they are meant to be public
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8
+
+# Ignore common non-secret patterns
+*.md
+docs/
+tests/
+.github/
+.git/
+
+# Ignore Nix-specific non-secrets
+*.nix.bak
+result/
+.direnv/
+
+# Ignore dependencies and build artifacts
+node_modules/
+.opencode/
+dist/
+build/
