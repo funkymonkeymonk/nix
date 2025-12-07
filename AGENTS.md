@@ -165,7 +165,7 @@ opencode acknowledges awareness of:
 - **Smart Filtering**: SSH public keys are properly excluded from secret detection
 - **Verification Capabilities**: TruffleHog can verify if secrets are active/live
 - **Local Scanning**: Available via `task secrets:scan` and `task secrets:verify`
-- **Configuration**: `.trufflehog-ignore` file manages exclusions for known non-secrets
+- **Configuration**: `.trufflehog-ignore.txt` and `.trufflehog-exclude` files manage exclusions for known non-secrets
 5. **Test changes** in a safe environment before applying to production systems
 6. **Document decisions** for future reference and team knowledge sharing
 =======

@@ -206,7 +206,8 @@ task secrets:verify
 ```
 
 #### Configuration
-- `.trufflehog-ignore`: Excludes SSH public keys and documentation
+- `.trufflehog-ignore.txt`: Excludes SSH public keys and documentation
+- `.trufflehog-exclude`: Machine-readable exclude patterns
 - Custom ignore patterns for Nix-specific files
 - Configured to focus on verified and unknown secrets
 
