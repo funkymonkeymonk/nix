@@ -29,7 +29,6 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   # NixOS configuration tests
   test-nixos:
@@ -38,14 +37,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -54,7 +51,6 @@ jobs:
           sudo apt-get clean
           docker system prune -af --volumes || true
           df -h
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -65,22 +61,18 @@ jobs:
           restore-keys: |
             nixos-
         timeout-minutes: 5
-
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-
       - name: Build NixOS configurations
         run: |
-          # Build all NixOS targets
-          nix build .#nixosConfigurations.drlight.system
-          nix build .#nixosConfigurations.zero.system
-
+          # Build all NixOS targets using task commands
+          task build:nixos:drlight
+          task build:nixos:zero
       - name: Test NixOS home-manager configurations
         run: |
           # Test home-manager activation for NixOS users
           nix build .#homeConfigurations."will@drlight".activationPackage
           nix build .#homeConfigurations."will@zero".activationPackage
-
       - name: Validate NixOS modules
         run: |
           # Test NixOS-specific modules
@@ -88,17 +80,14 @@ jobs:
           nix eval .#nixosConfigurations.zero.config.services
           nix eval .#nixosConfigurations.drlight.config.hardware
           nix eval .#nixosConfigurations.zero.config.hardware
-
       - name: Run formatter
-        run: devenv shell task fmt
-
+        run: task fmt
       - name: Cleanup Nix store
         if: always()
         run: |
           nix store gc --verbose
           nix store optimise --verbose
           df -h
-
   # NixOS VM Tests
   vm-tests:
     name: VM Test (${{ matrix.config }})
@@ -106,7 +95,7 @@ jobs:
     needs: test-nixos
     strategy:
       fail-fast: false
-      max-parallel: 2  # Limit concurrent VM tests to reduce resource pressure
+      max-parallel: 2 # Limit concurrent VM tests to reduce resource pressure
       matrix:
         config:
           - drlight
@@ -118,14 +107,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -134,14 +121,12 @@ jobs:
           sudo apt-get clean
           docker system prune -af --volumes || true
           df -h
-
       - name: Enable KVM group permissions
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
             sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -153,24 +138,20 @@ jobs:
             vm-${{ matrix.config }}-
             vm-
         timeout-minutes: 5
-
       - name: Install VM dependencies
         run: |
           nix profile install nixpkgs#qemu
           nix profile install nixpkgs#openssh
           nix profile install nixpkgs#sshpass
-
       - name: Build VM for ${{ matrix.config }}
         run: |
-          nix build .#vm-${{ matrix.config }} --option sandbox false
-
+          task vm:build:${{ matrix.config }}
       - name: Pre-build cleanup
         run: |
           # Clean up any existing VM processes
           pkill -f "run-${{ matrix.config }}-vm" || true
           pkill -f "qemu-system-x86_64" || true
           rm -f /tmp/nixos-vm-* || true
-
       - name: Start VM in background
         run: |
           # Set different SSH port for different VMs to avoid conflicts
@@ -185,7 +166,6 @@ jobs:
             -display none \
             -m 1024 \
             -smp 1
-
       - name: Wait for VM to be ready
         run: |
           # Set different SSH port for different VMs
@@ -213,12 +193,10 @@ jobs:
             fi
             sleep 2
           done
-
       - name: Run ${{ matrix.test-type }} tests on ${{ matrix.config }}
         run: |
           # Run the CI-optimized test script
           ./tests/vm-ci-test.sh ${{ matrix.config }} ${{ matrix.test-type }}
-
       - name: Cleanup VM
         if: always()
         run: |
@@ -230,7 +208,6 @@ jobs:
           # Clean up Nix store to free space
           nix store gc --verbose || true
           df -h
-
   # Comprehensive Integration Test
   integration-test:
     name: Integration Test (${{ matrix.config }})
@@ -238,7 +215,7 @@ jobs:
     needs: test-nixos
     strategy:
       fail-fast: false
-      max-parallel: 1  # Run integration tests sequentially to reduce resource pressure
+      max-parallel: 1 # Run integration tests sequentially to reduce resource pressure
       matrix:
         config:
           - drlight
@@ -246,14 +223,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Free up disk space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -262,14 +237,12 @@ jobs:
           sudo apt-get clean
           docker system prune -af --volumes || true
           df -h
-
       - name: Enable KVM group permissions
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
             sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -281,20 +254,17 @@ jobs:
             integration-${{ matrix.config }}-
             integration-
         timeout-minutes: 5
-
       - name: Install VM dependencies
         run: |
           nix profile install nixpkgs#qemu
           nix profile install nixpkgs#openssh
           nix profile install nixpkgs#sshpass
-
       - name: Pre-build cleanup
         run: |
           # Clean up any existing VM processes
           pkill -f "run-${{ matrix.config }}-vm" || true
           pkill -f "qemu-system-x86_64" || true
           rm -f /tmp/nixos-vm-* || true
-
       - name: Build and start VM
         run: |
           # Set different SSH port for different VMs
@@ -303,8 +273,8 @@ jobs:
             SSH_PORT="2223"
           fi
 
-          # Build VM
-          nix build .#vm-${{ matrix.config }} --option sandbox false
+          # Build VM using task command
+          task vm:build:${{ matrix.config }}
 
           # Start VM in daemonized mode with reduced resources
           ./result/bin/run-${{ matrix.config }}-vm \
@@ -312,7 +282,6 @@ jobs:
             -display none \
             -m 1024 \
             -smp 1
-
       - name: Wait for VM and run integration test
         run: |
           # Set different SSH port for different VMs
@@ -356,7 +325,6 @@ jobs:
               -p "$SSH_PORT" \
               test@localhost \
                "chmod +x /tmp/nixos-integration-test.sh && /tmp/nixos-integration-test.sh"
-
       - name: Cleanup VM
         if: always()
         run: |
