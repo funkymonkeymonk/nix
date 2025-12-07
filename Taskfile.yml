@@ -71,11 +71,17 @@ tasks:
       - task: build:darwin:megamanx
       - echo "✅ All Darwin configurations validated successfully"
   build:nixos:
-    desc: build all NixOS configurations
+    desc: build all NixOS configurations with disk optimization
     cmds:
-      - echo "🐧 building NixOS configurations..."
+      - echo "🐧 Building NixOS configurations with disk optimization..."
+      - echo "📊 Initial disk usage:"
+      - df -h
       - task: build:nixos:drlight
-      # - task: build:nixos:zero
+      - echo "🧹 Cleaning up after drlight build..."
+      - nix store gc --verbose || true
+      - echo "📊 Disk usage after drlight:"
+      - df -h
+      - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
   build:darwin:will-stride-mbp:
     desc: Build Will-Stride-MBP Darwin configuration
@@ -85,10 +91,10 @@ tasks:
     cmd: darwin-rebuild build --flake .#MegamanX
   build:nixos:drlight:
     desc: build drlight NixOS configuration
-    cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel
+    cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel --max-jobs 2
   build:nixos:zero:
     desc: build zero NixOS configuration
-    cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel
+    cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel --max-jobs 2
   fmt:
     desc: Run formatter on all files.
     aliases:

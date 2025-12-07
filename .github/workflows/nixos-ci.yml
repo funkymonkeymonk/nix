@@ -37,38 +37,103 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Free up disk space
+            # Disk optimization settings
+            max-jobs = 2
+            cores = 2
+            # Enable binary cache to reduce builds
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPSQPHZdBsM8g= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3s=
+      - name: Aggressive disk cleanup
         run: |
+          echo "🧹 Starting aggressive disk cleanup..."
+
+          # Remove large development tools not needed for Nix builds
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/hostedtoolcache
+
+          # Clear package manager caches
           sudo apt-get clean
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/apt/lists/*
+
+          # Remove Docker containers and images more thoroughly
           docker system prune -af --volumes || true
+          sudo rm -rf /var/lib/docker
+
+          # Clear other system caches
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /usr/share/doc/*
+          sudo rm -rf /usr/share/man/*
+
+          # Clear npm cache if present
+          npm cache clean --force || true
+
+          # Remove large logs
+          sudo journalctl --vacuum-time=1d || true
+
+          echo "✅ Disk cleanup completed"
           df -h
+      - name: Check available disk space
+        run: |
+          AVAILABLE_SPACE=$(df / | awk 'NR==2 {print $4}')
+          REQUIRED_SPACE=3576843520  # ~35GB in KB
+
+          if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
+            echo "❌ Insufficient disk space: ${AVAILABLE_SPACE}KB available,\n              ${REQUIRED_SPACE}KB required"
+            echo "Current disk usage:"
+            df -h
+            exit 1
+          else
+            echo "✅ Sufficient disk space: ${AVAILABLE_SPACE}KB available"
+          fi
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
           path: |
             /nix/store
             ~/.cache/nix
-          key: nixos-${{ hashFiles('**/flake.lock') }}
+          key: nixos-${{ hashFiles('**/flake.lock') }}-${{ github.run_id }}
           restore-keys: |
+            nixos-${{ hashFiles('**/flake.lock') }}-
             nixos-
-        timeout-minutes: 5
+        timeout-minutes: 10
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
       - name: Build NixOS configurations
         run: |
-          # Build all NixOS targets using task commands
+          # Build drlight configuration first
+          echo "🐧 Building drlight configuration..."
           devenv shell task build:nixos:drlight
+
+          # Intermediate cleanup to reclaim space
+          echo "🧹 Intermediate cleanup after drlight..."
+          nix store gc --verbose
+          nix store optimise --verbose
+          echo "📊 Disk usage after drlight build:"
+          df -h
+
+          # Build zero configuration
+          echo "🐧 Building zero configuration..."
           devenv shell task build:nixos:zero
+
+          # Final cleanup
+          echo "🧹 Final cleanup after zero..."
+          nix store gc --verbose
+          nix store optimise --verbose
+          echo "📊 Final disk usage:"
+          df -h
       - name: Test NixOS home-manager configurations
         run: |
           # Test home-manager activation for NixOS users
@@ -106,7 +171,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
@@ -229,13 +293,47 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Free up disk space
+            # Disk optimization settings
+            max-jobs = 2
+            cores = 2
+            # Enable binary cache to reduce builds
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPSQPHZdBsM8g= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3s=
+      - name: Aggressive disk cleanup
         run: |
+          echo "🧹 Starting aggressive disk cleanup for integration tests..."
+
+          # Remove large development tools not needed for Nix builds
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/hostedtoolcache
+
+          # Clear package manager caches
           sudo apt-get clean
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/apt/lists/*
+
+          # Remove Docker containers and images more thoroughly
           docker system prune -af --volumes || true
+          sudo rm -rf /var/lib/docker
+
+          # Clear other system caches
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /usr/share/doc/*
+          sudo rm -rf /usr/share/man/*
+
+          # Clear npm cache if present
+          npm cache clean --force || true
+
+          # Remove large logs
+          sudo journalctl --vacuum-time=1d || true
+
+          echo "✅ Integration test disk cleanup completed"
           df -h
       - name: Enable KVM group permissions
         run: |
