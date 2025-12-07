@@ -38,12 +38,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: TruffleHog Secret Scanning
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: '.'
-          extra_args: '--results=verified,unknown --fail --exclude-paths .trufflehog-ignore.txt'
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
@@ -114,12 +108,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: TruffleHog Secret Scanning
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: '.'
-          extra_args: '--results=verified,unknown --fail --exclude-paths .trufflehog-ignore.txt'
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10

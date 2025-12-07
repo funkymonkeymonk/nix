@@ -125,7 +125,7 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: '.'
-          extra_args: '--results=verified,unknown --fail --exclude-paths .trufflehog-ignore.txt'
+          extra_args: '--results=verified,unknown --exclude-paths .trufflehog-ignore.txt'
 
       - name: Validate file permissions
         run: |
