@@ -11,6 +11,17 @@ on:
       - "bundles/platforms/darwin/**"
       - "targets/**"
       - "os/darwin.nix"
+  # Temporarily disable to focus on NixOS CI fixes
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - "**.nix"
+  #     - ".github/workflows/darwin-ci.yml"
+  #     - "flake.lock"
+  #     - "bundles/platforms/darwin/**"
+  #     - "targets/**"
+  #     - "os/darwin.nix"
   push:
     branches:
       - main
@@ -25,7 +36,6 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   # Darwin-specific tests
   test-darwin:
@@ -34,14 +44,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -52,35 +60,29 @@ jobs:
           restore-keys: |
             darwin-
         timeout-minutes: 5
-
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-
       - name: Build Darwin configurations
         run: |
           # Build all Darwin targets
           nix build .#darwinConfigurations.wweaver.system
           nix build .#darwinConfigurations.MegamanX.system
-
       - name: Test Darwin home-manager configurations
         run: |
           # Test home-manager activation for Darwin users
           nix build .#homeConfigurations."wweaver@wweaver".activationPackage
           nix build .#homeConfigurations."monkey@MegamanX".activationPackage
-
       - name: Validate AeroSpace configuration
         run: |
           # Check AeroSpace syntax and configuration
           nix build .#homeConfigurations."wweaver@wweaver".home.activation.aerospace
           nix build .#homeConfigurations."monkey@MegamanX".home.activation.aerospace
-
       - name: Cleanup Nix store
         if: always()
         run: |
           nix store gc --verbose
           nix store optimise --verbose
           df -h
-
   # Darwin-specific integration tests
   darwin-integration:
     name: Darwin Integration Test
@@ -89,14 +91,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Cache Nix store
         uses: actions/cache@v4
         with:
@@ -108,22 +108,18 @@ jobs:
             darwin-integration-
             darwin-
         timeout-minutes: 5
-
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-
       - name: Test Darwin-specific bundles
         run: |
           # Test Darwin-specific package bundles
           nix build .#bundles.platforms.darwin
           nix build .#bundles.roles.workstation  # Often used on Darwin
-
       - name: Validate SSH signing configuration
         run: |
           # Test that SSH signing configuration is valid
           nix eval .#darwinConfigurations.wweaver.config.programs.git
           nix eval .#darwinConfigurations.MegamanX.config.programs.git
-
       - name: Cleanup Nix store
         if: always()
         run: |

@@ -88,9 +88,9 @@ jobs:
       - name: Check available disk space
         run: |
           AVAILABLE_SPACE=$(df / | awk 'NR==2 {print $4}')
-          REQUIRED_SPACE=3576843520  # ~35GB in KB
+          REQUIRED_SPACE=36700160  # 35GB in KB (35 * 1024 * 1024)
 
-          if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
+          if [ ""$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
             echo "❌ Insufficient disk space: ${AVAILABLE_SPACE}KB available,\n              ${REQUIRED_SPACE}KB required"
             echo "Current disk usage:"
             df -h
