@@ -28,6 +28,7 @@
       # Keep ghostty running in background for global keybinds
       initial-window = false
       quit-after-last-window-closed = false
+      shell-integration-features = ssh-terminfo
     '';
   };
 
