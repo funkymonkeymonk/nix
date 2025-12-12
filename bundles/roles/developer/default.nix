@@ -17,7 +17,7 @@
 
     # Container tools
     docker
-    colima
+    # colima
     k3d
     kubectl
     kubernetes-helm
