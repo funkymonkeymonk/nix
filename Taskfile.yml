@@ -71,11 +71,17 @@ tasks:
       - task: build:darwin:megamanx
       - echo "✅ All Darwin configurations validated successfully"
   build:nixos:
-    desc: build all NixOS configurations
+    desc: build all NixOS configurations with disk optimization
     cmds:
-      - echo "🐧 building NixOS configurations..."
+      - echo "🐧 Building NixOS configurations with disk optimization..."
+      - echo "📊 Initial disk usage:"
+      - df -h
       - task: build:nixos:drlight
-      # - task: build:nixos:zero
+      - echo "🧹 Cleaning up after drlight build..."
+      - nix store gc --verbose || true
+      - echo "📊 Disk usage after drlight:"
+      - df -h
+      - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
   build:darwin:will-stride-mbp:
     desc: Build Will-Stride-MBP Darwin configuration
@@ -85,10 +91,10 @@ tasks:
     cmd: darwin-rebuild build --flake .#MegamanX
   build:nixos:drlight:
     desc: build drlight NixOS configuration
-    cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel
+    cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel --max-jobs 2
   build:nixos:zero:
     desc: build zero NixOS configuration
-    cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel
+    cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel --max-jobs 2
   fmt:
     desc: Run formatter on all files.
     aliases:
@@ -103,6 +109,19 @@ tasks:
     cmds:
       - devenv shell -- deadnix --no-underscore .
       - yamllint .
+  secrets:scan:
+    desc: Scan repository for secrets using TruffleHog
+    cmd: trufflehog filesystem . --results=verified,unknown --fail \
+      --exclude-paths .trufflehog-ignore.txt
+    aliases:
+      - secrets
+      - scan
+
+  secrets:verify:
+    desc: Scan and verify found secrets
+    cmd: trufflehog filesystem . --results=verified --fail \
+      --exclude-paths .trufflehog-ignore.txt
+
   quality:
     desc: Run all code quality checks (format + lint).
     aliases:
@@ -258,3 +277,73 @@ tasks:
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
+  # VM Testing Tasks
+  vm:
+    desc: Build and run NixOS VMs
+    aliases:
+      - v
+    cmds:
+      - task: vm:list
+  vm:list:
+    desc: List available VM configurations
+    cmd: |
+      echo "🖥️  Available NixOS VMs:"
+      echo "  drlight - Development workstation with creative tools"
+      echo "  zero   - Gaming workstation with Steam"
+      echo ""
+      echo "Usage:"
+      echo "  task vm:drlight  # Build and run drlight VM"
+      echo "  task vm:zero     # Build and run zero VM"
+      echo "  task vm:ssh:drlight  # SSH into running drlight VM"
+      echo "  task vm:ssh:zero     # SSH into running zero VM"
+  vm:drlight:
+    desc: Build and run drlight NixOS VM
+    cmd: |
+      echo "🖥️  Building and running drlight VM..."
+      export QEMU_NET_OPTS="hostfwd=tcp::2222-:22"
+      nix run .#apps.x86_64-linux.vm-drlight
+  vm:zero:
+    desc: Build and run zero NixOS VM
+    cmd: |
+      echo "🖥️  Building and running zero VM..."
+      export QEMU_NET_OPTS="hostfwd=tcp::2223-:22"
+      nix run .#apps.x86_64-linux.vm-zero
+  vm:build:drlight:
+    desc: Build drlight VM without running
+    cmd: |
+      echo "🔨 Building drlight VM..."
+      nix build .#packages.x86_64-linux.vm-drlight
+  vm:build:zero:
+    desc: Build zero VM without running
+    cmd: |
+      echo "🔨 Building zero VM..."
+      nix build .#packages.x86_64-linux.vm-zero
+  vm:ssh:drlight:
+    desc: SSH into running drlight VM
+    cmd: |
+      echo "🔗 Connecting to drlight VM..."
+      ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p 2222 test@localhost
+  vm:ssh:zero:
+    desc: SSH into running zero VM
+    cmd: |
+      echo "🔗 Connecting to zero VM..."
+      ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p 2223 test@localhost
+  vm:test:drlight:
+    desc: Test drlight VM configuration
+    cmd: |
+      echo "🧪 Testing drlight VM configuration..."
+      task vm:build:drlight
+      echo "✅ drlight VM builds successfully"
+  vm:test:zero:
+    desc: Test zero VM configuration
+    cmd: |
+      echo "🧪 Testing zero VM configuration..."
+      task vm:build:zero
+      echo "✅ zero VM builds successfully"
+  vm:test:all:
+    desc: Test all VM configurations
+    cmd: |
+      echo "🧪 Testing all VM configurations..."
+      task vm:test:drlight
+      task vm:test:zero
+      echo "✅ All VM configurations build successfully"

@@ -1,0 +1,436 @@
+---
+name: NixOS CI
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**.nix"
+      - ".github/workflows/nixos-ci.yml"
+      - "flake.lock"
+      - "bundles/platforms/linux/**"
+      - "targets/**"
+      - "os/nixos.nix"
+      - "modules/nixos/**"
+      - "tests/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "**.nix"
+      - ".github/workflows/nixos-ci.yml"
+      - "flake.lock"
+      - "bundles/platforms/linux/**"
+      - "targets/**"
+      - "os/nixos.nix"
+      - "modules/nixos/**"
+      - "tests/**"
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  # NixOS configuration tests
+  test-nixos:
+    name: Test NixOS (x86_64-linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            # Disk optimization settings
+            max-jobs = 2
+            cores = 2
+            # Enable binary cache to reduce builds
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPSQPHZdBsM8g= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3s=
+      - name: Aggressive disk cleanup
+        run: |
+          echo "🧹 Starting aggressive disk cleanup..."
+
+          # Remove large development tools not needed for Nix builds
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/hostedtoolcache
+
+          # Clear package manager caches
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/apt/lists/*
+
+          # Remove Docker containers and images more thoroughly
+          docker system prune -af --volumes || true
+          sudo rm -rf /var/lib/docker
+
+          # Clear other system caches
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /usr/share/doc/*
+          sudo rm -rf /usr/share/man/*
+
+          # Clear npm cache if present
+          npm cache clean --force || true
+
+          # Remove large logs
+          sudo journalctl --vacuum-time=1d || true
+
+          echo "✅ Disk cleanup completed"
+          df -h
+      - name: Check available disk space
+        run: |
+          AVAILABLE_SPACE=$(df / | awk 'NR==2 {print $4}')
+          REQUIRED_SPACE=36700160  # 35GB in KB (35 * 1024 * 1024)
+
+          if [ ""$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
+            echo "❌ Insufficient disk space: ${AVAILABLE_SPACE}KB available,\n              ${REQUIRED_SPACE}KB required"
+            echo "Current disk usage:"
+            df -h
+            exit 1
+          else
+            echo "✅ Sufficient disk space: ${AVAILABLE_SPACE}KB available"
+          fi
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: nixos-${{ hashFiles('**/flake.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            nixos-${{ hashFiles('**/flake.lock') }}-
+            nixos-
+        timeout-minutes: 10
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+      - name: Build NixOS configurations
+        run: |
+          # Build drlight configuration first
+          echo "🐧 Building drlight configuration..."
+          devenv shell task build:nixos:drlight
+
+          # Intermediate cleanup to reclaim space
+          echo "🧹 Intermediate cleanup after drlight..."
+          nix store gc --verbose
+          nix store optimise --verbose
+          echo "📊 Disk usage after drlight build:"
+          df -h
+
+          # Build zero configuration
+          echo "🐧 Building zero configuration..."
+          devenv shell task build:nixos:zero
+
+          # Final cleanup
+          echo "🧹 Final cleanup after zero..."
+          nix store gc --verbose
+          nix store optimise --verbose
+          echo "📊 Final disk usage:"
+          df -h
+      - name: Test NixOS home-manager configurations
+        run: |
+          # Test home-manager activation for NixOS users
+          nix build .#homeConfigurations."will@drlight".activationPackage
+          nix build .#homeConfigurations."will@zero".activationPackage
+      - name: Validate NixOS modules
+        run: |
+          # Test NixOS-specific modules
+          nix eval .#nixosConfigurations.drlight.config.services
+          nix eval .#nixosConfigurations.zero.config.services
+          nix eval .#nixosConfigurations.drlight.config.hardware
+          nix eval .#nixosConfigurations.zero.config.hardware
+      - name: Cleanup Nix store
+        if: always()
+        run: |
+          nix store gc --verbose
+          nix store optimise --verbose
+          df -h
+  # NixOS VM Tests
+  vm-tests:
+    name: VM Test (${{ matrix.config }})
+    runs-on: ubuntu-latest
+    needs: test-nixos
+    strategy:
+      fail-fast: false
+      max-parallel: 2 # Limit concurrent VM tests to reduce resource pressure
+      matrix:
+        config:
+          - drlight
+          - zero
+        test-type:
+          - basic
+          - system
+          - development
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          docker system prune -af --volumes || true
+          df -h
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: vm-${{ matrix.config }}-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            vm-${{ matrix.config }}-
+            vm-
+        timeout-minutes: 5
+      - name: Install VM dependencies
+        run: |
+          nix profile install nixpkgs#qemu
+          nix profile install nixpkgs#openssh
+          nix profile install nixpkgs#sshpass
+      - name: Build VM for ${{ matrix.config }}
+        run: |
+          devenv shell task vm:build:${{ matrix.config }}
+      - name: Pre-build cleanup
+        run: |
+          # Clean up any existing VM processes
+          pkill -f "run-${{ matrix.config }}-vm" || true
+          pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
+      - name: Start VM in background
+        run: |
+          # Set different SSH port for different VMs to avoid conflicts
+          SSH_PORT="2222"
+          if [[ "${{ matrix.config }}" == "zero" ]]; then
+            SSH_PORT="2223"
+          fi
+
+          # Start VM in daemonized mode with reduced resources
+          ./result/bin/run-${{ matrix.config }}-vm \
+            -daemonize \
+            -display none \
+            -m 1024 \
+            -smp 1
+      - name: Wait for VM to be ready
+        run: |
+          # Set different SSH port for different VMs
+          SSH_PORT="2222"
+          if [[ "${{ matrix.config }}" == "zero" ]]; then
+            SSH_PORT="2223"
+          fi
+
+          # Wait for SSH to be available
+          echo "Waiting for VM SSH on port $SSH_PORT..."
+          for i in {1..30}; do
+            if ssh -o UserKnownHostsFile=/dev/null \
+                   -o StrictHostKeyChecking=no \
+                   -o ConnectTimeout=5 \
+                   -o BatchMode=yes \
+                   -p "$SSH_PORT" \
+                   test@localhost \
+                   "echo 'VM is ready'" 2>/dev/null; then
+              echo "VM is ready after $i attempts"
+              break
+            fi
+            if [[ $i -eq 30 ]]; then
+              echo "VM failed to become ready after 30 attempts"
+              exit 1
+            fi
+            sleep 2
+          done
+      - name: Run ${{ matrix.test-type }} tests on ${{ matrix.config }}
+        run: |
+          # Run the CI-optimized test script
+          ./tests/vm-ci-test.sh ${{ matrix.config }} ${{ matrix.test-type }}
+      - name: Cleanup VM
+        if: always()
+        run: |
+          # Kill any remaining VM processes
+          pkill -f "run-${{ matrix.config }}-vm" || true
+          pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
+
+          # Clean up Nix store to free space
+          nix store gc --verbose || true
+          df -h
+  # Comprehensive Integration Test
+  integration-test:
+    name: Integration Test (${{ matrix.config }})
+    runs-on: ubuntu-latest
+    needs: test-nixos
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # Run integration tests sequentially to reduce resource pressure
+      matrix:
+        config:
+          - drlight
+          - zero
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            # Disk optimization settings
+            max-jobs = 2
+            cores = 2
+            # Enable binary cache to reduce builds
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPSQPHZdBsM8g= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3s=
+      - name: Aggressive disk cleanup
+        run: |
+          echo "🧹 Starting aggressive disk cleanup for integration tests..."
+
+          # Remove large development tools not needed for Nix builds
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/hostedtoolcache
+
+          # Clear package manager caches
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          sudo rm -rf /var/lib/apt/lists/*
+
+          # Remove Docker containers and images more thoroughly
+          docker system prune -af --volumes || true
+          sudo rm -rf /var/lib/docker
+
+          # Clear other system caches
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+          sudo rm -rf /usr/share/doc/*
+          sudo rm -rf /usr/share/man/*
+
+          # Clear npm cache if present
+          npm cache clean --force || true
+
+          # Remove large logs
+          sudo journalctl --vacuum-time=1d || true
+
+          echo "✅ Integration test disk cleanup completed"
+          df -h
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Cache Nix store
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+          key: integration-${{ matrix.config }}-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            integration-${{ matrix.config }}-
+            integration-
+        timeout-minutes: 5
+      - name: Install VM dependencies
+        run: |
+          nix profile install nixpkgs#qemu
+          nix profile install nixpkgs#openssh
+          nix profile install nixpkgs#sshpass
+      - name: Pre-build cleanup
+        run: |
+          # Clean up any existing VM processes
+          pkill -f "run-${{ matrix.config }}-vm" || true
+          pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
+      - name: Build and start VM
+        run: |
+          # Set different SSH port for different VMs
+          SSH_PORT="2222"
+          if [[ "${{ matrix.config }}" == "zero" ]]; then
+            SSH_PORT="2223"
+          fi
+
+          # Build VM using task command
+          task vm:build:${{ matrix.config }}
+
+          # Start VM in daemonized mode with reduced resources
+          ./result/bin/run-${{ matrix.config }}-vm \
+            -daemonize \
+            -display none \
+            -m 1024 \
+            -smp 1
+      - name: Wait for VM and run integration test
+        run: |
+          # Set different SSH port for different VMs
+          SSH_PORT="2222"
+          if [[ "${{ matrix.config }}" == "zero" ]]; then
+            SSH_PORT="2223"
+          fi
+
+          # Wait for VM to be ready
+          echo "Waiting for VM SSH on port $SSH_PORT..."
+          for i in {1..30}; do
+            if ssh -o UserKnownHostsFile=/dev/null \
+                   -o StrictHostKeyChecking=no \
+                   -o ConnectTimeout=5 \
+                   -o BatchMode=yes \
+                   -p "$SSH_PORT" \
+                   test@localhost \
+                   "echo 'VM is ready'" 2>/dev/null; then
+              echo "VM is ready after $i attempts"
+              break
+            fi
+            if [[ $i -eq 30 ]]; then
+              echo "VM failed to become ready after 30 attempts"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Copy and run the integration test script
+          scp -o UserKnownHostsFile=/dev/null \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
+              -P "$SSH_PORT" \
+              ./tests/nixos-integration-test.sh \
+              test@localhost:/tmp/
+
+          # Execute the integration test
+          ssh -o UserKnownHostsFile=/dev/null \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
+              -p "$SSH_PORT" \
+              test@localhost \
+               "chmod +x /tmp/nixos-integration-test.sh && /tmp/nixos-integration-test.sh"
+      - name: Cleanup VM
+        if: always()
+        run: |
+          # Kill any remaining VM processes
+          pkill -f "run-${{ matrix.config }}-vm" || true
+          pkill -f "qemu-system-x86_64" || true
+          rm -f /tmp/nixos-vm-* || true
+
+          # Clean up Nix store to free space
+          nix store gc --verbose || true
+          df -h
