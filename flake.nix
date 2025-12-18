@@ -96,6 +96,7 @@
         ./bundles/platforms/darwin
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
+        ./modules/home-manager/llm.nix
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -113,6 +114,7 @@
             ];
             development.enable = true;
             media.enable = true;
+            llm.enable = true;
           };
         }
         home-manager.darwinModules.home-manager
