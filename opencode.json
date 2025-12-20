@@ -76,6 +76,36 @@
   "tools": {
     "run": true
   },
+  "lsp": {
+    "nixd": {
+      "command": ["nixd"],
+      "extensions": [".nix"],
+      "initialization": {
+        "nixd": {
+          "nixpkgs": {
+            "expr": "import (builtins.getFlake(toString ./.)).inputs.nixpkgs { }"
+          },
+          "formatting": {
+            "command": ["alejandra"]
+          },
+          "options": {
+            "nixos-drlight": {
+              "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.drlight.options"
+            },
+            "nixos-zero": {
+              "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.zero.options"
+            },
+            "darwin-wweaver": {
+              "expr": "let flake = builtins.getFlake(toString ./.); in flake.darwinConfigurations.wweaver.options"
+            },
+            "darwin-megamanx": {
+              "expr": "let flake = builtins.getFlake(toString ./.); in flake.darwinConfigurations.MegamanX.options"
+            }
+          }
+        }
+      }
+    }
+  },
   "mcp": {},
   "share": "manual"
 }
