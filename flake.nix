@@ -179,13 +179,23 @@
             config = {
               ProgramArguments = ["ollama" "serve"];
               RunAtLoad = true;
-              KeepAlive = true;
+              KeepAlive = {
+                SuccessfulExit = false;
+                NetworkState = true;
+                PathState = {
+                  "/Users/monkey/.ollama/models" = true;
+                };
+              };
               StandardOutPath = "/tmp/ollama-launchd.log";
               StandardErrorPath = "/tmp/ollama-launchd.err";
               EnvironmentVariables = {
                 OLLAMA_HOST = "127.0.0.1";
                 OLLAMA_PORT = "11434";
+                OLLAMA_MODELS = "/Users/monkey/.ollama/models";
+                OLLAMA_DEBUG = "INFO";
               };
+              # Add delay to prevent rapid restarts
+              ThrottleInterval = 10;
             };
           };
         }

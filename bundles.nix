@@ -186,7 +186,11 @@ with lib; {
 
       host = {
         packages = with pkgs; [
-          ollama
+          (
+            if pkgs ? unstable
+            then pkgs.unstable.ollama
+            else ollama
+          )
         ];
 
         config = {
