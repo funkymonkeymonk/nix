@@ -1,0 +1,195 @@
+# Consolidated bundle configurations
+# This replaces the entire bundles/ directory structure with a single, unified configuration
+{
+  pkgs,
+  lib,
+}:
+with lib; {
+  roles = {
+    base = {
+      packages = with pkgs; [
+        vim
+        git
+        gh
+        devenv
+        direnv
+        go-task
+        rclone
+        bat
+        jq
+        tree
+        watchman
+        jnv
+        zinit
+        fzf
+        zsh
+        # Also includes aliases and common utilities from modules/common/packages.nix
+        ripgrep
+        fd
+        coreutils
+        htop
+        glow
+        antigen
+      ];
+
+      config = {
+        programs.zsh.enable = true;
+
+        # Shell aliases from bundles/base/aliases.nix
+        environment.shellAliases = {
+          # Git aliases
+          g = "git";
+          gst = "git status";
+          gpush = "git push";
+          gpull = "git pull";
+          gd = "git diff";
+          gdc = "git diff --cached";
+          gco = "git checkout";
+          gcob = "git checkout -b";
+          gau = "git add -u";
+          gauc = "git add -u && git commit -m ";
+          gaum = "git add -u && git commit --amend";
+          gs = "git stash";
+          gsp = "git stash pop";
+          gshow = "git stash show -p";
+          grm = "git fetch origin && git rebase main";
+          grc = "git rebase --continue";
+          gm = "git merge";
+          gmm = "git fetch origin && git merge origin/main";
+          gf = "git fetch --prune";
+          gr = "git restore --source";
+          grh = "git reset --hard";
+          ghv = "gh repo view --web";
+
+          # Task runner
+          t = "task";
+          tb = "task build";
+          tt = "task test";
+
+          # Navigation
+          "..." = "cd ../..";
+        };
+      };
+    };
+
+    developer = {
+      packages = with pkgs; [
+        emacs
+        clang
+        python3
+        nodejs
+        yarn
+        docker
+        # colima (moved to darwin platform)
+        k3d
+        kubectl
+        kubernetes-helm
+        k9s
+        unstable.opencode
+      ];
+
+      config = {};
+    };
+
+    creative = {
+      packages = with pkgs; [
+        ffmpeg
+        imagemagick
+        pandoc
+      ];
+
+      config = {};
+    };
+
+    gaming = {
+      packages = with pkgs; [
+        moonlight-qt
+      ];
+
+      config = {};
+    };
+
+    workstation = {
+      packages = with pkgs; [
+        logseq
+        slack
+        trippy
+        the-unarchiver
+      ];
+
+      config = {};
+    };
+
+    entertainment = {
+      packages = [];
+
+      config = {
+        # Homebrew casks for entertainment apps (macOS only)
+        homebrew.casks = [
+          "steam"
+          "pocket-casts"
+          "obs"
+          "discord"
+        ];
+      };
+    };
+  };
+
+  platforms = {
+    darwin = {
+      packages = with pkgs; [
+        google-chrome
+        hidden-bar
+        goose-cli
+        claude-code
+        alacritty-theme
+        colima
+        home-manager
+      ];
+
+      config = {
+        # 1Password integration
+        programs = {
+          _1password.enable = true;
+          _1password-gui.enable = true;
+          _1password.package = pkgs.unstable._1password-cli;
+          _1password-gui.package = pkgs.unstable._1password-gui;
+        };
+
+        # Common Homebrew configuration
+        homebrew = {
+          enable = true;
+          onActivation.cleanup = "uninstall";
+
+          casks = [
+            # Common macOS applications
+            "raycast" # The version in nixpkgs is out of date
+            "zed"
+            "zen"
+            "ollama-app"
+
+            # Terminal emulators
+            "ghostty"
+
+            # Entertainment and communication
+            "deezer"
+            "block-goose"
+
+            # Productivity and utilities
+            "sensei"
+          ];
+        };
+      };
+    };
+
+    linux = {
+      packages = with pkgs; [
+        # Add Linux-specific packages here as needed
+      ];
+
+      config = {
+        # Linux-specific services or configurations can be added here
+      };
+    };
+  };
+}
