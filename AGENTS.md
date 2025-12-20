@@ -156,14 +156,21 @@ The User agrees to:
 1. **Provide context** about the specific system or configuration being worked on
 2. **Specify the scope** of changes (e.g., "update home-manager config for user X" vs "refactor entire flake")
 3. **Review all suggestions** before implementation
-<<<<<<< HEAD
-4. **Review and approve all commits** before they are pushed to remote repositories
-5. **Test changes** in a safe environment before applying to production systems
-6. **Document decisions** for future reference and team knowledge sharing
-=======
 4. **Test changes** in a safe environment before applying to production systems
 5. **Document decisions** for future reference and team knowledge sharing
->>>>>>> 3d05043 (Add AGENTS.md: AI Assistant Development Services Agreement)
+
+### Environment Awareness Protocol
+**Mandatory for all opencode agents**: Before attempting any system-specific operations (service checks, package installations, configuration changes), agents MUST:
+1. **Check the hostname** using `hostname` command to identify the current environment:
+   - `wweaver` = macOS development machine 
+   - `MegamanX` = macOS machine with LLM services enabled
+   - `drlight` = NixOS Linux machine
+   - `zero` = NixOS Linux machine (gaming/workstation)
+2. **Cross-reference with flake.nix** to understand which modules and services are enabled for that specific target
+3. **Adapt behavior accordingly** based on the detected environment (e.g., only check for LLM services on MegamanX, use appropriate service management commands for macOS vs Linux)
+4. **Document the detected environment** in responses to provide context for users
+
+This ensures agents provide accurate, environment-appropriate guidance and avoid suggesting operations that aren't relevant to the current system.
 
 ## Reusability and Adaptation
 
