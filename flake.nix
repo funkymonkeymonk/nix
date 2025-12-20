@@ -29,6 +29,8 @@
     mac-app-util,
     ...
   }: let
+    inherit (nixpkgs) lib;
+
     configuration = {lib, ...}: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
 
@@ -43,20 +45,57 @@
         })
       ];
     };
+
+    # Helper function to create bundle module from our consolidated bundles.nix
+    mkBundleModule = system: enabledRoles: {
+      pkgs,
+      lib,
+      ...
+    }: {
+      config = let
+        bundles = import ./bundles.nix {inherit pkgs lib;};
+
+        baseConfig = {
+          environment = {
+            systemPackages =
+              bundles.roles.base.packages
+              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) enabledRoles
+              ++ bundles.platforms.${system}.packages;
+
+            # Merge shell aliases from base bundle
+            shellAliases = bundles.roles.base.config.environment.shellAliases or {};
+
+            # Additional system configuration from bundles
+            variables =
+              bundles.roles.base.config.environment.variables or {}
+              // bundles.platforms.${system}.config.environment.variables or {};
+          };
+
+          # Merge configurations from all enabled bundles
+          programs =
+            bundles.roles.base.config.programs or {}
+            // bundles.platforms.${system}.config.programs or {};
+        };
+
+        # Platform-specific configurations
+        darwinConfig = lib.optionalAttrs (system == "darwin") {
+          homebrew =
+            bundles.platforms.darwin.config.homebrew or {}
+            // lib.mkMerge (map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles);
+        };
+      in
+        baseConfig // darwinConfig;
+    };
   in {
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
-        ./modules/common/packages.nix
         ./modules/home-manager
-        ./bundles/base
-        ./bundles/roles/developer
-        ./bundles/roles/workstation
-        ./bundles/platforms/darwin
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
+        (mkBundleModule "darwin" ["developer" "workstation"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "wweaver";
@@ -85,17 +124,10 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
-        ./modules/common/packages.nix
         ./modules/home-manager
-        ./bundles/base
-        ./bundles/roles/developer
-        ./bundles/roles/creative
-        ./bundles/roles/gaming
-        ./bundles/roles/entertainment.nix
-        ./bundles/roles/workstation
-        ./bundles/platforms/darwin
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
+        (mkBundleModule "darwin" ["developer" "creative" "gaming" "entertainment" "workstation"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -120,19 +152,12 @@
           home-manager.backupFileExtension = "backup";
         }
         {
+          # Additional homebrew casks specific to MegamanX
           homebrew.casks = [
             "autodesk-fusion"
-            "deezer"
-            "discord"
             "xtool-studio"
             "orcaslicer"
             "openscad"
-            "ollama-app"
-            "block-goose"
-            "obs"
-            "pocket-casts"
-            "steam"
-            "sensei"
           ];
         }
       ];
@@ -144,17 +169,13 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
-        ./modules/common/packages.nix
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./modules/nixos/services.nix
-        ./bundles/base
-        ./bundles/roles/developer
-        ./bundles/roles/creative
-        ./bundles/platforms/linux
         ./os/nixos.nix
         ./targets/drlight
+        (mkBundleModule "linux" ["developer" "creative"])
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           system.stateVersion = "25.05";
@@ -184,15 +205,12 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
-        ./modules/common/packages.nix
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
-        ./bundles/base
-        ./bundles/roles/developer
-        ./bundles/platforms/linux
         ./os/nixos.nix
         ./targets/zero
+        (mkBundleModule "linux" ["developer"])
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           system.stateVersion = "25.05";
