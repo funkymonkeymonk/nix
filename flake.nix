@@ -55,15 +55,37 @@
       config = let
         bundles = import ./bundles.nix {inherit pkgs lib;};
 
+        # Helper to collect packages from nested bundle structure
+        collectPackages = path: default: let
+          parts = lib.splitString "." path;
+        in
+          if lib.hasAttrByPath parts bundles
+          then (lib.attrsets.getAttrFromPath parts bundles).packages or []
+          else default;
+
+        # Helper to collect config from nested bundle structure
+        collectConfig = path: default: let
+          parts = lib.splitString "." path;
+        in
+          if lib.hasAttrByPath parts bundles
+          then (lib.attrsets.getAttrFromPath parts bundles).config or {}
+          else default;
+
         baseConfig = {
           environment = {
             systemPackages =
               bundles.roles.base.packages
               ++ lib.concatMap (role: bundles.roles.${role}.packages or []) enabledRoles
-              ++ bundles.platforms.${system}.packages;
+              ++ bundles.platforms.${system}.packages
+              # Add llms packages based on enabled roles
+              ++ (lib.optionals (lib.elem "wweaver_llm_client" enabledRoles) (collectPackages "roles.llms.client.opensource" []))
+              ++ (lib.optionals (lib.elem "wweaver_claude_client" enabledRoles) (collectPackages "roles.llms.client.claude" []))
+              ++ (lib.optionals (lib.elem "megamanx_llm_host" enabledRoles) (collectPackages "roles.llms.host" []))
+              ++ (lib.optionals (lib.elem "megamanx_llm_server" enabledRoles) (collectPackages "roles.llms.server" []));
 
             # Merge shell aliases from base bundle
-            shellAliases = bundles.roles.base.config.environment.shellAliases or {};
+            shellAliases =
+              bundles.roles.base.config.environment.shellAliases or {};
 
             # Additional system configuration from bundles
             variables =
@@ -81,7 +103,8 @@
         darwinConfig = lib.optionalAttrs (system == "darwin") {
           homebrew =
             bundles.platforms.darwin.config.homebrew or {}
-            // lib.mkMerge (map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles);
+            // lib.mkMerge (map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles)
+            // (lib.optionals (lib.elem "megamanx_llm_host" enabledRoles) (collectConfig "roles.llms.host" {}).homebrew or {});
         };
       in
         baseConfig // darwinConfig;
@@ -95,7 +118,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "workstation"])
+        (mkBundleModule "darwin" ["developer" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "wweaver";
@@ -127,7 +150,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "creative" "gaming" "entertainment" "workstation"])
+        (mkBundleModule "darwin" ["developer" "creative" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -150,6 +173,21 @@
         home-manager.darwinModules.home-manager
         {
           home-manager.backupFileExtension = "backup";
+          # Add ollama launchd agent for MegamanX
+          home-manager.users.monkey.launchd.agents.ollama = {
+            enable = true;
+            config = {
+              ProgramArguments = ["ollama" "serve"];
+              RunAtLoad = true;
+              KeepAlive = true;
+              StandardOutPath = "/tmp/ollama-launchd.log";
+              StandardErrorPath = "/tmp/ollama-launchd.err";
+              EnvironmentVariables = {
+                OLLAMA_HOST = "127.0.0.1";
+                OLLAMA_PORT = "11434";
+              };
+            };
+          };
         }
         {
           # Additional homebrew casks specific to MegamanX
@@ -175,7 +213,7 @@
         ./modules/nixos/services.nix
         ./os/nixos.nix
         ./targets/drlight
-        (mkBundleModule "linux" ["developer" "creative"])
+        (mkBundleModule "linux" ["developer" "creative" "wweaver_llm_client"])
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           system.stateVersion = "25.05";
@@ -210,7 +248,7 @@
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
         ./targets/zero
-        (mkBundleModule "linux" ["developer"])
+        (mkBundleModule "linux" ["developer" "wweaver_llm_client"])
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           system.stateVersion = "25.05";
