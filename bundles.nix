@@ -133,6 +133,83 @@ with lib; {
         ];
       };
     };
+
+    llms = {
+      # Global LLM configuration
+      config = {
+        # Shared environment variables and configuration
+        environment.sessionVariables = {
+          LLM_SERVER_HOST = "MegamanX.local";
+          LLM_SERVER_PORT = "4000";
+        };
+      };
+
+      client = {
+        # Shared client configuration
+        config = {
+          # Common client aliases and environment setup
+          environment.shellAliases = {
+            llm-status = "curl http://MegamanX.local:4000/status";
+          };
+        };
+
+        opensource = {
+          packages = with pkgs; [
+            (
+              if pkgs ? unstable
+              then pkgs.unstable.opencode
+              else opencode
+            )
+          ];
+
+          config = {
+            # opencode configuration for connecting to MegamanX litellm server
+            environment.sessionVariables = {
+              OPENCODE_ENDPOINT = "http://MegamanX.local:4000";
+            };
+          };
+        };
+
+        claude = {
+          packages = with pkgs; [
+            claude-code
+          ];
+
+          config = {
+            # Claude-specific configuration
+            environment.sessionVariables = {
+              CLAUDE_API_BASE = "http://MegamanX.local:4000";
+            };
+          };
+        };
+      };
+
+      host = {
+        packages = with pkgs; [
+          (
+            if pkgs ? unstable
+            then pkgs.unstable.ollama
+            else ollama
+          )
+        ];
+
+        config = {
+          # Configuration for running local models
+          # Service configuration handled at home-manager level
+        };
+      };
+
+      server = {
+        packages = with pkgs; [
+          # Add litellm and related server packages here when available in nixpkgs
+        ];
+
+        config = {
+          # litellm server configuration
+          # This would include service definitions and startup scripts
+        };
+      };
+    };
   };
 
   platforms = {
@@ -166,7 +243,6 @@ with lib; {
             "raycast" # The version in nixpkgs is out of date
             "zed"
             "zen"
-            "ollama-app"
 
             # Terminal emulators
             "ghostty"
