@@ -104,7 +104,7 @@
           homebrew =
             bundles.platforms.darwin.config.homebrew or {}
             // lib.mkMerge (map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles)
-            // (lib.optionals (lib.elem "megamanx_llm_host" enabledRoles) (collectConfig "roles.llms.host" {}).homebrew or {});
+            // (lib.optionalAttrs (lib.elem "megamanx_llm_host" enabledRoles) ((collectConfig "roles.llms.host" {}).homebrew or {}));
         };
       in
         baseConfig // darwinConfig;
