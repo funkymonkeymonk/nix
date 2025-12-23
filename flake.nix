@@ -27,6 +27,9 @@
     nixpkgs-unstable,
     home-manager,
     mac-app-util,
+    nix-homebrew,
+    homebrew-core,
+    homebrew-cask,
     ...
   }: let
     inherit (nixpkgs) lib;
@@ -101,10 +104,20 @@
 
         # Platform-specific configurations
         darwinConfig = lib.optionalAttrs (system == "darwin") {
-          homebrew =
-            bundles.platforms.darwin.config.homebrew or {}
-            // lib.mkMerge (map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles)
-            // (lib.optionalAttrs (lib.elem "megamanx_llm_host" enabledRoles) ((collectConfig "roles.llms.host" {}).homebrew or {}));
+          homebrew = let
+            roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles;
+            llmHostHomebrewConfig =
+              if lib.elem "megamanx_llm_host" enabledRoles
+              then (collectConfig "roles.llms.host" {}).homebrew or {}
+              else {};
+          in
+            lib.mkMerge ([
+                (bundles.platforms.darwin.config.homebrew or {})
+              ]
+              ++ roleHomebrewConfigs
+              ++ [
+                llmHostHomebrewConfig
+              ]);
         };
       in
         baseConfig // darwinConfig;
@@ -113,6 +126,7 @@
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules = [
         configuration
+        nix-homebrew.darwinModules.nix-homebrew
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/home-manager
@@ -136,6 +150,17 @@
             ];
             development.enable = true;
           };
+
+          # Configure nix-homebrew
+          nix-homebrew = {
+            enable = true;
+            enableRosetta = true;
+            user = "wweaver";
+            taps = {
+              "homebrew/homebrew-core" = homebrew-core;
+              "homebrew/homebrew-cask" = homebrew-cask;
+            };
+          };
         }
         home-manager.darwinModules.home-manager
       ];
@@ -144,6 +169,7 @@
     darwinConfigurations."MegamanX" = nix-darwin.lib.darwinSystem {
       modules = [
         mac-app-util.darwinModules.default
+        nix-homebrew.darwinModules.nix-homebrew
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
@@ -168,6 +194,18 @@
             ];
             development.enable = true;
             media.enable = true;
+          };
+
+          # Configure nix-homebrew
+          nix-homebrew = {
+            enable = true;
+            enableRosetta = true;
+            autoMigrate = true;
+            user = "monkey";
+            taps = {
+              "homebrew/homebrew-core" = homebrew-core;
+              "homebrew/homebrew-cask" = homebrew-cask;
+            };
           };
         }
         home-manager.darwinModules.home-manager

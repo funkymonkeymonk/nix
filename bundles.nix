@@ -98,7 +98,14 @@ with lib; {
         pandoc
       ];
 
-      config = {};
+      config = {
+        # Homebrew casks for creative apps (macOS only)
+        homebrew = {
+          casks = [
+            "elgato-stream-deck"
+          ];
+        };
+      };
     };
 
     gaming = {
@@ -114,7 +121,7 @@ with lib; {
         logseq
         slack
         trippy
-        the-unarchiver
+        unar
       ];
 
       config = {};
@@ -125,12 +132,14 @@ with lib; {
 
       config = {
         # Homebrew casks for entertainment apps (macOS only)
-        homebrew.casks = [
-          "steam"
-          "pocket-casts"
-          "obs"
-          "discord"
-        ];
+        homebrew = {
+          casks = [
+            "steam"
+            "pocket-casts"
+            "obs"
+            "discord"
+          ];
+        };
       };
     };
 
@@ -236,7 +245,10 @@ with lib; {
         # Common Homebrew configuration
         homebrew = {
           enable = true;
-          onActivation.cleanup = "uninstall";
+          onActivation = {
+            autoUpdate = false;
+            cleanup = "uninstall";
+          };
 
           casks = [
             # Common macOS applications

@@ -13,3 +13,6 @@ secrets.nix
 
 # Build artifacts
 result
+
+# Git worktrees
+.worktrees/
