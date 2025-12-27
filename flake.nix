@@ -318,5 +318,237 @@
         home-manager.nixosModules.home-manager
       ];
     };
+
+    # Bundle test outputs
+    testBundles = let
+      # Import bundle test template
+      bundleTest = {
+        bundleName,
+        platform,
+        pkgs,
+      }:
+        pkgs.callPackage ./tests/bundles/template.nix {
+          inherit bundleName platform;
+        };
+    in {
+      # Generate bundle tests for all role+platform combinations
+      creative = {
+        darwin = bundleTest {
+          bundleName = "creative";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "creative";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      developer = {
+        darwin = bundleTest {
+          bundleName = "developer";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "developer";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      gaming = {
+        darwin = bundleTest {
+          bundleName = "gaming";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "gaming";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      entertainment = {
+        darwin = bundleTest {
+          bundleName = "entertainment";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "entertainment";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      workstation = {
+        darwin = bundleTest {
+          bundleName = "workstation";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "workstation";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      # LLM-related bundles
+      "wweaver_llm_client" = {
+        darwin = bundleTest {
+          bundleName = "wweaver_llm_client";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "wweaver_llm_client";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      "wweaver_claude_client" = {
+        darwin = bundleTest {
+          bundleName = "wweaver_claude_client";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "wweaver_claude_client";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      "megamanx_llm_host" = {
+        darwin = bundleTest {
+          bundleName = "megamanx_llm_host";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "megamanx_llm_host";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+
+      "megamanx_llm_server" = {
+        darwin = bundleTest {
+          bundleName = "megamanx_llm_server";
+          platform = "darwin";
+          pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        };
+        linux = bundleTest {
+          bundleName = "megamanx_llm_server";
+          platform = "linux";
+          pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+    };
+
+    # Integration test outputs (dynamically generated based on machine configs)
+    testIntegrations = let
+      # Import integration test template
+      integrationTest = {
+        machineName,
+        bundleName,
+        platform,
+        pkgs,
+      }:
+        pkgs.callPackage ./tests/integrations/template.nix {
+          inherit machineName bundleName platform;
+        };
+    in {
+      # MegamanX integrations (darwin)
+      "MegamanX-creative" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "creative";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "MegamanX-gaming" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "gaming";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "MegamanX-entertainment" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "entertainment";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "MegamanX-workstation" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "workstation";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "MegamanX-wweaver_llm_client" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "wweaver_llm_client";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "MegamanX-megamanx_llm_host" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "megamanx_llm_host";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "MegamanX-megamanx_llm_server" = integrationTest {
+        machineName = "MegamanX";
+        bundleName = "megamanx_llm_server";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+
+      # wweaver integrations (darwin)
+      "wweaver-workstation" = integrationTest {
+        machineName = "wweaver";
+        bundleName = "workstation";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "wweaver-wweaver_llm_client" = integrationTest {
+        machineName = "wweaver";
+        bundleName = "wweaver_llm_client";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+      "wweaver-wweaver_claude_client" = integrationTest {
+        machineName = "wweaver";
+        bundleName = "wweaver_claude_client";
+        platform = "darwin";
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      };
+
+      # drlight integrations (linux)
+      "drlight-creative" = integrationTest {
+        machineName = "drlight";
+        bundleName = "creative";
+        platform = "linux";
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      };
+      "drlight-wweaver_llm_client" = integrationTest {
+        machineName = "drlight";
+        bundleName = "wweaver_llm_client";
+        platform = "linux";
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      };
+
+      # zero integrations (linux)
+      "zero-wweaver_llm_client" = integrationTest {
+        machineName = "zero";
+        bundleName = "wweaver_llm_client";
+        platform = "linux";
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      };
+    };
   };
 }
