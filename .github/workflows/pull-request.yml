@@ -178,6 +178,7 @@ jobs:
     strategy:
       matrix:
         bundle: ${{ fromJson(needs.detect-changes.outputs.bundles) }}
+        platform: ["darwin", "linux"]
         include:
           - platform: darwin
             runner: macos-latest
@@ -209,14 +210,14 @@ jobs:
 
       - name: Run bundle test
         run: |
-          echo "🧪 Testing bundle: ${{ matrix.bundle.bundle }} on ${{ matrix.bundle.platform }}"
-          echo "📦 Running: nix build .#testBundles.${{ matrix.bundle.bundle }}.${{ matrix.bundle.platform }}.test"
-
-          if nix build .#testBundles.${{ matrix.bundle.bundle }}.${{ matrix.bundle.platform }}.test --verbose; then
+          echo "🧪 Testing bundle: ${{ matrix.bundle }} on ${{ matrix.platform }}"
+          echo "📦 Running: nix build .#testBundles.${{ matrix.bundle }}.${{ matrix.platform }}.test"
+          
+          if nix build .#testBundles.${{ matrix.bundle }}.${{ matrix.platform }}.test --verbose; then
             echo "✅ Bundle validation passed"
           else
             echo "❌ Bundle validation failed"
-            echo "🔍 Try debugging with: nix build .#testBundles.${{ matrix.bundle.bundle }}.${{ matrix.bundle.platform }}"
+            echo "🔍 Try debugging with: nix build .#testBundles.${{ matrix.bundle }}.${{ matrix.platform }}"
             exit 1
           fi
 
@@ -229,6 +230,7 @@ jobs:
     strategy:
       matrix:
         integration: ${{ fromJson(needs.detect-changes.outputs.integrations) }}
+        platform: ["darwin", "linux"]
         include:
           - platform: darwin
             runner: macos-latest
@@ -260,9 +262,9 @@ jobs:
 
       - name: Run integration test
         run: |
-          echo "🔗 Testing integration: ${{ matrix.integration.machine }} + ${{ matrix.integration.bundle }} on ${{ matrix.integration.platform }}"
+          echo "🔗 Testing integration: ${{ matrix.integration.machine }} + ${{ matrix.integration.bundle }} on ${{ matrix.platform }}"
           echo "📦 Running: nix build .#testIntegrations.${{ matrix.integration.machine }}-${{ matrix.integration.bundle }}.test"
-
+          
           if nix build .#testIntegrations.${{ matrix.integration.machine }}-${{ matrix.integration.bundle }}.test --verbose; then
             echo "✅ Integration validation passed"
           else
