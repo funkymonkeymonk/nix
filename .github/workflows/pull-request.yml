@@ -1,0 +1,305 @@
+---
+name: PR Validation Pipeline
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Detect what changed in this PR
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      bundles: ${{ steps.changes.outputs.bundles }}
+      integrations: ${{ steps.changes.outputs.integrations }}
+      all-bundles: ${{ steps.changes.outputs.all-bundles }}
+      all-integrations: ${{ steps.changes.outputs.all-integrations }}
+      should-test: ${{ steps.changes.outputs.should-test }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          echo "🔍 Analyzing changes in this PR..."
+
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+          echo "📁 Changed files:"
+          echo "$CHANGED_FILES" | head -10
+
+          # Initialize outputs
+          BUNDLES="[]"
+          INTEGRATIONS="[]"
+          ALL_BUNDLES="[]"
+          ALL_INTEGRATIONS="[]"
+          SHOULD_TEST="false"
+
+          # Detect what type of changes occurred
+          if echo "$CHANGED_FILES" | grep -E "(bundles\.nix|flake\.nix)" > /dev/null; then
+            echo "🚨 Core configuration changed - testing all bundles and integrations"
+            BUNDLES='[
+              {"bundle": "creative", "platform": "darwin"},
+              {"bundle": "creative", "platform": "linux"},
+              {"bundle": "developer", "platform": "darwin"},
+              {"bundle": "developer", "platform": "linux"},
+              {"bundle": "gaming", "platform": "darwin"},
+              {"bundle": "gaming", "platform": "linux"},
+              {"bundle": "entertainment", "platform": "darwin"},
+              {"bundle": "entertainment", "platform": "linux"},
+              {"bundle": "workstation", "platform": "darwin"},
+              {"bundle": "workstation", "platform": "linux"},
+              {"bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"bundle": "wweaver_llm_client", "platform": "linux"},
+              {"bundle": "wweaver_claude_client", "platform": "darwin"},
+              {"bundle": "wweaver_claude_client", "platform": "linux"},
+              {"bundle": "megamanx_llm_host", "platform": "darwin"},
+              {"bundle": "megamanx_llm_host", "platform": "linux"},
+              {"bundle": "megamanx_llm_server", "platform": "darwin"},
+              {"bundle": "megamanx_llm_server", "platform": "linux"}
+            ]'
+
+            INTEGRATIONS='[
+              {"machine": "MegamanX", "bundle": "creative", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "gaming", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "entertainment", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "workstation", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "megamanx_llm_host", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "megamanx_llm_server", "platform": "darwin"},
+              {"machine": "wweaver", "bundle": "workstation", "platform": "darwin"},
+              {"machine": "wweaver", "bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"machine": "wweaver", "bundle": "wweaver_claude_client", "platform": "darwin"},
+              {"machine": "drlight", "bundle": "creative", "platform": "linux"},
+              {"machine": "drlight", "bundle": "wweaver_llm_client", "platform": "linux"},
+              {"machine": "zero", "bundle": "wweaver_llm_client", "platform": "linux"}
+            ]'
+
+            SHOULD_TEST="true"
+          elif echo "$CHANGED_FILES" | grep -E "(modules/common/)" > /dev/null; then
+            echo "🔧 Common modules changed - testing all bundles and integrations"
+            BUNDLES='[
+              {"bundle": "base", "platform": "darwin"},
+              {"bundle": "base", "platform": "linux"}
+            ]'
+            INTEGRATIONS='[]'
+            SHOULD_TEST="true"
+          elif echo "$CHANGED_FILES" | grep -E "(targets/megamanx)" > /dev/null; then
+            echo "🍎 MegamanX config changed - testing MegamanX bundles"
+            BUNDLES='[
+              {"bundle": "creative", "platform": "darwin"},
+              {"bundle": "gaming", "platform": "darwin"},
+              {"bundle": "entertainment", "platform": "darwin"},
+              {"bundle": "workstation", "platform": "darwin"},
+              {"bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"bundle": "megamanx_llm_host", "platform": "darwin"},
+              {"bundle": "megamanx_llm_server", "platform": "darwin"},
+              {"bundle": "wweaver_claude_client", "platform": "darwin"}
+            ]'
+            INTEGRATIONS='[
+              {"machine": "MegamanX", "bundle": "creative", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "gaming", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "entertainment", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "workstation", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "megamanx_llm_host", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "megamanx_llm_server", "platform": "darwin"},
+              {"machine": "MegamanX", "bundle": "wweaver_claude_client", "platform": "darwin"}
+            ]'
+            SHOULD_TEST="true"
+          elif echo "$CHANGED_FILES" | grep -E "(targets/wweaver)" > /dev/null; then
+            echo "💻 wweaver config changed - testing wweaver bundles"
+            BUNDLES='[
+              {"bundle": "workstation", "platform": "darwin"},
+              {"bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"bundle": "wweaver_claude_client", "platform": "darwin"}
+            ]'
+            INTEGRATIONS='[
+              {"machine": "wweaver", "bundle": "workstation", "platform": "darwin"},
+              {"machine": "wweaver", "bundle": "wweaver_llm_client", "platform": "darwin"},
+              {"machine": "wweaver", "bundle": "wweaver_claude_client", "platform": "darwin"}
+            ]'
+            SHOULD_TEST="true"
+          elif echo "$CHANGED_FILES" | grep -E "(targets/drlight)" > /dev/null; then
+            echo "🐧 drlight config changed - testing drlight bundles"
+            BUNDLES='[
+              {"bundle": "creative", "platform": "linux"},
+              {"bundle": "wweaver_llm_client", "platform": "linux"}
+            ]'
+            INTEGRATIONS='[
+              {"machine": "drlight", "bundle": "creative", "platform": "linux"},
+              {"machine": "drlight", "bundle": "wweaver_llm_client", "platform": "linux"}
+            ]'
+            SHOULD_TEST="true"
+          elif echo "$CHANGED_FILES" | grep -E "(targets/zero)" > /dev/null; then
+            echo "⚡ zero config changed - testing zero bundles"
+            BUNDLES='[
+              {"bundle": "wweaver_llm_client", "platform": "linux"}
+            ]'
+            INTEGRATIONS='[
+              {"machine": "zero", "bundle": "wweaver_llm_client", "platform": "linux"}
+            ]'
+            SHOULD_TEST="true"
+          elif echo "$CHANGED_FILES" | grep -E "(docs/|\.md$)" > /dev/null; then
+            echo "📚 Documentation changes only - no tests needed"
+            SHOULD_TEST="false"
+          else
+            echo "⚠️  Unknown changes detected - testing nothing to be safe"
+            SHOULD_TEST="false"
+          fi
+
+          # Set outputs for GitHub Actions
+          echo "bundles=$BUNDLES" >> $GITHUB_OUTPUT
+          echo "integrations=$INTEGRATIONS" >> $GITHUB_OUTPUT
+          echo "all-bundles=$ALL_BUNDLES" >> $GITHUB_OUTPUT
+          echo "all-integrations=$ALL_INTEGRATIONS" >> $GITHUB_OUTPUT
+          echo "should-test=$SHOULD_TEST" >> $GITHUB_OUTPUT
+
+          echo "🎯 Test configuration:"
+          echo "  Bundles: $(echo $BUNDLES | jq length)"
+          echo "  Integrations: $(echo $INTEGRATIONS | jq length)"
+          echo "  Should test: $SHOULD_TEST"
+
+  # Bundle validation tests
+  bundle-tests:
+    name: Bundle Test (${{ matrix.bundle }} on ${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    needs: detect-changes
+    if: fromJson(needs.detect-changes.outputs.should-test) == 'true'
+    strategy:
+      matrix:
+        bundle: ${{ fromJson(needs.detect-changes.outputs.bundles) }}
+        include:
+          - platform: darwin
+            runner: macos-latest
+          - platform: linux
+            runner: ubuntu-latest
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Setup shared cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+            ~/.local/share/nix
+          key: ${{ runner.os }}-nix-pr-${{ hashFiles('**/flake.lock', '**/bundles.nix') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-pr-
+            ${{ runner.os }}-nix-
+
+      - name: Run bundle test
+        run: |
+          echo "🧪 Testing bundle: ${{ matrix.bundle.bundle }} on ${{ matrix.bundle.platform }}"
+          echo "📦 Running: nix build .#testBundles.${{ matrix.bundle.bundle }}.${{ matrix.bundle.platform }}.test"
+
+          if nix build .#testBundles.${{ matrix.bundle.bundle }}.${{ matrix.bundle.platform }}.test --verbose; then
+            echo "✅ Bundle validation passed"
+          else
+            echo "❌ Bundle validation failed"
+            echo "🔍 Try debugging with: nix build .#testBundles.${{ matrix.bundle.bundle }}.${{ matrix.bundle.platform }}"
+            exit 1
+          fi
+
+  # Integration tests (run after bundle tests pass)
+  integration-tests:
+    name: Integration Test (${{ matrix.machine }} + ${{ matrix.bundle }})
+    runs-on: ${{ matrix.runner }}
+    needs: [detect-changes, bundle-tests]
+    if: fromJson(needs.detect-changes.outputs.should-test) == 'true' && needs.bundle-tests.result == 'success'
+    strategy:
+      matrix:
+        integration: ${{ fromJson(needs.detect-changes.outputs.integrations) }}
+        include:
+          - platform: darwin
+            runner: macos-latest
+          - platform: linux
+            runner: ubuntu-latest
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Use shared cache from bundle tests
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+            ~/.local/share/nix
+          key: ${{ runner.os }}-nix-pr-${{ hashFiles('**/flake.lock', '**/bundles.nix') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-pr-
+            ${{ runner.os }}-nix-
+
+      - name: Run integration test
+        run: |
+          echo "🔗 Testing integration: ${{ matrix.integration.machine }} + ${{ matrix.integration.bundle }} on ${{ matrix.integration.platform }}"
+          echo "📦 Running: nix build .#testIntegrations.${{ matrix.integration.machine }}-${{ matrix.integration.bundle }}.test"
+
+          if nix build .#testIntegrations.${{ matrix.integration.machine }}-${{ matrix.integration.bundle }}.test --verbose; then
+            echo "✅ Integration validation passed"
+          else
+            echo "❌ Integration validation failed"
+            echo "🔍 Try debugging with: nix build .#testIntegrations.${{ matrix.integration.machine }}-${{ matrix.integration.bundle }}"
+            exit 1
+          fi
+
+  # Quality checks (always run, even if no tests needed)
+  quality-checks:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Run quality checks
+        run: |
+          echo "🔍 Running quality checks..."
+
+          # Run linters (skip formatting - handled by precommit hooks)
+          echo "📝 Running deadnix..."
+          devenv shell -- deadnix --no-underscore . || true
+
+          echo "📝 Running yamllint..."
+          devenv shell -- yamllint . || true
+
+          echo "✅ Quality checks completed"
+

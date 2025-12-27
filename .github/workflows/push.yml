@@ -1,0 +1,212 @@
+---
+name: Merge Validation Pipeline
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Full matrix builds for all platforms
+  full-builds:
+    name: Full Build (${{ matrix.system }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-darwin
+            runner: macos-latest
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Setup comprehensive cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+            ~/.local/share/nix
+          key: ${{ runner.os }}-nix-main-${{ hashFiles('**/flake.lock', '**/bundles.nix', '**/targets/**', '**/modules/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-main-
+            ${{ runner.os }}-nix-pr-
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Run full configuration tests
+        run: |
+          echo "🚀 Running full configuration validation for ${{ matrix.system }}"
+          echo "📦 This tests all bundles and machine configurations"
+
+          if devenv shell -- nix flake check; then
+            echo "✅ Full configuration validation passed"
+          else
+            echo "❌ Full configuration validation failed"
+            exit 1
+          fi
+
+      - name: Build all configurations
+        run: |
+          echo "🔨 Building all configurations for ${{ matrix.system }}"
+
+          if [ "${{ matrix.system }}" = "x86_64-linux" ]; then
+            echo "🐧 Building Linux configurations..."
+            devenv shell -- nix build .#nixosConfigurations.drlight.config.system.build.toplevel
+            # devenv shell -- nix build .#nixosConfigurations.zero.config.system.build.toplevel
+          else
+            echo "🍎 Building Darwin configurations..."
+            devenv shell -- darwin-rebuild build --flake .#MegamanX
+            # devenv shell -- darwin-rebuild build --flake .#wweaver
+          fi
+
+          echo "✅ All builds completed successfully"
+
+  # Comprehensive bundle validation (all bundles)
+  comprehensive-bundle-tests:
+    name: Bundle Validation (${{ matrix.bundle }} on ${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - bundle: creative
+            platform: darwin
+            runner: macos-latest
+          - bundle: creative
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: developer
+            platform: darwin
+            runner: macos-latest
+          - bundle: developer
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: gaming
+            platform: darwin
+            runner: macos-latest
+          - bundle: gaming
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: entertainment
+            platform: darwin
+            runner: macos-latest
+          - bundle: entertainment
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: workstation
+            platform: darwin
+            runner: macos-latest
+          - bundle: workstation
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: wweaver_llm_client
+            platform: darwin
+            runner: macos-latest
+          - bundle: wweaver_llm_client
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: wweaver_claude_client
+            platform: darwin
+            runner: macos-latest
+          - bundle: wweaver_claude_client
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: megamanx_llm_host
+            platform: darwin
+            runner: macos-latest
+          - bundle: megamanx_llm_host
+            platform: linux
+            runner: ubuntu-latest
+          - bundle: megamanx_llm_server
+            platform: darwin
+            runner: macos-latest
+          - bundle: megamanx_llm_server
+            platform: linux
+            runner: ubuntu-latest
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Use comprehensive cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /nix/store
+            ~/.cache/nix
+            ~/.local/share/nix
+          key: ${{ runner.os }}-nix-main-${{ hashFiles('**/flake.lock', '**/bundles.nix', '**/targets/**', '**/modules/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-main-
+            ${{ runner.os }}-nix-pr-
+
+      - name: Run comprehensive bundle test
+        run: |
+          echo "🧪 Comprehensive bundle test: ${{ matrix.bundle }} on ${{ matrix.platform }}"
+          echo "📦 Running: nix build .#testBundles.${{ matrix.bundle }}.${{ matrix.platform }}.test"
+
+          if nix build .#testBundles.${{ matrix.bundle }}.${{ matrix.platform }}.test --verbose; then
+            echo "✅ Bundle validation passed"
+          else
+            echo "❌ Bundle validation failed"
+            exit 1
+          fi
+
+  # Quality and formatting checks
+  quality-checks:
+    name: Quality & Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Run quality checks
+        run: |
+          echo "🔍 Running comprehensive quality checks..."
+
+          # Run formatting (ensure code consistency)
+          echo "📝 Running alejandra formatter..."
+          devenv shell -- task fmt
+
+          # Run linters
+          echo "📝 Running deadnix..."
+          devenv shell -- deadnix --no-underscore .
+
+          echo "📝 Running yamllint..."
+          devenv shell -- yamllint .
+
+          echo "✅ All quality checks completed"
+

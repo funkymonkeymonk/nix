@@ -258,3 +258,36 @@ tasks:
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
+  test:bundle:
+    desc: Run bundle tests for specific bundle and platform
+    cmd: |
+      if [ -z "{{.BUNDLE}}" ] || [ -z "{{.PLATFORM}}" ]; then
+        echo "❌ Usage: task test:bundle BUNDLE=<bundle> PLATFORM=<darwin|linux>"
+        echo "📦 Available bundles: creative developer gaming entertainment workstation wweaver_llm_client wweaver_claude_client megamanx_llm_host megamanx_llm_server"
+        exit 1
+      fi
+      echo "🧪 Testing bundle: {{.BUNDLE}} on {{.PLATFORM}}"
+      nix build .#testBundles.{{.BUNDLE}}.{{.PLATFORM}}.test
+  test:integration:
+    desc: Run integration test for specific machine and bundle
+    cmd: |
+      if [ -z "{{.MACHINE}}" ] || [ -z "{{.BUNDLE}}" ]; then
+        echo "❌ Usage: task test:integration MACHINE=<machine> BUNDLE=<bundle>"
+        echo "🖥️  Available machines: wweaver MegamanX drlight zero"
+        exit 1
+      fi
+      echo "🔗 Testing integration: {{.MACHINE}} + {{.BUNDLE}}"
+      nix build .#testIntegrations.{{.MACHINE}}-{{.BUNDLE}}.test
+  test:all-bundles:
+    desc: Run all bundle tests
+    cmd: |
+      echo "🧪 Running all bundle tests..."
+      nix build .#testBundles --keep-going --verbose
+  test:all-integrations:
+    desc: Run all integration tests
+    cmd: |
+      echo "🔗 Running all integration tests..."
+      nix build .#testIntegrations --keep-going --verbose
+  test:generate:
+    desc: Generate test configuration summary
+    cmd: ./scripts/generate-tests.sh
