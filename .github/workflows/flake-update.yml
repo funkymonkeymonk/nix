@@ -73,3 +73,55 @@ jobs:
           echo "existing_prs_to_close<<EOF" >> $GITHUB_ENV
           echo "${{ steps.discover-prs.outputs.existing_prs }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+
+      - name: Update flake.lock
+        run: |
+          echo "Updating flake.lock..."
+          nix flake update --commit-lock-file --commit-lockfile-summary "chore: update flake.lock"
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Flake updated successfully"
+            echo "flake_updated=true" >> $GITHUB_ENV
+          else
+            echo "No changes to flake.lock"
+            echo "flake_updated=false" >> $GITHUB_ENV
+          fi
+
+      - name: Attempt basic fixes for common breakage
+        if: env.flake_updated == 'true'
+        run: |
+          echo "Attempting basic fixes for common issues..."
+          
+          # Create fix attempts log
+          echo "fix_attempts_log<<EOF" >> $GITHUB_ENV
+          echo "# Automated Fix Attempts" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          
+          fixes_applied=0
+          
+          # Common package renames (can be expanded)
+          declare -A package_renames=(
+            ["ripgrep-all"]="ripgrepAll"
+            # Add more renames as needed
+          )
+          
+          for old_name in "${!package_renames[@]}"; do
+            new_name="${package_renames[$old_name]}"
+            if grep -r "packages\.${old_name}" . --include="*.nix" 2>/dev/null; then
+              echo "Found potential rename: $old_name -> $new_name" >> $GITHUB_ENV
+              sed -i.bak "s/packages\.${old_name}/packages\.${new_name}/g" $(find . -name "*.nix" -exec grep -l "packages\.${old_name}" {} \;)
+              fixes_applied=$((fixes_applied + 1))
+              echo "- Applied rename: $old_name -> $new_name" >> $GITHUB_ENV
+            fi
+          done
+          
+          if [ $fixes_applied -gt 0 ]; then
+            echo "Applied $fixes_applied automated fixes"
+            git add .
+            git commit -m "fix: apply automated fixes for common package renames"
+          else
+            echo "No fixes applied" >> $GITHUB_ENV
+          fi
+          
+          echo "" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
