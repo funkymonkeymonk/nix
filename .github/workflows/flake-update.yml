@@ -24,25 +24,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v10
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
-
       - name: Install devenv.sh
         run: nix profile install --accept-flake-config nixpkgs#devenv
-
       - name: Install additional tools
         run: |
           nix profile install --accept-flake-config nixpkgs#jq
           nix profile install --accept-flake-config nixpkgs#gh
-
       - name: Discover existing flake update PRs
         id: discover-prs
         run: |
@@ -64,7 +59,6 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Close existing PRs after creating new one
         if: steps.discover-prs.outputs.existing_prs
         run: |
@@ -73,7 +67,6 @@ jobs:
           echo "existing_prs_to_close<<EOF" >> $GITHUB_ENV
           echo "${{ steps.discover-prs.outputs.existing_prs }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-
       - name: Update flake.lock
         run: |
           echo "Updating flake.lock..."
@@ -86,7 +79,6 @@ jobs:
             echo "No changes to flake.lock"
             echo "flake_updated=false" >> $GITHUB_ENV
           fi
-
       - name: Attempt basic fixes for common breakage
         if: env.flake_updated == 'true'
         run: |
@@ -126,3 +118,94 @@ jobs:
 
           echo "" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+      - name: Validate changes
+        run: |
+          echo "Validating updated flake..."
+
+          # Run flake check
+          if nix flake check --no-build; then
+            echo "Flake validation passed"
+            echo "validation_status=passed" >> $GITHUB_ENV
+            echo "validation_result=✅ All validations passed" >> $GITHUB_ENV
+          else
+            echo "Flake validation failed"
+            echo "validation_status=failed" >> $GITHUB_ENV
+            echo "validation_result=❌ Validation failed - see logs" >> $GITHUB_ENV
+          fi
+
+          # Generate package changes summary
+          echo "package_changes<<EOF" >> $GITHUB_ENV
+          echo "## Package Changes" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          git log --oneline -1 >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      - name: Create Pull Request
+        if: env.flake_updated == 'true'
+        id: create-pr
+        run: |
+          branch_name="flake-update-$(date +%Y-%m-%d)"
+
+          # Create and push branch
+          git checkout -b "$branch_name"
+          git push origin "$branch_name"
+
+          # Generate PR description
+          pr_description=$(cat << EOF
+          # Weekly Flake Update - $(date +%Y-%m-%d)
+
+          ## Status
+          ${{ env.validation_result }}
+
+          ## Executive Summary
+          This PR contains the weekly automatic update of Nix flake dependencies.
+
+          - **Status**: ${{ env.validation_status }}
+          - **Automated fixes applied**: See below
+          - **Validation**: Completed
+
+          ${{ env.package_changes }}
+
+          ${{ env.fix_attempts_log }}
+
+          ## Technical Details
+
+          ### Changes Applied
+          - Updated flake.lock with latest package versions
+          - Attempted automated fixes for common breakage patterns
+
+          ### Test Results
+          The full CI/CD pipeline will run on this PR to validate all changes.
+
+          ### Next Steps
+          1. Review the automated changes above
+          2. Check CI/CD pipeline results
+          3. Manually address any remaining build failures
+          4. Merge if all tests pass
+
+          ### Rollback Instructions
+          If needed, revert to previous state:
+          \`\`\`bash
+          git checkout main
+          git reset --hard HEAD~1
+          \`\`\`
+
+          ---
+
+          🤖 This PR was created automatically by the weekly flake update workflow.
+          EOF
+          )
+
+          # Create PR
+          pr_url=$(gh pr create \
+            --title "Weekly Flake Update - $(date +%Y-%m-%d)" \
+            --body "$pr_description" \
+            --label "flake-update" \
+            --label "dependencies" \
+            --repo ${{ github.repository }})
+
+          echo "PR created: $pr_url"
+          echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
+          echo "pr_number=$(echo $pr_url | sed 's/.*\/pull\/\([0-9]*\).*/\1/')" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
