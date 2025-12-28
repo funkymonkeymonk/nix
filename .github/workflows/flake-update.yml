@@ -42,3 +42,34 @@ jobs:
         run: |
           nix profile install --accept-flake-config nixpkgs#jq
           nix profile install --accept-flake-config nixpkgs#gh
+
+      - name: Discover existing flake update PRs
+        id: discover-prs
+        run: |
+          echo "Searching for existing flake update PRs..."
+          existing_prs=$(gh pr list \
+            --repo ${{ github.repository }} \
+            --label "flake-update" \
+            --state open \
+            --json number,title \
+            --jq '.[] | @base64')
+
+          if [ -n "$existing_prs" ]; then
+            echo "Found existing PRs"
+            echo "existing_prs<<EOF" >> $GITHUB_OUTPUT
+            echo "$existing_prs" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "No existing PRs found"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close existing PRs after creating new one
+        if: steps.discover-prs.outputs.existing_prs
+        run: |
+          # This will be populated later after new PR creation
+          echo "Will close existing PRs after new PR is created"
+          echo "existing_prs_to_close<<EOF" >> $GITHUB_ENV
+          echo "${{ steps.discover-prs.outputs.existing_prs }}" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
