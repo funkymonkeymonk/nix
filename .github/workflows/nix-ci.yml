@@ -36,9 +36,9 @@ jobs:
             ${{ runner.os }}-nix-store-
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-      - name: Run formatter (not duplicated)
+      - name: Run formatter
         run: devenv shell task fmt
-      - name: Run linter (not duplicated)
+      - name: Run linter
         run: devenv shell task lint
       - name: Run quick tests
         run: devenv shell task test quick
