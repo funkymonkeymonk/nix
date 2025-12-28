@@ -236,13 +236,13 @@ tasks:
       - echo "Testing wweaver build plan"
       - cmd: |
           echo "🔍 Testing wweaver build plan..."
-          if darwin-rebuild build --flake .#wweaver --dry-run >/dev/null 2>&1; then
+          if nix build .#darwinConfigurations.wweaver.system --dry-run >/dev/null 2>&1; then
             echo "✅ wweaver build plan validated"
           else
             echo "❌ wweaver build plan failed"
             echo ""
             echo "🐛 Running build plan with verbose output for debugging:"
-            darwin-rebuild build --flake .#wweaver --dry-run --verbose
+            nix build .#darwinConfigurations.wweaver.system --dry-run --show-trace
             echo ""
             echo "💡 Common issues to check:"
             echo "  - Missing or incompatible packages in bundles"
@@ -253,13 +253,13 @@ tasks:
       - echo "Testing MegamanX build plan"
       - cmd: |
           echo "🔍 Testing MegamanX build plan..."
-          if darwin-rebuild build --flake .#MegamanX --dry-run >/dev/null 2>&1; then
+          if nix build .#darwinConfigurations.MegamanX.system --dry-run >/dev/null 2>&1; then
             echo "✅ MegamanX build plan validated"
           else
             echo "❌ MegamanX build plan failed"
             echo ""
             echo "🐛 Running build plan with verbose output for debugging:"
-            darwin-rebuild build --flake .#MegamanX --dry-run --verbose
+            nix build .#darwinConfigurations.MegamanX.system --dry-run --show-trace
             echo ""
             echo "💡 Common issues to check:"
             echo "  - Missing or incompatible packages in bundles"
