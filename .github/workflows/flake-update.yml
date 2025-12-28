@@ -1,0 +1,21 @@
+---
+name: Weekly Flake Update
+on:
+  schedule:
+    # Every Friday at 4:00 AM UTC
+    - cron: '0 4 * * 5'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+concurrency:
+  group: flake-update
+  cancel-in-progress: false
+jobs:
+  flake-update:
+    name: Update Flake and Create PR
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
