@@ -186,6 +186,22 @@ The repository includes automated testing and validation:
 - **Pull requests**: Matrix testing and formatting validation
 - **Main branch**: Matrix testing and formatting validation
 
+### Weekly Flake Updates
+
+- **Schedule**: Every Friday at 4:00 AM UTC
+- **Function**: Updates flake.lock with latest package versions
+- **Features**:
+  - Automated basic fixes for common package renames
+  - Comprehensive PR with technical details and summaries
+  - Automatic cleanup of previous week's PR
+  - Validation and reporting of all changes
+
+The workflow creates PRs with the `flake-update` label and includes:
+- Executive summary of changes
+- Technical details of package updates
+- List of automated fixes applied
+- Validation results and next steps
+
 ## 🏗️ Architecture
 
 ### Modular System
