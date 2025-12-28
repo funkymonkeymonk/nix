@@ -129,11 +129,21 @@ tasks:
       - echo "Testing Darwin configurations"
       - echo "=================================="
       - echo "Testing wweaver build plan"
-      - darwin-rebuild build --flake .#wweaver --dry-run >/dev/null 2>&1 && \
-        echo "wweaver build plan validated" || (echo "wweaver build plan failed" && exit 1)
+      - cmd: |
+          if darwin-rebuild build --flake .#wweaver --dry-run >/dev/null 2>&1; then
+            echo "wweaver build plan validated"
+          else
+            echo "wweaver build plan failed"
+            exit 1
+          fi
       - echo "Testing MegamanX build plan"
-      - darwin-rebuild build --flake .#MegamanX --dry-run >/dev/null 2>&1 && \
-        echo "MegamanX build plan validated" || (echo "MegamanX build plan failed" && exit 1)
+      - cmd: |
+          if darwin-rebuild build --flake .#MegamanX --dry-run >/dev/null 2>&1; then
+            echo "MegamanX build plan validated"
+          else
+            echo "MegamanX build plan failed"
+            exit 1
+          fi
       - echo "All Darwin tests completed"
   test:nixos-only:
     desc: "Test only NixOS configurations (for Linux runners)"
@@ -142,13 +152,23 @@ tasks:
       - echo "Testing NixOS configurations"
       - echo "================================="
       - echo "Testing drlight build plan"
-      - nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-          --dry-run --quiet >/dev/null 2>&1 && echo "drlight build plan validated" || \
-          (echo "drlight build plan failed" && exit 1)
+      - cmd: |
+          if nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
+              --dry-run --quiet >/dev/null 2>&1; then
+            echo "drlight build plan validated"
+          else
+            echo "drlight build plan failed"
+            exit 1
+          fi
       - echo "Testing zero build plan"
-      - nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-          --dry-run --quiet >/dev/null 2>&1 && echo "zero build plan validated" || \
-          (echo "zero build plan failed" && exit 1)
+      - cmd: |
+          if nix build .#nixosConfigurations.zero.config.system.build.toplevel \
+              --dry-run --quiet >/dev/null 2>&1; then
+            echo "zero build plan validated"
+          else
+            echo "zero build plan failed"
+            exit 1
+          fi
       - echo "All NixOS tests completed"
   build:
     desc: build all configurations
