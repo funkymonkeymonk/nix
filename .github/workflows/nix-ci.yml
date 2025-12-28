@@ -12,17 +12,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # Matrix build for different architectures
-  test-matrix:
-    name: Test (${{ matrix.system }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - system: x86_64-linux
-            runner: ubuntu-latest
-          - system: aarch64-darwin
-            runner: macos-latest
+  # Job 1: Quick validation + formatting (single runner, no duplication)
+  test-quick:
+    name: Quick Validation & Code Quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,18 +28,58 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Cache Nix store
-        uses: actions/cache@v4
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Install devenv.sh
+        shell: bash
+        run: nix profile install --accept-flake-config nixpkgs#devenv
+      - name: Run devenv tests and git hooks
+        run: devenv test
+      - name: Run quick tests
+        run: task test:quick
+  # Job 2: Darwin-specific testing
+  test-darwin:
+    name: Darwin Configuration Tests
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: devenv shell bash -- -e {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
         with:
-          path: |
-            /nix/store
-            ~/.cache/nix
-          key: ${{ runner.os }}-nix-store-${{ hashFiles('**/flake.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-nix-store-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-      - name: Run formatter
-        run: devenv shell task fmt
-      - name: Run configuration tests
-        run: devenv shell task test
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Install devenv.sh
+        shell: bash
+        run: nix profile install --accept-flake-config nixpkgs#devenv
+      - name: Run Darwin-specific tests
+        run: task test:darwin-only
+  # Job 3: Linux-specific testing
+  test-linux:
+    name: Linux Configuration Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: devenv shell bash -- -e {0}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Install devenv.sh
+        shell: bash
+        run: nix profile install --accept-flake-config nixpkgs#devenv
+      - name: Run Linux-specific tests
+        run: task test:nixos-only
