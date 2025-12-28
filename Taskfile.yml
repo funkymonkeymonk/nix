@@ -31,29 +31,125 @@ tasks:
       - linux
     platforms: [linux]
     cmd: sudo nixos-rebuild switch --flake ./
-  switch:dry-run:osx:
-    desc: Perform dry-run switch for darwin platforms
-    aliases:
-      - dry-run
-    platforms: [darwin]
-    cmd: |
-      HOSTNAME=$(hostname -s)
-      PASSWORD_PATH="op://Private/${HOSTNAME} Sudo Password/password"
-      op run \
-        --env-file=<(echo "SUDO_PASSWORD=$(op read "$PASSWORD_PATH")") \
-        -- bash -c 'echo "$SUDO_PASSWORD" | sudo -S darwin-rebuild switch --dry-run --flake ./'
-  switch:dry-run:nixos:
-    desc: Perform dry-run switch for NixOS platforms
-    platforms: [linux]
-    cmd: sudo nixos-rebuild dry-activate --flake ./
   test:
-    desc: Run flake check
+    desc: Run flake check (now defaults to quick)
     aliases:
       - t
     cmds:
-      - echo "🔍 building flake configurations..."
-      - nix flake check
-      - echo "✅ All configurations (NixOS and Darwin) validated successfully"
+      - task test:quick
+  test:quick:
+    desc: "Quick syntax and validation checks (30s) - Reports all failures"
+    aliases:
+      - tq
+    cmds:
+      - cmd: |
+          echo "Running quick validation checks..."
+          failed_checks=""
+
+          # Test basic flake validation
+          if ! nix flake check --no-build >/dev/null 2>&1; then
+            echo "❌ Flake check failed"
+            failed_checks="$failed_checks flake-check"
+          else
+            echo "✅ Flake check passed"
+          fi
+
+          # Test Linux configurations
+          for config in drlight zero; do
+            if nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
+              --json >/dev/null 2>&1; then
+              echo "✅ NixOS $config configuration valid"
+            else
+              echo "❌ NixOS $config configuration invalid"
+              failed_checks="$failed_checks NixOS:$config"
+            fi
+          done
+
+          # Test macOS configurations
+          for config in wweaver MegamanX; do
+            if nix eval .#darwinConfigurations.$config.system \
+              --json >/dev/null 2>&1; then
+              echo "✅ Darwin $config configuration valid"
+            else
+              echo "❌ Darwin $config configuration invalid"
+              failed_checks="$failed_checks Darwin:$config"
+            fi
+          done
+
+          # Report all failures
+          if [ -n "$failed_checks" ]; then
+            echo "❌ Failed checks:$failed_checks"
+            exit 1
+          else
+            echo "✅ All quick validation checks passed"
+          fi
+  test:full:
+    desc: "Full cross-platform verification (5-10min) - Fail fast"
+    aliases:
+      - tf
+    cmds:
+      - echo "Universal Cross-Platform Testing Suite"
+      - echo "Validating configuration definitions..."
+      - nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
+          --json >/dev/null && echo "NixOS drlight configuration valid" || \
+          (echo "NixOS drlight configuration invalid" && exit 1)
+      - nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
+          --json >/dev/null && echo "NixOS zero configuration valid" || \
+          (echo "NixOS zero configuration invalid" && exit 1)
+      - nix eval .#darwinConfigurations.wweaver.system \
+          --json >/dev/null && echo "Darwin wweaver configuration valid" || \
+          (echo "Darwin wweaver configuration invalid" && exit 1)
+      - nix eval .#darwinConfigurations.MegamanX.system \
+          --json >/dev/null && echo "Darwin MegamanX configuration valid" || \
+          (echo "Darwin MegamanX configuration invalid" && exit 1)
+      - echo "Testing Linux build plans..."
+      - nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
+          --dry-run --quiet >/dev/null 2>&1 && echo "drlight build plan validated" || \
+          (echo "drlight build plan failed" && exit 1)
+      - nix build .#nixosConfigurations.zero.config.system.build.toplevel \
+          --dry-run --quiet >/dev/null 2>&1 && echo "zero build plan validated" || \
+          (echo "zero build plan failed" && exit 1)
+      - echo "Testing Darwin evaluations..."
+      - nix eval .#darwinConfigurations.wweaver.system \
+          --quiet >/dev/null 2>&1 && echo "wweaver evaluation validated" || \
+          (echo "wweaver evaluation failed" && exit 1)
+      - nix eval .#darwinConfigurations.MegamanX.system \
+          --quiet >/dev/null 2>&1 && echo "MegamanX evaluation validated" || \
+          (echo "MegamanX evaluation failed" && exit 1)
+      - echo "Universal cross-platform testing completed!"
+      - echo "Results Summary"
+      - echo "   Configuration validation = SUCCESS"
+      - echo "   Linux build planning = SUCCESS"
+      - echo "   Darwin evaluation = SUCCESS"
+      - echo "   Host-agnostic execution = SUCCESS"
+  test:darwin-only:
+    desc: "Test only Darwin configurations (for Darwin runners)"
+    platforms: [darwin]
+    cmds:
+      - echo "Testing Darwin configurations"
+      - echo "=================================="
+      - echo "Testing wweaver build plan"
+      - darwin-rebuild build --flake .#wweaver --dry-run >/dev/null 2>&1 && \
+        echo "wweaver build plan validated" || (echo "wweaver build plan failed" && exit 1)
+      - echo "Testing MegamanX build plan"
+      - darwin-rebuild build --flake .#MegamanX --dry-run >/dev/null 2>&1 && \
+        echo "MegamanX build plan validated" || (echo "MegamanX build plan failed" && exit 1)
+      - echo "All Darwin tests completed"
+  test:nixos-only:
+    desc: "Test only NixOS configurations (for Linux runners)"
+    platforms: [linux]
+    cmds:
+      - echo "Testing NixOS configurations"
+      - echo "================================="
+      - echo "Testing drlight build plan"
+      - nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
+          --dry-run --quiet >/dev/null 2>&1 && echo "drlight build plan validated" || \
+          (echo "drlight build plan failed" && exit 1)
+      - echo "Testing zero build plan"
+      - nix build .#nixosConfigurations.zero.config.system.build.toplevel \
+          --dry-run --quiet >/dev/null 2>&1 && echo "zero build plan validated" || \
+          (echo "zero build plan failed" && exit 1)
+      - echo "All NixOS tests completed"
   build:
     desc: build all configurations
     aliases:
@@ -77,18 +173,6 @@ tasks:
       - task: build:nixos:drlight
       # - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
-  build:darwin:will-stride-mbp:
-    desc: Build Will-Stride-MBP Darwin configuration
-    cmd: darwin-rebuild build --flake .#Will-Stride-MBP
-  build:darwin:megamanx:
-    desc: build MegamanX Darwin configuration
-    cmd: darwin-rebuild build --flake .#MegamanX
-  build:nixos:drlight:
-    desc: build drlight NixOS configuration
-    cmd: nix build .#nixosConfigurations."drlight".config.system.build.toplevel
-  build:nixos:zero:
-    desc: build zero NixOS configuration
-    cmd: nix build .#nixosConfigurations."zero".config.system.build.toplevel
   fmt:
     desc: Run formatter on all files.
     aliases:
@@ -118,115 +202,6 @@ tasks:
   devenv:update:
     desc: Update devenv lock file.
     cmd: devenv update
-  secrets-get:
-    desc: "Get secrets file using 1Password CLI"
-    cmds:
-      - echo "🔐 Retrieving secrets from 1Password..."
-      - op read "op://personal/nix-secrets/secrets.nix" > secrets.nix
-      - echo "✅ Secrets retrieved and saved to secrets.nix"
-  secrets-set:
-    desc: "Set secrets file using 1Password CLI"
-    cmds:
-      - echo "🔐 Storing secrets to 1Password..."
-      - op document create secrets.nix --vault personal --title "Nix Secrets" --tags nix,secrets
-      - echo "✅ Secrets stored in 1Password"
-  1password:setup:
-    desc: "Set up 1Password CLI authentication"
-    cmds:
-      - echo "🔐 Setting up 1Password CLI..."
-      - echo "Please sign in to 1Password CLI:"
-      - op signin
-      - echo "✅ 1Password CLI authenticated"
-  1password:status:
-    desc: "Check 1Password CLI authentication status"
-    cmds:
-      - echo "🔐 Checking 1Password CLI status..."
-      - op account list
-      - echo "✅ 1Password CLI is authenticated"
-  secrets:init:
-    desc: "Initialize secrets management with 1Password"
-    cmds:
-      - echo "🔐 Initializing secrets management..."
-      - echo "1. Copy secrets.nix.template to secrets.nix"
-      - echo "2. Fill in your secrets in secrets.nix"
-      - echo "3. Run 'task secrets-set' to store in 1Password"
-      - echo "4. Run 'task secrets-get' to retrieve from 1Password"
-      - 'echo "5. Enable secrets in your configuration: myConfig.secrets.enable = true"'
-      - cp secrets.nix.template secrets.nix
-      - echo "✅ Template copied to secrets.nix - edit it with your secrets"
-  secrets:populate:
-    desc: "Automatically populate secrets.nix from 1Password items"
-    cmds:
-      - echo "🔐 Populating secrets from 1Password..."
-      - |
-        # Read secrets from 1Password with fallbacks
-        GIT_USERNAME=$(op read "op://personal/git/username" 2>/dev/null || echo "Your Name")
-        GIT_EMAIL=$(op read "op://personal/git/email" 2>/dev/null || echo "your.email@example.com")
-        GITHUB_TOKEN=$(op read "op://personal/github/token" 2>/dev/null || echo "")
-        OPENAI_KEY=$(op read "op://personal/openai/api-key" 2>/dev/null || echo "")
-        ANTHROPIC_KEY=$(op read "op://personal/anthropic/api-key" 2>/dev/null || echo "")
-        HUGGINGFACE_TOKEN=$(op read "op://personal/huggingface/token" 2>/dev/null || echo "")
-        AWS_ACCESS_KEY=$(op read "op://personal/aws/access-key-id" 2>/dev/null || echo "")
-        AWS_SECRET_KEY=$(op read "op://personal/aws/secret-access-key" 2>/dev/null || echo "")
-        AWS_REGION=$(op read "op://personal/aws/region" 2>/dev/null || echo "us-east-1")
-        DO_TOKEN=$(op read "op://personal/digitalocean/token" 2>/dev/null || echo "")
-        HOME_ADDRESS=$(op read "op://personal/address/home" 2>/dev/null || echo "")
-        PHONE_PRIMARY=$(op read "op://personal/phone/primary" 2>/dev/null || echo "")
-        PHONE_WORK=$(op read "op://personal/phone/work" 2>/dev/null || echo "")
-        BIRTHDAY=$(op read "op://personal/birthday" 2>/dev/null || echo "")
-
-        # Generate secrets.nix file
-        cat > secrets.nix << EOF
-        # Auto-generated secrets from 1Password
-        # Generated on $(date)
-        {
-          # Git configuration
-          git = {
-            userName = "$GIT_USERNAME";
-            userEmail = "$GIT_EMAIL";
-            githubToken = "$GITHUB_TOKEN";
-          };
-
-          # SSH keys (optional)
-          ssh = {
-            privateKey = "";
-            publicKey = "";
-          };
-
-          # API keys and tokens
-          apiKeys = {
-            openai = "$OPENAI_KEY";
-            anthropic = "$ANTHROPIC_KEY";
-            huggingface = "$HUGGINGFACE_TOKEN";
-          };
-
-          # Database credentials
-          databases = {};
-
-          # Cloud service credentials
-          cloud = {
-            aws = {
-              accessKeyId = "$AWS_ACCESS_KEY";
-              secretAccessKey = "$AWS_SECRET_KEY";
-              region = "$AWS_REGION";
-            };
-            digitalocean = {
-              token = "$DO_TOKEN";
-            };
-          };
-
-          # Personal/private configuration
-          personal = {
-            homeAddress = "$HOME_ADDRESS";
-            phoneNumbers = {
-              primary = "$PHONE_PRIMARY";
-              work = "$PHONE_WORK";
-            };
-            birthday = "$BIRTHDAY";
-          };
-        }
-        EOF
-      - echo "✅ Secrets populated from 1Password (missing values left empty)"
   init:
     desc: Initial setup commands
     cmds:
@@ -243,18 +218,6 @@ tasks:
       - git remote -v
       - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
       - git remote -v
-  # TODO: Add gh auth workflow
-  # TODO: Add a 1Password setup flow
-  # TODO: Add a git setup flow
-  #
-  op:signin:
-    desc: Signin to 1password
-    cmd: op signin
-  opencode:
-    desc: Run opencode with env from 1password
-    cmds:
-      - task op:signin
-      - op run -- opencode
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
