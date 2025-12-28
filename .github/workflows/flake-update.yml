@@ -19,3 +19,26 @@ jobs:
     defaults:
       run:
         shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v10
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Install devenv.sh
+        run: nix profile install --accept-flake-config nixpkgs#devenv
+
+      - name: Install additional tools
+        run: |
+          nix profile install --accept-flake-config nixpkgs#jq
+          nix profile install --accept-flake-config nixpkgs#gh
