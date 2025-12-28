@@ -3,7 +3,7 @@ name: Weekly Flake Update
 on:
   schedule:
     # Every Friday at 4:00 AM UTC
-    - cron: '0 4 * * 5'
+    - cron: "0 4 * * 5"
   workflow_dispatch:
 permissions:
   contents: write
@@ -32,6 +32,8 @@ jobs:
             sandbox = false
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          upstream-cache: false
       - name: Install devenv.sh
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Install additional tools
@@ -69,6 +71,10 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
       - name: Update flake.lock
         run: |
+          echo "Configuring git user..."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           echo "Updating flake.lock..."
           nix flake update --commit-lock-file --commit-lockfile-summary "chore: update flake.lock"
 
