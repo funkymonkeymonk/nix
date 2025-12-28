@@ -41,7 +41,7 @@ jobs:
       - name: Run linter
         run: devenv shell task lint
       - name: Run quick tests
-        run: devenv shell task test quick
+        run: devenv shell task test:quick
   # Job 2: Darwin-specific testing
   test-darwin:
     name: Darwin Configuration Tests
