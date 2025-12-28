@@ -71,7 +71,8 @@ The project uses [devenv](https://devenv.sh) for a consistent development enviro
 
 #### Available Tasks
 ```bash
-task test              # Validate all configurations
+task test              # Basic flake validation
+task test:full         # Comprehensive cross-platform validation (dry-run + eval)
 task build             # Build all systems
 task build:darwin      # Build macOS configurations
 task build:nixos       # Build Linux configurations
@@ -86,9 +87,26 @@ task 1password:setup   # Set up 1Password CLI authentication
 task 1password:status  # Check 1Password CLI status
 task secrets:init      # Initialize secrets template (manual setup)
 task secrets:populate  # Auto-populate secrets from 1Password items
-task secrets-get       # Retrieve secrets from 1Password
+task secrets:get       # Retrieve secrets from 1Password
 task secrets-set       # Store secrets in 1Password
 ```
+
+### Cross-Platform Validation
+
+The `task test:full` command provides comprehensive validation that works regardless of host platform:
+
+- **On Darwin (macOS)**: Validates both Darwin and Linux configurations
+- **On Linux**: Validates both Linux and Darwin configurations  
+- **Uses dry-run builds**: Tests build plans without actually building
+- **Cross-architecture**: Validates x86_64-linux from aarch64-darwin and vice versa
+
+**What it validates:**
+- ✅ Flake structure and syntax (`nix flake check`)
+- ✅ Linux configurations buildable (`nix build --dry-run`)
+- ✅ macOS configurations evaluable (`nix eval`)
+- ✅ All platform-specific packages and modules
+- ✅ Home-manager configurations
+- ✅ Cross-platform dependencies
 
 #### Development Tools
 The development environment includes:
