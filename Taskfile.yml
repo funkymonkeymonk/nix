@@ -47,8 +47,11 @@ tasks:
           failed_checks=""
 
           # Test basic flake validation
+          echo "🔍 Checking flake structure and dependencies..."
           if ! nix flake check --no-build >/dev/null 2>&1; then
             echo "❌ Flake check failed"
+            echo "🐛 Running flake check with verbose output for debugging:"
+            nix flake check --no-build --show-trace
             failed_checks="$failed_checks flake-check"
           else
             echo "✅ Flake check passed"
@@ -56,29 +59,60 @@ tasks:
 
           # Test Linux configurations
           for config in drlight zero; do
+            echo "🐧 Validating NixOS $config configuration..."
             if nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
               --json >/dev/null 2>&1; then
               echo "✅ NixOS $config configuration valid"
             else
               echo "❌ NixOS $config configuration invalid"
+              echo "🐛 Running evaluation with verbose output for debugging:"
+              nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
+                --json --show-trace
               failed_checks="$failed_checks NixOS:$config"
             fi
           done
 
           # Test macOS configurations
           for config in wweaver MegamanX; do
+            echo "🍎 Validating Darwin $config configuration..."
             if nix eval .#darwinConfigurations.$config.system \
               --json >/dev/null 2>&1; then
               echo "✅ Darwin $config configuration valid"
             else
               echo "❌ Darwin $config configuration invalid"
+              echo "🐛 Running evaluation with verbose output for debugging:"
+              nix eval .#darwinConfigurations.$config.system \
+                --json --show-trace
               failed_checks="$failed_checks Darwin:$config"
             fi
           done
 
           # Report all failures
           if [ -n "$failed_checks" ]; then
-            echo "❌ Failed checks:$failed_checks"
+            echo ""
+            echo "💀 QUICK VALIDATION FAILED"
+            echo "Failed checks:$failed_checks"
+            echo ""
+            echo "🔧 To debug individual issues:"
+            for check in $failed_checks; do
+              case $check in
+                "flake-check")
+                  echo "  - Run: nix flake check --no-build --show-trace"
+                  ;;
+                "NixOS:"*)
+                  config=${check#NixOS:}
+                  echo "  - Run: nix eval \\"
+                  echo "             .#nixosConfigurations.$config.config.system.build.toplevel \\"
+                  echo "             --json --show-trace"
+                  ;;
+                "Darwin:"*)
+                  config=${check#Darwin:}
+                  echo "  - Run: nix eval \\"
+                  echo "             .#darwinConfigurations.$config.system \\"
+                  echo "             --json --show-trace"
+                  ;;
+              esac
+            done
             exit 1
           else
             echo "✅ All quick validation checks passed"
@@ -90,32 +124,104 @@ tasks:
     cmds:
       - echo "Universal Cross-Platform Testing Suite"
       - echo "Validating configuration definitions..."
-      - nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
-        --json >/dev/null && echo "NixOS drlight configuration valid" || \
-        (echo "NixOS drlight configuration invalid" && exit 1)
-      - nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
-        --json >/dev/null && echo "NixOS zero configuration valid" || \
-        (echo "NixOS zero configuration invalid" && exit 1)
-      - nix eval .#darwinConfigurations.wweaver.system \
-        --json >/dev/null && echo "Darwin wweaver configuration valid" || \
-        (echo "Darwin wweaver configuration invalid" && exit 1)
-      - nix eval .#darwinConfigurations.MegamanX.system \
-        --json >/dev/null && echo "Darwin MegamanX configuration valid" || \
-        (echo "Darwin MegamanX configuration invalid" && exit 1)
+      - cmd: |
+          echo "🐧 Validating NixOS drlight configuration..."
+          if nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
+            --json >/dev/null 2>&1; then
+            echo "✅ NixOS drlight configuration valid"
+          else
+            echo "❌ NixOS drlight configuration invalid"
+            echo "🐛 Running with verbose output for debugging:"
+            nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
+              --json --show-trace
+            exit 1
+          fi
+      - cmd: |
+          echo "🐧 Validating NixOS zero configuration..."
+          if nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
+            --json >/dev/null 2>&1; then
+            echo "✅ NixOS zero configuration valid"
+          else
+            echo "❌ NixOS zero configuration invalid"
+            echo "🐛 Running with verbose output for debugging:"
+            nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
+              --json --show-trace
+            exit 1
+          fi
+      - cmd: |
+          echo "🍎 Validating Darwin wweaver configuration..."
+          if nix eval .#darwinConfigurations.wweaver.system \
+            --json >/dev/null 2>&1; then
+            echo "✅ Darwin wweaver configuration valid"
+          else
+            echo "❌ Darwin wweaver configuration invalid"
+            echo "🐛 Running with verbose output for debugging:"
+            nix eval .#darwinConfigurations.wweaver.system \
+              --json --show-trace
+            exit 1
+          fi
+      - cmd: |
+          echo "🍎 Validating Darwin MegamanX configuration..."
+          if nix eval .#darwinConfigurations.MegamanX.system \
+            --json >/dev/null 2>&1; then
+            echo "✅ Darwin MegamanX configuration valid"
+          else
+            echo "❌ Darwin MegamanX configuration invalid"
+            echo "🐛 Running with verbose output for debugging:"
+            nix eval .#darwinConfigurations.MegamanX.system \
+              --json --show-trace
+            exit 1
+          fi
       - echo "Testing Linux build plans..."
-      - nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-        --dry-run --quiet >/dev/null 2>&1 && echo "drlight build plan validated" || \
-        (echo "drlight build plan failed" && exit 1)
-      - nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-        --dry-run --quiet >/dev/null 2>&1 && echo "zero build plan validated" || \
-        (echo "zero build plan failed" && exit 1)
+      - cmd: |
+          echo "🔍 Testing drlight build plan..."
+          if nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
+            --dry-run --quiet >/dev/null 2>&1; then
+            echo "✅ drlight build plan validated"
+          else
+            echo "❌ drlight build plan failed"
+            echo "🐛 Running build plan with verbose output for debugging:"
+            nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
+              --dry-run --show-trace
+            exit 1
+          fi
+      - cmd: |
+          echo "🔍 Testing zero build plan..."
+          if nix build .#nixosConfigurations.zero.config.system.build.toplevel \
+            --dry-run --quiet >/dev/null 2>&1; then
+            echo "✅ zero build plan validated"
+          else
+            echo "❌ zero build plan failed"
+            echo "🐛 Running build plan with verbose output for debugging:"
+            nix build .#nixosConfigurations.zero.config.system.build.toplevel \
+              --dry-run --show-trace
+            exit 1
+          fi
       - echo "Testing Darwin evaluations..."
-      - nix eval .#darwinConfigurations.wweaver.system \
-        --quiet >/dev/null 2>&1 && echo "wweaver evaluation validated" || \
-        (echo "wweaver evaluation failed" && exit 1)
-      - nix eval .#darwinConfigurations.MegamanX.system \
-        --quiet >/dev/null 2>&1 && echo "MegamanX evaluation validated" || \
-        (echo "MegamanX evaluation failed" && exit 1)
+      - cmd: |
+          echo "🔍 Testing wweaver evaluation..."
+          if nix eval .#darwinConfigurations.wweaver.system \
+            --quiet >/dev/null 2>&1; then
+            echo "✅ wweaver evaluation validated"
+          else
+            echo "❌ wweaver evaluation failed"
+            echo "🐛 Running evaluation with verbose output for debugging:"
+            nix eval .#darwinConfigurations.wweaver.system \
+              --show-trace
+            exit 1
+          fi
+      - cmd: |
+          echo "🔍 Testing MegamanX evaluation..."
+          if nix eval .#darwinConfigurations.MegamanX.system \
+            --quiet >/dev/null 2>&1; then
+            echo "✅ MegamanX evaluation validated"
+          else
+            echo "❌ MegamanX evaluation failed"
+            echo "🐛 Running evaluation with verbose output for debugging:"
+            nix eval .#darwinConfigurations.MegamanX.system \
+              --show-trace
+            exit 1
+          fi
       - echo "Universal cross-platform testing completed!"
       - echo "Results Summary"
       - echo "   Configuration validation = SUCCESS"
@@ -124,49 +230,85 @@ tasks:
       - echo "   Host-agnostic execution = SUCCESS"
   test:darwin-only:
     desc: "Test only Darwin configurations (for Darwin runners)"
-    platforms: [darwin]
     cmds:
       - echo "Testing Darwin configurations"
       - echo "=================================="
       - echo "Testing wweaver build plan"
       - cmd: |
+          echo "🔍 Testing wweaver build plan..."
           if darwin-rebuild build --flake .#wweaver --dry-run >/dev/null 2>&1; then
-            echo "wweaver build plan validated"
+            echo "✅ wweaver build plan validated"
           else
-            echo "wweaver build plan failed"
+            echo "❌ wweaver build plan failed"
+            echo ""
+            echo "🐛 Running build plan with verbose output for debugging:"
+            darwin-rebuild build --flake .#wweaver --dry-run --verbose
+            echo ""
+            echo "💡 Common issues to check:"
+            echo "  - Missing or incompatible packages in bundles"
+            echo "  - Incorrect paths in configurations"
+            echo "  - Platform-specific incompatibilities"
             exit 1
           fi
       - echo "Testing MegamanX build plan"
       - cmd: |
+          echo "🔍 Testing MegamanX build plan..."
           if darwin-rebuild build --flake .#MegamanX --dry-run >/dev/null 2>&1; then
-            echo "MegamanX build plan validated"
+            echo "✅ MegamanX build plan validated"
           else
-            echo "MegamanX build plan failed"
+            echo "❌ MegamanX build plan failed"
+            echo ""
+            echo "🐛 Running build plan with verbose output for debugging:"
+            darwin-rebuild build --flake .#MegamanX --dry-run --verbose
+            echo ""
+            echo "💡 Common issues to check:"
+            echo "  - Missing or incompatible packages in bundles"
+            echo "  - Incorrect paths in configurations"
+            echo "  - Platform-specific incompatibilities"
             exit 1
           fi
       - echo "All Darwin tests completed"
   test:nixos-only:
     desc: "Test only NixOS configurations (for Linux runners)"
-    platforms: [linux]
     cmds:
       - echo "Testing NixOS configurations"
       - echo "================================="
       - echo "Testing drlight build plan"
       - cmd: |
+          echo "🔍 Testing drlight build plan..."
           if nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
               --dry-run --quiet >/dev/null 2>&1; then
-            echo "drlight build plan validated"
+            echo "✅ drlight build plan validated"
           else
-            echo "drlight build plan failed"
+            echo "❌ drlight build plan failed"
+            echo ""
+            echo "🐛 Running build plan with verbose output for debugging:"
+            nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
+              --dry-run --show-trace
+            echo ""
+            echo "💡 Common issues to check:"
+            echo "  - Missing or incompatible packages in bundles"
+            echo "  - Incorrect hardware configuration paths"
+            echo "  - Platform-specific module incompatibilities"
             exit 1
           fi
       - echo "Testing zero build plan"
       - cmd: |
+          echo "🔍 Testing zero build plan..."
           if nix build .#nixosConfigurations.zero.config.system.build.toplevel \
               --dry-run --quiet >/dev/null 2>&1; then
-            echo "zero build plan validated"
+            echo "✅ zero build plan validated"
           else
-            echo "zero build plan failed"
+            echo "❌ zero build plan failed"
+            echo ""
+            echo "🐛 Running build plan with verbose output for debugging:"
+            nix build .#nixosConfigurations.zero.config.system.build.toplevel \
+              --dry-run --show-trace
+            echo ""
+            echo "💡 Common issues to check:"
+            echo "  - Missing or incompatible packages in bundles"
+            echo "  - Incorrect hardware configuration paths"
+            echo "  - Platform-specific module incompatibilities"
             exit 1
           fi
       - echo "All NixOS tests completed"
