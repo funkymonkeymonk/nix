@@ -91,31 +91,31 @@ tasks:
       - echo "Universal Cross-Platform Testing Suite"
       - echo "Validating configuration definitions..."
       - nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
-          --json >/dev/null && echo "NixOS drlight configuration valid" || \
-          (echo "NixOS drlight configuration invalid" && exit 1)
+        --json >/dev/null && echo "NixOS drlight configuration valid" || \
+        (echo "NixOS drlight configuration invalid" && exit 1)
       - nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
-          --json >/dev/null && echo "NixOS zero configuration valid" || \
-          (echo "NixOS zero configuration invalid" && exit 1)
+        --json >/dev/null && echo "NixOS zero configuration valid" || \
+        (echo "NixOS zero configuration invalid" && exit 1)
       - nix eval .#darwinConfigurations.wweaver.system \
-          --json >/dev/null && echo "Darwin wweaver configuration valid" || \
-          (echo "Darwin wweaver configuration invalid" && exit 1)
+        --json >/dev/null && echo "Darwin wweaver configuration valid" || \
+        (echo "Darwin wweaver configuration invalid" && exit 1)
       - nix eval .#darwinConfigurations.MegamanX.system \
-          --json >/dev/null && echo "Darwin MegamanX configuration valid" || \
-          (echo "Darwin MegamanX configuration invalid" && exit 1)
+        --json >/dev/null && echo "Darwin MegamanX configuration valid" || \
+        (echo "Darwin MegamanX configuration invalid" && exit 1)
       - echo "Testing Linux build plans..."
       - nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-          --dry-run --quiet >/dev/null 2>&1 && echo "drlight build plan validated" || \
-          (echo "drlight build plan failed" && exit 1)
+        --dry-run --quiet >/dev/null 2>&1 && echo "drlight build plan validated" || \
+        (echo "drlight build plan failed" && exit 1)
       - nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-          --dry-run --quiet >/dev/null 2>&1 && echo "zero build plan validated" || \
-          (echo "zero build plan failed" && exit 1)
+        --dry-run --quiet >/dev/null 2>&1 && echo "zero build plan validated" || \
+        (echo "zero build plan failed" && exit 1)
       - echo "Testing Darwin evaluations..."
       - nix eval .#darwinConfigurations.wweaver.system \
-          --quiet >/dev/null 2>&1 && echo "wweaver evaluation validated" || \
-          (echo "wweaver evaluation failed" && exit 1)
+        --quiet >/dev/null 2>&1 && echo "wweaver evaluation validated" || \
+        (echo "wweaver evaluation failed" && exit 1)
       - nix eval .#darwinConfigurations.MegamanX.system \
-          --quiet >/dev/null 2>&1 && echo "MegamanX evaluation validated" || \
-          (echo "MegamanX evaluation failed" && exit 1)
+        --quiet >/dev/null 2>&1 && echo "MegamanX evaluation validated" || \
+        (echo "MegamanX evaluation failed" && exit 1)
       - echo "Universal cross-platform testing completed!"
       - echo "Results Summary"
       - echo "   Configuration validation = SUCCESS"
@@ -193,27 +193,12 @@ tasks:
       - task: build:nixos:drlight
       # - task: build:nixos:zero
       - echo "✅ All NixOS configurations validated successfully"
-  fmt:
-    desc: Run formatter on all files.
-    aliases:
-      - f
-    cmds:
-      - alejandra *.nix
-      - yamlfmt .
-  lint:
-    desc: Run linters on all nix files.
-    aliases:
-      - l
-    cmds:
-      - devenv shell -- deadnix --no-underscore .
-      - yamllint .
   quality:
-    desc: Run all code quality checks (format + lint).
+    desc: Run all code quality checks.
     aliases:
       - q
     cmds:
-      - task: fmt
-      - task: lint
+      - devenv test
   dev:
     desc: Enter development shell with all tools available.
     aliases:
