@@ -209,3 +209,39 @@ jobs:
           echo "pr_number=$(echo $pr_url | sed 's/.*\/pull\/\([0-9]*\).*/\1/')" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Close existing PRs
+        if: steps.create-pr.outputs.pr_number && env.existing_prs_to_close
+        run: |
+          new_pr_number="${{ steps.create-pr.outputs.pr_number }}"
+          new_pr_url="${{ steps.create-pr.outputs.pr_url }}"
+
+          echo "$existing_prs_to_close" | while read -r pr_info; do
+            if [ -n "$pr_info" ]; then
+              pr_number=$(echo "$pr_info" | base64 -d | jq -r '.number')
+              pr_title=$(echo "$pr_info" | base64 -d | jq -r '.title')
+
+              echo "Closing PR #$pr_number: $pr_title"
+
+              # Add comment before closing
+              gh pr comment "$pr_number" \
+                --body "🔄 Superseded by #$new_pr_number - Latest update: $new_pr_url" \
+                --repo ${{ github.repository }}
+
+              # Close PR
+              gh pr close "$pr_number" \
+                --comment "Superseded by #$new_pr_number" \
+                --repo ${{ github.repository }}
+
+              echo "Closed PR #$pr_number"
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Workflow completion
+        run: |
+          if [ "${{ env.flake_updated }}" == "true" ]; then
+            echo "✅ Flake update workflow completed successfully"
+            echo "📄 PR: ${{ steps.create-pr.outputs.pr_url }}"
+          else
+            echo "ℹ️ No flake updates were needed"
+          fi
