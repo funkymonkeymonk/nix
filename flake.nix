@@ -200,7 +200,6 @@
           nix-homebrew = {
             enable = true;
             enableRosetta = true;
-            autoMigrate = true;
             user = "monkey";
             taps = {
               "homebrew/homebrew-core" = homebrew-core;
