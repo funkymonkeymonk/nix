@@ -28,31 +28,39 @@
       # Aerospace workspace widget
       sketchybar --add item aerospace left \
         --set aerospace \
+        icon="󰕰" \
         script="${pkgs.writeShellScript "aerospace-widget" ''
+        update_aerospace() {
+          local focused_workspace=$(aerospace list-workspaces --focused)
+          local all_workspaces=$(aerospace list-workspaces --all)
+          local workspace_count=$(echo "$all_workspaces" | wc -l | tr -d ' ')
+
+          # Update the label using sketchybar command
+          sketchybar --set aerospace label="$focused_workspace ($workspace_count)"
+        }
+
         case "$1" in
           "update"|"")
-            aerospace list-workspaces --focused
+            update_aerospace
             ;;
           *)
-            aerospace list-workspaces | while read -r workspace; do
-              if [ "$workspace" != "$(aerospace list-workspaces --focused)" ]; then
-                echo "$workspace"
-              fi
-            done | head -1 | xargs -I {} aerospace workspace {}
-            aerospace list-workspaces --focused
+            # Cycle to next workspace on click
+            local focused_workspace=$(aerospace list-workspaces --focused)
+            local all_workspaces=$(aerospace list-workspaces --all)
+            local next_workspace=$(echo "$all_workspaces" | grep -A1 "$focused_workspace" | tail -n1)
+
+            # If we're at the last workspace, go to the first one
+            if [ "$next_workspace" = "$focused_workspace" ] || [ -z "$next_workspace" ]; then
+              next_workspace=$(echo "$all_workspaces" | head -n1)
+            fi
+
+            aerospace workspace "$next_workspace"
+            update_aerospace
             ;;
         esac
       ''}" \
-        update_freq=5 \
-        icon="󰕰" \
+        update_freq=2 \
         label.drawing=on \
-        click_script="${pkgs.writeShellScript "aerospace-click" ''
-        aerospace list-workspaces | while read -r workspace; do
-          if [ "$workspace" != "$(aerospace list-workspaces --focused)" ]; then
-            echo "$workspace"
-          fi
-        done | head -1 | xargs -I {} aerospace workspace {}
-      ''}" \
         on_click=true
 
       # Git repository widget
@@ -66,12 +74,12 @@
           local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
           if [ "$current_branch" != "main" ]; then
-            echo "󰘬 Not on main"
+            sketchybar --set git_repo label="Not on main"
             return
           fi
 
           if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
-            echo "󰊢 No remote"
+            sketchybar --set git_repo label="No remote"
             return
           fi
 
@@ -81,9 +89,9 @@
           fi
 
           if [ "$behind_count" -eq 0 ]; then
-            echo "󰘭 Up to date"
+            sketchybar --set git_repo label="Up to date"
           else
-            echo "󰜀 $behind_count behind"
+            sketchybar --set git_repo label="$behind_count behind"
           fi
         }
 
@@ -93,7 +101,7 @@
             ;;
           "click")
             cd "$REPO_DIR" || exit
-            sketchybar --set git_repo label="󰔲 Fetching..."
+            sketchybar --set git_repo label="Fetching..."
             git fetch --prune >/dev/null 2>&1
             update_git_status
             ;;
@@ -105,17 +113,17 @@
         click_script="${pkgs.writeShellScript "git-click" ''
         REPO_DIR="/Users/monkey/Projects/nix"
         cd "$REPO_DIR" || exit
-        sketchybar --set git_repo label="󰔲 Fetching..."
+        sketchybar --set git_repo label="Fetching..."
         git fetch --prune >/dev/null 2>&1
 
         local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
         if [ "$current_branch" != "main" ]; then
-          sketchybar --set git_repo label="󰘬 Not on main"
+          sketchybar --set git_repo label="Not on main"
           exit
         fi
 
         if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
-          sketchybar --set git_repo label="󰊢 No remote"
+          sketchybar --set git_repo label="No remote"
           exit
         fi
 
@@ -125,9 +133,9 @@
         fi
 
         if [ "$behind_count" -eq 0 ]; then
-          sketchybar --set git_repo label="󰘭 Up to date"
+          sketchybar --set git_repo label="Up to date"
         else
-          sketchybar --set git_repo label="󰜀 $behind_count behind"
+          sketchybar --set git_repo label="$behind_count behind"
         fi
       ''}" \
         on_click=true
