@@ -231,6 +231,7 @@ with lib; {
         alacritty-theme
         colima
         home-manager
+        sketchybar
       ];
 
       config = {

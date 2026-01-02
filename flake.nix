@@ -132,6 +132,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
+        ./modules/home-manager/sketchybar.nix
         (mkBundleModule "darwin" ["developer" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
@@ -176,6 +177,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
+        ./modules/home-manager/sketchybar.nix
         (mkBundleModule "darwin" ["developer" "creative" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
