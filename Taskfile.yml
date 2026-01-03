@@ -502,21 +502,17 @@ tasks:
         sudo chown root:root /etc/opnix-token
       fi
 
-      # Test token authentication
-      echo "🔐 Testing service account authentication..."
-      export OP_SERVICE_ACCOUNT_TOKEN=$(cat /etc/opnix-token)
-
+      # Validate token authentication
       if ! op account get >/dev/null 2>&1; then
-        echo "❌ Service account authentication failed"
+        echo "❌ Service account token authentication failed"
         echo "   Token may be expired or invalid"
-        echo "   Run 'task 1password:service:rotate' to generate a new token"
+        echo "   Run 'task 1password:service:rotate' to generate new token"
         exit 1
       fi
 
       echo "✅ Service account authentication successful"
 
       # Test access to required secrets
-      echo "🔎 Testing access to required secrets..."
       SECRETS_TO_TEST=(
         "op://Homelab/Linkwarden Database Password/password"
         "op://Homelab/Linkwarden NextAuth Secret/password"
@@ -543,7 +539,10 @@ tasks:
           echo "   - $secret"
         done
         echo ""
-        echo "🔧 Please ensure the service account has read access to these items in 1Password"
+        echo "🔧 Please ensure:"
+        echo "   1. Service account has read access to Homelab vault"
+        echo "   2. Secret references in configuration are correct"
+        echo "   3. No permissions issues with 1Password items"
         exit 1
       fi
 
