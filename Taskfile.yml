@@ -507,6 +507,8 @@ tasks:
         echo "❌ Service account token authentication failed"
         echo "   Token may be expired or invalid"
         echo "   Run 'task 1password:service:rotate' to generate new token"
+        echo "   Debug: Checking token content:"
+        head -c 20 /etc/opnix-token 2>/dev/null || echo "   Could not read token file"
         exit 1
       fi
 
