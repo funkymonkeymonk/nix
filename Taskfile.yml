@@ -438,13 +438,22 @@ tasks:
 
       # Generate service account (this will require 1Password CLI with appropriate perms)
       # Note: This assumes the user has the ability to create service accounts
-      if op service-account create --name "${SERVICE_ACCOUNT_NAME}"
-         --vaults Homelab >/dev/null 2>&1; then
-        echo "✅ Service account created successfully"
-      else
-        echo "⚠️  Service account may already exist or needs manual creation"
-        echo "   Please ensure '${SERVICE_ACCOUNT_NAME}' has read access to Homelab vault"
+      # Note: op service-account create only returns token at creation time
+      echo "🎫 Creating service account and generating token..."
+      SERVICE_TOKEN=$(op service-account create "${SERVICE_ACCOUNT_NAME}" \
+         --vaults Homelab --raw 2>/dev/null)
+      
+      if [ -z "$SERVICE_TOKEN" ]; then
+        echo "❌ Failed to create service account or get token"
+        echo "   Please ensure:"
+        echo "   1. You have permission to create service accounts"
+        echo "   2. '${SERVICE_ACCOUNT_NAME}' doesn't already exist"
+        echo "   3. You have access to Homelab vault"
+        exit 1
       fi
+      
+      echo "✅ Service account created successfully"
+      echo "📝 Service account: ${SERVICE_ACCOUNT_NAME}"
 
       # Get service account token
       echo "🎫 Generating service account token..."
