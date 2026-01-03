@@ -14,7 +14,7 @@
         outer = {
           left = 0;
           bottom = 0;
-          top = 0;
+          top = 30; # Leave space for sketchybar (30px, no margin)
           right = 0;
         };
       };

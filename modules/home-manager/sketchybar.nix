@@ -8,7 +8,7 @@
       # -----------------------
 
       # Basic bar setup
-      sketchybar --bar height=30 position=top margin=5 y_offset=0 drawing=on color=0xff1e1e2e
+      sketchybar --bar height=30 position=top margin=0 y_offset=0 drawing=on color=0xff1e1e2e topmost=on
 
       # Global appearance
       sketchybar --default \
@@ -62,6 +62,58 @@
         update_freq=2 \
         label.drawing=on \
         on_click=true
+
+      # Gaming mode detector
+      sketchybar --add item gaming_mode right \
+        --set gaming_mode \
+        script="${pkgs.writeShellScript "gaming-mode-detector" ''
+        # List of gaming applications that should hide sketchybar
+        gaming_apps=(
+          "com.valvesoftware.steam"
+          "com.blizzard.heroes"
+          "com.epicgames.EpicGamesLauncher"
+          "com.gog.galaxyclient"
+          "net.minecraftforge.installer"
+          "com.mojang.minecraft"
+          "com.company.game"  # Add your specific game app IDs here
+        )
+
+        is_gaming() {
+          local current_app=$(sketchybar --query front_app | jq -r '.app')
+          for gaming_app in "''${gaming_apps[@]}"; do
+            if [[ "$current_app" == "$gaming_app" ]]; then
+              return 0
+            fi
+          done
+          return 1
+        }
+
+        update_gaming_mode() {
+          if is_gaming; then
+            # Hide sketchybar when gaming
+            sketchybar --bar hidden=on
+            sketchybar --set gaming_mode icon="🎮" label="Gaming Mode"
+          else
+            # Show sketchybar when not gaming
+            sketchybar --bar hidden=off
+            sketchybar --set gaming_mode icon="" label=""
+          fi
+        }
+
+        case "$1" in
+          "update"|"")
+            update_gaming_mode
+            ;;
+          *)
+            update_gaming_mode
+            ;;
+        esac
+      ''}" \
+        update_freq=1 \
+        on_click=true
+
+      # Subscribe to front app changes to detect gaming mode
+      sketchybar --subscribe gaming_mode front_app_switched
 
       # Git repository widget
       sketchybar --add item git_repo right \
