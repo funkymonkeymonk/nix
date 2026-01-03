@@ -377,7 +377,7 @@ tasks:
           echo "==================================="
 
           # Verify user is authenticated
-          if ! op user get >/dev/null 2>&1; then
+          if ! op user get --me >/dev/null 2>&1; then
             echo "❌ No 1Password account found"
             echo ""
             echo "🔐 Please add your 1Password account first:"
@@ -423,7 +423,7 @@ tasks:
       fi
 
       # Check if user is authenticated with 1Password
-      if ! op user get >/dev/null 2>&1; then
+      if ! op user get --me >/dev/null 2>&1; then
         echo "❌ Not authenticated with 1Password. Please run:"
         echo "   op account add"
         exit 1
@@ -563,9 +563,9 @@ tasks:
       fi
 
       # Check if already authenticated
-      if op user get >/dev/null 2>&1; then
+      if op user get --me >/dev/null 2>&1; then
         echo "✅ 1Password CLI is already authenticated"
-        echo "📱 Current account: $(op user get --format json | jq -r '.email // "unknown"')"
+        echo "📱 Current account: $(op user get --me --format json | jq -r '.email // "unknown"')"
         echo ""
         echo "If you want to use a different account:"
         echo "   1. Sign out: op signout"
@@ -586,8 +586,8 @@ tasks:
       # Add the account
       op account add
 
-      if op user get >/dev/null 2>&1; then
-        ACCOUNT_EMAIL=$(op user get --format json | jq -r '.email // "unknown"')
+      if op user get --me >/dev/null 2>&1; then
+        ACCOUNT_EMAIL=$(op user get --me --format json | jq -r '.email // "unknown"')
         echo "✅ 1Password account setup successful!"
         echo "📱 Account: $ACCOUNT_EMAIL"
         echo ""
@@ -615,7 +615,7 @@ tasks:
       fi
 
       # Check if user is already authenticated
-      if ! op user get >/dev/null 2>&1; then
+      if ! op user get --me >/dev/null 2>&1; then
         echo "❌ No 1Password account found on this system"
         echo ""
         echo "🔐 Please add your 1Password account first:"
@@ -625,6 +625,6 @@ tasks:
         exit 1
       fi
 
-      ACCOUNT_EMAIL=$(op user get --format json | jq -r '.email // "unknown"')
+      ACCOUNT_EMAIL=$(op user get --me --format json | jq -r '.email // "unknown"')
       echo "✅ 1Password CLI is authenticated and ready"
       echo "📱 Current account: $ACCOUNT_EMAIL"
