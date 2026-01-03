@@ -375,7 +375,7 @@ tasks:
       - cmd: |
           echo "🔧 Setting up 1Password service account"
           echo "==================================="
-          
+
           # Verify user is authenticated
           if ! op user get >/dev/null 2>&1; then
             echo "❌ No 1Password account found"
@@ -386,11 +386,11 @@ tasks:
             echo "This will guide you through account setup and authentication."
             exit 1
           fi
-          
-          ACCOUNT_EMAIL=$(op user get --format json | jq -r '.email // "unknown"')
+
+          ACCOUNT_EMAIL=$(op user get --me --format json | jq -r '.email // "unknown"')
           echo "📱 Using 1Password account: $ACCOUNT_EMAIL"
           echo ""
-          
+
           # Verify access to Homelab vault
           echo "🔎 Checking access to Homelab vault..."
           if ! op vault list --format json | jq -r '.[] | select(.name=="Homelab") | .name' | grep -q "Homelab"; then
@@ -404,7 +404,7 @@ tasks:
             echo "Contact your 1Password administrator if you need access."
             exit 1
           fi
-          
+
           echo "✅ Access to Homelab vault confirmed"
       - task: 1password:service:generate-token
       - task: 1password:service:validate
@@ -555,13 +555,13 @@ tasks:
     cmd: |
       echo "🔐 Adding 1Password account"
       echo "============================"
-      
+
       # Check if 1Password CLI is available
       if ! command -v op >/dev/null 2>&1; then
         echo "❌ 1Password CLI not found. Installing..."
         sudo nix profile install nixpkgs#_1password-cli
       fi
-      
+
       # Check if already authenticated
       if op user get >/dev/null 2>&1; then
         echo "✅ 1Password CLI is already authenticated"
@@ -572,7 +572,7 @@ tasks:
         echo "   2. Run this task again"
         exit 0
       fi
-      
+
       echo "🚀 Starting 1Password account setup..."
       echo ""
       echo "This will guide you through adding your 1Password account to this machine."
@@ -582,10 +582,10 @@ tasks:
       echo "  - Access to your email for verification"
       echo ""
       read -p "Press Enter to continue..."
-      
+
       # Add the account
       op account add
-      
+
       if op user get >/dev/null 2>&1; then
         ACCOUNT_EMAIL=$(op user get --format json | jq -r '.email // "unknown"')
         echo "✅ 1Password account setup successful!"
@@ -607,13 +607,13 @@ tasks:
     cmd: |
       echo "🔧 Setting up 1Password CLI authentication"
       echo "======================================="
-      
+
       # Check if 1Password CLI is available
       if ! command -v op >/dev/null 2>&1; then
         echo "❌ 1Password CLI not found. Installing..."
         sudo nix profile install nixpkgs#_1password-cli
       fi
-      
+
       # Check if user is already authenticated
       if ! op user get >/dev/null 2>&1; then
         echo "❌ No 1Password account found on this system"
@@ -624,7 +624,7 @@ tasks:
         echo "This will guide you through account setup and authentication."
         exit 1
       fi
-      
+
       ACCOUNT_EMAIL=$(op user get --format json | jq -r '.email // "unknown"')
       echo "✅ 1Password CLI is authenticated and ready"
       echo "📱 Current account: $ACCOUNT_EMAIL"
