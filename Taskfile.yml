@@ -441,7 +441,7 @@ tasks:
       # Note: op service-account create only returns token at creation time
       echo "🎫 Creating service account and generating token..."
       SERVICE_TOKEN=$(op service-account create "${SERVICE_ACCOUNT_NAME}" \
-         --vaults Homelab --raw 2>/dev/null)
+         --vault Homelab:read_items --raw 2>/dev/null)
       
       if [ -z "$SERVICE_TOKEN" ]; then
         echo "❌ Failed to create service account or get token"
