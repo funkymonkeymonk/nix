@@ -279,7 +279,7 @@
             media.enable = true;
           };
         }
-        ./1password.nix
+        ./modules/common/1password.nix
         home-manager.nixosModules.home-manager
       ];
     };
@@ -313,7 +313,7 @@
             development.enable = true;
           };
         }
-        ./1password.nix
+        ./modules/common/1password.nix
         home-manager.nixosModules.home-manager
       ];
     };

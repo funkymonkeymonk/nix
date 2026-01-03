@@ -12,7 +12,8 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/nixos/linkwarden.nix
+    # TODO: Re-enable when secret management is implemented
+    # ../../modules/nixos/linkwarden.nix
   ];
 
   # Ensure the user exists with the desired shell and groups
@@ -43,41 +44,42 @@
   services = {
     openssh.enable = true;
 
-    # Enable OpNix for secret management
-    onepassword-secrets = {
-      enable = true;
-      tokenFile = "/etc/opnix-token";
-      secrets = {
-        linkwardenDbPassword = {
-          reference = "op://Homelab/Linkwarden Database Password/password";
-          owner = "linkwarden";
-          services = ["linkwarden"];
-        };
-        nextauthSecret = {
-          reference = "op://Homelab/Linkwarden NextAuth Secret/password";
-          owner = "linkwarden";
-          services = ["linkwarden"];
-        };
-        meilisearchKey = {
-          reference = "op://Homelab/Meilisearch Key/password";
-          owner = "meilisearch";
-          services = ["meilisearch"];
-        };
-        meilisearchDbPassword = {
-          reference = "op://Homelab/Meilisearch Database/password";
-          owner = "meilisearch";
-          services = ["meilisearch"];
-        };
-      };
-    };
+    # TODO: Enable OpNix for secret management (service module not yet implemented)
+    # onepassword-secrets = {
+    #   enable = true;
+    #   tokenFile = "/etc/opnix-token";
+    #   secrets = {
+    #     linkwardenDbPassword = {
+    #       reference = "op://Homelab/Linkwarden Database Password/password";
+    #       owner = "linkwarden";
+    #       services = ["linkwarden"];
+    #     };
+    #     nextauthSecret = {
+    #       reference = "op://Homelab/Linkwarden NextAuth Secret/password";
+    #       owner = "linkwarden";
+    #       services = ["linkwarden"];
+    #     };
+    #     meilisearchKey = {
+    #       reference = "op://Homelab/Meilisearch Key/password";
+    #       owner = "meilisearch";
+    #       services = ["meilisearch"];
+    #     };
+    #     meilisearchDbPassword = {
+    #       reference = "op://Homelab/Meilisearch Database/password";
+    #       owner = "meilisearch";
+    #       services = ["meilisearch"];
+    #     };
+    #   };
+    # };
 
     # Enable services
     postgresql.enable = true;
-    meilisearch.enable = true;
-    linkwarden = {
-      enable = true;
-      port = 3000;
-      openFirewall = true;
-    };
+    # TODO: Re-enable when secret management is implemented
+    # meilisearch.enable = true;
+    # linkwarden = {
+    #   enable = true;
+    #   port = 3000;
+    #   openFirewall = true;
+    # };
   };
 }

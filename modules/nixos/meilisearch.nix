@@ -110,10 +110,14 @@ in {
         # Environment variables
         environment =
           {
-            MEILI_MASTER_KEY = config.services.onepassword-secrets.secrets.meilisearchKey.value or "";
+            # TODO: Re-enable when secret management is implemented
+            # MEILI_MASTER_KEY = config.services.onepassword-secrets.secrets.meilisearchKey.value or "";
+            MEILI_MASTER_KEY = "temp-key-change-me";
             MEILI_ENV = "production";
             MEILI_DB_ENGINE = "postgres";
-            MEILI_DB_URL = "postgres://meilisearch:${config.services.onepassword-secrets.secrets.meilisearchDbPassword.value or ""}@localhost:5432/meilisearch";
+            # TODO: Re-enable when secret management is implemented
+            # MEILI_DB_URL = "postgres://meilisearch:${config.services.onepassword-secrets.secrets.meilisearchDbPassword.value or ""}@localhost:5432/meilisearch";
+            MEILI_DB_URL = "postgres://meilisearch:temp-password@localhost:5432/meilisearch";
             MEILI_DATA_DIR = cfg.dataDir;
             MEILI_LOG_LEVEL = "INFO";
             MEILI_MAX_INDEXING_MEMORY = cfg.maxIndexingMemory;

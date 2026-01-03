@@ -117,12 +117,17 @@ in {
       # Environment variables
       environment =
         {
-          DATABASE_URL = "postgresql://linkwarden:${config.services.onepassword-secrets.secrets.linkwardenDbPassword.value or ""}@localhost:5432/linkwarden";
-          NEXTAUTH_SECRET = config.services.onepassword-secrets.secrets.nextauthSecret.value or "";
+          # TODO: Re-enable when secret management is implemented
+          # DATABASE_URL = "postgresql://linkwarden:${config.services.onepassword-secrets.secrets.linkwardenDbPassword.value or ""}@localhost:5432/linkwarden";
+          DATABASE_URL = "postgresql://linkwarden:temp-password@localhost:5432/linkwarden";
+          # NEXTAUTH_SECRET = config.services.onepassword-secrets.secrets.nextauthSecret.value or "";
+          NEXTAUTH_SECRET = "temp-secret-change-me";
           NEXTAUTH_URL = "http://drlight:${toString cfg.port}/api/v1/auth";
           PORT = toString cfg.port;
           MEILI_HOST = "http://localhost:7700";
-          MEILI_MASTER_KEY = config.services.onepassword-secrets.secrets.meilisearchKey.value or "";
+          # TODO: Re-enable when secret management is implemented
+          # MEILI_MASTER_KEY = config.services.onepassword-secrets.secrets.meilisearchKey.value or "";
+          MEILI_MASTER_KEY = "temp-key-change-me";
         }
         // cfg.environment;
     };
