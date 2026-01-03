@@ -393,7 +393,8 @@ tasks:
 
           # Verify access to Homelab vault
           echo "🔎 Checking access to Homelab vault..."
-          if ! op vault list --format json | jq -r '.[] | select(.name=="Homelab") | .name' | grep -q "Homelab"; then
+          if ! op vault list --format json | jq -r '.[] | select(.name=="Homelab") | .name' | \
+             grep -q "Homelab"; then
             echo "❌ No access to Homelab vault found"
             echo ""
             echo "🔐 Please ensure:"
@@ -442,7 +443,6 @@ tasks:
       echo "🎫 Creating service account and generating token..."
       SERVICE_TOKEN=$(op service-account create "${SERVICE_ACCOUNT_NAME}" \
          --vault Homelab:read_items --raw 2>/dev/null)
-      
       if [ -z "$SERVICE_TOKEN" ]; then
         echo "❌ Failed to create service account or get token"
         echo "   Please ensure:"
@@ -451,7 +451,6 @@ tasks:
         echo "   3. You have access to Homelab vault"
         exit 1
       fi
-      
       echo "✅ Service account created successfully"
       echo "📝 Service account: ${SERVICE_ACCOUNT_NAME}"
 
@@ -526,7 +525,8 @@ tasks:
 
       FAILED_SECRETS=()
       for secret_ref in "${SECRETS_TO_TEST[@]}"; do
-        secret_name=$(basename "$(dirname "$secret_ref") | sed 's/ /_/g' | tr '[:upper:]' '[:lower:]'")
+        secret_name=$(basename "$(dirname "$secret_ref")" \
+          | sed 's/ /_/g' | tr '[:upper:]' '[:lower:]'")
         echo "   Testing $secret_name..."
         if op read "$secret_ref" >/dev/null 2>&1; then
           echo "   ✅ $secret_name accessible"
@@ -557,7 +557,8 @@ tasks:
       - task: 1password:service:generate-token
       - cmd: |
           echo "🔄 Restarting onepassword-secrets service..."
-          sudo systemctl restart onepassword-secrets.service || echo "⚠️  Service not yet enabled (expected before first switch)"
+          sudo systemctl restart onepassword-secrets.service || \
+            echo "⚠️  Service not yet enabled (expected before first switch)"
   1password:account:add:
     desc: "Add and authenticate 1Password account"
     platforms: [linux]
