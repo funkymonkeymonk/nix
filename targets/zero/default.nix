@@ -14,6 +14,7 @@
 
   imports = [
     ./hardware-configuration.nix
+    ../../modules/nixos/virtual-display.nix
   ];
 
   # Kernel downgrade for Xbox controller compatibility (kernel 6.18.1 breaks xpadneo/xone)
@@ -94,6 +95,13 @@
         origin_web_ui_allowed = "wan"; # Allow remote web UI access from LAN and Tailscale
       };
       package = pkgs.unstable.sunshine;
+    };
+
+    # Virtual display server for streaming
+    virtual-display = {
+      enable = true;
+      resolution = "3840x2160";
+      user = "monkey";
     };
 
     # Bluetooth helpers
