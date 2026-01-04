@@ -370,7 +370,7 @@ tasks:
     cmd: nix flake update
   1password:service:setup:
     desc: "Set up 1Password service account for this machine (first time)"
-    deps: [1password:setup]
+    deps: ['1password:setup']
     cmds:
       - cmd: |
           echo "🔧 Setting up 1Password service account"
