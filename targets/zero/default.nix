@@ -17,7 +17,7 @@
   ];
 
   # Kernel downgrade for Xbox controller compatibility (kernel 6.18.1 breaks xpadneo/xone)
-  boot.kernelPackages = pkgs.linuxPackages_6_17;
+  boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_17;
 
   # Packages
   environment.systemPackages = with pkgs; [
