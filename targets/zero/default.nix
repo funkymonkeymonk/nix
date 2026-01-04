@@ -120,7 +120,6 @@
       package = config.boot.kernelPackages.nvidiaPackages.stable;
     };
 
-    xone.enable = true;
     xpadneo.enable = true;
 
     bluetooth = {
