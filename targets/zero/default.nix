@@ -27,6 +27,7 @@
     protonup-qt
     discord
     tailscale
+    unstable.sunshine
   ];
 
   networking.firewall.enable = false;
