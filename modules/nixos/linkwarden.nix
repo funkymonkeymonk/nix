@@ -63,16 +63,17 @@ in {
 
     users.groups.${cfg.group} = {};
 
-    # Create data directory with proper permissions
+    # Create data and cache directories with proper permissions
     systemd.tmpfiles.rules = [
       "d ${cfg.dataDir} 0755 ${cfg.user} ${cfg.group} -"
+      "d /var/cache/linkwarden 0755 ${cfg.user} ${cfg.group} -"
     ];
 
     # Systemd service configuration
     systemd.services.linkwarden = {
       description = "Linkwarden bookmark manager";
-      after = ["postgresql.service" "network.target" "set-postgres-passwords.service"] ++ optional config.services.meilisearch.enable "meilisearch.service";
-      wants = ["postgresql.service" "set-postgres-passwords.service"] ++ optional config.services.meilisearch.enable "meilisearch.service";
+      after = ["postgresql.service" "network.target" "opnix-secrets.service" "set-postgres-passwords.service"] ++ optional config.services.meilisearch.enable "meilisearch.service";
+      wants = ["postgresql.service" "opnix-secrets.service" "set-postgres-passwords.service"] ++ optional config.services.meilisearch.enable "meilisearch.service";
       wantedBy = ["multi-user.target"];
 
       serviceConfig = {
@@ -80,9 +81,41 @@ in {
         User = cfg.user;
         Group = cfg.group;
         WorkingDirectory = cfg.dataDir;
-        ExecStartPre = "${pkgs.writeScript "linkwarden-migrate" ''
+        ExecStartPre = "${pkgs.writeScript "linkwarden-prep" ''
           #!${pkgs.bash}/bin/bash
           set -e
+
+          # Wait for secrets to be populated
+          echo "Waiting for secrets to be populated..."
+          while [[ ! -f "/run/opnix/secrets/linkwardenDbPassword" ]]; do
+            echo "Waiting for linkwarden database password secret..."
+            sleep 2
+          done
+
+          while [[ ! -f "/run/opnix/secrets/nextauthSecret" ]]; do
+            echo "Waiting for nextauth secret..."
+            sleep 2
+          done
+
+          while [[ ! -f "/run/opnix/secrets/meilisearchKey" ]]; do
+            echo "Waiting for meilisearch key..."
+            sleep 2
+          done
+
+          # Read secrets and write environment file
+          DB_PASSWORD=$(cat /run/opnix/secrets/linkwardenDbPassword)
+          NEXTAUTH_SECRET=$(cat /run/opnix/secrets/nextauthSecret)
+          MEILI_KEY=$(cat /run/opnix/secrets/meilisearchKey)
+
+          # Create environment file
+          echo "DATABASE_URL=postgresql://linkwarden:$DB_PASSWORD@localhost:5432/linkwarden" > /run/linkwarden-env
+          echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> /run/linkwarden-env
+          echo "NEXTAUTH_URL=http://drlight:${toString cfg.port}/api/v1/auth" >> /run/linkwarden-env
+          echo "PORT=${toString cfg.port}" >> /run/linkwarden-env
+          echo "MEILI_HOST=http://localhost:7700" >> /run/linkwarden-env
+          echo "MEILI_MASTER_KEY=$MEILI_KEY" >> /run/linkwarden-env
+
+          echo "Linkwarden environment file created at /run/linkwarden-env"
 
           # Wait for database to be ready and have password set
           echo "Waiting for database to be ready..."
@@ -101,7 +134,71 @@ in {
 
           echo "Database setup completed"
         ''}";
-        ExecStart = "${cfg.package}/bin/linkwarden start";
+        ExecStart = "${pkgs.writeScript "linkwarden-start" ''
+          #!/bin/sh
+          set -e
+
+          # Load environment if file exists
+          if [[ -f /run/linkwarden-env ]]; then
+            set -a
+            source /run/linkwarden-env
+          fi
+
+          # Wait for secrets to be populated (with timeout)
+          echo "Waiting for secrets to be populated..."
+          timeout=60
+          count=0
+          while [[ $count -lt $timeout ]] && [[ ! -f "/run/opnix/secrets/linkwardenDbPassword" ]]; do
+            echo "Waiting for linkwarden database password secret... ($count/$timeout)"
+            sleep 1
+            count=$((count + 1))
+          done
+
+          if [[ $count -ge $timeout ]]; then
+            echo "ERROR: Timeout waiting for secrets after $timeout seconds"
+            exit 1
+          fi
+
+          while [[ ! -f "/run/opnix/secrets/nextauthSecret" ]]; do
+            echo "Waiting for nextauth secret..."
+            sleep 1
+          done
+
+          while [[ ! -f "/run/opnix/secrets/meilisearchKey" ]]; do
+            echo "Waiting for meilisearch key..."
+            sleep 1
+          done
+
+          # Read secrets and write environment file
+          DB_PASSWORD=$(cat /run/opnix/secrets/linkwardenDbPassword)
+          NEXTAUTH_SECRET=$(cat /run/opnix/secrets/nextauthSecret)
+          MEILI_KEY=$(cat /run/opnix/secrets/meilisearchKey)
+
+          # Create environment file
+          echo "DATABASE_URL=postgresql://linkwarden:$DB_PASSWORD@localhost:5432/linkwarden" > /run/linkwarden-env
+          echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> /run/linkwarden-env
+          echo "NEXTAUTH_URL=http://drlight:${toString cfg.port}/api/v1/auth" >> /run/linkwarden-env
+          echo "PORT=${toString cfg.port}" >> /run/linkwarden-env
+          echo "MEILI_HOST=http://localhost:7700" >> /run/linkwarden-env
+          echo "MEILI_MASTER_KEY=$MEILI_KEY" >> /run/linkwarden-env
+
+          echo "Linkwarden environment file created at /run/linkwarden-env"
+
+          # Source the environment file
+          set -a
+          source /run/linkwarden-env
+
+          # Run database migrations if needed
+          echo "Running database migrations..."
+          cd ${cfg.package}
+          # Linkwarden uses Prisma, check if we need to run migrations
+          if [[ -d "${cfg.package}/prisma" ]]; then
+            ${pkgs.nodejs}/bin/npx prisma migrate deploy --schema "${cfg.package}/prisma/schema.prisma" || echo "Migrations may have already run or no migrations needed"
+          fi
+
+          echo "Database setup completed"
+          exec ${cfg.package}/bin/linkwarden start
+        ''}";
         ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
         Restart = "on-failure";
         RestartSec = "10s";
@@ -111,18 +208,18 @@ in {
         PrivateTmp = true;
         ProtectSystem = "strict";
         ProtectHome = true;
-        ReadWritePaths = [cfg.dataDir "/var/cache/linkwarden"];
+        ReadWritePaths = [cfg.dataDir "/var/cache/linkwarden" "/run"];
+
+        # Environment file for secrets (created in ExecStartPre, not systemd)
+        # EnvironmentFile = "/run/linkwarden-env";
       };
 
-      # Environment variables
+      # Environment variables (fallbacks)
       environment =
         {
-          DATABASE_URL = "postgresql://linkwarden:$(cat /run/opnix/secrets/linkwardenDbPassword)@localhost:5432/linkwarden";
-          NEXTAUTH_SECRET = "$(cat /run/opnix/secrets/nextauthSecret)";
           NEXTAUTH_URL = "http://drlight:${toString cfg.port}/api/v1/auth";
           PORT = toString cfg.port;
           MEILI_HOST = "http://localhost:7700";
-          MEILI_MASTER_KEY = "$(cat /run/opnix/secrets/meilisearchKey)";
         }
         // cfg.environment;
     };

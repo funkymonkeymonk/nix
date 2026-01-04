@@ -13,7 +13,6 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/nixos/linkwarden.nix
-    ../../modules/nixos/onepassword-secrets.nix
   ];
 
   # Ensure the user exists with the desired shell and groups
@@ -44,11 +43,11 @@
   services = {
     openssh.enable = true;
 
-    # Enable OpNix for secret management
+    # Enable OpNix for secret management using brizzbuzz/opnix module
     onepassword-secrets = {
       enable = true;
       tokenFile = "/etc/opnix-token";
-      vault = "Homelab";
+      outputDir = "/run/opnix/secrets";
       secrets = {
         linkwardenDbPassword = {
           reference = "op://Homelab/Linkwarden Database Password/password";

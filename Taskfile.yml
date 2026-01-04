@@ -491,8 +491,9 @@ tasks:
         sudo chown root:root /etc/opnix-token
       fi
 
-      # Validate token authentication
-      if ! op account get >/dev/null 2>&1; then
+      # Validate token authentication by testing vault access
+      # Service accounts don't use 'op account get' - they use OP_SERVICE_ACCOUNT_TOKEN
+      if ! OP_SERVICE_ACCOUNT_TOKEN=$(cat /etc/opnix-token) op vault list >/dev/null 2>&1; then
         echo "❌ Service account token authentication failed"
         echo "   Token may be expired or invalid"
         echo "   Run 'task 1password:service:rotate' to generate new token"
@@ -512,10 +513,11 @@ tasks:
 
       FAILED_SECRETS=()
       for secret_ref in "${SECRETS_TO_TEST[@]}"; do
-        secret_name=$(basename "$(dirname "$secret_ref")" | \
-          sed 's/ /_/g' | tr '[:upper:]' '[:lower:]')
+        secret_name=$(basename "$(dirname "$secret_ref")" \
+          | sed 's/ /_/g' | tr '[:upper:]' '[:lower:]')
         echo "   Testing $secret_name..."
-        if op read "$secret_ref" >/dev/null 2>&1; then
+        if OP_SERVICE_ACCOUNT_TOKEN=$(cat /etc/opnix-token) \
+          op read "$secret_ref" >/dev/null 2>&1; then
           echo "   ✅ $secret_name accessible"
         else
           echo "   ❌ $secret_name not accessible"
