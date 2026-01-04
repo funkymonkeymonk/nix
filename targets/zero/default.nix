@@ -27,7 +27,6 @@
     protonup-qt
     discord
     tailscale
-    unstable.sunshine
   ];
 
   networking.firewall.enable = false;
@@ -94,6 +93,7 @@
       settings = {
         origin_web_ui_allowed = "wan"; # Allow remote web UI access from LAN and Tailscale
       };
+      package = pkgs.unstable.sunshine;
     };
 
     # Bluetooth helpers
