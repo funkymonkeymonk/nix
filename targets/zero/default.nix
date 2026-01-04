@@ -15,6 +15,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/nixos/virtual-display.nix
+    ../../modules/nixos/hardware/monitor-detect.nix
     ../../modules/nixos/scripts/monitor-detect.nix
     ../../modules/nixos/scripts/display-switcher.nix
     ../../modules/nixos/scripts/resolution-switcher.nix
@@ -108,12 +109,6 @@
       user = "monkey";
     };
 
-    # Physical monitor detection
-    monitor-detect = {
-      enable = true;
-      user = "monkey";
-    };
-
     # Display switching utilities
     display-switcher = {
       enable = true;
@@ -147,6 +142,13 @@
   # Consolidated `hardware` attribute set
   #
   hardware = {
+    # Physical monitor detection
+    monitor-detect = {
+      enable = true;
+      user = "monkey";
+      virtualDisplay = ":99";
+    };
+
     graphics.enable = true;
 
     nvidia = {
