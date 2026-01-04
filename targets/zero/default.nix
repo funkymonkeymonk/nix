@@ -87,6 +87,9 @@
       autoStart = true;
       capSysAdmin = true; # only needed for Wayland -- omit this when using with Xorg
       openFirewall = true;
+      settings = {
+        origin_web_ui_allowed = "wan"; # Allow remote web UI access from LAN and Tailscale
+      };
     };
 
     # Bluetooth helpers
