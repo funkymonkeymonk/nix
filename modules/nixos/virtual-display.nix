@@ -6,7 +6,8 @@
 }:
 with lib; let
   cfg = config.services.virtual-display;
-  xauthFile = "/run/user/1000/.Xauthority";
+  userUid = config.users.users.${cfg.user}.uid;
+  xauthFile = "/run/user/${builtins.toString userUid}/.Xauthority";
   displayNumber = "99";
   displayName = ":${displayNumber}";
 in {

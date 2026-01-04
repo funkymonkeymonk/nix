@@ -39,13 +39,7 @@
   # System state version
   system.stateVersion = "25.05";
 
-  # Sleep/hibernate policy
-  systemd.sleep.extraConfig = ''
-    AllowSuspend=no
-    AllowHibernation=no
-    AllowHybridSleep=no
-    AllowSuspendThenHibernate=no
-  '';
+  # Sleep/hibernate policy is now handled in consolidated systemd block
 
   # Security/runtime
   security.rtkit.enable = true;
@@ -189,40 +183,68 @@
   };
 
   #
-  # systemd helper service (left at top-level as a systemd service)
+  # systemd helper services (consolidated systemd attribute set)
   #
-  systemd.services.tailscale-autoconnect = {
-    description = "Automatic connection to Tailscale";
-
-    # make sure tailscale is running before trying to connect to tailscale
-    after = [
-      "network-pre.target"
-      "tailscale.service"
-    ];
-    wants = [
-      "network-pre.target"
-      "tailscale.service"
-    ];
-    wantedBy = ["multi-user.target"];
-
-    # set this service as a oneshot job
-    serviceConfig.Type = "oneshot";
-
-    # have the job run this shell script
-    script = with pkgs; ''
-      # wait for tailscaled to settle
-      sleep 2
-
-      # check if we are already authenticated to tailscale
-      status="$(${tailscale}/bin/tailscale status -json | ${jq}/bin/jq -r .BackendState)"
-      if [ "$status" = "Running" ]; then
-        # if so, then do nothing
-        exit 0
-      fi
-
-      # otherwise authenticate with tailscale
-      ${tailscale}/bin/tailscale up -authkey tskey-auth-khWo2RmsVB11CNTRL-KWAvm6SydYNfQSSmAevCZNHSCaL7anaH
+  systemd = {
+    # Sleep/hibernate policy
+    sleep.extraConfig = ''
+      AllowSuspend=no
+      AllowHibernation=no
+      AllowHybridSleep=no
+      AllowSuspendThenHibernate=no
     '';
+
+    # Service dependencies: ensure Sunshine starts after virtual display
+    services.sunshine = {
+      after = ["graphical-session.target" "user@1000.service"];
+      wants = ["graphical-session.target"];
+      serviceConfig.ExecStartPre = [
+        # Wait for virtual display to be available
+        "+${pkgs.coreutils}/bin/sh -c 'until [ -S /tmp/.X11-unix/X99 ]; do sleep 1; done'"
+      ];
+    };
+
+    # Tailscale autoconnect service
+    services.tailscale-autoconnect = {
+      description = "Automatic connection to Tailscale";
+
+      # make sure tailscale is running before trying to connect to tailscale
+      after = [
+        "network-pre.target"
+        "tailscale.service"
+      ];
+      wants = [
+        "network-pre.target"
+        "tailscale.service"
+      ];
+      wantedBy = ["multi-user.target"];
+
+      # set this service as a oneshot job
+      serviceConfig = {
+        Type = "oneshot";
+        Environment = ["TAILSCALE_AUTHKEY="];
+      };
+
+      # have the job run this shell script
+      script = with pkgs; ''
+        # wait for tailscaled to settle
+        sleep 2
+
+        # check if we are already authenticated to tailscale
+        status="$(${tailscale}/bin/tailscale status -json | ${jq}/bin/jq -r .BackendState)"
+        if [ "$status" = "Running" ]; then
+          # if so, then do nothing
+          exit 0
+        fi
+
+        # otherwise authenticate with tailscale if authkey is provided
+        if [ -n "$TAILSCALE_AUTHKEY" ]; then
+          ${tailscale}/bin/tailscale up -authkey "$TAILSCALE_AUTHKEY"
+        else
+          echo "Warning: TAILSCALE_AUTHKEY not set, skipping Tailscale authentication"
+        fi
+      '';
+    };
   };
 
   #
