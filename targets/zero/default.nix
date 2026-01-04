@@ -117,7 +117,7 @@
 
     nvidia = {
       open = false;
-      package = config.boot.kernelPackages.nvidiaPackages.stable;
+      package = pkgs.linuxPackages_6_17.nvidiaPackages.stable;
     };
 
     xpadneo.enable = true;
