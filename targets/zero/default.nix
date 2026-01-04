@@ -15,6 +15,8 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/nixos/virtual-display.nix
+    ../../modules/nixos/scripts/monitor-detect.nix
+    ../../modules/nixos/scripts/display-switcher.nix
   ];
 
   # Kernel downgrade for Xbox controller compatibility (kernel 6.18.1 breaks xpadneo/xone)
@@ -93,6 +95,7 @@
       openFirewall = true;
       settings = {
         origin_web_ui_allowed = "wan"; # Allow remote web UI access from LAN and Tailscale
+        display = ":99"; # Use virtual display for streaming
       };
       package = pkgs.unstable.sunshine;
     };
@@ -102,6 +105,19 @@
       enable = true;
       resolution = "3840x2160";
       user = "monkey";
+    };
+
+    # Physical monitor detection
+    monitor-detect = {
+      enable = true;
+      user = "monkey";
+    };
+
+    # Display switching utilities
+    display-switcher = {
+      enable = true;
+      user = "monkey";
+      virtualDisplay = ":99";
     };
 
     # Bluetooth helpers
