@@ -454,17 +454,6 @@ tasks:
       echo "✅ Service account created successfully"
       echo "📝 Service account: ${SERVICE_ACCOUNT_NAME}"
 
-      # Get service account token
-      echo "🎫 Generating service account token..."
-      SERVICE_TOKEN=$(op service-account get "${SERVICE_ACCOUNT_NAME}" \
-        --format json 2>/dev/null | jq -r '.token // empty')
-
-      if [ -z "$SERVICE_TOKEN" ]; then
-        echo "❌ Failed to get service account token"
-        echo "   Please ensure the service account exists and you have permission to access it"
-        exit 1
-      fi
-
       # Store token with proper permissions
       echo "📁 Storing token to /etc/opnix-token..."
       echo "$SERVICE_TOKEN" | sudo tee /etc/opnix-token >/dev/null
