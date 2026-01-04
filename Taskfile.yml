@@ -512,8 +512,8 @@ tasks:
 
       FAILED_SECRETS=()
       for secret_ref in "${SECRETS_TO_TEST[@]}"; do
-        secret_name=$(basename "$(dirname "$secret_ref")" \
-          | sed 's/ /_/g' | tr '[:upper:]' '[:lower:]'")
+        secret_name=$(basename "$(dirname "$secret_ref")" | \
+          sed 's/ /_/g' | tr '[:upper:]' '[:lower:]')
         echo "   Testing $secret_name..."
         if op read "$secret_ref" >/dev/null 2>&1; then
           echo "   ✅ $secret_name accessible"
