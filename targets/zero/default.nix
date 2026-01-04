@@ -17,6 +17,7 @@
     ../../modules/nixos/virtual-display.nix
     ../../modules/nixos/scripts/monitor-detect.nix
     ../../modules/nixos/scripts/display-switcher.nix
+    ../../modules/nixos/scripts/resolution-switcher.nix
   ];
 
   # Kernel downgrade for Xbox controller compatibility (kernel 6.18.1 breaks xpadneo/xone)
@@ -118,6 +119,14 @@
       enable = true;
       user = "monkey";
       virtualDisplay = ":99";
+    };
+
+    # Dynamic resolution switching
+    resolution-switcher = {
+      enable = true;
+      user = "monkey";
+      virtualDisplay = ":99";
+      supportedResolutions = ["3840x2160" "3440x1440" "2560x1440" "1920x1080"];
     };
 
     # Bluetooth helpers
