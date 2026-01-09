@@ -117,21 +117,17 @@ with lib; {
     };
 
     desktop = {
-      packages = with pkgs; [
-        # Platform-specific browser selection
-        (
-          if stdenv.isLinux
-          then vivaldi
-          else firefox
-        )
-      ];
+      packages = with pkgs;
+        [
+          logseq
+        ]
+        ++ optional stdenv.isLinux vivaldi;
 
       config = {};
     };
 
     workstation = {
       packages = with pkgs; [
-        logseq
         slack
         trippy
         unar
@@ -278,6 +274,9 @@ with lib; {
 
             # Productivity and utilities
             "sensei"
+
+            # Browser - Vivaldi via Homebrew (not available in nixpkgs for macOS)
+            "vivaldi"
           ];
         };
       };
