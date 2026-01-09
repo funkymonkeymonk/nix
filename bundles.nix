@@ -116,6 +116,19 @@ with lib; {
       config = {};
     };
 
+    desktop = {
+      packages = with pkgs; [
+        # Platform-specific browser selection
+        (
+          if stdenv.isLinux
+          then vivaldi
+          else firefox
+        )
+      ];
+
+      config = {};
+    };
+
     workstation = {
       packages = with pkgs; [
         logseq
