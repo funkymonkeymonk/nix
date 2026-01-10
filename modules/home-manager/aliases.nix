@@ -18,6 +18,6 @@
     ops = "op signin"; # 1Password CLI (available on NixOS systems)
     oc = "opencode"; # AI assistant (available when developer role is enabled)
     kk = "opencode run"; # AI assistant run command
-    gkk = "git status && git diff --staged && git add -A && MSG=$(opencode run \"Generate a concise git commit message for these changes:\" <<< \"$(git diff --staged)\" 2>/dev/null || echo \"Update configuration\") && git commit -m \"$MSG\" && git push"; # Review, AI-generate commit message, commit and push changes
+    gkk = "opencode run \"Review all changes, stage them, generate an appropriate commit message, and commit and push the changes\""; # AI-assisted git workflow: review, stage, commit message generation, commit, and push
   };
 }
