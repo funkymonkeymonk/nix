@@ -6,7 +6,11 @@
 }:
 with lib; let
   cfg = config.services.virtual-display;
-  userUid = config.users.users.${cfg.user}.uid;
+  # Hardcode UID for monkey user since it's the primary user in this setup
+  userUid =
+    if cfg.user == "monkey"
+    then 1000
+    else config.users.users.${cfg.user}.uid or 1000;
   xauthFile = "/run/user/${builtins.toString userUid}/.Xauthority";
   displayNumber = "99";
   displayName = ":${displayNumber}";
@@ -36,48 +40,35 @@ in {
       xorg.xorgserver
       xorg.xrandr
       xorg.xauth
+      xorg.xvfb
     ];
 
-    # Systemd user service for virtual display
-    systemd.user.services.virtual-display = {
+    # System-level service for virtual display (avoids user permission issues)
+    systemd.services.virtual-display = {
       description = "Virtual display server for streaming";
       serviceConfig = {
         Type = "simple";
         User = cfg.user;
-        Group = cfg.group;
+        Group = "video"; # Use video group for display access
         WorkingDirectory = "/tmp";
 
         # Security hardening
         PrivateTmp = true;
-        PrivateNetwork = true;
         ProtectSystem = "strict";
         ProtectHome = true;
         NoNewPrivileges = true;
-        ProtectKernelTunables = true;
-        ProtectKernelModules = true;
-        ProtectControlGroups = true;
-        RestrictRealtime = true;
-        RestrictSUIDSGID = true;
-        RemoveIPC = true;
 
-        # Authentication setup
-        ExecStartPre = [
-          "${pkgs.xorg.xauth}/bin/xauth -f ${xauthFile} remove ${displayName} 2>/dev/null || true"
-          "${pkgs.xorg.xauth}/bin/xauth -f ${xauthFile} add ${displayName} . `mcookie`"
-        ];
-
-        # Secure Xorg startup with authentication and no network access
-        ExecStart = "${pkgs.xorg.xorgserver}/bin/Xorg -noreset +extension GLX +extension RANDR +extension RENDER -logfile /tmp/vdisplay.log -auth ${xauthFile} -nolisten tcp -nolisten local ${displayName}";
-
-        # Cleanup on stop
-        ExecStopPost = [
-          "${pkgs.xorg.xauth}/bin/xauth -f ${xauthFile} remove ${displayName} 2>/dev/null || true"
-        ];
+        # Use Xvfb with simpler parameters for better compatibility
+        ExecStart = "${pkgs.xorg.xvfb}/bin/Xvfb ${displayName} -screen 0 ${cfg.resolution}x24";
 
         Restart = "on-failure";
+        RestartSec = 3;
         Environment = "DISPLAY=${displayName} XAUTHORITY=${xauthFile}";
       };
-      wantedBy = ["graphical-session.target"];
+      wantedBy = ["multi-user.target"];
     };
+
+    # Add user to video group for display access
+    users.users.${cfg.user}.extraGroups = ["video"];
   };
 }

@@ -36,6 +36,10 @@
 
   networking.firewall.enable = false;
 
+  # Ensure firewall is open for Sunshine (when firewall is enabled)
+  networking.firewall.allowedTCPPorts = [47989 48010];
+  networking.firewall.allowedUDPPorts = [47989 48010];
+
   # System state version
   system.stateVersion = "25.05";
 
@@ -83,18 +87,8 @@
       videoDrivers = ["nvidia"];
     };
 
-    # Sunshine (game streaming)
-    sunshine = {
-      enable = true;
-      autoStart = true;
-      capSysAdmin = true; # only needed for Wayland -- omit this when using with Xorg
-      openFirewall = true;
-      settings = {
-        origin_web_ui_allowed = "wan"; # Allow remote web UI access from LAN and Tailscale
-        display = ":99"; # Use virtual display for streaming
-      };
-      package = pkgs.unstable.sunshine;
-    };
+    # Sunshine disabled - will be managed as pure systemd service
+    sunshine.enable = false;
 
     # Virtual display server for streaming
     virtual-display = {
@@ -194,14 +188,29 @@
       AllowSuspendThenHibernate=no
     '';
 
-    # Service dependencies: ensure Sunshine starts after virtual display
-    services.sunshine = {
-      after = ["graphical-session.target" "user@1000.service"];
+    # Pure systemd service for Sunshine (bypass NixOS module)
+    services.sunshine-custom = {
+      description = "Sunshine game streaming server";
+      after = ["graphical-session.target" "virtual-display.service"];
       wants = ["graphical-session.target"];
-      serviceConfig.ExecStartPre = [
-        # Wait for virtual display to be available
-        "+${pkgs.coreutils}/bin/sh -c 'until [ -S /tmp/.X11-unix/X99 ]; do sleep 1; done'"
-      ];
+      serviceConfig = {
+        ExecStartPre = [
+          # Wait a bit for virtual display to initialize
+          "${pkgs.bash}/bin/sh -c 'sleep 3'"
+        ];
+        ExecStart = "${pkgs.unstable.sunshine}/bin/sunshine";
+        Restart = "on-failure";
+        RestartSec = 5;
+        User = "monkey";
+        Group = "users";
+        WorkingDirectory = "/home/monkey";
+        Environment = [
+          "DISPLAY=:99"
+          "XAUTHORITY=/run/user/1000/.Xauthority"
+          "SUNSHINE_CLIENT_IPV4=localhost"
+        ];
+      };
+      wantedBy = ["multi-user.target"];
     };
 
     # Tailscale autoconnect service
