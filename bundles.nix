@@ -116,9 +116,18 @@ with lib; {
       config = {};
     };
 
+    desktop = {
+      packages = with pkgs;
+        [
+          logseq
+        ]
+        ++ optional stdenv.isLinux vivaldi;
+
+      config = {};
+    };
+
     workstation = {
       packages = with pkgs; [
-        logseq
         slack
         trippy
         unar
@@ -265,6 +274,9 @@ with lib; {
 
             # Productivity and utilities
             "sensei"
+
+            # Browser - Vivaldi via Homebrew (not available in nixpkgs for macOS)
+            "vivaldi"
           ];
         };
       };
