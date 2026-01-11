@@ -104,9 +104,12 @@ jobs:
           echo "# Kernel & Driver Compatibility Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Configuration Status" >> $GITHUB_STEP_SUMMARY
-          KERNEL_STATUS="${{ steps.check-kernel-pinning.outputs.kernel_pinned == 'true' && '6.17 LTS ✅' || 'No ❌' }}"
-          XPADNEO_STATUS="${{ steps.check-kernel-pinning.outputs.xpadneo_enabled == 'true' && 'Yes ✅' || 'No ❌' }}"
-          XONE_STATUS="${{ steps.check-kernel-pinning.outputs.xone_enabled == 'true' && 'Yes ✅' || 'No ❌' }}"
+          KERNEL_STATUS="${{ steps.check-kernel-pinning.outputs.kernel_pinned == 'true' &&
+            '6.17 LTS ✅' || 'No ❌' }}"
+          XPADNEO_STATUS="${{ steps.check-kernel-pinning.outputs.xpadneo_enabled == 'true' &&
+            'Yes ✅' || 'No ❌' }}"
+          XONE_STATUS="${{ steps.check-kernel-pinning.outputs.xone_enabled == 'true' &&
+            'Yes ✅' || 'No ❌' }}"
           echo "- **Kernel Pinned**: $KERNEL_STATUS" >> $GITHUB_STEP_SUMMARY
           echo "- **xpadneo Enabled**: $XPADNEO_STATUS" >> $GITHUB_STEP_SUMMARY
           echo "- **xone Enabled**: $XONE_STATUS" >> $GITHUB_STEP_SUMMARY
@@ -123,10 +126,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Recommendations" >> $GITHUB_STEP_SUMMARY
           echo "- **Current setup**: Safe with kernel 6.17 LTS pin" >> $GITHUB_STEP_SUMMARY
-          echo "- **Monitor**: Watch for driver updates mentioning kernel 6.18" >> $GITHUB_STEP_SUMMARY
-          echo "- **When to unpin**: After both drivers confirm 6.18+ compatibility" >> $GITHUB_STEP_SUMMARY
+          echo "- **Monitor**: Watch for driver updates mentioning kernel 6.18" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "- **When to unpin**: After both drivers confirm 6.18+ compatibility" \
+            >> $GITHUB_STEP_SUMMARY
       - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request' && steps.check-kernel-pinning.outputs.kernel_pinned != 'true'
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.check-kernel-pinning.outputs.kernel_pinned != 'true'
         uses: actions/github-script@v6
         with:
           script: |-
@@ -143,5 +150,6 @@ jobs:
             💡 **Recommendation**:
             Keep kernel pin until both drivers update for kernel 6.18 compatibility
 
-            For more details, see the [compatibility workflow](../actions/workflows/kernel-compatibility.yml)`
+            For more details, see the
+            [compatibility workflow](../actions/workflows/kernel-compatibility.yml)`
             })
