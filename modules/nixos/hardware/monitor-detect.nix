@@ -89,13 +89,13 @@ in {
               echo "Physical monitor detected, ensuring virtual display compatibility"
 
               # Start virtual display if not already running
-              systemctl --user is-active --quiet virtual-display || systemctl --user start virtual-display
+              systemctl is-active --quiet virtual-display || systemctl start virtual-display
             else
               echo "headless" > "$MONITOR_STATE_FILE"
               echo "No physical monitor detected, running headless with virtual display"
 
               # Ensure virtual display is running for headless operation
-              systemctl --user is-active --quiet virtual-display || systemctl --user start virtual-display
+              systemctl is-active --quiet virtual-display || systemctl start virtual-display
             fi
           '';
         };

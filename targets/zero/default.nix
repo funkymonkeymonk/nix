@@ -34,9 +34,9 @@
     tailscale
   ];
 
-  networking.firewall.enable = false;
+  networking.firewall.enable = true;
 
-  # Ensure firewall is open for Sunshine (when firewall is enabled)
+  # Ensure firewall is open for Sunshine
   networking.firewall.allowedTCPPorts = [47989 48010];
   networking.firewall.allowedUDPPorts = [47989 48010];
 
@@ -265,6 +265,7 @@
     extraGroups = [
       "networkmanager"
       "wheel"
+      "video"
     ];
     shell = pkgs.zsh;
     home = "/home/monkey";

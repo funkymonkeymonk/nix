@@ -48,7 +48,7 @@ in {
         # List supported resolutions
         echo ""
         echo "Supported resolutions:"
-        for res in "''${SUPPORTED_RESOLUTIONS[@]}"; do
+        for res in ${concatStringsSep " " cfg.supportedResolutions}; do
           if [ "$res" = "$CURRENT_RES" ]; then
             echo "  * $res (current)"
           else
@@ -57,7 +57,7 @@ in {
         done
 
         # Check if current resolution is supported
-        if [[ " ''${SUPPORTED_RESOLUTIONS[@]} " =~ " $CURRENT_RES " ]]; then
+        if [[ " ${concatStringsSep " " cfg.supportedResolutions} " =~ " $CURRENT_RES " ]]; then
           echo ""
           echo "✓ Current resolution is supported"
           exit 0
