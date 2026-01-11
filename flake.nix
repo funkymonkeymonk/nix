@@ -176,6 +176,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
+        ./modules/oh-my-opencode.nix
         (mkBundleModule "darwin" ["developer" "creative" "desktop" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";

@@ -1,0 +1,235 @@
+{
+  "project": {
+    "name": "Nix System Configuration",
+    "description": "A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager",
+    "type": "nix-configuration",
+    "version": "25.05",
+    "author": "Will Weaver",
+    "maintainer": "me@willweaver.dev"
+  },
+  "environment": {
+    "platforms": ["darwin", "linux"],
+    "architectures": ["aarch64", "x86_64"],
+    "systems": {
+      "darwin": ["wweaver", "MegamanX"],
+      "nixos": ["drlight", "zero"]
+    }
+  },
+  "architecture": {
+    "structure": {
+      "modules": "Reusable configuration logic (how things work)",
+      "bundles": "Package collections (what gets installed)",
+      "options": "Type-safe configuration with validation"
+    },
+    "directories": {
+      "bundles": "Package collections by role/platform",
+      "modules": "Reusable Nix configurations",
+      "targets": "Machine-specific configurations",
+      "os": "Platform OS configurations",
+      "templates": "Templates for new configurations"
+    }
+  },
+  "development": {
+    "prerequisites": [
+      "Nix with flakes enabled",
+      "Go-task (installed via nix)"
+    ],
+    "environment": {
+      "type": "devenv",
+      "features": [
+        "Pre-commit hooks",
+        "Formatters",
+        "Linters",
+        "Development tools"
+      ],
+      "tools": {
+        "formatting": ["alejandra", "nixpkgs-fmt", "yamlfmt"],
+        "linting": ["deadnix", "statix", "yamllint"],
+        "language_server": ["nil", "nixd"],
+        "analysis": ["nix-tree", "nvd"],
+        "utilities": ["ripgrep", "fd", "jq", "mdbook"]
+      }
+    },
+    "tasks": {
+      "validation": {
+        "test": "Basic flake validation",
+        "test:full": "Comprehensive cross-platform validation",
+        "test:quick": "Quick syntax and validation checks"
+      },
+      "building": {
+        "build": "Build all systems",
+        "build:darwin": "Build macOS configurations",
+        "build:nixos": "Build Linux configurations"
+      },
+      "quality": {
+        "fmt": "Format Nix files with alejandra",
+        "lint": "Run linters (deadnix)",
+        "quality": "Run all code quality checks"
+      },
+      "development": {
+        "dev": "Enter development shell with all tools",
+        "devenv:update": "Update devenv lock file"
+      }
+    }
+  },
+  "features": {
+    "multi_platform": {
+      "enabled": true,
+      "support": ["macOS (nix-darwin)", "Linux (NixOS)"]
+    },
+    "modular_architecture": {
+      "enabled": true,
+      "description": "Shared configurations with role-based bundles"
+    },
+    "window_manager": {
+      "enabled": true,
+      "type": "AeroSpace",
+      "features": [
+        "Floating dropdown terminal (Shift+Ctrl+Alt+G)",
+        "Window rules",
+        "Workspace management"
+      ]
+    },
+    "ssh_commit_signing": {
+      "enabled": true,
+      "provider": "1Password",
+      "features": [
+        "Biometric authentication",
+        "Unified keys for authentication and signing",
+        "Secure storage",
+        "Cross-platform support"
+      ]
+    },
+    "ci_cd": {
+      "enabled": true,
+      "features": [
+        "Matrix builds",
+        "Caching",
+        "Artifact publishing",
+        "Automated formatting",
+        "Weekly flake updates"
+      ]
+    }
+  },
+  "roles": {
+    "available": [
+      "developer",
+      "creative", 
+      "desktop",
+      "gaming",
+      "entertainment",
+      "workstation",
+      "wweaver_llm_client",
+      "wweaver_claude_client",
+      "megamanx_llm_host",
+      "megamanx_llm_server"
+    ],
+    "bundles": {
+      "base": "Essential packages",
+      "roles": "Role-based bundles",
+      "platforms": "Platform-specific packages"
+    }
+  },
+  "security": {
+    "secrets_management": {
+      "provider": "1Password CLI",
+      "features": [
+        "Runtime access through 1Password SSH agent",
+        "No secrets stored in Nix configuration",
+        "End-to-end encryption",
+        "Biometric authentication"
+      ]
+    },
+    "commit_signing": {
+      "method": "SSH-based",
+      "program": "op-ssh-sign",
+      "biometric": true
+    }
+  },
+  "quality_assurance": {
+    "pre_commit_hooks": {
+      "alejandra": "Nix code formatter",
+      "deadnix": "Dead code detection"
+    },
+    "validation": {
+      "cross_platform": true,
+      "host_agnostic": true,
+      "dry_run_builds": true,
+      "cross_architecture": true
+    }
+  },
+  "documentation": {
+    "standards": {
+      "human_readable": true,
+      "machine_readable": true,
+      "version_controlled": true,
+      "regularly_updated": true
+    },
+    "types": [
+      "Code comments",
+      "API documentation", 
+      "Configuration documentation",
+      "Process documentation",
+      "Architecture documentation"
+    ]
+  },
+  "shortcuts": {
+    "dropdown_terminal": "Shift+Ctrl+Alt+G",
+    "task_list": "task --list-all",
+    "quick_test": "task test:quick",
+    "full_test": "task test:full",
+    "format_code": "task fmt",
+    "dev_shell": "task dev"
+  },
+  "opencode_integration": {
+    "activation": "task opencode",
+    "environment_awareness": {
+      "required": true,
+      "hostname_check": true,
+      "cross_reference": true,
+      "adapt_behavior": true
+    },
+    "supported_operations": [
+      "Code reviews",
+      "Debugging configurations",
+      "General assistance",
+      "Window manager integration",
+      "System optimizations"
+    ]
+  },
+  "repository": {
+    "url": "https://github.com/funkymonkeymonk/nix",
+    "ci_cd": {
+      "workflows": [
+        ".github/workflows/flake-update.yml",
+        ".github/workflows/nix-ci.yml", 
+        ".github/workflows/opencode.yml"
+      ],
+      "schedule": "Every Friday at 4:00 AM UTC",
+      "matrix_builds": [
+        "x86_64-linux (Ubuntu runners)",
+        "aarch64-darwin (macOS runners)"
+      ]
+    }
+  },
+  "status": {
+    "completed": [
+      "Modular configuration system",
+      "Multi-platform support (macOS + Linux)",
+      "CI/CD pipeline with matrix testing",
+      "Task automation",
+      "Configuration validation",
+      "Role-based bundles",
+      "Secret management with 1Password",
+      "Window manager integration with AeroSpace"
+    ],
+    "in_progress": [
+      "Performance optimizations"
+    ],
+    "future": [
+      "GUI application management",
+      "Backup automation",
+      "Monitoring and alerting"
+    ]
+  }
+}
