@@ -69,24 +69,73 @@ jobs:
           echo "existing_prs_to_close<<EOF" >> $GITHUB_ENV
           echo "${{ steps.discover-prs.outputs.existing_prs }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-      - name: Update flake.lock
+      - name: Check for available updates
+        id: check-updates
         run: |
-          echo "Configuring git user..."
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          echo "Updating flake.lock..."
-          nix flake update --commit-lock-file --commit-lockfile-summary "chore: update flake.lock"
-
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Flake updated successfully"
-            echo "flake_updated=true" >> $GITHUB_ENV
+          echo "Checking for available package updates..."
+          
+          # Store current flake.lock for comparison
+          cp flake.lock flake.lock.before
+          
+          # Try to update without committing to see what changes are available
+          if nix flake update --no-commit; then
+            echo "Update process completed successfully"
+            
+            # Compare old and new flake.lock
+            if ! diff -q flake.lock.before flake.lock > /dev/null 2>&1; then
+              echo "Changes detected in flake.lock"
+              
+              # Generate summary of changes
+              echo "changes_detected=true" >> $GITHUB_OUTPUT
+              
+              # Count changed inputs
+              changed_inputs=$(diff -u flake.lock.before flake.lock | grep "^-[[:space:]]*\"rev\"" | wc -l || echo "0")
+              echo "changed_inputs=$changed_inputs" >> $GITHUB_OUTPUT
+              
+              # Extract updated package information
+              echo "package_updates<<EOF" >> $GITHUB_OUTPUT
+              echo "## Detected Package Updates" >> $GITHUB_OUTPUT
+              echo "" >> $GITHUB_OUTPUT
+              
+              # Parse changes to show updated packages
+              diff -u flake.lock.before flake.lock | grep -E "^(\+|\-)[[:space:]]*\"rev\"" | while IFS= read -r line; do
+                if [[ $line == -* ]]; then
+                  echo "📦 Old version: $(echo $line | sed 's/.*"rev": *"\([^"]*\)".*/\1/')"
+                elif [[ $line == +* ]]; then
+                  echo "🆕 New version: $(echo $line | sed 's/.*"rev": *"\([^"]*\)".*/\1/')"
+                fi
+              done >> $GITHUB_OUTPUT
+              echo "" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              
+              # Commit the actual changes
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add flake.lock
+              git commit -m "chore: update flake.lock with $changed_inputs package updates"
+              
+              echo "Changes committed and ready for PR"
+            else
+              echo "No changes detected in flake.lock"
+              echo "changes_detected=false" >> $GITHUB_OUTPUT
+              echo "changed_inputs=0" >> $GITHUB_OUTPUT
+              
+              # Restore original state
+              git checkout -- flake.lock
+            fi
           else
-            echo "No changes to flake.lock"
-            echo "flake_updated=false" >> $GITHUB_ENV
+            echo "Failed to check for updates"
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+            echo "changed_inputs=0" >> $GITHUB_OUTPUT
+            
+            # Restore original state
+            git checkout -- flake.lock
           fi
+          
+          # Cleanup
+          rm -f flake.lock.before
       - name: Attempt basic fixes for common breakage
-        if: env.flake_updated == 'true'
+        if: steps.check-updates.outputs.changes_detected == 'true'
         run: |
           echo "Attempting basic fixes for common issues..."
 
@@ -147,7 +196,7 @@ jobs:
           echo "" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
       - name: Create Pull Request
-        if: env.flake_updated == 'true'
+        if: steps.check-updates.outputs.changes_detected == 'true'
         id: create-pr
         run: |
           branch_name="flake-update-$(date +%Y-%m-%d)"
@@ -167,8 +216,11 @@ jobs:
           This PR contains the weekly automatic update of Nix flake dependencies.
 
           - **Status**: ${{ env.validation_status }}
+          - **Packages updated**: ${{ steps.check-updates.outputs.changed_inputs }}
           - **Automated fixes applied**: See below
           - **Validation**: Completed
+
+          ${{ steps.check-updates.outputs.package_updates }}
 
           ${{ env.package_changes }}
 
@@ -215,7 +267,34 @@ jobs:
           echo "pr_number=$(echo $pr_url | sed 's/.*\/pull\/\([0-9]*\).*/\1/')" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Close existing PRs
+      - name: Close existing PRs (no updates needed)
+        if: steps.check-updates.outputs.changes_detected == 'false' && steps.discover-prs.outputs.existing_prs
+        run: |
+          echo "No updates needed, closing existing flake update PRs..."
+
+          echo "${{ steps.discover-prs.outputs.existing_prs }}" | while read -r pr_info; do
+            if [ -n "$pr_info" ]; then
+              pr_number=$(echo "$pr_info" | base64 -d | jq -r '.number')
+              pr_title=$(echo "$pr_info" | base64 -d | jq -r '.title')
+
+              echo "Closing PR #$pr_number: $pr_title (no updates needed)"
+
+              # Add comment before closing
+              gh pr comment "$pr_number" \
+                --body "🔄 Closed - No package updates available this week" \
+                --repo ${{ github.repository }}
+
+              # Close PR
+              gh pr close "$pr_number" \
+                --comment "No updates available - all packages are up to date" \
+                --repo ${{ github.repository }}
+
+              echo "Closed PR #$pr_number"
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Close existing PRs (superseded by new PR)
         if: steps.create-pr.outputs.pr_number && env.existing_prs_to_close
         run: |
           new_pr_number="${{ steps.create-pr.outputs.pr_number }}"
@@ -245,9 +324,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Workflow completion
         run: |
-          if [ "${{ env.flake_updated }}" == "true" ]; then
+          if [ "${{ steps.check-updates.outputs.changes_detected }}" == "true" ]; then
             echo "✅ Flake update workflow completed successfully"
+            echo "📦 Updated ${{ steps.check-updates.outputs.changed_inputs }} packages"
             echo "📄 PR: ${{ steps.create-pr.outputs.pr_url }}"
           else
-            echo "ℹ️ No flake updates were needed"
+            echo "ℹ️ No flake updates were needed - all packages are up to date"
           fi
