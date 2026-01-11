@@ -15,12 +15,12 @@
   boot.extraModulePackages = [];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/$(blkid -s UUID -o value /dev/sda1)";
+    device = "/dev/sda1";
     fsType = "ext4";
   };
 
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/$(blkid -s UUID -o value /dev/sda2)";
+    device = "/dev/sda2";
     fsType = "vfat";
   };
 

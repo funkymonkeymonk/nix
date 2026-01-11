@@ -1,12 +1,12 @@
 # Use NixOS as base image
-FROM nixos/nix:latest
+FROM nixpkgs/nix:nixos-25.05
 
 # Set environment variables
 ENV NIX_CONFIG="experimental-features = nix-command flakes"
 ENV DEVENV_HOME="/home/opencode/.local/share/devenv"
 
 # Create opencode user
-RUN useradd -m -s /run/current-system/sw/bin/zsh opencode && \
+RUN useradd -m -s /bin/zsh opencode && \
     usermod -aG docker opencode
 
 # Install required packages

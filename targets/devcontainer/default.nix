@@ -65,6 +65,8 @@
     # Source devenv shell integration if available
     if [ -f ''${HOME}/.devenv/profile/etc/profile.d/devenv.sh ]; then
       source ''${HOME}/.devenv/profile/etc/profile.d/devenv.sh
+    elif [ -f /nix/var/nix/profiles/default/etc/profile.d/devenv.sh ]; then
+      source /nix/var/nix/profiles/default/etc/profile.d/devenv.sh
     fi
   '';
 }
