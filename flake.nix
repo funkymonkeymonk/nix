@@ -186,8 +186,8 @@
             users = [
               {
                 name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
                 sshIncludes = ["/Users/monkey/.colima/ssh_config"];
               }
@@ -269,8 +269,8 @@
             users = [
               {
                 name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
                 sshIncludes = [];
               }
@@ -304,8 +304,8 @@
             users = [
               {
                 name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
                 sshIncludes = [];
               }
