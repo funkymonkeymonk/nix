@@ -19,6 +19,10 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      # Configuration for version change detection
+      MIN_VERSION_CHANGES: ${{ vars.MIN_VERSION_CHANGES || '1' }}
+      SKIP_PR_IF_NO_CHANGES: ${{ vars.SKIP_PR_IF_NO_CHANGES || 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -69,6 +73,10 @@ jobs:
           echo "existing_prs_to_close<<EOF" >> $GITHUB_ENV
           echo "${{ steps.discover-prs.outputs.existing_prs }}" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+      - name: Backup current flake.lock for version comparison
+        run: |
+          echo "Backing up current flake.lock for version comparison..."
+          cp flake.lock flake.lock.backup
       - name: Update flake.lock
         run: |
           echo "Configuring git user..."
@@ -84,6 +92,177 @@ jobs:
           else
             echo "No changes to flake.lock"
             echo "flake_updated=false" >> $GITHUB_ENV
+          fi
+      - name: Analyze version changes
+        if: env.flake_updated == 'true'
+        run: |
+          echo "Analyzing version changes between old and new flake.lock..."
+          
+          # Create a script to analyze version changes
+          cat > analyze_changes.py << 'EOF'
+          import json
+          import sys
+          from datetime import datetime
+
+          def get_version_info(lockfile_path):
+              try:
+                  with open(lockfile_path, 'r') as f:
+                      data = json.load(f)
+                  
+                  versions = {}
+                  for node_name, node_data in data.get('nodes', {}).items():
+                      if 'locked' in node_data:
+                          locked = node_data['locked']
+                          if 'rev' in locked:
+                              # Git repository
+                              versions[node_name] = {
+                                  'type': 'git',
+                                  'rev': locked['rev'][:8],  # Short rev
+                                  'owner': locked.get('owner', ''),
+                                  'repo': locked.get('repo', ''),
+                                  'lastModified': locked.get('lastModified', 0)
+                              }
+                          elif 'version' in locked:
+                              # Versioned package
+                              versions[node_name] = {
+                                  'type': 'version',
+                                  'version': locked['version'],
+                                  'url': locked.get('url', ''),
+                                  'hash': locked.get('narHash', '')[:8]
+                              }
+                  return versions
+              except Exception as e:
+                  print(f"Error parsing {lockfile_path}: {e}")
+                  return {}
+
+          def compare_versions(old_versions, new_versions):
+              changes = []
+              
+              for node_name in new_versions:
+                  if node_name in old_versions:
+                      old_info = old_versions[node_name]
+                      new_info = new_versions[node_name]
+                      
+                      if old_info['type'] == 'git' and new_info['type'] == 'git':
+                          if old_info['rev'] != new_info['rev']:
+                              changes.append({
+                                  'name': node_name,
+                                  'type': 'git',
+                                  'old_rev': old_info['rev'],
+                                  'new_rev': new_info['rev'],
+                                  'owner': new_info['owner'],
+                                  'repo': new_info['repo']
+                              })
+                      elif old_info['type'] == 'version' and new_info['type'] == 'version':
+                          if old_info['version'] != new_info['version']:
+                              changes.append({
+                                  'name': node_name,
+                                  'type': 'version',
+                                  'old_version': old_info['version'],
+                                  'new_version': new_info['version']
+                              })
+                  else:
+                      # New node added
+                      new_info = new_versions[node_name]
+                      if new_info['type'] == 'git':
+                          changes.append({
+                              'name': node_name,
+                              'type': 'git',
+                              'old_rev': 'NEW',
+                              'new_rev': new_info['rev'],
+                              'owner': new_info['owner'],
+                              'repo': new_info['repo'],
+                              'added': True
+                          })
+                      elif new_info['type'] == 'version':
+                          changes.append({
+                              'name': node_name,
+                              'type': 'version',
+                              'old_version': 'NEW',
+                              'new_version': new_info['version'],
+                              'added': True
+                          })
+              
+              return changes
+
+          # Load and compare versions
+          old_versions = get_version_info('flake.lock.backup')
+          new_versions = get_version_info('flake.lock')
+          changes = compare_versions(old_versions, new_versions)
+          
+          # Output results
+          print(f"Found {len(changes)} version changes")
+          
+          # Generate markdown summary
+          print("## Version Changes Analysis")
+          print("")
+          if changes:
+              git_changes = [c for c in changes if c['type'] == 'git']
+              version_changes = [c for c in changes if c['type'] == 'version']
+              
+              if git_changes:
+                  print("### Git Repository Updates")
+                  print("")
+                  print("| Package | Owner/Repo | Old Commit | New Commit |")
+                  print("|---------|------------|------------|------------|")
+                  for change in git_changes:
+                      repo_info = f"{change['owner']}/{change['repo']}" if change['owner'] and change['repo'] else change['name']
+                      status = "🆕" if change.get('added') else "🔄"
+                      print(f"| {status} {change['name']} | {repo_info} | {change['old_rev']} | {change['new_rev']} |")
+                  print("")
+              
+              if version_changes:
+                  print("### Package Version Updates")
+                  print("")
+                  print("| Package | Old Version | New Version |")
+                  print("|---------|-------------|-------------|")
+                  for change in version_changes:
+                      status = "🆕" if change.get('added') else "🔄"
+                      print(f"| {status} {change['name']} | {change['old_version']} | {change['new_version']} |")
+                  print("")
+          else:
+              print("No significant version changes detected")
+              print("")
+          
+          # Set environment variables for conditional logic
+          print(f"version_changes_count={len(changes)}")
+          print(f"has_git_changes={len([c for c in changes if c['type'] == 'git'])}")
+          print(f"has_version_changes={len([c for c in changes if c['type'] == 'version'])}")
+          EOF
+          
+          # Run the analysis
+          python3 analyze_changes.py > version_analysis.md
+          
+          # Display the analysis
+          cat version_analysis.md
+          
+          # Extract counts for environment variables
+          changes_count=$(grep "version_changes_count=" version_analysis.md | cut -d'=' -f2)
+          git_changes_count=$(grep "has_git_changes=" version_analysis.md | cut -d'=' -f2)
+          version_changes_count=$(grep "has_version_changes=" version_analysis.md | cut -d'=' -f2)
+          
+          echo "version_changes_count=$changes_count" >> $GITHUB_ENV
+          echo "has_git_changes=$git_changes_count" >> $GITHUB_ENV
+          echo "has_version_changes=$version_changes_count" >> $GITHUB_ENV
+          
+          # Store the analysis for PR description
+          echo "version_analysis<<EOF" >> $GITHUB_ENV
+          cat version_analysis.md >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          # Determine if there are meaningful changes
+          # Use configured threshold for minimum changes
+          min_changes_threshold="${{ env.MIN_VERSION_CHANGES }}"
+          
+          echo "🔧 Using threshold: $min_changes_threshold minimum changes"
+          
+          if [ "$changes_count" -ge "$min_changes_threshold" ]; then
+            echo "meaningful_changes=true" >> $GITHUB_ENV
+            echo "✅ Found $changes_count meaningful version changes (threshold: $min_changes_threshold)"
+          else
+            echo "meaningful_changes=false" >> $GITHUB_ENV
+            echo "ℹ️ Found only $changes_count changes, below threshold of $min_changes_threshold"
           fi
       - name: Attempt basic fixes for common breakage
         if: env.flake_updated == 'true'
@@ -146,8 +325,17 @@ jobs:
           git log --oneline -1 >> $GITHUB_ENV
           echo "" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+      - name: Skip PR creation (no meaningful changes)
+        if: env.flake_updated == 'true' && env.meaningful_changes == 'false'
+        run: |
+          echo "ℹ️ Skipping PR creation - no meaningful version changes detected"
+          echo "📊 Found ${{ env.version_changes_count }} changes, below threshold"
+          echo "🔄 Flake.lock was updated but changes are not significant enough for PR"
+          echo ""
+          echo "Version Analysis Summary:"
+          echo "${{ env.version_analysis }}"
       - name: Create Pull Request
-        if: env.flake_updated == 'true'
+        if: env.flake_updated == 'true' && env.meaningful_changes == 'true'
         id: create-pr
         run: |
           branch_name="flake-update-$(date +%Y-%m-%d)"
@@ -164,11 +352,14 @@ jobs:
           ${{ env.validation_result }}
 
           ## Executive Summary
-          This PR contains the weekly automatic update of Nix flake dependencies.
+          This PR contains the weekly automatic update of Nix flake dependencies with **${{ env.version_changes_count }}** meaningful version changes.
 
           - **Status**: ${{ env.validation_status }}
+          - **Version Changes**: ${{ env.version_changes_count }} total (${{ env.has_git_changes }} git updates, ${{ env.has_version_changes }} package updates)
           - **Automated fixes applied**: See below
           - **Validation**: Completed
+
+          ${{ env.version_analysis }}
 
           ${{ env.package_changes }}
 
@@ -178,13 +369,20 @@ jobs:
 
           ### Changes Applied
           - Updated flake.lock with latest package versions
+          - Analyzed version changes to ensure meaningful updates
           - Attempted automated fixes for common breakage patterns
+
+          ### Version Analysis Methodology
+          This PR was created only after detecting meaningful version changes:
+          - Git repositories: Compared commit hashes
+          - Versioned packages: Compared semantic versions
+          - Threshold: Minimum 1 change required for PR creation
 
           ### Test Results
           The full CI/CD pipeline will run on this PR to validate all changes.
 
           ### Next Steps
-          1. Review the automated changes above
+          1. Review the version changes above
           2. Check CI/CD pipeline results
           3. Manually address any remaining build failures
           4. Merge if all tests pass
@@ -199,6 +397,7 @@ jobs:
           ---
 
           🤖 This PR was created automatically by the weekly flake update workflow.
+          📊 Version analysis performed with ${{ env.version_changes_count }} changes detected.
           EOF
           )
 
@@ -245,9 +444,30 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Workflow completion
         run: |
+          echo "📊 Flake Update Workflow Summary"
+          echo "================================"
+          echo ""
+          
           if [ "${{ env.flake_updated }}" == "true" ]; then
-            echo "✅ Flake update workflow completed successfully"
-            echo "📄 PR: ${{ steps.create-pr.outputs.pr_url }}"
+            echo "✅ Flake.lock was updated"
+            echo "📈 Version changes detected: ${{ env.version_changes_count }}"
+            echo "🔍 Git repository updates: ${{ env.has_git_changes }}"
+            echo "📦 Package version updates: ${{ env.has_version_changes }}"
+            echo "⚙️ Threshold used: ${{ env.MIN_VERSION_CHANGES }} changes"
+            
+            if [ "${{ env.meaningful_changes }}" == "true" ]; then
+              echo "📄 Pull Request created: ${{ steps.create-pr.outputs.pr_url }}"
+              echo "🎉 Workflow completed with PR creation"
+            else
+              echo "⏭️ PR creation skipped (below threshold)"
+              echo "ℹ️ Workflow completed without PR"
+            fi
           else
             echo "ℹ️ No flake updates were needed"
+            echo "🎉 Workflow completed (no action required)"
           fi
+          
+          echo ""
+          echo "Configuration:"
+          echo "- MIN_VERSION_CHANGES: ${{ env.MIN_VERSION_CHANGES }}"
+          echo "- SKIP_PR_IF_NO_CHANGES: ${{ env.SKIP_PR_IF_NO_CHANGES }}"
