@@ -12,18 +12,23 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/nixos/linkwarden.nix
   ];
 
-  # Ensure the user exists with the desired shell and groups
-  users.users.monkey = {
-    isNormalUser = true;
-    description = "monkey";
-    extraGroups = ["networkmanager" "wheel"];
-    # Use the zsh from nixpkgs as the login shell
-    shell = pkgs.zsh;
-    # Keep explicit home to match other entries; adjust if you prefer default
-    home = "/home/monkey";
+  # Ensure users exist with desired configuration and groups
+  users.users = {
+    monkey = {
+      isNormalUser = true;
+      description = "monkey";
+      extraGroups = ["networkmanager" "wheel"];
+      # Use the zsh from nixpkgs as the login shell
+      shell = pkgs.zsh;
+      # Keep explicit home to match other entries; adjust if you prefer default
+      home = "/home/monkey";
+    };
+
+    # Add service users to onepassword-secrets group to access secrets
+    postgres.extraGroups = ["onepassword-secrets"];
+    linkwarden.extraGroups = ["onepassword-secrets"];
   };
 
   # Make sure zsh is available system-wide (so the shell path exists)
@@ -52,29 +57,28 @@
         linkwardenDbPassword = {
           reference = "op://Homelab/Linkwarden Database Password/password";
           owner = "linkwarden";
+          group = "onepassword-secrets";
+          mode = "0640"; # Group-readable for security
           services = ["linkwarden"];
+        };
+        meilisearchDbPassword = {
+          reference = "op://Homelab/Meilisearch Database/password";
+          owner = "postgres";
+          services = []; # Used by set-postgres-passwords service
         };
         nextauthSecret = {
           reference = "op://Homelab/Linkwarden NextAuth Secret/password";
           owner = "linkwarden";
+          group = "onepassword-secrets";
+          mode = "0640"; # Group-readable for security
           services = ["linkwarden"];
-        };
-        meilisearchKey = {
-          reference = "op://Homelab/Meilisearch Key/password";
-          owner = "meilisearch";
-          services = ["meilisearch"];
-        };
-        meilisearchDbPassword = {
-          reference = "op://Homelab/Meilisearch Database/password";
-          owner = "meilisearch";
-          services = ["meilisearch"];
         };
       };
     };
 
-    # Enable services
     postgresql.enable = true;
-    meilisearch.enable = true;
+
+    # Enable linkwarden service
     linkwarden = {
       enable = true;
       port = 3000;

@@ -87,35 +87,33 @@ in {
 
           # Wait for secrets to be populated
           echo "Waiting for secrets to be populated..."
-          while [[ ! -f "/run/opnix/secrets/linkwardenDbPassword" ]]; do
-            echo "Waiting for linkwarden database password secret..."
-            sleep 2
+          timeout=60
+          count=0
+          while [[ $count -lt $timeout ]] && [[ ! -f "/run/opnix/secrets/linkwardenDbPassword" ]]; do
+            echo "Waiting for linkwarden database password secret... ($count/$timeout)"
+            sleep 1
+            count=$((count + 1))
           done
 
-          while [[ ! -f "/run/opnix/secrets/nextauthSecret" ]]; do
-            echo "Waiting for nextauth secret..."
-            sleep 2
-          done
+          if [[ $count -ge $timeout ]]; then
+            echo "ERROR: Timeout waiting for secrets after $timeout seconds"
+            exit 1
+          fi
 
-          while [[ ! -f "/run/opnix/secrets/meilisearchKey" ]]; do
-            echo "Waiting for meilisearch key..."
-            sleep 2
-          done
-
-          # Read secrets and write environment file
+          # Read secrets (only linkwarden's own secrets)
           DB_PASSWORD=$(cat /run/opnix/secrets/linkwardenDbPassword)
           NEXTAUTH_SECRET=$(cat /run/opnix/secrets/nextauthSecret)
           MEILI_KEY=$(cat /run/opnix/secrets/meilisearchKey)
 
           # Create environment file
-          echo "DATABASE_URL=postgresql://linkwarden:$DB_PASSWORD@localhost:5432/linkwarden" > /run/linkwarden-env
-          echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> /run/linkwarden-env
-          echo "NEXTAUTH_URL=http://drlight:${toString cfg.port}/api/v1/auth" >> /run/linkwarden-env
-          echo "PORT=${toString cfg.port}" >> /run/linkwarden-env
-          echo "MEILI_HOST=http://localhost:7700" >> /run/linkwarden-env
-          echo "MEILI_MASTER_KEY=$MEILI_KEY" >> /run/linkwarden-env
+          echo "DATABASE_URL=postgresql://linkwarden:$DB_PASSWORD@localhost:5432/linkwarden" > /tmp/linkwarden-env
+          echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> /tmp/linkwarden-env
+          echo "NEXTAUTH_URL=http://drlight:${toString cfg.port}/api/v1/auth" >> /tmp/linkwarden-env
+          echo "PORT=${toString cfg.port}" >> /tmp/linkwarden-env
+          echo "MEILI_HOST=http://localhost:7700" >> /tmp/linkwarden-env
+          echo "MEILI_MASTER_KEY=$MEILI_KEY" >> /tmp/linkwarden-env
 
-          echo "Linkwarden environment file created at /run/linkwarden-env"
+          echo "Linkwarden environment file created at /tmp/linkwarden-env"
 
           # Wait for database to be ready and have password set
           echo "Waiting for database to be ready..."
@@ -164,29 +162,24 @@ in {
             sleep 1
           done
 
-          while [[ ! -f "/run/opnix/secrets/meilisearchKey" ]]; do
-            echo "Waiting for meilisearch key..."
-            sleep 1
-          done
-
-          # Read secrets and write environment file
+          # Read only linkwarden's own secrets (NO meilisearch access needed)
           DB_PASSWORD=$(cat /run/opnix/secrets/linkwardenDbPassword)
           NEXTAUTH_SECRET=$(cat /run/opnix/secrets/nextauthSecret)
-          MEILI_KEY=$(cat /run/opnix/secrets/meilisearchKey)
+          MEILI_KEY="''${MEILI_MASTER_KEY:-""}"
 
           # Create environment file
-          echo "DATABASE_URL=postgresql://linkwarden:$DB_PASSWORD@localhost:5432/linkwarden" > /run/linkwarden-env
-          echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> /run/linkwarden-env
-          echo "NEXTAUTH_URL=http://drlight:${toString cfg.port}/api/v1/auth" >> /run/linkwarden-env
-          echo "PORT=${toString cfg.port}" >> /run/linkwarden-env
-          echo "MEILI_HOST=http://localhost:7700" >> /run/linkwarden-env
-          echo "MEILI_MASTER_KEY=$MEILI_KEY" >> /run/linkwarden-env
+          echo "DATABASE_URL=postgresql://linkwarden:$DB_PASSWORD@localhost:5432/linkwarden" > /tmp/linkwarden-env
+          echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET" >> /tmp/linkwarden-env
+          echo "NEXTAUTH_URL=http://drlight:${toString cfg.port}/api/v1/auth" >> /tmp/linkwarden-env
+          echo "PORT=${toString cfg.port}" >> /tmp/linkwarden-env
+          echo "MEILI_HOST=http://localhost:7700" >> /tmp/linkwarden-env
+          echo "MEILI_MASTER_KEY=$MEILI_KEY" >> /tmp/linkwarden-env
 
-          echo "Linkwarden environment file created at /run/linkwarden-env"
+          echo "Linkwarden environment file created at /tmp/linkwarden-env"
 
           # Source the environment file
           set -a
-          source /run/linkwarden-env
+          source /tmp/linkwarden-env
 
           # Run database migrations if needed
           echo "Running database migrations..."
@@ -197,7 +190,9 @@ in {
           fi
 
           echo "Database setup completed"
-          exec ${cfg.package}/bin/linkwarden start
+          # Override the npm script to bind to all interfaces
+          cd ${cfg.package}/share/linkwarden/apps/web
+          exec ${pkgs.nodejs}/bin/node node_modules/.bin/next start -H 0.0.0.0 -p ${toString cfg.port}
         ''}";
         ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
         Restart = "on-failure";
@@ -219,6 +214,7 @@ in {
         {
           NEXTAUTH_URL = "http://drlight:${toString cfg.port}/api/v1/auth";
           PORT = toString cfg.port;
+          HOST = "0.0.0.0";
           MEILI_HOST = "http://localhost:7700";
         }
         // cfg.environment;

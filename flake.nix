@@ -260,6 +260,7 @@
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
+        ./modules/nixos/linkwarden.nix
         ./modules/nixos/services.nix
         ./os/nixos.nix
         ./targets/drlight
