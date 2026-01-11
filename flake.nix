@@ -135,7 +135,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
+        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "wweaver";
@@ -179,7 +179,7 @@
         ./modules/home-manager
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "creative" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
+        (mkBundleModule "darwin" ["developer" "creative" "desktop" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -189,8 +189,8 @@
             users = [
               {
                 name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
                 sshIncludes = ["/Users/monkey/.colima/ssh_config"];
               }
@@ -273,8 +273,8 @@
             users = [
               {
                 name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
                 sshIncludes = [];
               }
@@ -299,7 +299,7 @@
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
         ./targets/zero
-        (mkBundleModule "linux" ["developer" "wweaver_llm_client"])
+        (mkBundleModule "linux" ["developer" "desktop" "wweaver_llm_client"])
         {
           nixpkgs.hostPlatform = "x86_64-linux";
           system.stateVersion = "25.05";
@@ -308,8 +308,8 @@
             users = [
               {
                 name = "monkey";
-                email = "monkey@willweaver.dev";
-                fullName = "Monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
                 isAdmin = true;
                 sshIncludes = [];
               }
