@@ -16,3 +16,6 @@ result
 
 # Git worktrees
 .worktrees/
+
+# Logs
+logs
