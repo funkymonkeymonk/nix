@@ -85,7 +85,7 @@ with lib; {
         kubectl
         kubernetes-helm
         k9s
-        unstable.opencode
+opencode
       ];
 
       config = {};
@@ -173,11 +173,7 @@ with lib; {
 
         opensource = {
           packages = with pkgs; [
-            (
-              if pkgs ? unstable
-              then pkgs.unstable.opencode
-              else opencode
-            )
+            opencode
           ];
 
           config = {
@@ -204,11 +200,7 @@ with lib; {
 
       host = {
         packages = with pkgs; [
-          (
-            if pkgs ? unstable
-            then pkgs.unstable.ollama
-            else ollama
-          )
+          ollama
         ];
 
         config = {
@@ -247,8 +239,8 @@ with lib; {
         programs = {
           _1password.enable = true;
           _1password-gui.enable = true;
-          _1password.package = pkgs.unstable._1password-cli;
-          _1password-gui.package = pkgs.unstable._1password-gui;
+          _1password.package = pkgs._1password-cli;
+          _1password-gui.package = pkgs._1password-gui;
         };
 
         # Common Homebrew configuration

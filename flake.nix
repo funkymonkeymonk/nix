@@ -317,5 +317,38 @@
         home-manager.nixosModules.home-manager
       ];
     };
+
+    nixosConfigurations."devcontainer" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        configuration
+        ./modules/common/options.nix
+        ./modules/common/users.nix
+        ./modules/common/shell.nix
+        ./modules/home-manager
+        ./modules/nixos/hardware.nix
+        ./os/nixos.nix
+        ./targets/devcontainer
+        (mkBundleModule "linux" ["developer" "desktop"])
+        {
+          nixpkgs.hostPlatform = "x86_64-linux";
+          system.stateVersion = "25.05";
+          # Configure users through the modular system
+          myConfig = {
+            users = [
+              {
+                name = "opencode";
+                email = "opencode@devcontainer.local";
+                fullName = "opencode";
+                isAdmin = true;
+                sshIncludes = [];
+              }
+            ];
+            development.enable = true;
+          };
+        }
+        home-manager.nixosModules.home-manager
+      ];
+    };
   };
 }

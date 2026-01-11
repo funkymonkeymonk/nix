@@ -4,7 +4,7 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 
 ## 🚀 Features
 
-- **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS)
+- **Multi-platform support**: macOS (nix-darwin), Linux (NixOS), and Docker containers
 - **Modular architecture**: Shared configurations with role-based bundles
 - **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
 - **SSH commit signing**: 1Password-based git commit signing with biometric authentication
@@ -12,11 +12,15 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 - **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
 - **Task automation**: Go-task integration for local and CI workflows
 - **Code quality**: Automated formatting and linting with alejandra and deadnix
+- **DevContainer support**: Docker-based development environment with NixOS and opencode integration
 
 ## 📁 Project Structure
 
 ```
 .
+├── .devcontainer/              # DevContainer configuration
+│   ├── devcontainer.json      # VS Code DevContainer settings
+│   └── Dockerfile             # Docker image definition
 ├── .github/                    # GitHub Actions workflows
 ├── bundles/                    # Package collections by role/platform
 │   ├── base/                   # Essential packages
@@ -27,6 +31,9 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 │   ├── home-manager/           # User environment modules
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
+│   ├── devcontainer/           # DevContainer target configuration
+│   ├── drlight/                # NixOS Linux machine
+│   └── zero/                   # NixOS Linux machine
 ├── os/                         # Platform OS configurations
 ├── templates/                  # Templates for new configurations
 ├── flake.nix                   # Main Nix flake definition
@@ -212,6 +219,7 @@ The workflow creates PRs with the `flake-update` label and includes:
 ### Supported Systems
 - **macOS**: Will-Stride-MBP, MegamanX (aarch64-darwin)
 - **NixOS**: drlight, zero (x86_64-linux)
+- **DevContainer**: Docker-based NixOS environment for opencode
 
 ### Configuration Flow
 1. **Options** define available configuration
@@ -241,13 +249,14 @@ The workflow creates PRs with the `flake-update` label and includes:
 
 ### ✅ Completed
 - Modular configuration system
-- Multi-platform support (macOS + Linux)
+- Multi-platform support (macOS + Linux + Docker)
 - CI/CD pipeline with matrix testing
 - Task automation
 - Configuration validation
 - Role-based bundles (developer, creative, gaming, workstation)
 - Secret management with 1Password
 - Window manager integration with AeroSpace (dropdown terminal, window rules)
+- DevContainer support with NixOS and opencode integration
 
 ### 🔄 In Progress
 - Performance optimizations
