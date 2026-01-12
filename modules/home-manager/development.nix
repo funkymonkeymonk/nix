@@ -1,8 +1,4 @@
-{
-  pkgs,
-  lib,
-  ...
-}: {
+{pkgs, ...}: {
   home.packages = with pkgs; [
     docker
     # jujutsu is now managed via programs.jujutsu

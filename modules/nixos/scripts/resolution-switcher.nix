@@ -75,8 +75,8 @@ in {
         VIRTUAL_DISPLAY="''${VIRTUAL_DISPLAY:-:99}"
         export DISPLAY=$VIRTUAL_DISPLAY
 
-        # Default supported resolutions
-        SUPPORTED_RESOLUTIONS=("3840x2160" "3440x1440" "2560x1440" "1920x1080")
+        # Default supported resolutions (fallback if env var not set)
+        SUPPORTED_RESOLUTIONS="''${SUPPORTED_RESOLUTIONS:-3840x2160 3440x1440 2560x1440 1920x1080}"
 
         show_help() {
           echo "Resolution switcher for virtual display"
@@ -84,7 +84,7 @@ in {
           echo "Usage: $0 [RESOLUTION|COMMAND]"
           echo ""
           echo "Resolutions:"
-          for res in "''${SUPPORTED_RESOLUTIONS[@]}"; do
+          for res in $SUPPORTED_RESOLUTIONS; do
             echo "  $res"
           done
           echo ""
@@ -117,9 +117,9 @@ in {
           echo "Attempting to switch to $target_res..."
 
           # Verify target resolution is supported
-          if [[ ! " ''${SUPPORTED_RESOLUTIONS[@]} " =~ " $target_res " ]]; then
+          if [[ ! " $SUPPORTED_RESOLUTIONS " =~ " $target_res " ]]; then
             echo "Error: Resolution '$target_res' not supported"
-            echo "Supported resolutions: ''${SUPPORTED_RESOLUTIONS[*]}"
+            echo "Supported resolutions: $SUPPORTED_RESOLUTIONS"
             exit 1
           fi
 
@@ -176,7 +176,7 @@ in {
           local current_res
           current_res=$(detect_current)
 
-          for res in "''${SUPPORTED_RESOLUTIONS[@]}"; do
+          for res in $SUPPORTED_RESOLUTIONS; do
             if [ "$res" = "$current_res" ]; then
               echo "  * $res (current)"
             else

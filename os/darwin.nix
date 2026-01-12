@@ -1,8 +1,4 @@
-{
-  _config,
-  pkgs,
-  ...
-}: {
+{_config, ...}: {
   nix.enable = false;
 
   # Enable auto-migration for nix-homebrew by default

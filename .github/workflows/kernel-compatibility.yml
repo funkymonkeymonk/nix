@@ -104,9 +104,25 @@ jobs:
           echo "# Kernel & Driver Compatibility Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Configuration Status" >> $GITHUB_STEP_SUMMARY
-          KERNEL_STATUS="${{ steps.check-kernel-pinning.outputs.kernel_pinned == 'true' && '6.17 LTS ✅' || 'No ❌' }}"
-          XPADNEO_STATUS="${{ steps.check-kernel-pinning.outputs.xpadneo_enabled == 'true' && 'Yes ✅' || 'No ❌' }}"
-          XONE_STATUS="${{ steps.check-kernel-pinning.outputs.xone_enabled == 'true' && 'Yes ✅' || 'No ❌' }}"
+          KERNEL_PINNED="${{ steps.check-kernel-pinning.outputs.kernel_pinned }}"
+          XPADNEO_ENABLED="${{ steps.check-kernel-pinning.outputs.xpadneo_enabled }}"
+          XONE_ENABLED="${{ steps.check-kernel-pinning.outputs.xone_enabled }}"
+
+          if [ "$KERNEL_PINNED" = 'true' ]; then
+            KERNEL_STATUS="6.17 LTS ✅"
+          else
+            KERNEL_STATUS="No ❌"
+          fi
+          if [ "$XPADNEO_ENABLED" = 'true' ]; then
+            XPADNEO_STATUS="Yes ✅"
+          else
+            XPADNEO_STATUS="No ❌"
+          fi
+          if [ "$XONE_ENABLED" = 'true' ]; then
+            XONE_STATUS="Yes ✅"
+          else
+            XONE_STATUS="No ❌"
+          fi
           echo "- **Kernel Pinned**: $KERNEL_STATUS" >> $GITHUB_STEP_SUMMARY
           echo "- **xpadneo Enabled**: $XPADNEO_STATUS" >> $GITHUB_STEP_SUMMARY
           echo "- **xone Enabled**: $XONE_STATUS" >> $GITHUB_STEP_SUMMARY
