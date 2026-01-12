@@ -59,20 +59,20 @@
         bundles = import ./bundles.nix {inherit pkgs lib;};
 
         # Helper to collect packages from nested bundle structure
-        collectPackages = path: default: let
+        collectPackages = path: _default: let
           parts = lib.splitString "." path;
         in
           if lib.hasAttrByPath parts bundles
           then (lib.attrsets.getAttrFromPath parts bundles).packages or []
-          else default;
+          else [];
 
         # Helper to collect config from nested bundle structure
-        collectConfig = path: default: let
+        collectConfig = path: _default: let
           parts = lib.splitString "." path;
         in
           if lib.hasAttrByPath parts bundles
           then (lib.attrsets.getAttrFromPath parts bundles).config or {}
-          else default;
+          else {};
 
         baseConfig = {
           environment = {
@@ -314,6 +314,39 @@
           };
         }
         ./1password.nix
+        home-manager.nixosModules.home-manager
+      ];
+    };
+
+    nixosConfigurations."devcontainer" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        configuration
+        ./modules/common/options.nix
+        ./modules/common/users.nix
+        ./modules/common/shell.nix
+        ./modules/home-manager
+        ./modules/nixos/hardware.nix
+        ./os/nixos.nix
+        ./targets/devcontainer
+        (mkBundleModule "linux" ["developer" "desktop"])
+        {
+          nixpkgs.hostPlatform = "x86_64-linux";
+          system.stateVersion = "25.05";
+          # Configure users through the modular system
+          myConfig = {
+            users = [
+              {
+                name = "opencode";
+                email = "opencode@devcontainer.local";
+                fullName = "opencode";
+                isAdmin = true;
+                sshIncludes = [];
+              }
+            ];
+            development.enable = true;
+          };
+        }
         home-manager.nixosModules.home-manager
       ];
     };

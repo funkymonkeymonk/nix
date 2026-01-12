@@ -30,24 +30,9 @@ with lib; {
               else "/home/${user.name}";
           }
           // optionalAttrs user.isAdmin {
-            # Additional admin configuration if needed
-          };
-      })
-      config.myConfig.users);
-
-    # Configure home-manager for each user
-    home-manager.users = listToAttrs (map (user: {
-        inherit (user) name;
-        value = {
-          home = {
-            username = user.name;
-            homeDirectory = lib.mkDefault (
-              if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
-              then "/Users/${user.name}"
-              else "/home/${user.name}"
-            );
-            stateVersion = "25.05";
-          };
+# Additional admin configuration if needed
+          }
+          // optionalAttrs user.isAdmin {};
 
           programs.git = {
             enable = true;
