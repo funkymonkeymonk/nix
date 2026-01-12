@@ -18,6 +18,8 @@
     homebrew-cask.flake = false;
 
     mac-app-util.url = "github:hraban/mac-app-util";
+
+    opnix.url = "github:brizzbuzz/opnix";
   };
 
   outputs = {
@@ -30,6 +32,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    opnix,
     ...
   }: let
     inherit (nixpkgs) lib;
@@ -257,9 +260,11 @@
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
+        ./modules/nixos/linkwarden.nix
         ./modules/nixos/services.nix
         ./os/nixos.nix
         ./targets/drlight
+        opnix.nixosModules.default
         (mkBundleModule "linux" ["developer" "creative" "wweaver_llm_client"])
         {
           nixpkgs.hostPlatform = "x86_64-linux";
@@ -279,7 +284,7 @@
             media.enable = true;
           };
         }
-        ./1password.nix
+        ./modules/common/1password.nix
         home-manager.nixosModules.home-manager
       ];
     };
@@ -313,7 +318,7 @@
             development.enable = true;
           };
         }
-        ./1password.nix
+        ./modules/common/1password.nix
         home-manager.nixosModules.home-manager
       ];
     };

@@ -368,3 +368,265 @@ tasks:
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
+  1password:service:setup:
+    desc: "Set up 1Password service account for this machine (first time)"
+    deps: ['1password:setup']
+    cmds:
+      - cmd: |
+          echo "🔧 Setting up 1Password service account"
+          echo "==================================="
+
+          # Verify user is authenticated
+          if ! op user get --me >/dev/null 2>&1; then
+            echo "❌ No 1Password account found"
+            echo ""
+            echo "🔐 Please add your 1Password account first:"
+            echo "   task 1password:account:add"
+            echo ""
+            echo "This will guide you through account setup and authentication."
+            exit 1
+          fi
+
+          ACCOUNT_EMAIL=$(op user get --me --format json | jq -r '.email // "unknown"')
+          echo "📱 Using 1Password account: $ACCOUNT_EMAIL"
+          echo ""
+
+          # Verify access to Homelab vault
+          echo "🔎 Checking access to Homelab vault..."
+          if ! op vault list --format json | jq -r '.[] | select(.name=="Homelab") | .name' | \
+             grep -q "Homelab"; then
+            echo "❌ No access to Homelab vault found"
+            echo ""
+            echo "🔐 Please ensure:"
+            echo "   1. You have been invited to the Homelab vault"
+            echo "   2. You have accepted the vault invitation"
+            echo "   3. The vault is synced in your 1Password client"
+            echo ""
+            echo "Contact your 1Password administrator if you need access."
+            exit 1
+          fi
+
+          echo "✅ Access to Homelab vault confirmed"
+      - task: 1password:service:generate-token
+      - task: 1password:service:validate
+  1password:service:generate-token:
+    desc: "Generate new 1Password service account token"
+    platforms: [linux]
+    cmd: |
+      echo "🔧 Setting up 1Password service account token"
+      echo "=========================================="
+
+      # Check if 1Password CLI is available
+      if ! command -v op >/dev/null 2>&1; then
+        echo "❌ 1Password CLI not found. Please install it first:"
+        echo "   nix shell nixpkgs#_1password-cli"
+        exit 1
+      fi
+
+      # Check if user is authenticated with 1Password
+      if ! op user get --me >/dev/null 2>&1; then
+        echo "❌ Not authenticated with 1Password. Please run:"
+        echo "   op account add"
+        exit 1
+      fi
+
+      # Get machine name for service account identification
+      MACHINE_NAME=$(hostname)
+      SERVICE_ACCOUNT_NAME="nixos-${MACHINE_NAME}"
+
+      echo "📝 Creating service account: ${SERVICE_ACCOUNT_NAME}"
+      echo "🔐 This service account will have read access to Homelab vault secrets"
+
+      # Generate service account (this will require 1Password CLI with appropriate perms)
+      # Note: This assumes the user has the ability to create service accounts
+      # Note: op service-account create only returns token at creation time
+      echo "🎫 Creating service account and generating token..."
+      SERVICE_TOKEN=$(op service-account create "${SERVICE_ACCOUNT_NAME}" \
+         --vault Homelab:read_items --raw 2>/dev/null)
+      if [ -z "$SERVICE_TOKEN" ]; then
+        echo "❌ Failed to create service account or get token"
+        echo "   Please ensure:"
+        echo "   1. You have permission to create service accounts"
+        echo "   2. '${SERVICE_ACCOUNT_NAME}' doesn't already exist"
+        echo "   3. You have access to Homelab vault"
+        exit 1
+      fi
+      echo "✅ Service account created successfully"
+      echo "📝 Service account: ${SERVICE_ACCOUNT_NAME}"
+
+      # Store token with proper permissions
+      echo "📁 Storing token to /etc/opnix-token..."
+      echo "$SERVICE_TOKEN" | sudo tee /etc/opnix-token >/dev/null
+      sudo chmod 600 /etc/opnix-token
+      sudo chown root:root /etc/opnix-token
+
+      echo "✅ Service account token stored successfully"
+      echo "📍 Location: /etc/opnix-token (root:root 0600)"
+      echo "🔄 Run 'task 1password:service:validate' to verify access"
+  1password:service:validate:
+    desc: "Validate 1Password service account token and secret access"
+    platforms: [linux]
+    cmd: |
+      echo "🔍 Validating 1Password service account configuration"
+      echo "==============================================="
+
+      # Check if token file exists
+      if [[ ! -f /etc/opnix-token ]]; then
+        echo "❌ Service token file not found at /etc/opnix-token"
+        echo "   Run 'task 1password:service:setup' to create it"
+        exit 1
+      fi
+
+      # Check permissions
+      TOKEN_PERM=$(stat -c "%a" /etc/opnix-token)
+      TOKEN_OWNER=$(stat -c "%U:%G" /etc/opnix-token)
+
+      if [[ "$TOKEN_PERM" != "600" ]]; then
+        echo "⚠️  Token file has incorrect permissions: $TOKEN_PERM (should be 600)"
+        sudo chmod 600 /etc/opnix-token
+      fi
+
+      if [[ "$TOKEN_OWNER" != "root:root" ]]; then
+        echo "⚠️  Token file has incorrect ownership: $TOKEN_OWNER (should be root:root)"
+        sudo chown root:root /etc/opnix-token
+      fi
+
+      # Validate token authentication by testing vault access
+      # Service accounts don't use 'op account get' - they use OP_SERVICE_ACCOUNT_TOKEN
+      if ! OP_SERVICE_ACCOUNT_TOKEN=$(cat /etc/opnix-token) op vault list >/dev/null 2>&1; then
+        echo "❌ Service account token authentication failed"
+        echo "   Token may be expired or invalid"
+        echo "   Run 'task 1password:service:rotate' to generate new token"
+        echo "   Debug: Checking token content:"
+        head -c 20 /etc/opnix-token 2>/dev/null || echo "   Could not read token file"
+        exit 1
+      fi
+
+      echo "✅ Service account authentication successful"
+
+      # Test access to required secrets
+      SECRETS_TO_TEST=(
+        "op://Homelab/Linkwarden Database Password/password"
+        "op://Homelab/Linkwarden NextAuth Secret/password"
+        "op://Homelab/Meilisearch Key/password"
+      )
+
+      FAILED_SECRETS=()
+      for secret_ref in "${SECRETS_TO_TEST[@]}"; do
+        secret_name=$(basename "$(dirname "$secret_ref")" \
+          | sed 's/ /_/g' | tr '[:upper:]' '[:lower:]')
+        echo "   Testing $secret_name..."
+        if OP_SERVICE_ACCOUNT_TOKEN=$(cat /etc/opnix-token) \
+          op read "$secret_ref" >/dev/null 2>&1; then
+          echo "   ✅ $secret_name accessible"
+        else
+          echo "   ❌ $secret_name not accessible"
+          FAILED_SECRETS+=("$secret_name")
+        fi
+      done
+
+      if [[ ${#FAILED_SECRETS[@]} -gt 0 ]]; then
+        echo ""
+        echo "❌ Some secrets are not accessible:"
+        for secret in "${FAILED_SECRETS[@]}"; do
+          echo "   - $secret"
+        done
+        echo ""
+        echo "🔧 Please ensure:"
+        echo "   1. Service account has read access to Homelab vault"
+        echo "   2. Secret references in configuration are correct"
+        echo "   3. No permissions issues with 1Password items"
+        exit 1
+      fi
+
+      echo ""
+      echo "✅ All validations passed!"
+      echo "🚀 Service account is ready for use with OpNix"
+  1password:service:rotate:
+    desc: "Rotate existing 1Password service account token"
+    platforms: [linux]
+    cmds:
+      - task: 1password:service:generate-token
+      - cmd: |
+          echo "🔄 Restarting onepassword-secrets service..."
+          sudo systemctl restart onepassword-secrets.service || \
+            echo "⚠️  Service not yet enabled (expected before first switch)"
+  1password:account:add:
+    desc: "Add and authenticate 1Password account"
+    platforms: [linux]
+    cmd: |
+      echo "🔐 Adding 1Password account"
+      echo "============================"
+
+      # Check if 1Password CLI is available
+      if ! command -v op >/dev/null 2>&1; then
+        echo "❌ 1Password CLI not found. Installing..."
+        sudo nix profile install nixpkgs#_1password-cli
+      fi
+
+      # Check if already authenticated
+      if op user get --me >/dev/null 2>&1; then
+        echo "✅ 1Password CLI is already authenticated"
+        echo "📱 Current account: $(op user get --me --format json | jq -r '.email // "unknown"')"
+        echo ""
+        echo "If you want to use a different account:"
+        echo "   1. Sign out: op signout"
+        echo "   2. Run this task again"
+        exit 0
+      fi
+
+      echo "🚀 Starting 1Password account setup..."
+      echo ""
+      echo "This will guide you through adding your 1Password account to this machine."
+      echo "You'll need:"
+      echo "  - Your 1Password account email"
+      echo "  - Your 1Password account password"
+      echo "  - Access to your email for verification"
+      echo ""
+      read -p "Press Enter to continue..."
+
+      # Add the account
+      op account add
+
+      if op user get --me >/dev/null 2>&1; then
+        ACCOUNT_EMAIL=$(op user get --me --format json | jq -r '.email // "unknown"')
+        echo "✅ 1Password account setup successful!"
+        echo "📱 Account: $ACCOUNT_EMAIL"
+        echo ""
+        echo "🎯 Next steps:"
+        echo "   1. Ensure you have access to Homelab vault"
+        echo "   2. Run: task 1password:service:setup"
+        echo "   3. Run: task switch:nixos"
+      else
+        echo "❌ 1Password account setup failed"
+        echo "   Please check your credentials and try again"
+        echo "   Run: task 1password:account:add"
+        exit 1
+      fi
+  1password:setup:
+    desc: "Set up 1Password CLI authentication"
+    platforms: [linux]
+    cmd: |
+      echo "🔧 Setting up 1Password CLI authentication"
+      echo "======================================="
+
+      # Check if 1Password CLI is available
+      if ! command -v op >/dev/null 2>&1; then
+        echo "❌ 1Password CLI not found. Installing..."
+        sudo nix profile install nixpkgs#_1password-cli
+      fi
+
+      # Check if user is already authenticated
+      if ! op user get --me >/dev/null 2>&1; then
+        echo "❌ No 1Password account found on this system"
+        echo ""
+        echo "🔐 Please add your 1Password account first:"
+        echo "   task 1password:account:add"
+        echo ""
+        echo "This will guide you through account setup and authentication."
+        exit 1
+      fi
+
+      ACCOUNT_EMAIL=$(op user get --me --format json | jq -r '.email // "unknown"')
+      echo "✅ 1Password CLI is authenticated and ready"
+      echo "📱 Current account: $ACCOUNT_EMAIL"
