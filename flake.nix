@@ -59,20 +59,20 @@
         bundles = import ./bundles.nix {inherit pkgs lib;};
 
         # Helper to collect packages from nested bundle structure
-        collectPackages = path: default: let
+        collectPackages = path: _default: let
           parts = lib.splitString "." path;
         in
           if lib.hasAttrByPath parts bundles
           then (lib.attrsets.getAttrFromPath parts bundles).packages or []
-          else default;
+          else [];
 
         # Helper to collect config from nested bundle structure
-        collectConfig = path: default: let
+        collectConfig = path: _default: let
           parts = lib.splitString "." path;
         in
           if lib.hasAttrByPath parts bundles
           then (lib.attrsets.getAttrFromPath parts bundles).config or {}
-          else default;
+          else {};
 
         baseConfig = {
           environment = {

@@ -1,7 +1,7 @@
 {
-  _config,
+  config,
   pkgs,
-  _lib,
+  lib,
   ...
 }:
 # NixOS module for the `devcontainer` machine.
