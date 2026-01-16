@@ -63,6 +63,7 @@ with lib; {
             };
             extraConfig =
               {
+                init.defaultBranch = "main";
                 pull.rebase = true;
                 push.default = "current";
               }
