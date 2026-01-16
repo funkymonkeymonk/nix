@@ -63,6 +63,10 @@
         shift-ctrl-alt-5 = "workspace --wrap-around prev";
         shift-ctrl-alt-6 = "workspace --wrap-around next";
         shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
+
+        # Move workspace to monitor
+        shift-ctrl-alt-bracketleft = "move-workspace-to-monitor --wrap-around prev";
+        shift-ctrl-alt-bracketright = "move-workspace-to-monitor --wrap-around next";
       };
 
       on-window-detected = [
