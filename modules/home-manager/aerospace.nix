@@ -65,8 +65,12 @@
         shift-ctrl-alt-equal = "move-node-to-workspace --wrap-around next";
 
         # Move workspace to monitor
-        shift-ctrl-alt-bracketleft = "move-workspace-to-monitor --wrap-around prev";
-        shift-ctrl-alt-bracketright = "move-workspace-to-monitor --wrap-around next";
+        shift-ctrl-alt-leftSquareBracket = "move-workspace-to-monitor --wrap-around prev";
+        shift-ctrl-alt-rightSquareBracket = "move-workspace-to-monitor --wrap-around next";
+
+        # Move current window to monitor
+        shift-ctrl-alt-9 = "move-node-to-monitor --wrap-around prev";
+        shift-ctrl-alt-0 = "move-node-to-monitor --wrap-around next";
       };
 
       on-window-detected = [
@@ -95,21 +99,16 @@
           run = ["move-node-to-workspace 3.Dash"];
         }
       ];
+      # Default: new workspaces go to external monitor (PHL 346B1C)
+      on-focused-monitor-changed = ["move-mouse monitor-lazy-center"];
+
       workspace-to-monitor-force-assignment = {
-        "1.Main" = [
-          "Main"
-        ];
-        "2.Comms" = [
-          "1"
-          "3"
-        ];
-        "3.Dash" = [
-          "3"
-          "1"
-        ];
-        "4.Distracted" = [
-          "Main"
-        ];
+        # Comms stays on built-in display
+        "2.Comms" = ["built-in"];
+        # Everything else goes to external monitor
+        "1.Main" = ["PHL" "main"];
+        "3.Dash" = ["PHL" "main"];
+        "4.Distracted" = ["PHL" "main"];
       };
     };
   };
