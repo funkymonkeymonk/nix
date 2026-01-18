@@ -32,9 +32,12 @@
     homebrew-cask,
     ...
   }: let
-    inherit (nixpkgs) lib;
-
-    configuration = {lib, ...}: {
+    configuration = {
+      config,
+      pkgs,
+      lib,
+      ...
+    }: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
 
       nixpkgs.config.allowUnfree = true;
@@ -56,35 +59,36 @@
       ...
     }: {
       config = let
+        _lib = lib;
         bundles = import ./bundles.nix {inherit pkgs lib;};
 
         # Helper to collect packages from nested bundle structure
         collectPackages = path: default: let
-          parts = lib.splitString "." path;
+          parts = _lib.splitString "." path;
         in
-          if lib.hasAttrByPath parts bundles
-          then (lib.attrsets.getAttrFromPath parts bundles).packages or []
+          if _lib.hasAttrByPath parts bundles
+          then (_lib.attrsets.getAttrFromPath parts bundles).packages or []
           else default;
 
         # Helper to collect config from nested bundle structure
         collectConfig = path: default: let
-          parts = lib.splitString "." path;
+          parts = _lib.splitString "." path;
         in
-          if lib.hasAttrByPath parts bundles
-          then (lib.attrsets.getAttrFromPath parts bundles).config or {}
+          if _lib.hasAttrByPath parts bundles
+          then (_lib.attrsets.getAttrFromPath parts bundles).config or {}
           else default;
 
         baseConfig = {
           environment = {
             systemPackages =
               bundles.roles.base.packages
-              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) enabledRoles
+              ++ _lib.concatMap (role: bundles.roles.${role}.packages or []) enabledRoles
               ++ bundles.platforms.${system}.packages
               # Add llms packages based on enabled roles
-              ++ (lib.optionals (lib.elem "wweaver_llm_client" enabledRoles) (collectPackages "roles.llms.client.opensource" []))
-              ++ (lib.optionals (lib.elem "wweaver_claude_client" enabledRoles) (collectPackages "roles.llms.client.claude" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_host" enabledRoles) (collectPackages "roles.llms.host" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_server" enabledRoles) (collectPackages "roles.llms.server" []));
+              ++ (_lib.optionals (_lib.elem "wweaver_llm_client" enabledRoles) (collectPackages "roles.llms.client.opensource" []))
+              ++ (_lib.optionals (_lib.elem "wweaver_claude_client" enabledRoles) (collectPackages "roles.llms.client.claude" []))
+              ++ (_lib.optionals (_lib.elem "megamanx_llm_host" enabledRoles) (collectPackages "roles.llms.host" []))
+              ++ (_lib.optionals (_lib.elem "megamanx_llm_server" enabledRoles) (collectPackages "roles.llms.server" []));
 
             # Merge shell aliases from base bundle
             shellAliases =
@@ -103,15 +107,15 @@
         };
 
         # Platform-specific configurations
-        darwinConfig = lib.optionalAttrs (system == "darwin") {
+        darwinConfig = _lib.optionalAttrs (system == "darwin") {
           homebrew = let
             roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles;
             llmHostHomebrewConfig =
-              if lib.elem "megamanx_llm_host" enabledRoles
+              if _lib.elem "megamanx_llm_host" enabledRoles
               then (collectConfig "roles.llms.host" {}).homebrew or {}
               else {};
           in
-            lib.mkMerge ([
+            _lib.mkMerge ([
                 (bundles.platforms.darwin.config.homebrew or {})
               ]
               ++ roleHomebrewConfigs

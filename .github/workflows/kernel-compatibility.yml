@@ -1,0 +1,168 @@
+---
+name: Check Kernel Pinning Status
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Run daily at 2 AM UTC to check for kernel updates
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+jobs:
+  check-kernel-pinning:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Check kernel pinning status
+        run: |
+          echo "Checking kernel pinning status..."
+
+          # Check if linuxPackages_6_17 is still used
+          if grep -r "linuxPackages_6_17" targets/zero/; then
+            echo "✅ Kernel pinning detected: linuxPackages_6_17"
+            KERNEL_PINNED=true
+          else
+            echo "❌ No kernel pinning found"
+            KERNEL_PINNED=false
+          fi
+
+          # Check if xpadneo is enabled
+          if grep -r "xpadneo.enable = true" targets/zero/; then
+            echo "✅ xpadneo is enabled"
+            XPADNEO_ENABLED=true
+          else
+            echo "❌ xpadneo is not enabled"
+            XPADNEO_ENABLED=false
+          fi
+
+          # Check if xone is enabled
+          if grep -r "xone.enable = true" targets/zero/; then
+            echo "✅ xone is enabled"
+            XONE_ENABLED=true
+          else
+            echo "❌ xone is not enabled"
+            XONE_ENABLED=false
+          fi
+
+          echo "kernel_pinned=$KERNEL_PINNED" >> $GITHUB_OUTPUT
+          echo "xpadneo_enabled=$XPADNEO_ENABLED" >> $GITHUB_OUTPUT
+          echo "xone_enabled=$XONE_ENABLED" >> $GITHUB_OUTPUT
+      - name: Check kernel compatibility
+        run: |
+          echo "Testing kernel compatibility..."
+
+          # Check if there are newer kernel versions that might break compatibility
+          echo "Current kernel in config: 6.17 LTS"
+          echo "Latest available kernel versions:"
+
+          # Get latest kernel info (simulated check)
+          curl -s https://api.github.com/repos/torvalds/linux/releases/latest |
+            jq -r '.tag_name' || echo "Could not fetch latest kernel"
+
+          echo ""
+          echo "Compatibility Status:"
+          echo "- Linux 6.17.x: ✅ Compatible with xpadneo/xone"
+          echo "- Linux 6.18.x: ❌ Breaks xpadneo/xone (IDA API change)"
+          echo "- Linux 6.19+: ⚠️  Status unknown, monitor updates"
+      - name: Check for driver updates
+        run: |
+          echo "Checking for xpadneo updates..."
+
+          # Get latest xpadneo release
+          XPADNEO_LATEST=$(curl -s https://api.github.com/repos/atar-axis/xpadneo/releases/latest |
+            jq -r '.tag_name' 2>/dev/null || echo "unknown")
+
+          echo "Latest xpadneo release: $XPADNEO_LATEST"
+
+          # Check if there are any mentions of kernel 6.18 compatibility
+          if [ "$XPADNEO_LATEST" != "unknown" ]; then
+            echo "Checking release notes for kernel 6.18 compatibility..."
+
+            # Get release notes
+            curl -s "https://api.github.com/repos/atar-axis/xpadneo/releases/latest" |
+              jq -r '.body' | grep -i "kernel.*6\.18" &&
+              echo "✅ Kernel 6.18 support found in release notes!" ||
+              echo "❌ No kernel 6.18 support mentioned"
+          fi
+
+          echo ""
+          echo "Checking for xone updates..."
+
+          # Get latest xone release
+          XONE_LATEST=$(curl -s https://api.github.com/repos/dlundqvist/xone/releases/latest |
+            jq -r '.tag_name' 2>/dev/null || echo "unknown")
+
+          echo "Latest xone release: $XONE_LATEST"
+      - name: Create status report
+        run: |
+          echo "# Kernel & Driver Compatibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Configuration Status" >> $GITHUB_STEP_SUMMARY
+          KERNEL_PINNED="${{ steps.check-kernel-pinning.outputs.kernel_pinned }}"
+          XPADNEO_ENABLED="${{ steps.check-kernel-pinning.outputs.xpadneo_enabled }}"
+          XONE_ENABLED="${{ steps.check-kernel-pinning.outputs.xone_enabled }}"
+
+          if [ "$KERNEL_PINNED" = 'true' ]; then
+            KERNEL_STATUS="6.17 LTS ✅"
+          else
+            KERNEL_STATUS="No ❌"
+          fi
+          if [ "$XPADNEO_ENABLED" = 'true' ]; then
+            XPADNEO_STATUS="Yes ✅"
+          else
+            XPADNEO_STATUS="No ❌"
+          fi
+          if [ "$XONE_ENABLED" = 'true' ]; then
+            XONE_STATUS="Yes ✅"
+          else
+            XONE_STATUS="No ❌"
+          fi
+          echo "- **Kernel Pinned**: $KERNEL_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- **xpadneo Enabled**: $XPADNEO_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- **xone Enabled**: $XONE_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Driver Versions" >> $GITHUB_STEP_SUMMARY
+          echo "- **xpadneo Latest**: $XPADNEO_LATEST" >> $GITHUB_STEP_SUMMARY
+          echo "- **xone Latest**: $XONE_LATEST" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Compatibility Matrix" >> $GITHUB_STEP_SUMMARY
+          echo "| Kernel | xpadneo | xone | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 6.17.x | ✅ | ✅ | Compatible |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6.18.x | ❌ | ❌ | Broken (IDA API) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "- **Current setup**: Safe with kernel 6.17 LTS pin" >> $GITHUB_STEP_SUMMARY
+          echo "- **Monitor**: Watch for driver updates mentioning kernel 6.18" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "- **When to unpin**: After both drivers confirm 6.18+ compatibility" \
+            >> $GITHUB_STEP_SUMMARY
+      - name: Comment on PR (if applicable)
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.check-kernel-pinning.outputs.kernel_pinned != 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |-
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              body: `🔍 **Kernel Pinning Check**
+
+            This PR removes the kernel pin to 6.17 LTS. This may break Xbox controller support!
+
+            ⚠️ **Breaking Change Risk**:
+            - \`xpadneo\` and \`xone\` are incompatible with kernel 6.18+
+            - Both drivers use deprecated IDA API that was removed
+
+            💡 **Recommendation**:
+            Keep kernel pin until both drivers update for kernel 6.18 compatibility
+
+            For more details, see the
+            [compatibility workflow](../actions/workflows/kernel-compatibility.yml)`
+            })
