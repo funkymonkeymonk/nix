@@ -108,6 +108,7 @@ with lib; {
           imports =
             [
               ../../modules/home-manager/shell.nix
+              ../../modules/home-manager/agent-skills
             ]
             ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
             ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix;

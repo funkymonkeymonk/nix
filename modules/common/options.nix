@@ -68,5 +68,13 @@ with lib; {
         description = "Enable media applications and tools";
       };
     };
+
+    agent-skills = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable agent skills management";
+      };
+    };
   };
 }
