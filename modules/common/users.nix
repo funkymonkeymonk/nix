@@ -39,6 +39,11 @@ with lib; {
     home-manager.users = listToAttrs (map (user: {
         inherit (user) name;
         value = {
+          # Propagate specific myConfig options to user configurations
+          myConfig = {
+            inherit (config.myConfig) agent-skills;
+          };
+
           home = {
             username = user.name;
             homeDirectory = lib.mkDefault (
