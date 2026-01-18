@@ -152,6 +152,28 @@ with lib; {
       };
     };
 
+    agent-skills = {
+      packages = with pkgs; [
+        git
+        jq
+      ];
+
+      config = {
+        # Environment variables for skills paths
+        environment.sessionVariables = {
+          AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+          SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+        };
+
+        # Shell aliases for skills management
+        environment.shellAliases = {
+          skills-status = "ls -la $AGENT_SKILLS_PATH $SUPERPOWERS_SKILLS_PATH";
+          skills-update = "task agent-skills:update";
+          skills-list = "find $AGENT_SKILLS_PATH -name 'SKILL.md' -exec basename {} \\; | sort";
+        };
+      };
+    };
+
     llms = {
       # Global LLM configuration
       config = {
