@@ -18,6 +18,8 @@
     homebrew-cask.flake = false;
 
     mac-app-util.url = "github:hraban/mac-app-util";
+
+    opnix.url = "github:brizzbuzz/opnix";
   };
 
   outputs = {
@@ -30,6 +32,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    opnix,
     ...
   }: let
     inherit (nixpkgs) lib;
