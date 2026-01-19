@@ -184,6 +184,15 @@
     '';
   };
 
+  # TubeArchivist configuration
+  myConfig.tubearchivist = {
+    host = "localhost"; # Use default
+    secrets = {
+      username = "tubearchivist";
+      password = "tubearchivist";
+    };
+  };
+
   #
   # Users
   #
