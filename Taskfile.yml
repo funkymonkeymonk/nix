@@ -388,4 +388,3 @@ tasks:
     cmd: |
       echo "Validating skills format..."
       echo "Validation complete"
-

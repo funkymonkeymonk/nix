@@ -8,8 +8,8 @@ echo "Testing that agent-skills packages are included when opencode is enabled..
 echo "Testing wweaver configuration..."
 nix eval --impure --expr '
   let
-    flake = import ./flake.nix;
-    config = flake.darwinConfigurations.wweaver.config;
+    flake = builtins.getFlake (toString ./.);
+    config = (flake.darwinConfigurations.wweaver).config;
     agentSkillsPackages = builtins.filter (pkg: builtins.match ".*git.*" (pkg.name or "") != null) config.environment.systemPackages;
     hasGit = builtins.length agentSkillsPackages > 0;
   in
@@ -23,8 +23,8 @@ nix eval --impure --expr '
 echo "Testing that agent-skills environment variables are set..."
 nix eval --impure --expr '
   let
-    flake = import ./flake.nix;
-    config = flake.darwinConfigurations.wweaver.config;
+    flake = builtins.getFlake (toString ./.);
+    config = (flake.darwinConfigurations.wweaver).config;
     agentSkillsVars = config.environment.sessionVariables or {};
   in
   {

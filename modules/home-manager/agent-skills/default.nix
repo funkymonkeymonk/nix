@@ -6,7 +6,6 @@
 }:
 with lib; let
   cfg = config.myConfig.agent-skills;
-  homeDir = config.home.homeDirectory;
 in {
   imports = [
     ./skills.nix
@@ -23,20 +22,15 @@ in {
       # Home-manager specific options
       skillsPath = mkOption {
         type = types.str;
-        default = "${homeDir}/.config/opencode/skills";
+        default = "$HOME/.config/opencode/skills";
         description = "Path where skills should be installed";
       };
 
       superpowersPath = mkOption {
         type = types.str;
-        default = "${homeDir}/.config/opencode/superpowers/skills";
+        default = "$HOME/.config/opencode/superpowers/skills";
         description = "Path where superpowers skills should be installed";
       };
     };
-  };
-
-  config = mkIf cfg.enable {
-    # Home manager programs configuration
-    programs.home-manager.enable = true;
   };
 }

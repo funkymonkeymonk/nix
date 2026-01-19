@@ -156,6 +156,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/home-manager
+        ./modules/home-manager/agent-skills
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
         (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
@@ -201,6 +202,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/home-manager
+        ./modules/home-manager/agent-skills
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
         (mkBundleModule "darwin" ["developer" "creative" "desktop" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
@@ -283,6 +285,7 @@
         ./modules/common/users.nix
         ./modules/common/shell.nix
         ./modules/home-manager
+        ./modules/home-manager/agent-skills
         ./modules/nixos/hardware.nix
         ./modules/nixos/services.nix
         ./os/nixos.nix
@@ -319,6 +322,7 @@
         ./modules/common/users.nix
         ./modules/common/shell.nix
         ./modules/home-manager
+        ./modules/home-manager/agent-skills
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
         ./targets/zero
