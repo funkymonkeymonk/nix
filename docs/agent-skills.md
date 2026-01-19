@@ -35,13 +35,13 @@ Shows current skills count, version tracking, and directory status.
 
 ### Updating Skills
 ```bash
-task agent-skells:update
+task agent-skills:update
 ```
 Fetches latest skills from upstream superpowers repository while preserving custom skills.
 
 ### Validating Skills
 ```bash
-task agent-skells:validate
+task agent-skills:validate
 ```
 Checks that all skills follow the Agent Skills specification.
 
@@ -75,7 +75,7 @@ Edit skills in `modules/home-manager/agent-skills/skills/` - changes will be app
 3. Check permissions on skills directories
 
 ### Specification Violations
-1. Run validation: `task agent-skells:validate`
+1. Run validation: `task agent-skills:validate`
 2. Check frontmatter format in `SKILL.md` files
 3. Ensure directory names match skill names
 

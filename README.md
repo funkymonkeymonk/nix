@@ -158,7 +158,7 @@ task agent-skills:status
 task agent-skills:update
 
 # Validate skills format
-task agent-skells:validate
+task agent-skills:validate
 
 # List available skills
 skills-list
