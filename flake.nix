@@ -50,6 +50,19 @@
           };
         })
         opnix.overlays.default
+        (final: prev: {
+          opnix-lib = {
+            # Build-time secret reading function for opnix compatibility
+            __functor = self: args: let
+              # This would normally call 1Password CLI at evaluation time
+              # For now, return a placeholder to allow build to succeed
+              # In production, this should be replaced with actual 1Password integration
+              item = args.item or "unknown";
+              field = args.field or "unknown";
+            in
+              final.writeText "opnix-secret-${item}-${field}" "placeholder-secret-for-${item}-${field}";
+          };
+        })
       ];
     };
 
@@ -297,6 +310,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/opnix-secrets.nix
+        opnix.nixosModules.default
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
