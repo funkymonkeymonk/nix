@@ -257,6 +257,7 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
+        ./modules/common/opnix-secrets.nix
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
@@ -293,6 +294,7 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
+        ./modules/common/opnix-secrets.nix
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
