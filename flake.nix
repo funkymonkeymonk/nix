@@ -294,6 +294,7 @@
         ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
+        ./modules/nixos/services.nix
         ./targets/zero
         (mkBundleModule "linux" ["developer" "desktop" "wweaver_llm_client"])
         {
