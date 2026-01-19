@@ -49,6 +49,7 @@
             inherit (final) system config;
           };
         })
+        opnix.overlays.default
       ];
     };
 
@@ -258,6 +259,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/opnix-secrets.nix
+        opnix.nixosModules.default
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix

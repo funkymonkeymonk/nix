@@ -29,24 +29,69 @@
 
   services.openssh.enable = true;
 
-  # Media library setup for Jellyfin
-  systemd.tmpfiles.rules = [
-    "d /srv/media 0755 root root -"
-    "d /srv/media/movies 0755 jellyfin jellyfin -"
-    "d /srv/media/tv 0755 jellyfin jellyfin -"
-    "d /srv/media/music 0755 jellyfin jellyfin -"
-    "d /srv/media/photos 0755 jellyfin jellyfin -"
-    "d /srv/media/audiobooks 0755 jellyfin jellyfin -"
-    "d /srv/media/downloads 0755 jellyfin jellyfin -"
-    "d /srv/media/downloads/incoming 0755 jellyfin jellyfin -"
-    "d /srv/media/downloads/temp 0755 jellyfin jellyfin -"
-    # TubeArchivist directories
-    "d /srv/media/tubearchivist 0755 root root -"
-    "d /srv/media/tubearchivist/videos 0755 jellyfin jellyfin -"
-    "d /srv/media/tubearchivist/cache 0755 root root -"
-    "d /srv/media/tubearchivist/redis 0755 root root -"
-    "d /srv/media/tubearchivist/es 0755 1000 1000 -"
-  ];
+  # systemd configuration
+  systemd = {
+    tmpfiles.rules = [
+      "d /srv/media 0755 root root -"
+      "d /srv/media/movies 0755 jellyfin jellyfin -"
+      "d /srv/media/tv 0755 jellyfin jellyfin -"
+      "d /srv/media/music 0755 jellyfin jellyfin -"
+      "d /srv/media/photos 0755 jellyfin jellyfin -"
+      "d /srv/media/audiobooks 0755 jellyfin jellyfin -"
+      "d /srv/media/downloads 0755 jellyfin jellyfin -"
+      "d /srv/media/downloads/incoming 0755 jellyfin jellyfin -"
+      "d /srv/media/downloads/temp 0755 jellyfin jellyfin -"
+      # TubeArchivist directories
+      "d /srv/media/tubearchivist 0755 root root -"
+      "d /srv/media/tubearchivist/videos 0755 jellyfin jellyfin -"
+      "d /srv/media/tubearchivist/cache 0755 root root -"
+      "d /srv/media/tubearchivist/redis 0755 root root -"
+      "d /srv/media/tubearchivist/es 0755 root root -"
+    ];
+
+    services.media-permissions = {
+      description = "Set media directory permissions";
+      wantedBy = ["multi-user.target"];
+      after = ["systemd-tmpfiles-setup.service"];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = [
+          "${pkgs.coreutils}/bin/chgrp -R media /srv/media"
+          "${pkgs.coreutils}/bin/chmod -R 2775 /srv/media"
+        ];
+      };
+    };
+
+    services.tubearchivist-env = {
+      description = "Generate TubeArchivist environment file with secrets";
+      wantedBy = ["docker-tubearchivist.service"];
+      after = ["onepassword-secrets.service"];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        mkdir -p /run/tubearchivist
+        chmod 755 /run/tubearchivist
+
+        # Read secrets and create environment file
+        if [[ -f /run/secrets/tubearchivist-username && -f /run/secrets/tubearchivist-password ]]; then
+          cat > /run/tubearchivist/environment << EOF
+        TA_USERNAME=$(cat /run/secrets/tubearchivist-username)
+        TA_PASSWORD=$(cat /run/secrets/tubearchivist-password)
+        EOF
+          chmod 600 /run/tubearchivist/environment
+        else
+          echo "Warning: TubeArchivist secrets not available, using defaults"
+          cat > /run/tubearchivist/environment << EOF
+        TA_USERNAME=tubearchivist
+        TA_PASSWORD=tubearchivist
+        EOF
+          chmod 600 /run/tubearchivist/environment
+        fi
+      '';
+    };
+  };
 
   # User configuration
   users = {
@@ -75,19 +120,30 @@
   # TubeArchivist configuration
   myConfig.tubearchivist = {
     host = "drlight";
+    secrets = {
+      username = "tubearchivist";
+      password = "tubearchivist";
+    };
   };
 
-  # Set proper permissions on media directories
-  systemd.services.media-permissions = {
-    description = "Set media directory permissions";
-    wantedBy = ["multi-user.target"];
-    after = ["systemd-tmpfiles-setup.service"];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = [
-        "${pkgs.coreutils}/bin/chgrp -R media /srv/media"
-        "${pkgs.coreutils}/bin/chmod -R 2775 /srv/media"
-      ];
+  # Configure OpNix for 1Password secrets
+  services.onepassword-secrets = {
+    enable = true;
+    secrets = {
+      tubearchivistUsername = {
+        reference = "op://TubeArchivist/username";
+        path = "/run/secrets/tubearchivist-username";
+        mode = "0400";
+        owner = "root";
+        group = "root";
+      };
+      tubearchivistPassword = {
+        reference = "op://TubeArchivist/password";
+        path = "/run/secrets/tubearchivist-password";
+        mode = "0400";
+        owner = "root";
+        group = "root";
+      };
     };
   };
 }
