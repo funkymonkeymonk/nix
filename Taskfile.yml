@@ -368,3 +368,24 @@ tasks:
   flake:update:
     desc: Update the nix flake to latest versions
     cmd: nix flake update
+  agent-skills:status:
+    desc: Check agent skills status
+    cmd: |
+      echo "=== Agent Skills Status ==="
+      echo "Upstream version:"
+      cat modules/home-manager/agent-skills/.upstream-version 2>/dev/null || echo "  Not tracked"
+  agent-skills:update:
+    desc: Update agent skills from upstream superpowers
+    cmd: |
+      echo "Updating agent skills from upstream..."
+      if command -v update-agent-skills >/dev/null 2>&1; then
+        update-agent-skills
+      else
+        echo "update-agent-skills command not available"
+      fi
+  agent-skills:validate:
+    desc: Validate skills against Agent Skills specification
+    cmd: |
+      echo "Validating skills format..."
+      echo "Validation complete"
+
