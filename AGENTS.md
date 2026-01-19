@@ -57,6 +57,7 @@ opencode will handle all common development tasks including:
 - CI/CD pipeline modifications
 - Code refactoring and improvements
 - **Window Manager Integration**: Implementing floating dropdown terminals, AeroSpace window rules, and workspace management
+- **Worktree Preference**: Do not use git worktrees for feature development - implement directly in main workspace
 
 ### Limitations
 opencode shall not:
@@ -208,6 +209,7 @@ All documentation must be:
 - **Configuration documentation**: Setup instructions, configuration options, and troubleshooting guides
 - **Process documentation**: Development workflows, deployment procedures, and operational runbooks
 - **Architecture documentation**: System design, component relationships, and data flows
+- **Integration documentation**: Service integrations, API connections, and third-party service configurations
 
 ### Documentation Maintenance Obligations
 - **opencode** agrees to:
