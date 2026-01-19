@@ -56,8 +56,8 @@
             if config.myConfig.tubearchivist.host == "localhost"
             then "localhost,127.0.0.1"
             else "localhost,127.0.0.1,${config.myConfig.tubearchivist.host}";
-          TA_USERNAME = "tubearchivist"; # Placeholder - will be overridden by systemd service
-          TA_PASSWORD = "tubearchivist"; # Placeholder - will be overridden by systemd service
+          TA_USERNAME = config.myConfig.tubearchivist.secrets.username;
+          TA_PASSWORD = config.myConfig.tubearchivist.secrets.password;
           ELASTIC_PASSWORD = "tubearchivist";
           TZ = "America/New_York";
         };
