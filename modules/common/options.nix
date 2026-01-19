@@ -68,5 +68,13 @@ with lib; {
         description = "Enable media applications and tools";
       };
     };
+
+    tubearchivist = {
+      host = mkOption {
+        type = types.str;
+        default = "localhost";
+        description = "Hostname for TubeArchivist service";
+      };
+    };
   };
 }
