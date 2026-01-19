@@ -202,6 +202,9 @@ with lib; {
             )
           ];
 
+          # Auto-enable agent-skills
+          enableAgentSkills = true;
+
           config = {
             # opencode configuration for connecting to MegamanX litellm server
             environment.sessionVariables = {
@@ -214,6 +217,9 @@ with lib; {
           packages = with pkgs; [
             claude-code
           ];
+
+          # Auto-enable agent-skills
+          enableAgentSkills = true;
 
           config = {
             # Claude-specific configuration

@@ -58,6 +58,32 @@
       config = let
         bundles = import ./bundles.nix {inherit pkgs lib;};
 
+        # Check if any enabled bundle has enableAgentSkills
+        hasAgentSkillsBundle =
+          builtins.any (
+            role:
+              (bundles.roles.${role} or {}).enableAgentSkills or false
+          )
+          enabledRoles;
+
+        # Also check nested llms client bundles
+        hasLlmClientAgentSkills =
+          builtins.any (
+            role:
+              if role == "wweaver_llm_client"
+              then (bundles.roles.llms.client.opensource.enableAgentSkills or false)
+              else if role == "wweaver_claude_client"
+              then (bundles.roles.llms.client.claude.enableAgentSkills or false)
+              else false
+          )
+          enabledRoles;
+
+        # Add agent-skills to enabled roles if auto-enabled
+        rolesWithAgentSkills =
+          if hasAgentSkillsBundle || hasLlmClientAgentSkills
+          then (lib.unique (enabledRoles ++ ["agent-skills"]))
+          else enabledRoles;
+
         # Helper to collect packages from nested bundle structure
         collectPackages = path: default: let
           parts = lib.splitString "." path;
@@ -78,13 +104,13 @@
           environment = {
             systemPackages =
               bundles.roles.base.packages
-              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) enabledRoles
+              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) rolesWithAgentSkills
               ++ bundles.platforms.${system}.packages
               # Add llms packages based on enabled roles
-              ++ (lib.optionals (lib.elem "wweaver_llm_client" enabledRoles) (collectPackages "roles.llms.client.opensource" []))
-              ++ (lib.optionals (lib.elem "wweaver_claude_client" enabledRoles) (collectPackages "roles.llms.client.claude" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_host" enabledRoles) (collectPackages "roles.llms.host" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_server" enabledRoles) (collectPackages "roles.llms.server" []));
+              ++ (lib.optionals (lib.elem "wweaver_llm_client" rolesWithAgentSkills) (collectPackages "roles.llms.client.opensource" []))
+              ++ (lib.optionals (lib.elem "wweaver_claude_client" rolesWithAgentSkills) (collectPackages "roles.llms.client.claude" []))
+              ++ (lib.optionals (lib.elem "megamanx_llm_host" rolesWithAgentSkills) (collectPackages "roles.llms.host" []))
+              ++ (lib.optionals (lib.elem "megamanx_llm_server" rolesWithAgentSkills) (collectPackages "roles.llms.server" []));
 
             # Merge shell aliases from base bundle
             shellAliases =
@@ -105,9 +131,9 @@
         # Platform-specific configurations
         darwinConfig = lib.optionalAttrs (system == "darwin") {
           homebrew = let
-            roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles;
+            roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) rolesWithAgentSkills;
             llmHostHomebrewConfig =
-              if lib.elem "megamanx_llm_host" enabledRoles
+              if lib.elem "megamanx_llm_host" rolesWithAgentSkills
               then (collectConfig "roles.llms.host" {}).homebrew or {}
               else {};
           in
@@ -149,6 +175,7 @@
               }
             ];
             development.enable = true;
+            agent-skills.enable = true;
           };
 
           # Configure nix-homebrew
