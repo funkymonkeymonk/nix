@@ -137,6 +137,41 @@ This configuration uses 1Password CLI directly for secret management. Secrets ar
 - Secrets are only accessible during Nix builds
 - No secrets are stored in the Nix store
 
+## 🤖 Agent Skills Management
+
+This configuration includes automatic management of AI agent skills for OpenCode and Claude Code integration.
+
+### Features
+- **Automatic Installation**: Skills install automatically with opencode or claude bundles
+- **Upstream Updates**: Clean update mechanism from superpowers repository
+- **Local Customization**: Override or extend skills in repository
+- **Cross-Platform**: Works on all configured systems (macOS and NixOS)
+- **Validation**: Skills follow Agent Skills specification compliance
+
+### Usage
+
+```bash
+# Check skills status
+task agent-skills:status
+
+# Update skills from upstream
+task agent-skills:update
+
+# Validate skills format
+task agent-skells:validate
+
+# List available skills
+skills-list
+```
+
+### Configuration
+
+Agent skills are automatically enabled when either `opencode` or `claude` bundles are active. Skills are installed to:
+- `~/.config/opencode/skills/` - Primary skills directory
+- `~/.config/opencode/superpowers/skills/` - Superpowers compatibility
+
+See [docs/agent-skills.md](docs/agent-skills.md) for detailed documentation.
+
 ### SSH Commit Signing
 
 This configuration supports SSH-based git commit signing using 1Password, providing a modern alternative to GPG signing.
