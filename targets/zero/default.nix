@@ -96,14 +96,12 @@
       enable = true;
       secrets = {
         tubearchivistUsername = {
-          reference = "op://TubeArchivist/username";
+          reference = "op://Homelab/Tubearchivist/username";
           path = "/run/secrets/tubearchivist-username";
-          mode = "0400";
-          owner = "root";
-          group = "root";
         };
+
         tubearchivistPassword = {
-          reference = "op://TubeArchivist/password";
+          reference = "op://Homelab/Tubearchivist/password";
           path = "/run/secrets/tubearchivist-password";
           mode = "0400";
           owner = "root";
@@ -238,11 +236,11 @@
     host = "localhost"; # Use default
     secrets = {
       username = builtins.readFile (pkgs.opnix-lib {
-        item = "TubeArchivist";
+        item = "Homelab/Tubearchivist";
         field = "username";
       });
       password = builtins.readFile (pkgs.opnix-lib {
-        item = "TubeArchivist";
+        item = "Homelab/Tubearchivist";
         field = "password";
       });
     };
