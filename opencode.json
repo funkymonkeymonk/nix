@@ -1,95 +1,101 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "theme": "opencode",
-  "autoupdate": true,
-  "instructions": ["AGENTS.md", "README.md"],
-  "formatter": {
-    "alejandra": {
-      "command": ["alejandra"],
-      "extensions": [".nix"]
-    }
-  },
-  "command": {
-    "test": {
-      "template": "Run nix flake check to validate all configurations",
-      "description": "Validate Nix configurations",
-      "agent": "build"
-    },
-    "build": {
-      "template": "Build all system configurations using task build",
-      "description": "Build all configurations",
-      "agent": "build"
-    },
-    "fmt": {
-      "template": "Format all Nix files using alejandra",
-      "description": "Format Nix files",
-      "agent": "build"
-    },
-    "lint": {
-      "template": "Run deadnix linter on all Nix files",
-      "description": "Lint Nix files",
-      "agent": "build"
-    },
-    "quality": {
-      "template": "Run all code quality checks (format + lint)",
-      "description": "Run quality checks",
-      "agent": "build"
-    },
-    "switch": {
-      "template": "Apply system configuration changes using task switch",
-      "description": "Apply system configuration",
-      "agent": "build"
-    }
-  },
-  "permission": {
-    "bash": {
-      "git push": "ask",
-      "gh secret": "ask",
-      "gh api": "ask",
-      "gh pr ": "ask",
-      "gh pr merge": "ask",
-      "gh pr create": "ask",
-      "gh auth": "ask",
-      "gh org": "ask",
-      "gh project": "ask",
-      "gh release": "ask",
-      "gh repo": "ask",
-      "task *": "allow"
-    }
-  },
-  "tools": {
-    "run": true
-  },
-  "lsp": {
-    "nixd": {
-      "command": ["nixd"],
-      "extensions": [".nix"],
-      "initialization": {
-        "nixd": {
-          "nixpkgs": {
-            "expr": "import (builtins.getFlake(toString ./.)).inputs.nixpkgs { }"
-          },
-          "formatting": {
-            "command": ["alejandra"]
-          },
-          "options": {
-            "nixos-drlight": {
-              "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.drlight.options"
-            },
-            "nixos-zero": {
-              "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.zero.options"
-            },
-            "darwin-wweaver": {
-              "expr": "let flake = builtins.getFlake(toString ./.); in flake.darwinConfigurations.wweaver.options"
-            },
-            "darwin-megamanx": {
-              "expr": "let flake = builtins.getFlake(toString ./.); in flake.darwinConfigurations.MegamanX.options"
-            }
-          }
+    "$schema": "https://opencode.ai/config.json",
+    "theme": "opencode",
+    "autoupdate": true,
+    "instructions": ["AGENTS.md", "README.md"],
+    "formatter": {
+        "alejandra": {
+            "command": ["alejandra"],
+            "extensions": [".nix"]
         }
-      }
-    }
-  },
-  "mcp": {},
-  "share": "manual"
+    },
+    "command": {
+        "test": {
+            "template": "Run nix flake check to validate all configurations",
+            "description": "Validate Nix configurations",
+            "agent": "build"
+        },
+        "build": {
+            "template": "Build all system configurations using task build",
+            "description": "Build all configurations",
+            "agent": "build"
+        },
+        "fmt": {
+            "template": "Format all Nix files using alejandra",
+            "description": "Format Nix files",
+            "agent": "build"
+        },
+        "lint": {
+            "template": "Run deadnix linter on all Nix files",
+            "description": "Lint Nix files",
+            "agent": "build"
+        },
+        "quality": {
+            "template": "Run all code quality checks (format + lint)",
+            "description": "Run quality checks",
+            "agent": "build"
+        },
+        "switch": {
+            "template": "Apply system configuration changes using task switch",
+            "description": "Apply system configuration",
+            "agent": "build"
+        }
+    },
+    "permission": {
+        "bash": {
+            "git push": "ask",
+            "gh secret": "ask",
+            "gh api": "ask",
+            "gh pr ": "ask",
+            "gh pr merge": "ask",
+            "gh pr create": "ask",
+            "gh auth": "ask",
+            "gh org": "ask",
+            "gh project": "ask",
+            "gh release": "ask",
+            "gh repo": "ask",
+            "task *": "allow"
+        }
+    },
+    "tools": {
+        "run": true
+    },
+    "lsp": {
+        "nixd": {
+            "command": ["nixd"],
+            "extensions": [".nix"],
+            "initialization": {
+                "nixd": {
+                    "nixpkgs": {
+                        "expr": "import (builtins.getFlake(toString ./.)).inputs.nixpkgs { }"
+                    },
+                    "formatting": {
+                        "command": ["alejandra"]
+                    },
+                    "options": {
+                        "nixos-drlight": {
+                            "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.drlight.options"
+                        },
+                        "nixos-zero": {
+                            "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.zero.options"
+                        },
+                        "darwin-wweaver": {
+                            "expr": "let flake = builtins.getFlake(toString ./.); in flake.darwinConfigurations.wweaver.options"
+                        },
+                        "darwin-megamanx": {
+                            "expr": "let flake = builtins.getFlake(toString ./.); in flake.darwinConfigurations.MegamanX.options"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "mcp": {
+        "devenv": {
+            "type": "local",
+            "command": ["devenv", "mcp"],
+            "enabled": true
+        }
+    },
+    "share": "manual"
 }
