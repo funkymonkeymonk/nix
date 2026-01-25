@@ -8,23 +8,23 @@
   # Future: Use superpowers input for actual skill files
 in {
   config = lib.mkIf cfg.enable {
-    home = {
+    home.file = {
       # Create declarative skill management structure
-      file.".config/opencode/skills/.gitignore" = {
+      ".config/opencode/skills/.gitignore" = {
         text = ''
           # Files managed by Nix - do not edit manually
           # Skills are installed through Nix configuration
         '';
       };
 
-      file.".config/opencode/superpowers/skills/.gitignore" = {
+      ".config/opencode/superpowers/skills/.gitignore" = {
         text = ''
           # Compatibility directory - managed by Nix
           # Synchronized with main skills directory
         '';
       };
 
-      file.".config/opencode/skills/README.md" = {
+      ".config/opencode/skills/README.md" = {
         text = ''
           # Agent Skills
 
@@ -62,7 +62,7 @@ in {
         '';
       };
 
-      file.".config/opencode/superpowers/skills/README.md" = {
+      ".config/opencode/superpowers/skills/README.md" = {
         text = ''
           # Superpowers Skills Compatibility
 
