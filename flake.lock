@@ -117,11 +117,11 @@
     "homebrew-cask": {
       "flake": false,
       "locked": {
-        "lastModified": 1768763098,
-        "narHash": "sha256-zWTUY0R3o0MJ0n+zxDaBaz9Eg1x/q6GE/1AtFFvTeY4=",
+        "lastModified": 1769303088,
+        "narHash": "sha256-2NmOAbd3gC81GHJlOHfhZK6RaNhUpIZ0U5Po4RB65nQ=",
         "owner": "homebrew",
         "repo": "homebrew-cask",
-        "rev": "76e3a3aa00db03d016628323d020388990fc044d",
+        "rev": "fbd7a0f8d5413a963bd57e9698b3b6665fd41b0f",
         "type": "github"
       },
       "original": {
@@ -133,11 +133,11 @@
     "homebrew-core": {
       "flake": false,
       "locked": {
-        "lastModified": 1768760767,
-        "narHash": "sha256-g9YWsVsG65xzqLR2oB88dEvE9bc+3XUdFTVa8t/dnGg=",
+        "lastModified": 1769301789,
+        "narHash": "sha256-939WMHJcb91fZLxfZYlTmn4UKVtJSdzcVTeU+E/C77k=",
         "owner": "homebrew",
         "repo": "homebrew-core",
-        "rev": "d630258aab3a6491a5c9f6e86803bfe56bbce442",
+        "rev": "486bae0ccd827715e47ceb223cabcd2344ca9f09",
         "type": "github"
       },
       "original": {
@@ -241,11 +241,11 @@
     },
     "nixpkgs-unstable": {
       "locked": {
-        "lastModified": 1768564909,
-        "narHash": "sha256-Kell/SpJYVkHWMvnhqJz/8DqQg2b6PguxVWOuadbHCc=",
+        "lastModified": 1769018530,
+        "narHash": "sha256-MJ27Cy2NtBEV5tsK+YraYr2g851f3Fl1LpNHDzDX15c=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "e4bae1bd10c9c57b2cf517953ab70060a828ee6f",
+        "rev": "88d3861acdd3d2f0e361767018218e51810df8a1",
         "type": "github"
       },
       "original": {
@@ -328,7 +328,24 @@
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",
         "nixpkgs": "nixpkgs_5",
-        "nixpkgs-unstable": "nixpkgs-unstable"
+        "nixpkgs-unstable": "nixpkgs-unstable",
+        "superpowers": "superpowers"
+      }
+    },
+    "superpowers": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1769198953,
+        "narHash": "sha256-qccVXJuYR4HCHKmcozFxmWtvP4SK7tbVrnoNIpUB/6g=",
+        "owner": "obra",
+        "repo": "superpowers",
+        "rev": "469a6d81ebb8b827e284d4afb090c6c622d97747",
+        "type": "github"
+      },
+      "original": {
+        "owner": "obra",
+        "repo": "superpowers",
+        "type": "github"
       }
     },
     "systems": {

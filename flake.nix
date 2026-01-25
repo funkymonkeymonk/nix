@@ -18,6 +18,10 @@
     homebrew-cask.flake = false;
 
     mac-app-util.url = "github:hraban/mac-app-util";
+
+    # Agent skills repository for AI assistant capabilities (non-flake git repo)
+    superpowers.url = "github:obra/superpowers";
+    superpowers.flake = false;
   };
 
   outputs = {
@@ -30,6 +34,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    superpowers,
     ...
   }: let
     inherit (nixpkgs) lib;
@@ -58,6 +63,32 @@
       config = let
         bundles = import ./bundles.nix {inherit pkgs lib;};
 
+        # Check if any enabled bundle has enableAgentSkills
+        hasAgentSkillsBundle =
+          builtins.any (
+            role:
+              (bundles.roles.${role} or {}).enableAgentSkills or false
+          )
+          enabledRoles;
+
+        # Also check nested llms client bundles
+        hasLlmClientAgentSkills =
+          builtins.any (
+            role:
+              if role == "wweaver_llm_client"
+              then (bundles.roles.llms.client.opensource.enableAgentSkills or false)
+              else if role == "wweaver_claude_client"
+              then (bundles.roles.llms.client.claude.enableAgentSkills or false)
+              else false
+          )
+          enabledRoles;
+
+        # Add agent-skills to enabled roles if auto-enabled
+        rolesWithAgentSkills =
+          if hasAgentSkillsBundle || hasLlmClientAgentSkills
+          then (lib.unique (enabledRoles ++ ["agent-skills"]))
+          else enabledRoles;
+
         # Helper to collect packages from nested bundle structure
         collectPackages = path: default: let
           parts = lib.splitString "." path;
@@ -78,13 +109,13 @@
           environment = {
             systemPackages =
               bundles.roles.base.packages
-              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) enabledRoles
+              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) rolesWithAgentSkills
               ++ bundles.platforms.${system}.packages
               # Add llms packages based on enabled roles
-              ++ (lib.optionals (lib.elem "wweaver_llm_client" enabledRoles) (collectPackages "roles.llms.client.opensource" []))
-              ++ (lib.optionals (lib.elem "wweaver_claude_client" enabledRoles) (collectPackages "roles.llms.client.claude" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_host" enabledRoles) (collectPackages "roles.llms.host" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_server" enabledRoles) (collectPackages "roles.llms.server" []));
+              ++ (lib.optionals (lib.elem "wweaver_llm_client" rolesWithAgentSkills) (collectPackages "roles.llms.client.opensource" []))
+              ++ (lib.optionals (lib.elem "wweaver_claude_client" rolesWithAgentSkills) (collectPackages "roles.llms.client.claude" []))
+              ++ (lib.optionals (lib.elem "megamanx_llm_host" rolesWithAgentSkills) (collectPackages "roles.llms.host" []))
+              ++ (lib.optionals (lib.elem "megamanx_llm_server" rolesWithAgentSkills) (collectPackages "roles.llms.server" []));
 
             # Merge shell aliases from base bundle
             shellAliases =
@@ -105,9 +136,9 @@
         # Platform-specific configurations
         darwinConfig = lib.optionalAttrs (system == "darwin") {
           homebrew = let
-            roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) enabledRoles;
+            roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) rolesWithAgentSkills;
             llmHostHomebrewConfig =
-              if lib.elem "megamanx_llm_host" enabledRoles
+              if lib.elem "megamanx_llm_host" rolesWithAgentSkills
               then (collectConfig "roles.llms.host" {}).homebrew or {}
               else {};
           in
@@ -130,6 +161,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/home-manager
+        # ./modules/home-manager/agent-skills
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
         (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
@@ -149,6 +181,7 @@
               }
             ];
             development.enable = true;
+            agent-skills.enable = true;
           };
 
           # Configure nix-homebrew
@@ -175,8 +208,7 @@
         ./modules/common/users.nix
         ./modules/home-manager
         ./os/darwin.nix
-        ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "creative" "desktop" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
+        (mkBundleModule "darwin" ["developer" "creative" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -189,11 +221,12 @@
                 email = "me@willweaver.dev";
                 fullName = "Will Weaver";
                 isAdmin = true;
-                sshIncludes = ["/Users/monkey/.colima/ssh_config"];
+                sshIncludes = [];
               }
             ];
             development.enable = true;
             media.enable = true;
+            agent-skills.enable = true;
           };
 
           # Configure nix-homebrew
@@ -208,43 +241,6 @@
           };
         }
         home-manager.darwinModules.home-manager
-        {
-          home-manager.backupFileExtension = "backup";
-          # Add ollama launchd agent for MegamanX
-          home-manager.users.monkey.launchd.agents.ollama = {
-            enable = true;
-            config = {
-              ProgramArguments = ["ollama" "serve"];
-              RunAtLoad = true;
-              KeepAlive = {
-                SuccessfulExit = false;
-                NetworkState = true;
-                PathState = {
-                  "/Users/monkey/.ollama/models" = true;
-                };
-              };
-              StandardOutPath = "/tmp/ollama-launchd.log";
-              StandardErrorPath = "/tmp/ollama-launchd.err";
-              EnvironmentVariables = {
-                OLLAMA_HOST = "127.0.0.1";
-                OLLAMA_PORT = "11434";
-                OLLAMA_MODELS = "/Users/monkey/.ollama/models";
-                OLLAMA_DEBUG = "INFO";
-              };
-              # Add delay to prevent rapid restarts
-              ThrottleInterval = 10;
-            };
-          };
-        }
-        {
-          # Additional homebrew casks specific to MegamanX
-          homebrew.casks = [
-            "autodesk-fusion"
-            "xtool-studio"
-            "orcaslicer"
-            "openscad"
-          ];
-        }
       ];
     };
 
@@ -257,7 +253,6 @@
         ./modules/common/shell.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
-        ./modules/nixos/services.nix
         ./os/nixos.nix
         ./targets/drlight
         (mkBundleModule "linux" ["developer" "creative" "wweaver_llm_client"])

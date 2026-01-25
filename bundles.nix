@@ -152,6 +152,28 @@ with lib; {
       };
     };
 
+    agent-skills = {
+      packages = with pkgs; [
+        git
+        jq
+      ];
+
+      config = {
+        # Environment variables for skills paths
+        environment.sessionVariables = {
+          AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+          SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+        };
+
+        # Shell aliases for skills management
+        environment.shellAliases = {
+          skills-status = "ls -la $AGENT_SKILLS_PATH $SUPERPOWERS_SKILLS_PATH";
+          skills-update = "task agent-skills:update";
+          skills-list = "find $AGENT_SKILLS_PATH -name 'SKILL.md' -exec basename {} \\; | sort";
+        };
+      };
+    };
+
     llms = {
       # Global LLM configuration
       config = {
@@ -180,6 +202,9 @@ with lib; {
             )
           ];
 
+          # Auto-enable agent-skills
+          enableAgentSkills = true;
+
           config = {
             # opencode configuration for connecting to MegamanX litellm server
             environment.sessionVariables = {
@@ -192,6 +217,9 @@ with lib; {
           packages = with pkgs; [
             claude-code
           ];
+
+          # Auto-enable agent-skills
+          enableAgentSkills = true;
 
           config = {
             # Claude-specific configuration
@@ -247,9 +275,18 @@ with lib; {
         programs = {
           _1password.enable = true;
           _1password-gui.enable = true;
+          # Use unstable for latest versions but disable autoupdate
           _1password.package = pkgs.unstable._1password-cli;
           _1password-gui.package = pkgs.unstable._1password-gui;
         };
+
+        # Disable 1Password GUI autoupdater while keeping latest versions
+        home.file."Library/Group Containers/2BUA8C4S2C.com.1password/settings.json".text = ''
+          {
+            "updateChannel": "stable",
+            "autoUpdate": false
+          }
+        '';
 
         # Common Homebrew configuration
         homebrew = {
