@@ -271,22 +271,8 @@ with lib; {
       ];
 
       config = {
-        # 1Password integration
-        programs = {
-          _1password.enable = true;
-          _1password-gui.enable = true;
-          # Use unstable for latest versions but disable autoupdate
-          _1password.package = pkgs.unstable._1password-cli;
-          _1password-gui.package = pkgs.unstable._1password-gui;
-        };
-
-        # Disable 1Password GUI autoupdater while keeping latest versions
-        home.file."Library/Group Containers/2BUA8C4S2C.com.1password/settings.json".text = ''
-          {
-            "updateChannel": "stable",
-            "autoUpdate": false
-          }
-        '';
+        # 1Password is now installed via Homebrew cask
+        # GUI autoupdater behavior controlled by Homebrew
 
         # Common Homebrew configuration
         homebrew = {
@@ -314,6 +300,9 @@ with lib; {
 
             # Browser - Vivaldi via Homebrew (not available in nixpkgs for macOS)
             "vivaldi"
+
+            # Password management via Homebrew
+            "1password"
           ];
         };
       };

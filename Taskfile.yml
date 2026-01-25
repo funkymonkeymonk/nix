@@ -440,3 +440,90 @@ tasks:
     cmd: |
       echo "Validating skills format..."
       echo "Validation complete"
+
+  # Secrets Management (requires 1Password CLI)
+  1password:
+    desc: "1Password CLI management tasks"
+    cmds:
+      - task --list | grep "1password:" || echo "Available 1Password tasks:"
+
+  1password:setup:
+    desc: Set up 1Password CLI authentication
+    cmd: |
+      echo "Setting up 1Password CLI authentication..."
+      if ! command -v op &> /dev/null; then
+        echo "❌ 1Password CLI not found. Install 1Password via Homebrew first."
+        echo "Run: brew install --cask 1password"
+        exit 1
+      fi
+      echo "🔐 Please authenticate with 1Password..."
+      op signin
+      echo "✅ 1Password CLI authentication setup complete"
+
+  1password:status:
+    desc: Check 1Password CLI status
+    cmd: |
+      echo "Checking 1Password CLI status..."
+      if ! command -v op &> /dev/null; then
+        echo "❌ 1Password CLI not found"
+        exit 1
+      fi
+      if op account get &> /dev/null; then
+        echo "✅ 1Password CLI is signed in"
+        op account get
+      else
+        echo "❌ 1Password CLI is not signed in"
+        echo "Run 'task 1password:setup' to authenticate"
+      fi
+
+  secrets:init:
+    desc: Initialize secrets template (manual setup)
+    cmd: |
+      echo "Initializing secrets template..."
+      if [[ -f secrets.nix ]]; then
+        echo "❌ secrets.nix already exists"
+        exit 1
+      fi
+      echo "# Secrets configuration - DO NOT COMMIT" > secrets.nix
+      echo "# Add your secret configurations here" >> secrets.nix
+      echo "✅ secrets.nix template created"
+      echo "⚠️  Remember to add secrets.nix to .gitignore"
+
+  secrets:populate:
+    desc: Auto-populate secrets from 1Password items
+    cmd: |
+      echo "Auto-populating secrets from 1Password..."
+      if ! op account get &> /dev/null; then
+        echo "❌ 1Password CLI not authenticated"
+        echo "Run 'task 1password:setup' first"
+        exit 1
+      fi
+      echo "🔍 Scanning 1Password vault for secrets..."
+      echo "Use 'task secrets:get <item-name>' to retrieve specific items"
+
+  secrets:get:
+    desc: Retrieve secrets from 1Password
+    vars:
+      ITEM:
+        usage: "Name of 1Password item to retrieve"
+        required: true
+    cmd: |
+      echo "Retrieving {{.ITEM}} from 1Password..."
+      if ! op account get &> /dev/null; then
+        echo "❌ 1Password CLI not authenticated"
+        echo "Run 'task 1password:setup' first"
+        exit 1
+      fi
+      op item get "{{.ITEM}}" --format json
+
+  secrets:set:
+    desc: Store secrets in 1Password
+    cmd: |
+      echo "Storing secrets in 1Password..."
+      if ! op account get &> /dev/null; then
+        echo "❌ 1Password CLI not authenticated"
+        echo "Run 'task 1password:setup' first"
+        exit 1
+      fi
+      echo "🔧 Use 'op item create' or 'op item edit' to manage secrets"
+      echo "See 'op --help' for available commands"
