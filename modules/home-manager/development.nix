@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   ...
@@ -46,11 +47,6 @@
           push-bookmark-prefix = "push-";
           default-branch = "main";
         };
-        signing = {
-          program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
-          key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8";
-          backend = "ssh";
-        };
       };
     };
 
@@ -83,7 +79,7 @@
         ];
 
         # Window rules for dropdown terminal (handled by aerospace)
-        # The aerospace config will position and size the dropdown window
+        # The aerospace config will position and size dropdown window
       };
     };
 

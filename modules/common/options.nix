@@ -76,5 +76,37 @@ with lib; {
         description = "Enable agent skills management";
       };
     };
+
+    onepassword = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable 1Password integration";
+      };
+
+      enableGUI = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable 1Password GUI application";
+      };
+
+      enableSSHAgent = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable 1Password SSH agent";
+      };
+
+      enableGitSigning = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable git commit signing with 1Password";
+      };
+
+      signingKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "SSH key name for git signing in 1Password";
+      };
+    };
   };
 }

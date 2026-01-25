@@ -160,8 +160,9 @@
         nix-homebrew.darwinModules.nix-homebrew
         ./modules/common/options.nix
         ./modules/common/users.nix
+        ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./modules/home-manager
-        # ./modules/home-manager/agent-skills
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
         (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
@@ -182,6 +183,7 @@
             ];
             development.enable = true;
             agent-skills.enable = true;
+            onepassword.enable = true;
           };
 
           # Configure nix-homebrew
@@ -206,40 +208,8 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
-        ./modules/home-manager
-        ./os/darwin.nix
-        (mkBundleModule "darwin" ["developer" "creative" "megamanx_llm_host" "megamanx_llm_server"])
-        {
-          nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "monkey";
-          system.stateVersion = 4;
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            media.enable = true;
-            agent-skills.enable = true;
-          };
-
-          # Configure nix-homebrew
-          nix-homebrew = {
-            enable = true;
-            enableRosetta = true;
-            user = "monkey";
-            taps = {
-              "homebrew/homebrew-core" = homebrew-core;
-              "homebrew/homebrew-cask" = homebrew-cask;
-            };
-          };
-        }
+        ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         home-manager.darwinModules.home-manager
       ];
     };
@@ -251,6 +221,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
@@ -272,9 +243,9 @@
             ];
             development.enable = true;
             media.enable = true;
+            onepassword.enable = true;
           };
         }
-        ./1password.nix
         home-manager.nixosModules.home-manager
       ];
     };
@@ -286,6 +257,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
@@ -306,9 +278,9 @@
               }
             ];
             development.enable = true;
+            onepassword.enable = true;
           };
         }
-        ./1password.nix
         home-manager.nixosModules.home-manager
       ];
     };
