@@ -6,6 +6,10 @@
 }:
 with lib; let
   cfg = config.myConfig.agent-skills;
+
+  # Default superpowers repo
+  defaultRepo = "github:obra/superpowers";
+  defaultVersion = "main";
 in {
   imports = [
     ./skills.nix
@@ -17,6 +21,19 @@ in {
         type = types.bool;
         default = false;
         description = "Enable agent skills management";
+      };
+
+      # Repository configuration
+      skillsRepo = mkOption {
+        type = types.str;
+        default = defaultRepo;
+        description = "Git repository containing agent skills";
+      };
+
+      skillsVersion = mkOption {
+        type = types.str;
+        default = defaultVersion;
+        description = "Branch/tag/commit to use for skills";
       };
 
       # Home-manager specific options

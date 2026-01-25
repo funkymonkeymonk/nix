@@ -39,11 +39,6 @@ with lib; {
     home-manager.users = listToAttrs (map (user: {
         inherit (user) name;
         value = {
-          # Propagate specific myConfig options to user configurations
-          myConfig = {
-            inherit (config.myConfig) agent-skills;
-          };
-
           home = {
             username = user.name;
             homeDirectory = lib.mkDefault (
@@ -113,7 +108,6 @@ with lib; {
           imports =
             [
               ../../modules/home-manager/shell.nix
-              ../../modules/home-manager/agent-skills
             ]
             ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
             ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix;

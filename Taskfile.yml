@@ -325,8 +325,8 @@ tasks:
     desc: build all Darwin (macOS) configurations
     cmds:
       - echo "🍎 building Darwin configurations..."
-      # - task: build:darwin:will-stride-mbp
-      - task: build:darwin:megamanx
+      - nix build .#darwinConfigurations.wweaver.system --dry-run
+      - nix build .#darwinConfigurations.MegamanX.system --dry-run
       - echo "✅ All Darwin configurations validated successfully"
   build:nixos:
     desc: build all NixOS configurations

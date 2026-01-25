@@ -18,6 +18,10 @@
     homebrew-cask.flake = false;
 
     mac-app-util.url = "github:hraban/mac-app-util";
+
+    # Agent skills repository for AI assistant capabilities (non-flake git repo)
+    superpowers.url = "github:obra/superpowers";
+    superpowers.flake = false;
   };
 
   outputs = {
@@ -30,6 +34,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    superpowers,
     ...
   }: let
     inherit (nixpkgs) lib;
@@ -156,7 +161,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/home-manager
-        ./modules/home-manager/agent-skills
+        # ./modules/home-manager/agent-skills
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
         (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
@@ -202,10 +207,8 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/home-manager
-        ./modules/home-manager/agent-skills
         ./os/darwin.nix
-        ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "creative" "desktop" "gaming" "entertainment" "workstation" "wweaver_llm_client" "megamanx_llm_host" "megamanx_llm_server"])
+        (mkBundleModule "darwin" ["developer" "creative" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -218,11 +221,12 @@
                 email = "me@willweaver.dev";
                 fullName = "Will Weaver";
                 isAdmin = true;
-                sshIncludes = ["/Users/monkey/.colima/ssh_config"];
+                sshIncludes = [];
               }
             ];
             development.enable = true;
             media.enable = true;
+            agent-skills.enable = true;
           };
 
           # Configure nix-homebrew
@@ -237,43 +241,6 @@
           };
         }
         home-manager.darwinModules.home-manager
-        {
-          home-manager.backupFileExtension = "backup";
-          # Add ollama launchd agent for MegamanX
-          home-manager.users.monkey.launchd.agents.ollama = {
-            enable = true;
-            config = {
-              ProgramArguments = ["ollama" "serve"];
-              RunAtLoad = true;
-              KeepAlive = {
-                SuccessfulExit = false;
-                NetworkState = true;
-                PathState = {
-                  "/Users/monkey/.ollama/models" = true;
-                };
-              };
-              StandardOutPath = "/tmp/ollama-launchd.log";
-              StandardErrorPath = "/tmp/ollama-launchd.err";
-              EnvironmentVariables = {
-                OLLAMA_HOST = "127.0.0.1";
-                OLLAMA_PORT = "11434";
-                OLLAMA_MODELS = "/Users/monkey/.ollama/models";
-                OLLAMA_DEBUG = "INFO";
-              };
-              # Add delay to prevent rapid restarts
-              ThrottleInterval = 10;
-            };
-          };
-        }
-        {
-          # Additional homebrew casks specific to MegamanX
-          homebrew.casks = [
-            "autodesk-fusion"
-            "xtool-studio"
-            "orcaslicer"
-            "openscad"
-          ];
-        }
       ];
     };
 
@@ -285,9 +252,7 @@
         ./modules/common/users.nix
         ./modules/common/shell.nix
         ./modules/home-manager
-        ./modules/home-manager/agent-skills
         ./modules/nixos/hardware.nix
-        ./modules/nixos/services.nix
         ./os/nixos.nix
         ./targets/drlight
         (mkBundleModule "linux" ["developer" "creative" "wweaver_llm_client"])
@@ -322,7 +287,6 @@
         ./modules/common/users.nix
         ./modules/common/shell.nix
         ./modules/home-manager
-        ./modules/home-manager/agent-skills
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
         ./targets/zero
