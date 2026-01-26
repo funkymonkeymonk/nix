@@ -210,6 +210,40 @@
         ./modules/common/users.nix
         ./modules/common/shell.nix
         ./modules/common/onepassword.nix
+        ./os/darwin.nix
+        ./modules/home-manager/aerospace.nix
+        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "megamanx_llm_host"])
+        {
+          nixpkgs.hostPlatform = "aarch64-darwin";
+          system.primaryUser = "monkey";
+          system.stateVersion = 4;
+          # Configure users through the modular system
+          myConfig = {
+            users = [
+              {
+                name = "monkey";
+                email = "me@willweaver.dev";
+                fullName = "Will Weaver";
+                isAdmin = true;
+                sshIncludes = [];
+              }
+            ];
+            development.enable = true;
+            agent-skills.enable = true;
+            onepassword.enable = true;
+          };
+
+          # Configure nix-homebrew
+          nix-homebrew = {
+            enable = true;
+            enableRosetta = true;
+            user = "monkey";
+            taps = {
+              "homebrew/homebrew-core" = homebrew-core;
+              "homebrew/homebrew-cask" = homebrew-cask;
+            };
+          };
+        }
         home-manager.darwinModules.home-manager
       ];
     };
