@@ -9,6 +9,8 @@
     ./aliases.nix
   ];
 
+  # 1Password CLI alias is now handled in aliases.nix module
+
   programs.zsh = {
     enable = true;
     initContent = ''

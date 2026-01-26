@@ -160,8 +160,9 @@
         nix-homebrew.darwinModules.nix-homebrew
         ./modules/common/options.nix
         ./modules/common/users.nix
+        ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./modules/home-manager
-        # ./modules/home-manager/agent-skills
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
         (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
@@ -182,6 +183,7 @@
             ];
             development.enable = true;
             agent-skills.enable = true;
+            onepassword.enable = true;
           };
 
           # Configure nix-homebrew
@@ -206,9 +208,11 @@
         configuration
         ./modules/common/options.nix
         ./modules/common/users.nix
-        ./modules/home-manager
+        ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./os/darwin.nix
-        (mkBundleModule "darwin" ["developer" "creative" "megamanx_llm_host" "megamanx_llm_server"])
+        ./modules/home-manager/aerospace.nix
+        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "megamanx_llm_host"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -225,8 +229,8 @@
               }
             ];
             development.enable = true;
-            media.enable = true;
             agent-skills.enable = true;
+            onepassword.enable = true;
           };
 
           # Configure nix-homebrew
@@ -251,6 +255,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
@@ -272,9 +277,9 @@
             ];
             development.enable = true;
             media.enable = true;
+            onepassword.enable = true;
           };
         }
-        ./1password.nix
         home-manager.nixosModules.home-manager
       ];
     };
@@ -286,6 +291,7 @@
         ./modules/common/options.nix
         ./modules/common/users.nix
         ./modules/common/shell.nix
+        ./modules/common/onepassword.nix
         ./modules/home-manager
         ./modules/nixos/hardware.nix
         ./os/nixos.nix
@@ -306,9 +312,9 @@
               }
             ];
             development.enable = true;
+            onepassword.enable = true;
           };
         }
-        ./1password.nix
         home-manager.nixosModules.home-manager
       ];
     };

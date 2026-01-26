@@ -49,60 +49,58 @@ with lib; {
             stateVersion = "25.05";
           };
 
-          programs.git = {
-            enable = true;
-            userName = user.name;
-            userEmail = user.email;
-            aliases = {
-              co = "checkout";
-              st = "status";
-            };
-            difftastic = {
-              enable = true;
-              background = "dark";
-            };
-            extraConfig =
-              {
-                init.defaultBranch = "main";
-                pull.rebase = true;
-                push.default = "current";
-              }
-              // lib.optionalAttrs (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) {
-                gpg = {
+          programs.git =
+            {
+              userName = user.email;
+              userEmail = user.email;
+            }
+            // lib.optionalAttrs config.myConfig.onepassword.enable {
+              extraConfig = {
+                gpg = lib.mkIf (lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) {
                   format = "ssh";
                   ssh = {
                     program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
                     allowedSignersFile = "~/.ssh/allowed_signers";
                   };
                 };
-                commit.gpgsign = true;
-                user.signingkey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8";
+                commit.gpgsign = config.myConfig.onepassword.enableGitSigning;
+                user.signingkey = config.myConfig.onepassword.signingKey;
               };
-          };
+            };
 
           programs.ssh = {
             enable = true;
+            includes = user.sshIncludes;
+            extraConfig =
+              lib.optionalString (
+                config.myConfig.onepassword.enableSSHAgent
+                && lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+              ) ''
+                Host *
+                  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+              '';
+          };
 
-            extraConfig = lib.optionalString (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) ''
+          # Managed SSH config file for macOS 1Password agent
+          home.file.".ssh/config".text =
+            lib.optionalString (
+              config.myConfig.onepassword.enableSSHAgent
+              && lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+            ) ''
               Host *
                 IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
             '';
 
-            includes = user.sshIncludes;
-          };
-
-          # Ensure a managed per-user SSH config is created on macOS so the 1Password
-          # IdentityAgent socket is available to the SSH client. This writes ~/.ssh/config.
-          home.file.".ssh/config".text = lib.optionalString (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) ''
-            Host *
-              IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-          '';
-
           # Allowed signers file for SSH signature verification
           # Maps email addresses to trusted SSH public keys for local commit verification
-          home.file.".ssh/allowed_signers".text = lib.optionalString (builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) ''
-            ${user.email} ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8
-          '';
+          home.file.".ssh/allowed_signers".text =
+            lib.optionalString (
+              config.myConfig.onepassword.enableGitSigning
+              && config.myConfig.onepassword.enable
+              && lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+            ) ''
+              ${user.email} ${config.myConfig.onepassword.signingKey}
+            '';
 
           # Include shared home-manager modules
           imports =

@@ -1,25 +1,24 @@
 {
-  _config,
-  _lib,
-  _pkgs,
+  config,
+  lib,
+  pkgs,
   ...
-}: {
+}: let
+  cfg = config.myConfig.onepassword or {};
+in {
   # Shell aliases configuration
   # This module contains aliases for programs NOT installed in base bundle
 
   home.shellAliases = {
-    # Docker (only available when development role is enabled)
-    dip = "docker inspect --format '{{ .NetworkSettings.IPAddress }}'";
-    dkd = "docker run -d -P";
-    dki = "docker run -t -i -P";
-
     # Development tools
     try = "nix-shell -p";
-    ops = "op signin"; # 1Password CLI (available on NixOS systems)
-    oc = "opencode"; # AI assistant (available when developer role is enabled)
-    kk = "opencode run"; # AI assistant run command
-    gkk = "opencode run \"First check if the current branch is the default branch (main/master). If it is, create a new appropriately-named branch based on the changes before committing. Then review all changes, stage them, generate an appropriate commit message, and commit and push the changes\""; # AI-assisted git workflow: creates branch if on default, then review, stage, commit message generation, commit, and push
-    gpr = "opencode run \"Check if there's already an open pull request for this branch. If there is, update it with the latest changes. If not, analyze all changes since diverging from the main branch and create a new pull request with an appropriate title and body. After the PR is created or updated, ask me if I want to open it in the browser. Wait for my response. Default to yes if I just press enter. If I say yes or press enter, open the PR in my default browser using 'gh pr view --web'.\""; # AI-assisted pull request creation/update with analysis and PR generation
-    gpro = "gh pr view --web"; # Open current PR in browser
+    # Development tool aliases
+    ops =
+      if cfg.enable or false
+      then "op signin"
+      else ""; # 1Password CLI (conditional)
+    # AI assistant aliases
+    oc = "opencode";
+    kk = "opencode run";
   };
 }
