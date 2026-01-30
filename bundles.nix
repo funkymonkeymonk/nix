@@ -144,7 +144,6 @@ with lib; {
         homebrew = {
           casks = [
             "steam"
-            "pocket-casts"
             "obs"
             "discord"
           ];
