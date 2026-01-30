@@ -212,7 +212,7 @@
         ./modules/common/onepassword.nix
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "megamanx_llm_host"])
+        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "megamanx_llm_host"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
