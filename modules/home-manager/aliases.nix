@@ -20,5 +20,7 @@ in {
     # AI assistant aliases
     oc = "opencode";
     kk = "opencode run";
+    # Git aliases
+    newbranch = "git checkout -b $(date +\"%Y%m%d%H%M%S\")-";
   };
 }
