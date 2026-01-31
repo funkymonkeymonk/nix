@@ -4,13 +4,15 @@ This guide helps AI agents understand and work effectively with this Nix system 
 
 ## Repository Overview
 
+This repository manages the configuration of all computers via Nix flakes. The purpose is to maintain declarative configurations that define system setups, packages, and settings. **Agents should only modify the Nix configuration files in this repository - never attempt to directly change the computers' configurations.**
+
 This is a modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager. It uses a sophisticated architecture with modules, bundles, and role-based configurations.
 
 ## Key Concepts
 
 ### Architecture
 - **Modules**: Reusable configuration logic (how things work)
-- **Bundles**: Package collections (what gets installed) 
+- **Bundles**: Package collections (what gets installed)
 - **Targets**: Machine-specific configurations
 - **Options**: Type-safe configuration with validation
 
@@ -36,40 +38,14 @@ This is a modular Nix Flakes configuration for managing macOS and NixOS systems 
 
 ## Available Tasks
 
-Use `task <command>` for common operations:
-
-### Testing and Building
-- `task test` - Basic flake validation
-- `task test:full` - Comprehensive cross-platform validation
-- `task build` - Build all systems
-- `task build:darwin` - Build macOS configurations only
-- `task build:nixos` - Build Linux configurations only
-
-### Code Quality
-- `task fmt` - Format Nix files with alejandra
-- `task lint` - Run linters (deadnix)
-- `task quality` - Run all code quality checks
-
-### Development Environment
-- `task dev` - Enter development shell with all tools
-- `task devenv:update` - Update devenv lock file
-
-### Agent Skills Management
-- `task agent-skills:status` - Check skills status
-- `task agent-skills:update` - Update skills from upstream
-- `task agent-skills:validate` - Validate skills format
-
-### Secrets Management (1Password)
-- `task 1password:setup` - Set up 1Password CLI authentication
-- `task 1password:status` - Check 1Password CLI status
-- `task secrets:init` - Initialize secrets template
-- `task secrets:populate` - Auto-populate secrets from 1Password items
+Use task for common operations
+Run `task --list` for a list of all tasks available and a quick definition
 
 ## Working with This Repository
 
 ### Before Making Changes
 1. Always run `task test:full` to validate the current state
-2. Check existing code style by running `task fmt` 
+2. Check existing code style by running `task fmt`
 3. Use the development shell with `task dev` for proper tooling
 
 ### Making Changes

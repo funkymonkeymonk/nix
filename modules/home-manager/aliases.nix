@@ -21,6 +21,6 @@ in {
     oc = "opencode";
     kk = "opencode run";
     # Git aliases
-    newbranch = "git checkout -b $(date +\"%Y%m%d%H%M%S\")-";
+    gkkb = "git checkout -b $(date +\"%Y%m%d%H%M%S\")";
   };
 }
