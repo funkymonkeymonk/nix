@@ -1,17 +1,18 @@
 # Nix System Configuration
 
-A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager.
+A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager. This repository provides a complete system management solution with cross-platform support, automated tooling, and enterprise-grade development workflows.
 
 ## 🚀 Features
 
-- **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS)
-- **Modular architecture**: Shared configurations with role-based bundles
+- **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS) with unified configuration
+- **Modular architecture**: Shared configurations with role-based bundles for different use cases
 - **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
 - **SSH commit signing**: 1Password-based git commit signing with biometric authentication
-- **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing
+- **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing across platforms
 - **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
 - **Task automation**: Go-task integration for local and CI workflows
 - **Code quality**: Automated formatting and linting with alejandra and deadnix
+- **Agent skills integration**: Automatic management of AI agent skills for OpenCode and Claude Code
 
 ## 📁 Project Structure
 
