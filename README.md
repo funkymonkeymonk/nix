@@ -70,34 +70,12 @@ The project uses [devenv](https://devenv.sh) for a consistent development enviro
 - **Alejandra**: Nix code formatter (runs automatically on commit)
 - **Deadnix**: Dead code detection (runs automatically on commit)
 
-#### Available Tasks
-```bash
-task test              # Basic flake validation
-task test:full         # Comprehensive cross-platform validation (dry-run + eval)
-task build             # Build all systems
-task build:darwin      # Build macOS configurations
-task build:nixos       # Build Linux configurations
-task fmt               # Format Nix files with alejandra
-task lint              # Run linters (deadnix)
-task quality           # Run all code quality checks (fmt + lint)
-task dev               # Enter development shell with all tools
-task devenv:update     # Update devenv lock file
-
-# Secrets Management (requires 1Password CLI)
-task 1password:setup   # Set up 1Password CLI authentication
-task 1password:status  # Check 1Password CLI status
-task secrets:init      # Initialize secrets template (manual setup)
-task secrets:populate  # Auto-populate secrets from 1Password items
-task secrets:get       # Retrieve secrets from 1Password
-task secrets-set       # Store secrets in 1Password
-```
-
 ### Cross-Platform Validation
 
 The `task test:full` command provides comprehensive validation that works regardless of host platform:
 
 - **On Darwin (macOS)**: Validates both Darwin and Linux configurations
-- **On Linux**: Validates both Linux and Darwin configurations  
+- **On Linux**: Validates both Linux and Darwin configurations
 - **Uses dry-run builds**: Tests build plans without actually building
 - **Cross-architecture**: Validates x86_64-linux from aarch64-darwin and vice versa
 

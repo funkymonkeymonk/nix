@@ -270,8 +270,8 @@ with lib; {
       ];
 
       config = {
-        # 1Password is now installed via Homebrew cask
-        # GUI autoupdater behavior controlled by Homebrew
+        # 1Password GUI installed via Homebrew on macOS
+        # CLI is managed via Nix packages for consistent versions
 
         # Common Homebrew configuration
         homebrew = {
@@ -300,7 +300,7 @@ with lib; {
             # Browser - Vivaldi via Homebrew (not available in nixpkgs for macOS)
             "vivaldi"
 
-            # Password management via Homebrew
+            # 1Password GUI (CLI managed via Nix)
             "1password"
           ];
         };
