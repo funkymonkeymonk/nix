@@ -6,8 +6,14 @@
 }:
 with lib; let
   cfg = config.myConfig.zfs;
-  zfsCmd = "${pkgs.openzfs}/bin/zfs";
-  zpoolCmd = "${pkgs.openzfs}/bin/zpool";
+  zfsCmd =
+    if pkgs.stdenv.isLinux
+    then "${pkgs.openzfs}/bin/zfs"
+    else "/usr/local/bin/zfs";
+  zpoolCmd =
+    if pkgs.stdenv.isLinux
+    then "${pkgs.openzfs}/bin/zpool"
+    else "/usr/local/bin/zpool";
 in {
   options.myConfig.zfs = {
     enable = mkEnableOption "ZFS filesystem support";
@@ -56,10 +62,10 @@ in {
   };
 
   config = mkIf cfg.enable {
-    # OpenZFS package for macOS
-    environment.systemPackages = with pkgs; [
+    # OpenZFS package (only available on Linux)
+    environment.systemPackages = with pkgs; (lib.optionals stdenv.isLinux [
       openzfs
-    ];
+    ]);
 
     # Load ZFS kernel extension (kext)
     system.activationScripts.postActivation.text = ''
@@ -98,7 +104,7 @@ in {
                 ${zfsCmd} snapshot ${poolName}@$(date +%Y%m%d_%H%M%S)
 
                 # Clean up old snapshots
-                SNAPSHOTS=$(${zfsCmd} list -t snapshot -o name -H ${poolName}@ | tail -n +$((${pool.snapshotRetention} + 1)))
+                SNAPSHOTS=$(${zfsCmd} list -t snapshot -o name -H ${poolName}@ | tail -n +$(((${toString pool.snapshotRetention} + 1))))
                 if [[ -n "$SNAPSHOTS" ]]; then
                   echo "$SNAPSHOTS" | xargs -I {} ${zfsCmd} destroy {}
                 fi

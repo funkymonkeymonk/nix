@@ -26,9 +26,12 @@
   };
 
   # Additional macOS-specific ZFS settings
-  environment.systemPackages = with pkgs; [
-    # Add ZFS monitoring tools
-    htop
-    iotop
-  ];
+  environment.systemPackages = with pkgs;
+    [
+      # Add ZFS monitoring tools
+      htop
+    ]
+    ++ (lib.optionals stdenv.isLinux [
+      iotop
+    ]);
 }

@@ -210,9 +210,10 @@
         ./modules/common/users.nix
         ./modules/common/shell.nix
         ./modules/common/onepassword.nix
+        ./modules/common/zfs.nix
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "megamanx_llm_host"])
+        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "megamanx_llm_host" "zfs"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -244,6 +245,7 @@
             };
           };
         }
+        ./targets/megamanx
         home-manager.darwinModules.home-manager
       ];
     };

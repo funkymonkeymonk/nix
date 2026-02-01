@@ -174,9 +174,9 @@ with lib; {
     };
 
     zfs = {
-      packages = with pkgs; [
+      packages = with pkgs; (lib.optionals stdenv.isLinux [
         openzfs
-      ];
+      ]);
 
       config = {
         # ZFS-specific shell aliases (complements module aliases)
