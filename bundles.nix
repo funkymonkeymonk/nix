@@ -179,13 +179,11 @@ with lib; {
       ];
 
       config = {
-        # ZFS-specific shell aliases
+        # ZFS-specific shell aliases (complements module aliases)
         environment.shellAliases = {
           zfs-pools = "zpool list";
           zfs-datasets = "zfs list";
           zfs-snapshots = "zfs list -t snapshot";
-          zfs-health = "zpool status -x";
-          zfs-scrub = "sudo zpool scrub";
         };
       };
     };
