@@ -87,72 +87,44 @@
         echo "🚀 Starting opencode web server on $host..."
         echo "   This may take a few seconds to initialize..."
 
-        # Start opencode web server and capture output
-        output=$(ssh "$host" "opencode web --hostname 0.0.0.0" 2>&1)
-        local exit_code=$?
+        echo "🚀 Starting opencode web server on $host..."
+        echo "   (Server will run in background - use Ctrl+C to return to shell)"
+        echo ""
 
-        if [ $exit_code -ne 0 ]; then
-          echo "❌ Error: Failed to start opencode web server on $host"
-          echo "SSH output:"
-          echo "$output"
+        # Start opencode web server directly - it will show URLs and continue running
+        ssh "$host" "opencode web --hostname 0.0.0.0" &
+        local ssh_pid=$!
+
+        # Give the server a moment to start
+        sleep 3
+
+        # Check if the SSH process is still running (server should be)
+        if ! kill -0 $ssh_pid 2>/dev/null; then
+          echo ""
+          echo "❌ Error: opencode web server failed to start or exited immediately"
           echo ""
           echo "Possible issues:"
           echo "  - opencode is not installed on $host"
           echo "  - Port is already in use on $host"
-          echo "  - Permission issues on $host"
-          return 1
-        fi
-
-        # Extract URLs from output
-        network_url=$(echo "$output" | grep "Network access:" | sed 's/.*Network access:[[:space:]]*//' | tr -d '[:space:]')
-        local_url=$(echo "$output" | grep "Local access:" | sed 's/.*Local access:[[:space:]]*//' | tr -d '[:space:]')
-
-        if [ -z "$network_url" ] && [ -z "$local_url" ]; then
-          echo "⚠️  Warning: Could not extract URLs from opencode output"
-          echo "Raw output:"
-          echo "$output"
+          echo "  - SSH authentication issues"
           echo ""
-          echo "The web server may still be running. Try accessing common ports on $host:"
-          echo "  http://$host:4096"
-          echo "  http://$host:3000"
+          echo "To debug, try running manually:"
+          echo "   ssh $host 'opencode web --hostname 0.0.0.0'"
           return 1
         fi
 
-        echo "✅ OpenCode web server started successfully!"
         echo ""
-        echo "📱 Access URLs:"
-        [ -n "$local_url" ] && echo "   Local access:   $local_url"
-        [ -n "$network_url" ] && echo "   Network access: $network_url"
+        echo "✅ OpenCode web server is running on $host!"
         echo ""
-
-        # Offer to open browser if we have a network URL
-        if [ -n "$network_url" ]; then
-          echo "🌐 Would you like to open the network URL in your browser? (y/N)"
-          read -r response
-          case "$response" in
-            [yY][eE][sS]|[yY])
-              if command -v open >/dev/null 2>&1; then
-                echo "🚀 Opening $network_url in browser..."
-                open "$network_url"
-              elif command -v xdg-open >/dev/null 2>&1; then
-                echo "🚀 Opening $network_url in browser..."
-                xdg-open "$network_url"
-              else
-                echo "⚠️  Cannot automatically open browser - please manually visit: $network_url"
-              fi
-              ;;
-            *)
-              echo "👍 You can manually access the server at: $network_url"
-              ;;
-          esac
-        fi
-
+        echo "📱 To access the web interface:"
+        echo "   1. Check the server output above for network URLs"
+        echo "   2. Common ports: http://$host:4096, http://$host:3000"
+        echo "   3. Use 'opencode attach http://$host:<port>' to attach terminal"
         echo ""
-        echo "💡 To attach a terminal TUI to this server later:"
-        echo "   ssh $host 'opencode attach $network_url'"
-        echo ""
-        echo "🛑 To stop the server, press Ctrl+C in the SSH session or run:"
+        echo "💡 To stop the server later:"
         echo "   ssh $host 'pkill -f \"opencode web\"'"
+        echo ""
+        echo "🔗 Press Ctrl+C to return to shell (server continues running)"
       }
     '';
   };
