@@ -6,6 +6,8 @@
 }:
 with lib; let
   cfg = config.myConfig.zfs;
+  zfsCmd = "${pkgs.openzfs}/bin/zfs";
+  zpoolCmd = "${pkgs.openzfs}/bin/zpool";
 in {
   options.myConfig.zfs = {
     enable = mkEnableOption "ZFS filesystem support";
@@ -63,7 +65,7 @@ in {
     system.activationScripts.postActivation.text = ''
       # Load ZFS kernel extension
       if ! kextstat | grep -q org.openzfs.zfs; then
-        sudo kextload -b org.openzfs.zfs
+        kextload -b org.openzfs.zfs
       fi
     '';
 
@@ -71,9 +73,11 @@ in {
     launchd.daemons = {
       zfs = {
         script = ''
-          # Start ZFS services
-          /run/current-system/sw/bin/zpool import -a
-          /run/current-system/sw/bin/zfs mount -a
+          # Start ZFS services with error handling
+          if ! ${zpoolCmd} import -a 2>/dev/null; then
+            echo "Warning: Some pools failed to import" >&2
+          fi
+          ${zfsCmd} mount -a
         '';
         serviceConfig = {
           RunAtLoad = true;
@@ -91,12 +95,13 @@ in {
               pool = cfg.pools.${poolName};
             in
               lib.optionalString pool.snapshots ''
-                /run/current-system/sw/bin/zfs snapshot ${poolName}@$(date +%Y%m%d_%H%M%S)
+                ${zfsCmd} snapshot ${poolName}@$(date +%Y%m%d_%H%M%S)
 
                 # Clean up old snapshots
-                /run/current-system/sw/bin/zfs list -t snapshot -o name ${poolName}@ | \
-                  tail -n +$((${pool.snapshotRetention} + 2)) | \
-                  xargs -I {} /run/current-system/sw/bin/zfs destroy {}
+                SNAPSHOTS=$(${zfsCmd} list -t snapshot -o name -H ${poolName}@ | tail -n +$((${pool.snapshotRetention} + 1)))
+                if [[ -n "$SNAPSHOTS" ]]; then
+                  echo "$SNAPSHOTS" | xargs -I {} ${zfsCmd} destroy {}
+                fi
               ''
           ) (attrNames cfg.pools)}
         '';
@@ -111,10 +116,10 @@ in {
     # Create ZFS monitoring script
     environment.shellAliases = {
       zfs-status = ''
-        ${pkgs.openzfs}/bin/zpool status && ${pkgs.openzfs}/bin/zfs list
+        ${zpoolCmd} status && ${zfsCmd} list
       '';
       zfs-health = ''
-        ${pkgs.openzfs}/bin/zpool status -x
+        ${zpoolCmd} status -x
       '';
     };
   };
