@@ -446,36 +446,103 @@ tasks:
     preconditions:
       - sh: "uname | grep -q Darwin"
         msg: "This task only runs on macOS (MegamanX)"
+      - sh: "test -f ./scripts/zfs-setup.sh"
+        msg: "ZFS setup script not found at ./scripts/zfs-setup.sh"
+      - sh: "test -x ./scripts/zfs-setup.sh"
+        msg: "ZFS setup script is not executable"
+      - sh: "command -v zpool >/dev/null 2>&1"
+        msg: "ZFS tools not installed - please install OpenZFS"
     cmds:
-      - "./scripts/zfs-setup.sh"
+      - cmd: |
+          set -e
+          echo "Setting up ZFS external drives..."
+          ./scripts/zfs-setup.sh
+          echo "ZFS setup completed successfully"
 
   zfs:status:
     desc: "Check ZFS pool and dataset status"
     run: once
+    preconditions:
+      - sh: "uname | grep -q Darwin"
+        msg: "This task only runs on macOS (MegamanX)"
+      - sh: "command -v zpool >/dev/null 2>&1"
+        msg: "ZFS tools not installed - please install OpenZFS"
+    vars:
+      POOL_NAME:
+        sh: "echo ${ZFS_POOL:-data_pool}"
     cmds:
-      - "zpool status"
-      - "zfs list"
+      - cmd: |
+          set -e
+          echo "Checking ZFS pool and dataset status for pool: {{.POOL_NAME}}..."
+          zpool status {{.POOL_NAME}}
+          echo ""
+          zfs list -r {{.POOL_NAME}}
 
   zfs:health:
     desc: "Check ZFS system health"
     run: once
+    preconditions:
+      - sh: "uname | grep -q Darwin"
+        msg: "This task only runs on macOS (MegamanX)"
+      - sh: "command -v zpool >/dev/null 2>&1"
+        msg: "ZFS tools not installed - please install OpenZFS"
     cmds:
-      - "zpool status -x"
+      - cmd: |
+          set -e
+          echo "Checking ZFS system health..."
+          zpool status -x
 
   zfs:migrate:
     desc: "Prepare ZFS drives for migration to drlight"
     run: once
+    preconditions:
+      - sh: "test -f ./scripts/zfs-migrate.sh"
+        msg: "ZFS migration script not found at ./scripts/zfs-migrate.sh"
+      - sh: "test -x ./scripts/zfs-migrate.sh"
+        msg: "ZFS migration script is not executable"
+      - sh: "command -v zpool >/dev/null 2>&1"
+        msg: "ZFS tools not installed - please install OpenZFS"
     cmds:
-      - "./scripts/zfs-migrate.sh"
+      - cmd: |
+          set -e
+          echo "Preparing ZFS drives for migration to drlight..."
+          ./scripts/zfs-migrate.sh
+          echo "ZFS migration preparation completed successfully"
 
   zfs:snapshot:
     desc: "Create manual ZFS snapshot"
     run: once
+    preconditions:
+      - sh: "uname | grep -q Darwin"
+        msg: "This task only runs on macOS (MegamanX)"
+      - sh: "command -v zfs >/dev/null 2>&1"
+        msg: "ZFS tools not installed - please install OpenZFS"
+    vars:
+      POOL_NAME:
+        sh: "echo ${ZFS_POOL:-data_pool}"
+      TIMESTAMP:
+        sh: "date +%Y%m%d_%H%M%S"
     cmds:
-      - "sudo zfs snapshot data_pool@manual_$(date +%Y%m%d_%H%M%S)"
+      - cmd: |
+          set -e
+          echo "Creating manual ZFS snapshot for pool: {{.POOL_NAME}}..."
+          sudo zfs snapshot {{.POOL_NAME}}@manual_{{.TIMESTAMP}}
+          echo "Snapshot created: {{.POOL_NAME}}@manual_{{.TIMESTAMP}}"
 
   zfs:scrub:
     desc: "Start ZFS scrub for data integrity"
     run: once
+    preconditions:
+      - sh: "uname | grep -q Darwin"
+        msg: "This task only runs on macOS (MegamanX)"
+      - sh: "command -v zpool >/dev/null 2>&1"
+        msg: "ZFS tools not installed - please install OpenZFS"
+    vars:
+      POOL_NAME:
+        sh: "echo ${ZFS_POOL:-data_pool}"
     cmds:
-      - "sudo zpool scrub data_pool"
+      - cmd: |
+          set -e
+          echo "Starting ZFS scrub for data integrity on pool: {{.POOL_NAME}}..."
+          sudo zpool scrub {{.POOL_NAME}}
+          echo "ZFS scrub started on {{.POOL_NAME}} - use 'task zfs:status' to monitor progress"
