@@ -120,12 +120,16 @@ This configuration uses 1Password CLI directly for secret management. Secrets ar
 
 External ZFS storage solution with automated management, encryption, and backup capabilities.
 
+**Note**: ZFS tasks are currently macOS-only (MegamanX) with Linux compatibility planned.
+
 ```bash
 # Quick ZFS commands
 task zfs:status              # Show pool health and status
-task zfs:setup-pool /dev/sda /dev/sdb  # Create initial ZFS pool
-task zfs:backup              # Create manual backup snapshot
-task zfs:migrate             # Migrate pool to new system
+task zfs:setup               # Create initial ZFS pool
+task zfs:snapshot            # Create manual snapshot
+task zfs:scrub               # Start data integrity check
+task zfs:health              # Check ZFS system health
+task zfs:migrate             # Prepare pool for migration to Linux
 
 # Full documentation
 cat docs/zfs-setup.md
@@ -134,8 +138,8 @@ cat docs/zfs-setup.md
 **Features:**
 - **Encrypted Storage**: AES-256-GCM encryption with native ZFS encryption
 - **Redundancy**: Mirror configuration for data protection
-- **Automatic Snapshots**: Intelligent retention policies (30d daily, 12w weekly, 12m monthly)
-- **Cross-Platform**: Works on both macOS and Linux systems
+- **Automatic Snapshots**: Intelligent retention policies (7d daily, 4w weekly, 12m monthly)
+- **macOS Support**: Currently available on macOS (MegamanX) only
 - **Performance Monitoring**: Real-time I/O statistics and health monitoring
 
 See [ZFS Setup Guide](docs/zfs-setup.md) for complete documentation.
