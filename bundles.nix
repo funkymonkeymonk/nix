@@ -78,20 +78,26 @@ with lib; {
     };
 
     developer = {
-      packages = with pkgs; [
-        emacs
-        clang
-        python3
-        nodejs
-        yarn
-        docker
-        # colima (moved to darwin platform)
-        k3d
-        kubectl
-        kubernetes-helm
-        k9s
-        unstable.opencode
-      ];
+      packages = with pkgs;
+        [
+          emacs
+          clang
+          python3
+          nodejs
+          yarn
+          docker
+          # colima (moved to darwin platform)
+          k3d
+          kubectl
+          kubernetes-helm
+          k9s
+        ]
+        ++ lib.optionals stdenv.isLinux [
+          krunvm
+        ]
+        ++ [
+          unstable.opencode
+        ];
 
       config = {};
     };
@@ -286,6 +292,10 @@ with lib; {
             cleanup = "uninstall";
           };
 
+          taps = [
+            "slp/krun"
+          ];
+
           casks = [
             # Common macOS applications
             "raycast" # The version in nixpkgs is out of date
@@ -307,6 +317,9 @@ with lib; {
 
             # 1Password GUI (CLI managed via Nix)
             "1password"
+
+            # Virtualization - krunvm (installed via Homebrew on macOS)
+            "krunvm"
           ];
         };
       };
