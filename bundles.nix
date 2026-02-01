@@ -173,6 +173,23 @@ with lib; {
       };
     };
 
+    zfs = {
+      packages = with pkgs; [
+        openzfs
+      ];
+
+      config = {
+        # ZFS-specific shell aliases
+        environment.shellAliases = {
+          zfs-pools = "zpool list";
+          zfs-datasets = "zfs list";
+          zfs-snapshots = "zfs list -t snapshot";
+          zfs-health = "zpool status -x";
+          zfs-scrub = "sudo zpool scrub";
+        };
+      };
+    };
+
     llms = {
       # Global LLM configuration
       config = {
