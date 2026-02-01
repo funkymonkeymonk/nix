@@ -440,3 +440,42 @@ tasks:
     cmd: |
       echo "Validating skills format..."
       echo "Validation complete"
+  zfs:setup:
+    desc: "Setup ZFS external drives on MegamanX"
+    run: once
+    preconditions:
+      - sh: "uname | grep -q Darwin"
+        msg: "This task only runs on macOS (MegamanX)"
+    cmds:
+      - "./scripts/zfs-setup.sh"
+
+  zfs:status:
+    desc: "Check ZFS pool and dataset status"
+    run: once
+    cmds:
+      - "zpool status"
+      - "zfs list"
+
+  zfs:health:
+    desc: "Check ZFS system health"
+    run: once
+    cmds:
+      - "zpool status -x"
+
+  zfs:migrate:
+    desc: "Prepare ZFS drives for migration to drlight"
+    run: once
+    cmds:
+      - "./scripts/zfs-migrate.sh"
+
+  zfs:snapshot:
+    desc: "Create manual ZFS snapshot"
+    run: once
+    cmds:
+      - "sudo zfs snapshot data_pool@manual_$(date +%Y%m%d_%H%M%S)"
+
+  zfs:scrub:
+    desc: "Start ZFS scrub for data integrity"
+    run: once
+    cmds:
+      - "sudo zpool scrub data_pool"
