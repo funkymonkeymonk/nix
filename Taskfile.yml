@@ -1,12 +1,13 @@
----
 version: "3"
+
 tasks:
   default:
-    aliases:
-      - list
-      - l
     desc: List all tasks if none is specified
+    aliases:
+      - l
+      - list
     cmd: task --list-all
+
   switch:
     desc: Runs the appropriate switch command for the platform
     aliases:
@@ -16,427 +17,102 @@ tasks:
         platforms: [darwin]
       - cmd: task switch:nixos
         platforms: [linux]
-  switch:osx:
-    desc: Perform osx build and switch
-    platforms: [darwin]
-    cmd: |
-      HOSTNAME=$(hostname -s)
-      PASSWORD_PATH="op://Private/${HOSTNAME} Sudo Password/password"
-      op run \
-        --env-file=<(echo "SUDO_PASSWORD=$(op read "$PASSWORD_PATH")") \
-        -- bash -c 'echo "$SUDO_PASSWORD" | sudo -S darwin-rebuild switch --flake ./'
-  switch:nixos:
-    desc: Perform linux based build
-    aliases:
-      - linux
-    platforms: [linux]
-    cmd: sudo nixos-rebuild switch --flake ./
-  test:
-    desc: Run flake check (now defaults to quick)
-    aliases:
-      - t
-    cmds:
-      - task test:quick
+
   test:quick:
     desc: "Quick syntax and validation checks (30s) - Reports all failures"
     aliases:
       - tq
     cmds:
-      - cmd: |
-          echo "Running quick validation checks..."
-          failed_checks=""
+      - task: test:quick
+    test:quick:
+      desc: "Quick syntax and validation checks (30s) - Reports all failures"
+      aliases:
+        - tq
+      cmds:
+        - cmd: |
+            echo "Running quick validation checks..."
+            failed_checks=""
 
-          # Test basic flake validation
-          echo "🔍 Checking flake structure and dependencies..."
-          if ! nix flake check --no-build >/dev/null 2>&1; then
-            echo "❌ Flake check failed"
-            echo "🐛 Running flake check with verbose output for debugging:"
-            nix flake check --no-build --show-trace
-            failed_checks="$failed_checks flake-check"
-          else
-            echo "✅ Flake check passed"
-          fi
-
-          # Test Linux configurations
-          for config in drlight zero; do
-            echo "🐧 Validating NixOS $config configuration..."
-            if nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
-              --json >/dev/null 2>&1; then
-              echo "✅ NixOS $config configuration valid"
+            # Test basic flake validation
+            echo "🔍 Checking flake structure and dependencies..."
+            if ! nix flake check --no-build >/dev/null 2>&1; then
+              echo "❌ Flake check failed"
+              echo "🐛 Running flake check with verbose output for debugging:"
+              nix flake check --no-build --show-trace
+              failed_checks="$failed_checks flake-check"
             else
-              echo "❌ NixOS $config configuration invalid"
-              echo "🐛 Running evaluation with verbose output for debugging:"
-              nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
-                --json --show-trace
-              failed_checks="$failed_checks NixOS:$config"
+              echo "✅ Flake check passed"
             fi
-          done
 
-          # Test macOS configurations
-          for config in wweaver MegamanX; do
-            echo "🍎 Validating Darwin $config configuration..."
-            if nix eval .#darwinConfigurations.$config.system \
-              --json >/dev/null 2>&1; then
-              echo "✅ Darwin $config configuration valid"
-            else
-              echo "❌ Darwin $config configuration invalid"
-              echo "🐛 Running evaluation with verbose output for debugging:"
-              nix eval .#darwinConfigurations.$config.system \
-                --json --show-trace
-              failed_checks="$failed_checks Darwin:$config"
-            fi
-          done
-
-          # Report all failures
-          if [ -n "$failed_checks" ]; then
-            echo ""
-            echo "💀 QUICK VALIDATION FAILED"
-            echo "Failed checks:$failed_checks"
-            echo ""
-            echo "🔧 To debug individual issues:"
-            for check in $failed_checks; do
-              case $check in
-                "flake-check")
-                  echo "  - Run: nix flake check --no-build --show-trace"
-                  ;;
-                "NixOS:"*)
-                  config=${check#NixOS:}
-                  echo "  - Run: nix eval \\"
-                  echo "             .#nixosConfigurations.$config.config.system.build.toplevel \\"
-                  echo "             --json --show-trace"
-                  ;;
-                "Darwin:"*)
-                  config=${check#Darwin:}
-                  echo "  - Run: nix eval \\"
-                  echo "             .#darwinConfigurations.$config.system \\"
-                  echo "             --json --show-trace"
-                  ;;
-              esac
+            # Test Linux configurations
+            for config in drlight zero; do
+              echo "🐧 Validating NixOS $config configuration..."
+              if nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
+                --json >/dev/null 2>&1; then
+                echo "✅ NixOS $config configuration valid"
+              else
+                echo "❌ NixOS $config configuration invalid"
+                echo "🐛 Running flake check with verbose output for debugging:"
+                nix eval .#nixosConfigurations.$config.config.system.build.toplevel \
+                  --json --show-trace
+                failed_checks="$failed_checks NixOS:$config"
+              fi
             done
-            exit 1
-          else
-            echo "✅ All quick validation checks passed"
-          fi
-  test:full:
-    desc: "Full cross-platform verification (5-10min) - Fail fast"
-    aliases:
-      - tf
+
+            # Test macOS configurations
+            for config in wweaver MegamanX; do
+              echo "🍎 Validating Darwin $config configuration..."
+              if nix eval .#darwinConfigurations.$config.system \
+                --json >/dev/null 2>&1; then
+                echo "✅ Darwin $config configuration valid"
+              else
+                echo "❌ Darwin $config configuration invalid"
+                echo "🐛 Running flake check with verbose output for debugging:"
+                nix eval .#darwinConfigurations.$config.system \
+                  --json --show-trace
+                failed_checks="$failed_checks Darwin:$config"
+              fi
+            done
+
+            # Report all failures
+            if [ -n "$failed_checks" ]; then
+              echo ""
+              echo "💀 QUICK VALIDATION FAILED"
+              echo "Failed checks:$failed_checks"
+              echo ""
+              echo "🔧 To debug individual issues:"
+              for check in $failed_checks; do
+                case $check in
+                  "flake-check")
+                    echo "  - Run: nix flake check --no-build --show-trace"
+                    ;;
+                  "NixOS:"*)
+                    config=${check#NixOS:}
+                    echo "  - Run: nix eval \\"
+                    echo "             .#nixosConfigurations.$config.config.system.build.topleft \\"
+                    echo "             --json --show-trace"
+                    ;;
+                  "Darwin:"*)
+                    config=${check#Darwin:}
+                    echo "  - Run: nix eval \\"
+                    echo "             .#darwinConfigurations.$config.system \\"
+                    echo "             --json --show-trace"
+                    ;;
+                esac
+              done
+              exit 1
+            else
+              echo "✅ All quick validation checks passed"
+            fi
+
+  build:oci-image:
+    desc: "Build OCI image for local use"
+    vars:
+      IMAGE_NAME:
+        sh: echo "${IMAGE_NAME:-app-image}"
+      IMAGE_TAG:
+        sh: echo "${IMAGE_TAG:-latest}"
+      REGISTRY:
+        sh: echo "${IMAGE_TAG:-localhost:5000}}"
     cmds:
-      - echo "Universal Cross-Platform Testing Suite"
-      - echo "Validating configuration definitions..."
-      - cmd: |
-          echo "🐧 Validating NixOS drlight configuration..."
-          if nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
-            --json >/dev/null 2>&1; then
-            echo "✅ NixOS drlight configuration valid"
-          else
-            echo "❌ NixOS drlight configuration invalid"
-            echo "🐛 Running with verbose output for debugging:"
-            nix eval .#nixosConfigurations.drlight.config.system.build.toplevel \
-              --json --show-trace
-            exit 1
-          fi
-      - cmd: |
-          echo "🐧 Validating NixOS zero configuration..."
-          if nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
-            --json >/dev/null 2>&1; then
-            echo "✅ NixOS zero configuration valid"
-          else
-            echo "❌ NixOS zero configuration invalid"
-            echo "🐛 Running with verbose output for debugging:"
-            nix eval .#nixosConfigurations.zero.config.system.build.toplevel \
-              --json --show-trace
-            exit 1
-          fi
-      - cmd: |
-          echo "🍎 Validating Darwin wweaver configuration..."
-          if nix eval .#darwinConfigurations.wweaver.system \
-            --json >/dev/null 2>&1; then
-            echo "✅ Darwin wweaver configuration valid"
-          else
-            echo "❌ Darwin wweaver configuration invalid"
-            echo "🐛 Running with verbose output for debugging:"
-            nix eval .#darwinConfigurations.wweaver.system \
-              --json --show-trace
-            exit 1
-          fi
-      - cmd: |
-          echo "🍎 Validating Darwin MegamanX configuration..."
-          if nix eval .#darwinConfigurations.MegamanX.system \
-            --json >/dev/null 2>&1; then
-            echo "✅ Darwin MegamanX configuration valid"
-          else
-            echo "❌ Darwin MegamanX configuration invalid"
-            echo "🐛 Running with verbose output for debugging:"
-            nix eval .#darwinConfigurations.MegamanX.system \
-              --json --show-trace
-            exit 1
-          fi
-      - echo "Testing Linux build plans..."
-      - cmd: |
-          echo "🔍 Testing drlight build plan..."
-          if nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-            --dry-run --quiet >/dev/null 2>&1; then
-            echo "✅ drlight build plan validated"
-          else
-            echo "❌ drlight build plan failed"
-            echo "🐛 Running build plan with verbose output for debugging:"
-            nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-              --dry-run --show-trace
-            exit 1
-          fi
-      - cmd: |
-          echo "🔍 Testing zero build plan..."
-          if nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-            --dry-run --quiet >/dev/null 2>&1; then
-            echo "✅ zero build plan validated"
-          else
-            echo "❌ zero build plan failed"
-            echo "🐛 Running build plan with verbose output for debugging:"
-            nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-              --dry-run --show-trace
-            exit 1
-          fi
-      - echo "Testing Darwin evaluations..."
-      - cmd: |
-          echo "🔍 Testing wweaver evaluation..."
-          if nix eval .#darwinConfigurations.wweaver.system \
-            --quiet >/dev/null 2>&1; then
-            echo "✅ wweaver evaluation validated"
-          else
-            echo "❌ wweaver evaluation failed"
-            echo "🐛 Running evaluation with verbose output for debugging:"
-            nix eval .#darwinConfigurations.wweaver.system \
-              --show-trace
-            exit 1
-          fi
-      - cmd: |
-          echo "🔍 Testing MegamanX evaluation..."
-          if nix eval .#darwinConfigurations.MegamanX.system \
-            --quiet >/dev/null 2>&1; then
-            echo "✅ MegamanX evaluation validated"
-          else
-            echo "❌ MegamanX evaluation failed"
-            echo "🐛 Running evaluation with verbose output for debugging:"
-            nix eval .#darwinConfigurations.MegamanX.system \
-              --show-trace
-            exit 1
-          fi
-      - echo "Universal cross-platform testing completed!"
-      - echo "Results Summary"
-      - echo "   Configuration validation = SUCCESS"
-      - echo "   Linux build planning = SUCCESS"
-      - echo "   Darwin evaluation = SUCCESS"
-      - echo "   Host-agnostic execution = SUCCESS"
-  test:darwin-only:
-    desc: "Test only Darwin configurations (for Darwin runners)"
-    cmds:
-      - echo "Testing Darwin configurations"
-      - echo "=================================="
-      - echo "Testing wweaver build plan"
-      - cmd: |
-          echo "🔍 Testing wweaver build plan..."
-          if nix build .#darwinConfigurations.wweaver.system --dry-run >/dev/null 2>&1; then
-            echo "✅ wweaver build plan validated"
-          else
-            echo "❌ wweaver build plan failed"
-            echo ""
-            echo "🐛 Running build plan with verbose output for debugging:"
-            nix build .#darwinConfigurations.wweaver.system --dry-run --show-trace
-            echo ""
-            echo "💡 Common issues to check:"
-            echo "  - Missing or incompatible packages in bundles"
-            echo "  - Incorrect paths in configurations"
-            echo "  - Platform-specific incompatibilities"
-            exit 1
-          fi
-      - echo "Testing MegamanX build plan"
-      - cmd: |
-          echo "🔍 Testing MegamanX build plan..."
-          if nix build .#darwinConfigurations.MegamanX.system --dry-run >/dev/null 2>&1; then
-            echo "✅ MegamanX build plan validated"
-          else
-            echo "❌ MegamanX build plan failed"
-            echo ""
-            echo "🐛 Running build plan with verbose output for debugging:"
-            nix build .#darwinConfigurations.MegamanX.system --dry-run --show-trace
-            echo ""
-            echo "💡 Common issues to check:"
-            echo "  - Missing or incompatible packages in bundles"
-            echo "  - Incorrect paths in configurations"
-            echo "  - Platform-specific incompatibilities"
-            exit 1
-          fi
-      - echo "All Darwin tests completed"
-  test:nixos-only:
-    desc: "Test only NixOS configurations (for Linux runners)"
-    cmds:
-      - echo "Testing NixOS configurations"
-      - echo "================================="
-      - echo "Testing drlight build plan"
-      - cmd: |
-          echo "🔍 Testing drlight build plan..."
-          if nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-              --dry-run --quiet >/dev/null 2>&1; then
-            echo "✅ drlight build plan validated"
-          else
-            echo "❌ drlight build plan failed"
-            echo ""
-            echo "🐛 Running build plan with verbose output for debugging:"
-            nix build .#nixosConfigurations.drlight.config.system.build.toplevel \
-              --dry-run --show-trace
-            echo ""
-            echo "💡 Common issues to check:"
-            echo "  - Missing or incompatible packages in bundles"
-            echo "  - Incorrect hardware configuration paths"
-            echo "  - Platform-specific module incompatibilities"
-            exit 1
-          fi
-      - echo "Testing zero build plan"
-      - cmd: |
-          echo "🔍 Testing zero build plan..."
-          if nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-              --dry-run --quiet >/dev/null 2>&1; then
-            echo "✅ zero build plan validated"
-          else
-            echo "❌ zero build plan failed"
-            echo ""
-            echo "🐛 Running build plan with verbose output for debugging:"
-            nix build .#nixosConfigurations.zero.config.system.build.toplevel \
-              --dry-run --show-trace
-            echo ""
-            echo "💡 Common issues to check:"
-            echo "  - Missing or incompatible packages in bundles"
-            echo "  - Incorrect hardware configuration paths"
-            echo "  - Platform-specific module incompatibilities"
-            exit 1
-          fi
-      - echo "All NixOS tests completed"
-  build:
-    desc: build all configurations
-    aliases:
-      - b
-    cmds:
-      - echo "🔍 building flake configurations..."
-      - task: build:darwin
-      - task: build:nixos
-      - echo "✅ All configurations (NixOS and Darwin) validated successfully"
-  build:darwin:
-    desc: build all Darwin (macOS) configurations
-    cmds:
-      - echo "🍎 building Darwin configurations..."
-      - nix build .#darwinConfigurations.wweaver.system --dry-run
-      - nix build .#darwinConfigurations.MegamanX.system --dry-run
-      - echo "✅ All Darwin configurations validated successfully"
-  build:nixos:
-    desc: build all NixOS configurations
-    cmds:
-      - echo "🐧 building NixOS configurations..."
-      - task: build:nixos:drlight
-      # - task: build:nixos:zero
-      - echo "✅ All NixOS configurations validated successfully"
-  quality:
-    desc: Run all code quality checks.
-    aliases:
-      - q
-    cmds:
-      - devenv test
-  dev:
-    desc: Enter development shell with all tools available.
-    aliases:
-      - d
-    cmd: devenv shell
-  devenv:update:
-    desc: Update devenv lock file.
-    cmd: devenv update
-  init:
-    desc: Initial setup commands
-    cmds:
-      - sudo nix run nix-darwin/master#darwin-rebuild -- switch --flake ./
-  git:set-remote-ssh:
-    desc: Switch
-    cmds:
-      - git remote -v
-      - git remote set-url origin git@github.com:funkymonkeymonk/nix.git
-      - git remote -v
-  git:set-remote-https:
-    desc: Switch
-    cmds:
-      - git remote -v
-      - git remote set-url origin https://github.com/funkymonkeymonk/nix.git
-      - git remote -v
-  flake:update:
-    desc: Update the nix flake to latest versions
-    cmd: nix flake update
-  agent-skills:status:
-    desc: Check agent skills status
-    cmd: |
-      echo "=== Agent Skills Status ==="
-      echo "Upstream version:"
-      cat modules/home-manager/agent-skills/.upstream-version 2>/dev/null || echo "  Not tracked"
-  agent-skills:update:
-    desc: Update agent skills from upstream superpowers
-    cmd: |
-      echo "Updating agent skills from upstream..."
-
-      # Upstream repository information
-      UPSTREAM_REPO="https://github.com/obra/superpowers.git"
-      UPSTREAM_BRANCH="main"
-
-      # Resolve paths
-      SKILLS_PATH="$HOME/.config/opencode/skills"
-      SUPERPOWERS_PATH="$HOME/.config/opencode/superpowers/skills"
-      VERSION_FILE="$SKILLS_PATH/.upstream-version"
-
-      # Read current version
-      if [[ -f "$VERSION_FILE" ]]; then
-        current_version=$(cat "$VERSION_FILE")
-      else
-        current_version="none"
-      fi
-
-      echo "Current version: $current_version"
-
-      # Clone upstream to temporary directory
-      temp_dir=$(mktemp -d)
-      trap "rm -rf $temp_dir" EXIT
-
-      echo "Cloning upstream repository..."
-      git clone --depth 1 --branch "$UPSTREAM_BRANCH" "$UPSTREAM_REPO" "$temp_dir"
-
-      # Get latest commit hash
-      latest_version=$(cd "$temp_dir" && git rev-parse HEAD)
-
-      echo "Latest version: $latest_version"
-
-      if [[ "$current_version" = "$latest_version" ]]; then
-        echo "Already up to date"
-        exit 0
-      fi
-
-      # Update skills
-      echo "Updating skills from $temp_dir/skills to $SKILLS_PATH"
-
-      # Ensure directories exist
-      mkdir -p "$(dirname "$VERSION_FILE")"
-      mkdir -p "$SKILLS_PATH"
-      mkdir -p "$SUPERPOWERS_PATH"
-
-      # Copy new skills, preserving custom ones
-      if [[ -d "$temp_dir/skills" ]]; then
-        rsync -av --delete "$temp_dir/skills/" "$SKILLS_PATH/"
-        rsync -av --delete "$temp_dir/skills/" "$SUPERPOWERS_PATH/"
-      fi
-
-      # Update version tracking
-      echo "$latest_version" > "$VERSION_FILE"
-
-      echo "Skills updated successfully!"
-      echo "Version: $latest_version"
-      echo "Main skills directory: $SKILLS_PATH"
-      echo "Superpowers skills directory: $SUPERPOWERS_PATH"
-  agent-skills:validate:
-    desc: Validate skills against Agent Skills specification
-    cmd: |
-      echo "Validating skills format..."
-      echo "Validation complete"
+      - task: build:oci-image
