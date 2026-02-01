@@ -318,40 +318,5 @@
         home-manager.nixosModules.home-manager
       ];
     };
-
-    nixosConfigurations."oci-image-builder" = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        configuration
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/shell.nix
-        ./modules/common/onepassword.nix
-        ./modules/home-manager
-        ./modules/nixos/hardware.nix
-        ./os/nixos.nix
-        ./targets/oci-image-builder
-        (mkBundleModule "linux" ["developer" "oci-builder"])
-        {
-          nixpkgs.hostPlatform = "x86_64-linux";
-          system.stateVersion = "25.05";
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            onepassword.enable = true;
-          };
-        }
-        home-manager.nixosModules.home-manager
-      ];
-    };
   };
 }
