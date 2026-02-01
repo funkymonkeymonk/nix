@@ -116,6 +116,30 @@ This configuration uses 1Password CLI directly for secret management. Secrets ar
 - Secrets are only accessible during Nix builds
 - No secrets are stored in the Nix store
 
+### ZFS Storage
+
+External ZFS storage solution with automated management, encryption, and backup capabilities.
+
+```bash
+# Quick ZFS commands
+task zfs:status              # Show pool health and status
+task zfs:setup-pool /dev/sda /dev/sdb  # Create initial ZFS pool
+task zfs:backup              # Create manual backup snapshot
+task zfs:migrate             # Migrate pool to new system
+
+# Full documentation
+cat docs/zfs-setup.md
+```
+
+**Features:**
+- **Encrypted Storage**: AES-256-GCM encryption with native ZFS encryption
+- **Redundancy**: Mirror configuration for data protection
+- **Automatic Snapshots**: Intelligent retention policies (30d daily, 12w weekly, 12m monthly)
+- **Cross-Platform**: Works on both macOS and Linux systems
+- **Performance Monitoring**: Real-time I/O statistics and health monitoring
+
+See [ZFS Setup Guide](docs/zfs-setup.md) for complete documentation.
+
 ## 🤖 Agent Skills Management
 
 This configuration includes automatic management of AI agent skills for OpenCode and Claude Code integration.
