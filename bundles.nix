@@ -296,30 +296,19 @@ with lib; {
             "slp/krun"
           ];
 
+          brews = [
+            "krunvm"
+          ];
           casks = [
-            # Common macOS applications
-            "raycast" # The version in nixpkgs is out of date
+            "raycast"
             "zed"
             "zen"
-
-            # Terminal emulators
             "ghostty"
-
-            # Entertainment and communication
             "deezer"
             "block-goose"
-
-            # Productivity and utilities
             "sensei"
-
-            # Browser - Vivaldi via Homebrew (not available in nixpkgs for macOS)
             "vivaldi"
-
-            # 1Password GUI (CLI managed via Nix)
             "1password"
-
-            # Virtualization - krunvm (installed via Homebrew on macOS)
-            "krunvm"
           ];
         };
       };
