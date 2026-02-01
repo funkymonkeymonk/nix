@@ -26,12 +26,12 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Configuration
-POOL_NAME="backup"
-MOUNTPOINT="/Volumes/backup"
-SNAPSHOT_PREFIX="auto"
-COMPRESSION_ALGORITHM="lz4"
-ENCRYPTION_ALGORITHM="aes-256-gcm"
+# Configuration - override with environment variables
+POOL_NAME="${ZFS_POOL_NAME:-data_pool}"
+MOUNTPOINT="${ZFS_MOUNTPOINT:-/Volumes/data_pool}"
+SNAPSHOT_PREFIX="${ZFS_SNAPSHOT_PREFIX:-auto}"
+COMPRESSION_ALGORITHM="${ZFS_COMPRESSION_ALGORITHM:-lz4}"
+ENCRYPTION_ALGORITHM="${ZFS_ENCRYPTION_ALGORITHM:-aes-256-gcm}"
 
 # Function to check if running on macOS
 check_macos() {
@@ -63,9 +63,23 @@ list_disks() {
     done
 }
 
+# Function to sanitize and validate disk input
+sanitize_disk_input() {
+    local input="$1"
+    # Remove any dangerous characters and ensure proper format
+    if [[ ! "$input" =~ ^/dev/disk[0-9]+$ ]]; then
+        log_error "Invalid disk format: $input"
+        log_error "Disk path must be in format: /dev/diskX (where X is a number)"
+        exit 1
+    fi
+    echo "$input"
+}
+
 # Function to validate disk exists
 validate_disk() {
     local disk="$1"
+    disk=$(sanitize_disk_input "$disk")
+    
     if [[ ! -b "$disk" ]]; then
         log_error "Disk $disk does not exist or is not a block device"
         list_disks
@@ -76,26 +90,87 @@ validate_disk() {
     if ! diskutil info "$disk" | grep -q "External"; then
         log_warning "$disk doesn't appear to be an external disk"
         log_warning "Please make sure you selected the correct disk"
+        exit 1
     fi
+    
+    # Additional security checks
+    if [[ "$disk" == "/dev/disk0" || "$disk" == "/dev/disk1" ]]; then
+        log_error "CRITICAL: $disk appears to be a system disk"
+        log_error "This script only works with external disks"
+        exit 1
+    fi
+    
+    echo "$disk"
 }
 
-# Function to get user confirmation
+# Function to get user confirmation with device details
 get_confirmation() {
     local message="$1"
+    local disk1="$2"
+    local disk2="$3"
+    
     echo
     log_warning "$message"
-    read -p "Type 'YES' to continue: " confirmation
+    echo
+    log_info "DEVICE DETAILS:"
+    echo "================================"
     
-    if [[ "$confirmation" != "YES" ]]; then
+    # Show detailed disk information
+    echo "Disk 1: $disk1"
+    diskutil info "$disk1" | grep -E "(Device Node|Device / Media Name|Total Size|Protocol|Internal|External|Removable Media)" | while IFS=: read -r key value; do
+        printf "  %-20s: %s\n" "$key" "$(echo "$value" | sed 's/^[[:space:]]*//')"
+    done
+    echo
+    
+    echo "Disk 2: $disk2"
+    diskutil info "$disk2" | grep -E "(Device Node|Device / Media Name|Total Size|Protocol|Internal|External|Removable Media)" | while IFS=: read -r key value; do
+        printf "  %-20s: %s\n" "$key" "$(echo "$value" | sed 's/^[[:space:]]*//')"
+    done
+    echo "================================"
+    echo
+    
+    log_warning "This operation will COMPLETELY ERASE both disks shown above"
+    log_warning "Verify the disk details carefully before proceeding"
+    echo
+    
+    read -p "Type 'ERASE' to confirm complete data destruction: " confirmation
+    
+    if [[ "$confirmation" != "ERASE" ]]; then
         log_error "Operation cancelled by user"
         exit 1
     fi
+}
+
+# Function to check sudo privileges
+check_sudo() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "This operation requires root privileges"
+        log_info "Please run with sudo: sudo $0 $@"
+        exit 1
+    fi
+}
+
+# Function to validate encryption status
+validate_encryption_support() {
+    log_info "Validating encryption support..."
+    
+    # Check if encryption is supported
+    if ! zpool list | head -1 | grep -q "FEATURES"; then
+        log_error "ZFS encryption features not available"
+        log_info "Please ensure you're using a compatible ZFS version"
+        exit 1
+    fi
+    
+    log_success "Encryption support validated"
 }
 
 # Function to create ZFS pool
 create_pool() {
     local disk1="$1"
     local disk2="$2"
+    
+    check_sudo
+    validate_encryption_support
     
     log_info "Creating ZFS pool '$POOL_NAME' with encryption and compression..."
     
@@ -104,7 +179,7 @@ create_pool() {
     echo "This passphrase will be required to unlock the pool on reboot."
     echo
     
-    zpool create \
+    sudo zpool create \
         -o ashift=12 \
         -O compression="$COMPRESSION_ALGORITHM" \
         -O encryption="$ENCRYPTION_ALGORITHM" \
@@ -122,30 +197,45 @@ create_datasets() {
     log_info "Creating datasets..."
     
     # Create main datasets with specific settings
-    zfs create -o mountpoint="$MOUNTPOINT/documents" "$POOL_NAME/documents"
-    zfs create -o mountpoint="$MOUNTPOINT/media" "$POOL_NAME/media"
-    zfs create -o mountpoint="$MOUNTPOINT/archives" "$POOL_NAME/archives"
+    sudo zfs create -o mountpoint="$MOUNTPOINT/documents" "$POOL_NAME/documents"
+    sudo zfs create -o mountpoint="$MOUNTPOINT/media" "$POOL_NAME/media"
+    sudo zfs create -o mountpoint="$MOUNTPOINT/archives" "$POOL_NAME/archives"
     
     # Create media sub-datasets
-    zfs create "$POOL_NAME/media/photos"
-    zfs create "$POOL_NAME/media/videos"
-    zfs create "$POOL_NAME/media/music"
+    sudo zfs create "$POOL_NAME/media/photos"
+    sudo zfs create "$POOL_NAME/media/videos"
+    sudo zfs create "$POOL_NAME/media/music"
     
     # Set specific compression for different data types
-    zfs set compression=lz4 "$POOL_NAME/documents"
-    zfs set compression=gzip-6 "$POOL_NAME/archives"  # Better compression for archives
+    sudo zfs set compression=lz4 "$POOL_NAME/documents"
+    sudo zfs set compression=gzip-6 "$POOL_NAME/archives"  # Better compression for archives
     
     log_success "Datasets created successfully"
 }
 
-# Function to setup automatic snapshots
+# Function to validate mountpoint and create secure snapshot scripts
 setup_snapshots() {
     log_info "Setting up automatic snapshot configuration..."
     
-    # Create snapshot retention script
-    cat > "$MOUNTPOINT/.snapshot-cleanup.sh" << 'EOF'
+    # Validate mountpoint exists and is secure
+    if [[ ! -d "$MOUNTPOINT" ]]; then
+        log_error "Mountpoint $MOUNTPOINT does not exist"
+        exit 1
+    fi
+    
+    # Check mountpoint permissions
+    local mount_perms=$(stat -f "%Lp" "$MOUNTPOINT")
+    if [[ "$mount_perms" != "755" && "$mount_perms" != "700" ]]; then
+        log_warning "Mountpoint has unusual permissions: $mount_perms"
+        log_info "Setting secure permissions (755)"
+        chmod 755 "$MOUNTPOINT"
+    fi
+    
+    # Create snapshot retention script with secure permissions
+    local cleanup_script="$MOUNTPOINT/.snapshot-cleanup.sh"
+    cat > "$cleanup_script" << 'EOF'
 #!/bin/bash
-POOL_NAME="backup"
+POOL_NAME="data_pool"
 SNAPSHOT_PREFIX="auto"
 MAX_DAILY=7
 MAX_WEEKLY=4
@@ -168,7 +258,7 @@ cleanup_snapshots() {
 }
 
 # Cleanup old snapshots for all datasets
-for dataset in $(zfs list -o name -r backup | grep -v "^backup$"); do
+for dataset in $(zfs list -o name -r data_pool | grep -v "^data_pool$"); do
     echo "Cleaning up snapshots for $dataset"
     cleanup_snapshots "$dataset" "$SNAPSHOT_PREFIX-daily" "$MAX_DAILY"
     cleanup_snapshots "$dataset" "$SNAPSHOT_PREFIX-weekly" "$MAX_WEEKLY"
@@ -176,24 +266,27 @@ for dataset in $(zfs list -o name -r backup | grep -v "^backup$"); do
 done
 EOF
     
-    chmod +x "$MOUNTPOINT/.snapshot-cleanup.sh"
+    chmod 750 "$cleanup_script"
+    chown "$(whoami):staff" "$cleanup_script" 2>/dev/null || true
     
-    # Create daily snapshot script
-    cat > "$MOUNTPOINT/.snapshot-daily.sh" << 'EOF'
+    # Create daily snapshot script with secure permissions
+    local daily_script="$MOUNTPOINT/.snapshot-daily.sh"
+    cat > "$daily_script" << 'EOF'
 #!/bin/bash
-POOL_NAME="backup"
+POOL_NAME="data_pool"
 SNAPSHOT_PREFIX="auto"
 DATE=$(date +%Y-%m-%d)
 
-for dataset in $(zfs list -o name -r backup); do
+for dataset in $(zfs list -o name -r data_pool); do
     echo "Creating daily snapshot for $dataset"
     zfs snapshot "$dataset@$SNAPSHOT_PREFIX-daily-$DATE"
 done
 EOF
     
-    chmod +x "$MOUNTPOINT/.snapshot-daily.sh"
+    chmod 750 "$daily_script"
+    chown "$(whoami):staff" "$daily_script" 2>/dev/null || true
     
-    log_success "Snapshot scripts created in $MOUNTPOINT"
+    log_success "Snapshot scripts created in $MOUNTPOINT with secure permissions"
     log_info "To setup automatic snapshots, add to your crontab:"
     log_info "  0 2 * * * $MOUNTPOINT/.snapshot-daily.sh"
     log_info "  0 3 * * 0 $MOUNTPOINT/.snapshot-cleanup.sh"
@@ -204,8 +297,8 @@ create_initial_snapshot() {
     log_info "Creating initial snapshot..."
     local snapshot_name="$SNAPSHOT_PREFIX-initial-$(date +%Y-%m-%d-%H%M%S)"
     
-    for dataset in $(zfs list -o name -r "$POOL_NAME"); do
-        zfs snapshot "$dataset@$snapshot_name"
+    for dataset in $(sudo zfs list -o name -r "$POOL_NAME"); do
+        sudo zfs snapshot "$dataset@$snapshot_name"
     done
     
     log_success "Initial snapshot '$snapshot_name' created"
@@ -253,11 +346,11 @@ main() {
     
     # Get first disk
     read -p "Enter first disk (e.g., /dev/disk3): " disk1
-    validate_disk "$disk1"
+    disk1=$(validate_disk "$disk1")
     
     # Get second disk
     read -p "Enter second disk (e.g., /dev/disk4): " disk2
-    validate_disk "$disk2"
+    disk2=$(validate_disk "$disk2")
     
     # Show disk information
     echo
@@ -266,8 +359,8 @@ main() {
     diskutil info "$disk2" | grep -E "(Device Node|Device / Media Name|Total Size)"
     echo
     
-    # Get final confirmation
-    get_confirmation "This will COMPLETELY ERASE all data on $disk1 and $disk2. Type 'YES' to continue"
+    # Get final confirmation with device details
+    get_confirmation "This will COMPLETELY ERASE all data on both disks" "$disk1" "$disk2"
     
     # Create pool
     create_pool "$disk1" "$disk2"

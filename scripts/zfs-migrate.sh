@@ -26,27 +26,68 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Configuration
-POOL_NAME="backup"
+# Configuration - override with environment variables
+POOL_NAME="${ZFS_POOL_NAME:-data_pool}"
+
+# Function to check sudo privileges
+check_sudo() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "This operation requires root privileges"
+        log_info "Please run with sudo: sudo $0 $@"
+        exit 1
+    fi
+}
+
+# Function to validate encrypted pool status
+validate_encryption_status() {
+    log_info "Validating encryption status..."
+    
+    # Check if pool is encrypted
+    local encryption_status=$(sudo zfs get -H -o value encryption "$POOL_NAME" 2>/dev/null || echo "off")
+    if [[ "$encryption_status" == "off" ]]; then
+        log_warning "Pool '$POOL_NAME' is not encrypted"
+    else
+        log_success "Pool encryption status: $encryption_status"
+        
+        # Check if encryption key is loaded
+        local key_status=$(sudo zfs get -H -o value keystatus "$POOL_NAME" 2>/dev/null || echo "unavailable")
+        if [[ "$key_status" == "available" ]]; then
+            log_success "Encryption key is loaded and available"
+        else
+            log_warning "Encryption key status: $key_status"
+            log_warning "You may need to provide the encryption passphrase during import on Linux"
+        fi
+    fi
+}
 
 # Function to check if pool exists
 check_pool_exists() {
-    if ! zpool list "$POOL_NAME" >/dev/null 2>&1; then
+    check_sudo
+    
+    if ! sudo zpool list "$POOL_NAME" >/dev/null 2>&1; then
         log_error "ZFS pool '$POOL_NAME' does not exist"
         log_info "Available pools:"
-        zpool list
+        sudo zpool list
         exit 1
     fi
     log_success "ZFS pool '$POOL_NAME' found"
+    
+    # Validate encryption status
+    validate_encryption_status
 }
 
 # Function to show pool status
 show_pool_status() {
     log_info "Current pool status:"
-    zpool status "$POOL_NAME"
+    sudo zpool status "$POOL_NAME"
     echo
     log_info "Pool datasets:"
-    zfs list -r "$POOL_NAME"
+    sudo zfs list -r "$POOL_NAME"
+    echo
+    
+    # Show device information for migration verification
+    log_info "Device information for migration:"
+    sudo zpool list -v "$POOL_NAME" | grep -E "(mirror|disk)"
 }
 
 # Function to export pool safely
@@ -54,13 +95,24 @@ export_pool() {
     log_info "Exporting ZFS pool '$POOL_NAME' for migration..."
     
     # Check if any datasets are busy
-    if zfs list -r "$POOL_NAME" | grep -q "legacy"; then
+    if sudo zfs list -r "$POOL_NAME" | grep -q "legacy"; then
         log_warning "Some datasets may have legacy mountpoints"
         log_warning "Make sure all datasets are unmounted before proceeding"
     fi
     
+    # Check for active processes using the pool
+    log_info "Checking for processes using the pool..."
+    local active_processes=$(lsof +D "$(sudo zfs get -H -o value mountpoint "$POOL_NAME" 2>/dev/null || echo "/Volumes/$POOL_NAME")" 2>/dev/null | wc -l || echo "0")
+    if [[ "$active_processes" -gt 0 ]]; then
+        log_warning "Found $active_processes processes using the pool"
+        log_warning "Files may be in use by running applications"
+        echo
+        lsof +D "$(sudo zfs get -H -o value mountpoint "$POOL_NAME" 2>/dev/null || echo "/Volumes/$POOL_NAME")" 2>/dev/null || true
+        echo
+    fi
+    
     # Attempt to unmount the pool
-    if ! zpool export "$POOL_NAME"; then
+    if ! sudo zpool export "$POOL_NAME"; then
         log_error "Failed to export pool '$POOL_NAME'"
         log_info "Possible reasons:"
         log_info "  1. Dataset is in use (files open)"
@@ -99,19 +151,19 @@ show_linux_instructions() {
     echo "   sudo yum install zfs             # RHEL/CentOS"
     echo
     echo "3. Import the pool:"
-    echo "   sudo zpool import backup"
+    echo "   sudo zpool import data_pool"
     echo "   # You'll be prompted for the encryption passphrase"
     echo
     echo "4. Verify import:"
-    echo "   sudo zpool status backup"
-    echo "   sudo zfs list -r backup"
+    echo "   sudo zpool status data_pool"
+    echo "   sudo zfs list -r data_pool"
     echo
     echo "5. Create mountpoints if needed:"
-    echo "   sudo mkdir -p /mnt/backup"
-    echo "   sudo zfs set mountpoint=/mnt/backup backup"
+    echo "   sudo mkdir -p /mnt/data_pool"
+    echo "   sudo zfs set mountpoint=/mnt/data_pool data_pool"
     echo
     echo "6. Enable auto-mount on boot (optional):"
-    echo "   sudo zpool set cachefile=/etc/zfs/zpool.cache backup"
+    echo "   sudo zpool set cachefile=/etc/zfs/zpool.cache data_pool"
     echo "   sudo systemctl enable zfs-import-cache"
     echo "   sudo systemctl enable zfs-mount"
     echo
@@ -129,10 +181,10 @@ show_rollback_instructions() {
     echo
     echo "1. Reconnect the drives to macOS"
     echo "2. Import the pool:"
-    echo "   sudo zpool import backup"
+    echo "   sudo zpool import data_pool"
     echo "   # You'll be prompted for the encryption passphrase"
     echo
-    echo "3. The pool should mount automatically at /Volumes/backup"
+    echo "3. The pool should mount automatically at /Volumes/data_pool"
     echo
     log_warning "Note: This should only be needed if the migration fails"
 }
@@ -143,14 +195,54 @@ handle_force_export() {
     
     # Try to unmount all datasets first
     log_info "Attempting to unmount all datasets..."
-    zfs unmount -a -r "$POOL_NAME" 2>/dev/null || true
+    sudo zfs unmount -a -r "$POOL_NAME" 2>/dev/null || true
     
-    # Force export
-    if zpool export -f "$POOL_NAME"; then
+    # Check for remaining open files
+    log_info "Checking for remaining open files..."
+    local mount_point=$(sudo zfs get -H -o value mountpoint "$POOL_NAME" 2>/dev/null || echo "/Volumes/$POOL_NAME")
+    if [[ -d "$mount_point" ]]; then
+        local open_files=$(lsof +D "$mount_point" 2>/dev/null || echo "")
+        if [[ -n "$open_files" ]]; then
+            log_warning "Found open files preventing export:"
+            echo "$open_files"
+            echo
+            log_info "Processes that may need to be terminated:"
+            echo "$open_files" | awk '{print $1}' | sort -u | sed 's/^/  /'
+            echo
+        fi
+    fi
+    
+    # Force export with detailed error reporting
+    log_info "Attempting force export..."
+    if sudo zpool export -f "$POOL_NAME" 2>&1; then
         log_success "Force export successful"
         return 0
     else
-        log_error "Force export failed"
+        local export_error=$?
+        log_error "Force export failed with exit code $export_error"
+        log_info "Detailed analysis:"
+        
+        # Check pool health
+        local pool_health=$(sudo zpool list -H -o health "$POOL_NAME" 2>/dev/null || echo "unknown")
+        log_info "Pool health: $pool_health"
+        
+        # Check for I/O errors
+        local error_count=$(sudo zpool status "$POOL_NAME" | grep -E "errors:" | awk '{sum+=$2} END {print sum+0}' || echo "0")
+        if [[ "$error_count" -gt 0 ]]; then
+            log_warning "Pool reports $error_count errors - this may prevent export"
+        fi
+        
+        # Check if pool is in use by system
+        if sudo zpool status "$POOL_NAME" | grep -q "state: ONLINE"; then
+            log_info "Pool is online and healthy - export should be possible"
+        fi
+        
+        log_info "Troubleshooting steps:"
+        log_info "1. Close all applications using files on the pool"
+        log_info "2. Terminate processes: kill -9 <PID> for processes shown above"
+        log_info "3. Wait a few seconds and retry normal export"
+        log_info "4. If all else fails, consider system restart before migration"
+        
         return 1
     fi
 }
@@ -170,9 +262,25 @@ main() {
     log_warning "The pool will be exported and will no longer be accessible on macOS"
     echo
     
-    # Ask for confirmation
-    read -p "Do you want to continue? (yes/no): " confirm
-    if [[ "$confirm" != "yes" ]]; then
+    # Show detailed pool information for verification
+    log_info "POOL MIGRATION DETAILS:"
+    echo "================================"
+    log_info "Pool Name: $POOL_NAME"
+    log_info "Pool Health: $(sudo zpool list -H -o health "$POOL_NAME" 2>/dev/null || echo "unknown")"
+    log_info "Total Size: $(sudo zpool list -H -o size "$POOL_NAME" 2>/dev/null || echo "unknown")"
+    log_info "Allocated: $(sudo zpool list -H -o allocated "$POOL_NAME" 2>/dev/null || echo "unknown")"
+    log_info "Free: $(sudo zpool list -H -o free "$POOL_NAME" 2>/dev/null || echo "unknown")"
+    log_info "Encryption: $(sudo zfs get -H -o value encryption "$POOL_NAME" 2>/dev/null || echo "off")"
+    echo "================================"
+    echo
+    
+    log_warning "Verify the pool details above before proceeding with migration"
+    log_warning "Once exported, this pool must be imported on Linux to access data"
+    echo
+    
+    # Enhanced confirmation
+    read -p "Type 'MIGRATE' to confirm pool export for Linux migration: " confirm
+    if [[ "$confirm" != "MIGRATE" ]]; then
         log_info "Operation cancelled by user"
         exit 0
     fi
@@ -180,14 +288,17 @@ main() {
     # Try normal export first
     if ! export_pool; then
         echo
-        log_warning "Normal export failed. Would you like to try force export?"
+        log_warning "Normal export failed. Detailed error analysis available above."
         log_warning "Force export can be used if the pool is busy, but may cause data loss if files are in use"
-        read -p "Try force export? (yes/no): " force_confirm
+        log_warning "Recommendation: Close applications and retry normal export first"
+        echo
+        read -p "Try force export despite risks? (FORCE): " force_confirm
         
-        if [[ "$force_confirm" == "yes" ]]; then
+        if [[ "$force_confirm" == "FORCE" ]]; then
             if ! handle_force_export; then
                 log_error "Both normal and force export failed"
-                log_info "Please check what is using the pool and try again"
+                log_error "Migration cannot continue - resolve the issues shown above and retry"
+                log_info "Consider restarting the system and running the script again"
                 exit 1
             fi
         else

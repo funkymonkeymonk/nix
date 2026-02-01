@@ -7,7 +7,7 @@ Comprehensive ZFS external storage solution with automated management, encryptio
 **Platform Support:** Currently macOS-only (MegamanX) with Linux compatibility planned.
 
 **Pool Configuration:**
-- **Pool Name**: `backup`
+- **Pool Name**: `data_pool`
 - **Configuration**: Mirror (RAID1) setup for redundancy
 - **Encryption**: AES-256-GCM with native ZFS encryption
 - **Compression**: LZ4 for performance/space balance
@@ -18,7 +18,7 @@ Comprehensive ZFS external storage solution with automated management, encryptio
 ### Dataset Structure
 
 ```
-backup/
+data_pool/
 ├── documents/                # Documents and files
 ├── media/                    # Media files (photos, videos, music)
 │   ├── photos/               # Photo library
@@ -119,35 +119,55 @@ backup/
    ```
 
 4. **Import existing pool**:
-   ```bash
-   # On Linux, import the existing pool
-   sudo zpool import backup
-   # You'll be prompted for the encryption passphrase
-   # Verify pool status
-   sudo zpool status backup
-   ```
+    ```bash
+    # On Linux, import the existing pool
+    sudo zpool import data_pool
+    # You'll be prompted for the encryption passphrase
+    # Verify pool status
+    sudo zpool status data_pool
+    ```
 
 5. **Verify dataset access**:
-   ```bash
-   # List datasets
-   sudo zfs list -r backup
-   # Check data integrity
-   ls -la /mnt/backup/
-   ```
+    ```bash
+    # List datasets
+    sudo zfs list -r data_pool
+    # Check data integrity
+    ls -la /mnt/data_pool/
+    ```
 
 6. **Set up mount points**:
-   ```bash
-   # Create mountpoints if needed
-   sudo mkdir -p /mnt/backup
-   sudo zfs set mountpoint=/mnt/backup backup
-   ```
+    ```bash
+    # Create mountpoints if needed
+    sudo mkdir -p /mnt/data_pool
+    sudo zfs set mountpoint=/mnt/data_pool data_pool
+    ```
 
 ### Considerations
 - **Data continuity**: No data migration needed - pool imports with all data intact
 - **Performance**: Potential performance improvements on Linux host
 - **Integration**: Better integration with NixOS ecosystem
 - **Monitoring**: Enhanced monitoring capabilities on Linux
-- **Encryption**: Passphrase will be required during import to Linux
+- **Encryption**: Passphrase will be required during import to Linux and after system reboots
+
+## Operational Requirements
+
+### ⚠️ Critical: Passphrase Requirement After Reboot
+
+**WARNING:** Your ZFS pool uses encryption and requires manual intervention after system restarts.
+
+- **After every reboot**, the pool will be locked and you must provide the encryption passphrase
+- To unlock and mount the pool after reboot:
+  ```bash
+  # Import the pool (will prompt for passphrase)
+  sudo zpool import data_pool
+  
+  # Or if already imported but locked
+  sudo zfs mount data_pool
+  ```
+
+- **Store your passphrase securely** - you cannot access data without it
+- Consider setting up automatic mount scripts if frequent reboots are expected
+- For unattended reboots, consider using key files instead of passphrase (reduces security)
 
 ## Security
 
@@ -194,19 +214,19 @@ backup/
 # List available pools
 sudo zpool import
 # Force import if needed (careful!)
-sudo zpool import -f backup
+sudo zpool import -f data_pool
 # Check for missing devices
-sudo zpool import -c /etc/zfs/zpool.cache backup
+sudo zpool import -c /etc/zfs/zpool.cache data_pool
 ```
 
 #### Dataset Won't Mount
 ```bash
 # Check mount status
-zfs get mounted backup/documents
+zfs get mounted data_pool/documents
 # Mount manually
-sudo zfs mount backup/documents
+sudo zfs mount data_pool/documents
 # Check mountpoint
-zfs get mountpoint backup/documents
+zfs get mountpoint data_pool/documents
 ```
 
 #### Performance Issues
@@ -216,7 +236,7 @@ zpool iostat -v 1
 # Check ARC statistics
 arcstat
 # Check compression ratio
-zfs get compressratio backup
+zfs get compressratio data_pool
 ```
 
 #### Space Issues
@@ -224,7 +244,7 @@ zfs get compressratio backup
 # Check space usage
 zfs list -o space
 # Find large files
-sudo find /mnt/backup -type f -size +10G -ls
+sudo find /mnt/data_pool -type f -size +10G -ls
 # Check snapshot usage
 zfs list -t snapshot
 ```
@@ -238,9 +258,9 @@ zfs list -t snapshot
    ```
 
 2. **Replace device**:
-   ```bash
-   sudo zpool replace backup /dev/sda /dev/sdc
-   ```
+    ```bash
+    sudo zpool replace data_pool /dev/sda /dev/sdc
+    ```
 
 3. **Monitor resilver**:
    ```bash
@@ -254,9 +274,9 @@ zfs list -t snapshot
    ```
 
 2. **Scrub pool**:
-   ```bash
-   sudo zpool scrub backup
-   ```
+    ```bash
+    sudo zpool scrub data_pool
+    ```
 
 3. **Monitor repair progress**:
    ```bash
