@@ -58,12 +58,20 @@
         }
       ''}
 
-      # Function to start opencode web session on drlight with robust error handling
-      opencode-drlight() {
-        local host="drlight"
+      # Function to start opencode web session on any SSH host with robust error handling
+      ocssh() {
+        local host="$1"
         local output
         local network_url
         local local_url
+
+        # Check if host parameter is provided
+        if [ -z "$host" ]; then
+          echo "❌ Error: Host parameter required"
+          echo "Usage: ocssh <hostname>"
+          echo "Example: ocssh drlight"
+          return 1
+        fi
 
         echo "🔍 Checking SSH connectivity to $host..."
         if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$host" "echo 'Connection successful'" 2>/dev/null; then
