@@ -1,10 +1,6 @@
 # Consolidated bundle configurations
-# This replaces the entire bundles/ directory structure with a single, unified configuration
-{
-  pkgs,
-  lib,
-}:
-with lib; {
+{pkgs}:
+with pkgs.lib; {
   roles = {
     base = {
       packages = with pkgs; [
@@ -23,7 +19,6 @@ with lib; {
         zinit
         fzf
         zsh
-        # Also includes aliases and common utilities from modules/common/packages.nix
         ripgrep
         fd
         coreutils
@@ -35,7 +30,6 @@ with lib; {
       config = {
         programs.zsh.enable = true;
 
-        # Shell aliases from bundles/base/aliases.nix
         environment.shellAliases = {
           # Git aliases
           g = "git";
@@ -85,12 +79,11 @@ with lib; {
         nodejs
         yarn
         docker
-        # colima (moved to darwin platform)
         k3d
         kubectl
         kubernetes-helm
         k9s
-        unstable.opencode
+        # opencode is provided by llm-client role
       ];
 
       config = {};
@@ -104,7 +97,6 @@ with lib; {
       ];
 
       config = {
-        # Homebrew casks for creative apps (macOS only)
         homebrew = {
           casks = [
             "elgato-stream-deck"
@@ -145,7 +137,6 @@ with lib; {
       packages = [];
 
       config = {
-        # Homebrew casks for entertainment apps (macOS only)
         homebrew = {
           casks = [
             "steam"
@@ -163,13 +154,11 @@ with lib; {
       ];
 
       config = {
-        # Environment variables for skills paths
         environment.sessionVariables = {
           AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
           SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
         };
 
-        # Shell aliases for skills management
         environment.shellAliases = {
           skills-status = "ls -la $AGENT_SKILLS_PATH $SUPERPOWERS_SKILLS_PATH";
           skills-update = "task agent-skills:update";
@@ -178,87 +167,53 @@ with lib; {
       };
     };
 
-    llms = {
-      # Global LLM configuration
+    # Flattened LLM roles (previously nested under roles.llms.*)
+    llm-client = {
+      packages = with pkgs; [
+        unstable.opencode
+      ];
+
+      enableAgentSkills = true;
+
       config = {
-        # Shared environment variables and configuration
         environment.sessionVariables = {
           LLM_SERVER_HOST = "MegamanX.local";
           LLM_SERVER_PORT = "4000";
+          OPENCODE_ENDPOINT = "http://MegamanX.local:4000";
+        };
+
+        environment.shellAliases = {
+          llm-status = "curl http://MegamanX.local:4000/status";
         };
       };
+    };
 
-      client = {
-        # Shared client configuration
-        config = {
-          # Common client aliases and environment setup
-          environment.shellAliases = {
-            llm-status = "curl http://MegamanX.local:4000/status";
-          };
-        };
+    llm-claude = {
+      packages = with pkgs; [
+        claude-code
+      ];
 
-        opensource = {
-          packages = with pkgs; [
-            (
-              if pkgs ? unstable
-              then pkgs.unstable.opencode
-              else opencode
-            )
-          ];
+      enableAgentSkills = true;
 
-          # Auto-enable agent-skills
-          enableAgentSkills = true;
-
-          config = {
-            # opencode configuration for connecting to MegamanX litellm server
-            environment.sessionVariables = {
-              OPENCODE_ENDPOINT = "http://MegamanX.local:4000";
-            };
-          };
-        };
-
-        claude = {
-          packages = with pkgs; [
-            claude-code
-          ];
-
-          # Auto-enable agent-skills
-          enableAgentSkills = true;
-
-          config = {
-            # Claude-specific configuration
-            environment.sessionVariables = {
-              CLAUDE_API_BASE = "http://MegamanX.local:4000";
-            };
-          };
+      config = {
+        environment.sessionVariables = {
+          CLAUDE_API_BASE = "http://MegamanX.local:4000";
         };
       };
+    };
 
-      host = {
-        packages = with pkgs; [
-          (
-            if pkgs ? unstable
-            then pkgs.unstable.ollama
-            else ollama
-          )
-        ];
+    llm-host = {
+      packages = with pkgs; [
+        unstable.ollama
+      ];
 
-        config = {
-          # Configuration for running local models
-          # Service configuration handled at home-manager level
-        };
-      };
+      config = {};
+    };
 
-      server = {
-        packages = with pkgs; [
-          # Add litellm and related server packages here when available in nixpkgs
-        ];
+    llm-server = {
+      packages = [];
 
-        config = {
-          # litellm server configuration
-          # This would include service definitions and startup scripts
-        };
-      };
+      config = {};
     };
   };
 
@@ -275,10 +230,6 @@ with lib; {
       ];
 
       config = {
-        # 1Password GUI installed via Homebrew on macOS
-        # CLI is managed via Nix packages for consistent versions
-
-        # Common Homebrew configuration
         homebrew = {
           enable = true;
           onActivation = {
@@ -287,25 +238,14 @@ with lib; {
           };
 
           casks = [
-            # Common macOS applications
-            "raycast" # The version in nixpkgs is out of date
+            "raycast"
             "zed"
             "zen"
-
-            # Terminal emulators
             "ghostty"
-
-            # Entertainment and communication
             "deezer"
             "block-goose"
-
-            # Productivity and utilities
             "sensei"
-
-            # Browser - Vivaldi via Homebrew (not available in nixpkgs for macOS)
             "vivaldi"
-
-            # 1Password GUI (CLI managed via Nix)
             "1password"
           ];
         };
@@ -313,13 +253,8 @@ with lib; {
     };
 
     linux = {
-      packages = with pkgs; [
-        # Add Linux-specific packages here as needed
-      ];
-
-      config = {
-        # Linux-specific services or configurations can be added here
-      };
+      packages = [];
+      config = {};
     };
   };
 }

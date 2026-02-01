@@ -19,7 +19,6 @@
 
     mac-app-util.url = "github:hraban/mac-app-util";
 
-    # Agent skills repository for AI assistant capabilities (non-flake git repo)
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
   };
@@ -34,17 +33,12 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
-    superpowers,
     ...
   }: let
-    inherit (nixpkgs) lib;
-
-    configuration = {lib, ...}: {
+    # Base configuration shared by all systems
+    configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
-
       nixpkgs.config.allowUnfree = true;
-
-      # Access unstable pkgs with pkgs.unstable
       nixpkgs.overlays = [
         (final: _prev: {
           unstable = import nixpkgs-unstable {
@@ -54,269 +48,167 @@
       ];
     };
 
-    # Helper function to create bundle module from our consolidated bundles.nix
-    mkBundleModule = system: enabledRoles: {
-      pkgs,
-      lib,
-      ...
-    }: {
-      config = let
-        bundles = import ./bundles.nix {inherit pkgs lib;};
+    # Helper to create user config
+    mkUser = name: {
+      users = [
+        {
+          inherit name;
+          email = "me@willweaver.dev";
+          fullName = "Will Weaver";
+          isAdmin = true;
+          sshIncludes = [];
+        }
+      ];
+      development.enable = true;
+      agent-skills.enable = true;
+      onepassword.enable = true;
+    };
 
-        # Check if any enabled bundle has enableAgentSkills
-        hasAgentSkillsBundle =
-          builtins.any (
-            role:
-              (bundles.roles.${role} or {}).enableAgentSkills or false
-          )
-          enabledRoles;
+    # Helper for nix-homebrew config
+    mkNixHomebrew = user: {
+      enable = true;
+      enableRosetta = true;
+      inherit user;
+      taps = {
+        "homebrew/homebrew-core" = homebrew-core;
+        "homebrew/homebrew-cask" = homebrew-cask;
+      };
+    };
 
-        # Also check nested llms client bundles
-        hasLlmClientAgentSkills =
-          builtins.any (
-            role:
-              if role == "wweaver_llm_client"
-              then (bundles.roles.llms.client.opensource.enableAgentSkills or false)
-              else if role == "wweaver_claude_client"
-              then (bundles.roles.llms.client.claude.enableAgentSkills or false)
-              else false
-          )
-          enabledRoles;
+    # Simplified bundle module - all roles are now flat
+    mkBundleModule = system: enabledRoles: {pkgs, ...}: let
+      bundles = import ./bundles.nix {inherit pkgs;};
 
-        # Add agent-skills to enabled roles if auto-enabled
-        rolesWithAgentSkills =
-          if hasAgentSkillsBundle || hasLlmClientAgentSkills
-          then (lib.unique (enabledRoles ++ ["agent-skills"]))
-          else enabledRoles;
+      # Auto-enable agent-skills if any role requests it
+      hasAgentSkills = builtins.any (role: (bundles.roles.${role} or {}).enableAgentSkills or false) enabledRoles;
+      finalRoles =
+        if hasAgentSkills
+        then nixpkgs.lib.unique (enabledRoles ++ ["agent-skills"])
+        else enabledRoles;
 
-        # Helper to collect packages from nested bundle structure
-        collectPackages = path: default: let
-          parts = lib.splitString "." path;
-        in
-          if lib.hasAttrByPath parts bundles
-          then (lib.attrsets.getAttrFromPath parts bundles).packages or []
-          else default;
+      # Collect all packages from enabled roles
+      rolePackages = nixpkgs.lib.concatMap (role: bundles.roles.${role}.packages or []) finalRoles;
 
-        # Helper to collect config from nested bundle structure
-        collectConfig = path: default: let
-          parts = lib.splitString "." path;
-        in
-          if lib.hasAttrByPath parts bundles
-          then (lib.attrsets.getAttrFromPath parts bundles).config or {}
-          else default;
-
-        baseConfig = {
+      # Collect all homebrew configs from enabled roles
+      roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) finalRoles;
+    in {
+      config =
+        {
           environment = {
             systemPackages =
               bundles.roles.base.packages
-              ++ lib.concatMap (role: bundles.roles.${role}.packages or []) rolesWithAgentSkills
-              ++ bundles.platforms.${system}.packages
-              # Add llms packages based on enabled roles
-              ++ (lib.optionals (lib.elem "wweaver_llm_client" rolesWithAgentSkills) (collectPackages "roles.llms.client.opensource" []))
-              ++ (lib.optionals (lib.elem "wweaver_claude_client" rolesWithAgentSkills) (collectPackages "roles.llms.client.claude" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_host" rolesWithAgentSkills) (collectPackages "roles.llms.host" []))
-              ++ (lib.optionals (lib.elem "megamanx_llm_server" rolesWithAgentSkills) (collectPackages "roles.llms.server" []));
+              ++ rolePackages
+              ++ bundles.platforms.${system}.packages;
 
-            # Merge shell aliases from base bundle
-            shellAliases =
-              bundles.roles.base.config.environment.shellAliases or {};
+            shellAliases = bundles.roles.base.config.environment.shellAliases or {};
 
-            # Additional system configuration from bundles
             variables =
               bundles.roles.base.config.environment.variables or {}
               // bundles.platforms.${system}.config.environment.variables or {};
           };
 
-          # Merge configurations from all enabled bundles
           programs =
             bundles.roles.base.config.programs or {}
             // bundles.platforms.${system}.config.programs or {};
+        }
+        // nixpkgs.lib.optionalAttrs (system == "darwin") {
+          homebrew = nixpkgs.lib.mkMerge ([
+              (bundles.platforms.darwin.config.homebrew or {})
+            ]
+            ++ roleHomebrewConfigs);
         };
-
-        # Platform-specific configurations
-        darwinConfig = lib.optionalAttrs (system == "darwin") {
-          homebrew = let
-            roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) rolesWithAgentSkills;
-            llmHostHomebrewConfig =
-              if lib.elem "megamanx_llm_host" rolesWithAgentSkills
-              then (collectConfig "roles.llms.host" {}).homebrew or {}
-              else {};
-          in
-            lib.mkMerge ([
-                (bundles.platforms.darwin.config.homebrew or {})
-              ]
-              ++ roleHomebrewConfigs
-              ++ [
-                llmHostHomebrewConfig
-              ]);
-        };
-      in
-        baseConfig // darwinConfig;
     };
+
+    # Common module imports
+    commonModules = [
+      ./modules/common/options.nix
+      ./modules/common/users.nix
+      ./modules/common/shell.nix
+      ./modules/common/onepassword.nix
+    ];
   in {
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
-      modules = [
-        configuration
-        nix-homebrew.darwinModules.nix-homebrew
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/shell.nix
-        ./modules/common/onepassword.nix
-        ./modules/home-manager
-        ./os/darwin.nix
-        ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "wweaver_llm_client" "wweaver_claude_client"])
-        {
-          nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "wweaver";
-          system.stateVersion = 4;
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "wweaver";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            agent-skills.enable = true;
-            onepassword.enable = true;
-          };
-
-          # Configure nix-homebrew
-          nix-homebrew = {
-            enable = true;
-            enableRosetta = true;
-            user = "wweaver";
-            taps = {
-              "homebrew/homebrew-core" = homebrew-core;
-              "homebrew/homebrew-cask" = homebrew-cask;
-            };
-          };
-        }
-        home-manager.darwinModules.home-manager
-      ];
+      modules =
+        [
+          configuration
+          nix-homebrew.darwinModules.nix-homebrew
+        ]
+        ++ commonModules
+        ++ [
+          ./modules/home-manager
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "llm-client" "llm-claude"])
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.primaryUser = "wweaver";
+            system.stateVersion = 4;
+            myConfig = mkUser "wweaver";
+            nix-homebrew = mkNixHomebrew "wweaver";
+          }
+          home-manager.darwinModules.home-manager
+        ];
     };
 
     darwinConfigurations."MegamanX" = nix-darwin.lib.darwinSystem {
-      modules = [
-        mac-app-util.darwinModules.default
-        nix-homebrew.darwinModules.nix-homebrew
-        configuration
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/shell.nix
-        ./modules/common/onepassword.nix
-        ./os/darwin.nix
-        ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "megamanx_llm_host"])
-        {
-          nixpkgs.hostPlatform = "aarch64-darwin";
-          system.primaryUser = "monkey";
-          system.stateVersion = 4;
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            agent-skills.enable = true;
-            onepassword.enable = true;
-          };
-
-          # Configure nix-homebrew
-          nix-homebrew = {
-            enable = true;
-            enableRosetta = true;
-            user = "monkey";
-            taps = {
-              "homebrew/homebrew-core" = homebrew-core;
-              "homebrew/homebrew-cask" = homebrew-cask;
-            };
-          };
-        }
-        home-manager.darwinModules.home-manager
-      ];
+      modules =
+        [
+          mac-app-util.darwinModules.default
+          nix-homebrew.darwinModules.nix-homebrew
+          configuration
+        ]
+        ++ commonModules
+        ++ [
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host"])
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.primaryUser = "monkey";
+            system.stateVersion = 4;
+            myConfig = mkUser "monkey";
+            nix-homebrew = mkNixHomebrew "monkey";
+          }
+          home-manager.darwinModules.home-manager
+        ];
     };
 
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      modules = [
-        configuration
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/shell.nix
-        ./modules/common/onepassword.nix
-        ./modules/home-manager
-        ./modules/nixos/hardware.nix
-        ./os/nixos.nix
-        ./targets/drlight
-        (mkBundleModule "linux" ["developer" "creative" "wweaver_llm_client"])
-        {
-          nixpkgs.hostPlatform = "x86_64-linux";
-          system.stateVersion = "25.05";
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            media.enable = true;
-            onepassword.enable = true;
-          };
-        }
-        home-manager.nixosModules.home-manager
-      ];
+      modules =
+        [configuration]
+        ++ commonModules
+        ++ [
+          ./modules/home-manager
+          ./os/nixos.nix
+          ./targets/drlight
+          (mkBundleModule "linux" ["developer" "creative" "llm-client"])
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+            myConfig = mkUser "monkey";
+          }
+          home-manager.nixosModules.home-manager
+        ];
     };
 
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
-      modules = [
-        configuration
-        ./modules/common/options.nix
-        ./modules/common/users.nix
-        ./modules/common/shell.nix
-        ./modules/common/onepassword.nix
-        ./modules/home-manager
-        ./modules/nixos/hardware.nix
-        ./os/nixos.nix
-        ./targets/zero
-        (mkBundleModule "linux" ["developer" "desktop" "wweaver_llm_client"])
-        {
-          nixpkgs.hostPlatform = "x86_64-linux";
-          system.stateVersion = "25.05";
-          # Configure users through the modular system
-          myConfig = {
-            users = [
-              {
-                name = "monkey";
-                email = "me@willweaver.dev";
-                fullName = "Will Weaver";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            development.enable = true;
-            onepassword.enable = true;
-          };
-        }
-        home-manager.nixosModules.home-manager
-      ];
+      modules =
+        [configuration]
+        ++ commonModules
+        ++ [
+          ./modules/home-manager
+          ./os/nixos.nix
+          ./targets/zero
+          (mkBundleModule "linux" ["developer" "desktop" "llm-client"])
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+            myConfig = mkUser "monkey";
+          }
+          home-manager.nixosModules.home-manager
+        ];
     };
   };
 }

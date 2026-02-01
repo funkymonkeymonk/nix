@@ -179,8 +179,13 @@
         exit 0
       fi
 
-      # otherwise authenticate with tailscale
-      ${tailscale}/bin/tailscale up -authkey tskey-auth-khWo2RmsVB11CNTRL-KWAvm6SydYNfQSSmAevCZNHSCaL7anaH
+      # otherwise authenticate with tailscale using auth key from environment
+      # Set TAILSCALE_AUTH_KEY in your environment or use 1Password CLI
+      if [ -n "$TAILSCALE_AUTH_KEY" ]; then
+        ${tailscale}/bin/tailscale up -authkey "$TAILSCALE_AUTH_KEY"
+      else
+        echo "Warning: TAILSCALE_AUTH_KEY not set, skipping auto-connect"
+      fi
     '';
   };
 
