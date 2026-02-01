@@ -60,6 +60,11 @@ with lib; {
           gr = "git restore --source";
           grh = "git reset --hard";
           ghv = "gh repo view --web";
+          gclean = "git clean -fd";
+          gkkb = "git checkout -b $(date +\"%Y%m%d%H%M%S\")";
+
+          # Nix tools
+          try = "nix-shell -p";
 
           # Task runner
           t = "task";
