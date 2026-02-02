@@ -125,6 +125,7 @@
       ./modules/common/users.nix
       ./modules/common/shell.nix
       ./modules/common/onepassword.nix
+      ./modules/common/cachix.nix
     ];
   in {
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
