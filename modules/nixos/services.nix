@@ -7,7 +7,7 @@
   # Jellyfin media server
   services.jellyfin = {
     enable = true;
-    package = pkgs.unstable.jellyfin;
+    package = pkgs.jellyfin;
     openFirewall = true;
   };
 

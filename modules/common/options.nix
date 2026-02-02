@@ -1,6 +1,18 @@
-{lib, ...}:
+{
+  config,
+  lib,
+  ...
+}:
 with lib; {
   options.myConfig = {
+    # Computed helper for platform detection (read-only)
+    isDarwin = mkOption {
+      type = types.bool;
+      default = builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"];
+      readOnly = true;
+      description = "Whether the current system is Darwin (macOS)";
+    };
+
     users = mkOption {
       type = types.listOf (types.submodule {
         options = {
@@ -33,39 +45,11 @@ with lib; {
       description = "List of users to configure on the system";
     };
 
-    system = {
-      enableSecurity = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable basic security hardening";
-      };
-
-      enableUpdates = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable automatic system updates";
-      };
-    };
-
     development = {
       enable = mkOption {
         type = types.bool;
         default = false;
         description = "Enable development tools and environment";
-      };
-
-      languages = mkOption {
-        type = types.listOf types.str;
-        default = [];
-        description = "Programming languages to support";
-      };
-    };
-
-    media = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Enable media applications and tools";
       };
     };
 

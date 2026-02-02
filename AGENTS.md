@@ -20,17 +20,14 @@ This is a modular Nix Flakes configuration for managing macOS and NixOS systems 
 ```
 .
 ├── .github/                    # GitHub Actions workflows
-├── bundles/                    # Package collections by role/platform
-│   ├── base/                   # Essential packages
-│   ├── roles/                  # Role-based bundles (developer, creative, etc.)
-│   └── platforms/              # Platform-specific packages
 ├── modules/                    # Reusable Nix configurations
-│   ├── common/                 # Shared configurations
+│   ├── common/                 # Shared configurations (options, users, shell, onepassword)
 │   ├── home-manager/           # User environment modules
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
 ├── templates/                  # Templates for new configurations
+├── bundles.nix                 # Consolidated package collections (roles + platforms)
 ├── flake.nix                   # Main Nix flake definition
 ├── devenv.nix                  # Development environment configuration
 └── Taskfile.yml               # Task automation
@@ -50,16 +47,38 @@ Run `task --list` for a list of all tasks available and a quick definition
 
 ### Making Changes
 1. Create or modify files as needed
-2. Run `task fmt` to format code
-3. Run `task lint` to check for issues
-4. Run `task test:full` to validate changes
-5. Commit with descriptive messages
+2. Run `task quality` to format and lint code
+3. Run `task test:full` to validate changes
+4. Commit with descriptive messages
 
 ### Adding New Features
-1. **New Machine**: Create target in `targets/`, update `flake.nix`
-2. **New Role**: Create bundle in `bundles/roles/`
+1. **New Machine**: Create target in `targets/`, update `flake.nix` using `mkUser` and `mkNixHomebrew` helpers
+2. **New Role**: Add role to `bundles.nix` under `roles` attribute
 3. **New Module**: Create in appropriate `modules/` subdirectory
 4. **New Option**: Add to `modules/common/options.nix`
+
+### Available Roles (in bundles.nix)
+- `base` - Essential packages and shell aliases
+- `developer` - Development tools (emacs, docker, k8s tools)
+- `creative` - Media tools (ffmpeg, imagemagick)
+- `desktop` - Desktop applications (logseq)
+- `workstation` - Work tools (slack, trippy)
+- `entertainment` - Entertainment apps (steam, obs, discord via homebrew)
+- `gaming` - Gaming tools (moonlight-qt)
+- `agent-skills` - AI agent skills management
+- `llm-client` - OpenCode with LLM server connection
+- `llm-claude` - Claude Code integration
+- `llm-host` - Ollama for local model hosting
+- `llm-server` - LiteLLM server (placeholder)
+
+### Helper Functions (in flake.nix)
+- `mkUser` - Creates standard user configuration
+- `mkNixHomebrew` - Creates homebrew configuration for Darwin
+- `mkBundleModule` - Creates bundle module from role list
+- `commonModules` - Shared module imports for all systems
+
+### Computed Options
+- `myConfig.isDarwin` - Boolean for platform detection (use instead of manual checks)
 
 ## Agent Skills Integration
 

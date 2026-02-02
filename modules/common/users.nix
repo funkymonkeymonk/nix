@@ -1,10 +1,11 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
-with lib; {
+with lib; let
+  inherit (config.myConfig) isDarwin;
+in {
   config = {
     # Validation assertions
     assertions = [
@@ -25,7 +26,7 @@ with lib; {
         value =
           {
             home =
-              if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+              if isDarwin
               then "/Users/${user.name}"
               else "/home/${user.name}";
           }
@@ -42,7 +43,7 @@ with lib; {
           home = {
             username = user.name;
             homeDirectory = lib.mkDefault (
-              if builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+              if isDarwin
               then "/Users/${user.name}"
               else "/home/${user.name}"
             );
@@ -56,7 +57,7 @@ with lib; {
             }
             // lib.optionalAttrs config.myConfig.onepassword.enable {
               extraConfig = {
-                gpg = lib.mkIf (lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]) {
+                gpg = lib.mkIf isDarwin {
                   format = "ssh";
                   ssh = {
                     program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
@@ -71,25 +72,11 @@ with lib; {
           programs.ssh = {
             enable = true;
             includes = user.sshIncludes;
-            extraConfig =
-              lib.optionalString (
-                config.myConfig.onepassword.enableSSHAgent
-                && lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
-              ) ''
-                Host *
-                  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-              '';
-          };
-
-          # Managed SSH config file for macOS 1Password agent
-          home.file.".ssh/config".text =
-            lib.optionalString (
-              config.myConfig.onepassword.enableSSHAgent
-              && lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
-            ) ''
+            extraConfig = lib.optionalString (config.myConfig.onepassword.enableSSHAgent && isDarwin) ''
               Host *
                 IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
             '';
+          };
 
           # Allowed signers file for SSH signature verification
           # Maps email addresses to trusted SSH public keys for local commit verification
@@ -97,7 +84,7 @@ with lib; {
             lib.optionalString (
               config.myConfig.onepassword.enableGitSigning
               && config.myConfig.onepassword.enable
-              && lib.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"]
+              && isDarwin
             ) ''
               ${user.email} ${config.myConfig.onepassword.signingKey}
             '';
@@ -107,8 +94,7 @@ with lib; {
             [
               ../../modules/home-manager/shell.nix
             ]
-            ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
-            ++ optional config.myConfig.media.enable ../../modules/home-manager/media.nix;
+            ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix;
         };
       })
       config.myConfig.users);

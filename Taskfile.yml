@@ -440,3 +440,106 @@ tasks:
     cmd: |
       echo "Validating skills format..."
       echo "Validation complete"
+  cachix:push:
+    desc: Build current host configuration and push to Cachix
+    cmd: |
+      echo "=== Cachix Push ==="
+
+      # Check for cachix CLI
+      if ! command -v cachix &> /dev/null; then
+        echo "❌ cachix CLI not found"
+        echo "Install with: nix profile install nixpkgs#cachix"
+        exit 1
+      fi
+
+      # Get auth token from 1Password
+      echo "🔑 Fetching Cachix auth token from 1Password..."
+      CACHIX_AUTH_TOKEN=$(op read "op://Private/Cachix/Auth Token" 2>/dev/null)
+      if [[ -z "$CACHIX_AUTH_TOKEN" ]]; then
+        echo "❌ Failed to get Cachix auth token from 1Password"
+        echo "Make sure you have a 'Cachix' item with 'Auth Token' field in Private vault"
+        exit 1
+      fi
+      export CACHIX_AUTH_TOKEN
+
+      # Authenticate with Cachix
+      echo "🔐 Authenticating with Cachix..."
+      cachix authtoken "$CACHIX_AUTH_TOKEN"
+
+      # Determine platform and hostname
+      HOSTNAME=$(hostname -s)
+      if [[ "$(uname)" == "Darwin" ]]; then
+        PLATFORM="darwin"
+        # Map hostname to configuration name
+        case "$HOSTNAME" in
+          "wweaver"|"Will-Stride-MBP")
+            CONFIG_NAME="wweaver"
+            ;;
+          "MegamanX")
+            CONFIG_NAME="MegamanX"
+            ;;
+          *)
+            echo "❌ Unknown Darwin host: $HOSTNAME"
+            echo "Add mapping for this host in Taskfile.yml"
+            exit 1
+            ;;
+        esac
+        BUILD_TARGET=".#darwinConfigurations.${CONFIG_NAME}.system"
+      else
+        PLATFORM="linux"
+        CONFIG_NAME="$HOSTNAME"
+        BUILD_TARGET=".#nixosConfigurations.${CONFIG_NAME}.config.system.build.toplevel"
+      fi
+
+      echo "📦 Building $PLATFORM configuration: $CONFIG_NAME"
+      echo "   Target: $BUILD_TARGET"
+
+      # Build and push to Cachix
+      nix build "$BUILD_TARGET" --no-link --print-out-paths | cachix push funkymonkeymonk
+
+      echo "✅ Successfully built and pushed to Cachix"
+  cachix:push:all:
+    desc: Build all configurations for current platform and push to Cachix
+    cmd: |
+      echo "=== Cachix Push All ==="
+
+      # Check for cachix CLI
+      if ! command -v cachix &> /dev/null; then
+        echo "❌ cachix CLI not found"
+        echo "Install with: nix profile install nixpkgs#cachix"
+        exit 1
+      fi
+
+      # Get auth token from 1Password
+      echo "🔑 Fetching Cachix auth token from 1Password..."
+      CACHIX_AUTH_TOKEN=$(op read "op://Private/Cachix/Auth Token" 2>/dev/null)
+      if [[ -z "$CACHIX_AUTH_TOKEN" ]]; then
+        echo "❌ Failed to get Cachix auth token from 1Password"
+        echo "Make sure you have a 'Cachix' item with 'Auth Token' field in Private vault"
+        exit 1
+      fi
+      export CACHIX_AUTH_TOKEN
+
+      # Authenticate with Cachix
+      echo "🔐 Authenticating with Cachix..."
+      cachix authtoken "$CACHIX_AUTH_TOKEN"
+
+      if [[ "$(uname)" == "Darwin" ]]; then
+        echo "🍎 Building all Darwin configurations..."
+        for config in wweaver MegamanX; do
+          echo "📦 Building $config..."
+          nix build ".#darwinConfigurations.${config}.system" \
+            --no-link --print-out-paths | cachix push funkymonkeymonk
+          echo "✅ $config pushed"
+        done
+      else
+        echo "🐧 Building all NixOS configurations..."
+        for config in drlight zero; do
+          echo "📦 Building $config..."
+          nix build ".#nixosConfigurations.${config}.config.system.build.toplevel" \
+            --no-link --print-out-paths | cachix push funkymonkeymonk
+          echo "✅ $config pushed"
+        done
+      fi
+
+      echo "✅ All configurations built and pushed to Cachix"
