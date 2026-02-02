@@ -117,6 +117,7 @@ with pkgs.lib; {
       packages = with pkgs;
         [
           logseq
+          super-productivity
         ]
         ++ optional stdenv.isLinux vivaldi;
 
