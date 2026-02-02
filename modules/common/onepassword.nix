@@ -11,7 +11,7 @@ in {
     # Install 1Password CLI via Nix packages
     programs._1password = {
       enable = true;
-      package = pkgs.unstable._1password-cli;
+      package = pkgs._1password-cli;
     };
   };
 }

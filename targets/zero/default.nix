@@ -20,7 +20,7 @@
   environment.systemPackages = with pkgs; [
     vim
     wget
-    unstable.lutris
+    lutris
     protonup-qt
     discord
     tailscale

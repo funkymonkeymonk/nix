@@ -170,7 +170,7 @@ with pkgs.lib; {
     # Flattened LLM roles (previously nested under roles.llms.*)
     llm-client = {
       packages = with pkgs; [
-        unstable.opencode
+        opencode
       ];
 
       enableAgentSkills = true;
@@ -204,7 +204,7 @@ with pkgs.lib; {
 
     llm-host = {
       packages = with pkgs; [
-        unstable.ollama
+        ollama
       ];
 
       config = {};
