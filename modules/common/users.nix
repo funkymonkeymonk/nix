@@ -50,13 +50,14 @@ in {
             stateVersion = "25.05";
           };
 
-          programs.git =
-            {
-              userName = user.email;
-              userEmail = user.email;
-            }
-            // lib.optionalAttrs config.myConfig.onepassword.enable {
-              extraConfig = {
+          programs.git = {
+            settings =
+              {
+                user = {
+                  inherit (user) name email;
+                };
+              }
+              // lib.optionalAttrs config.myConfig.onepassword.enable {
                 gpg = lib.mkIf isDarwin {
                   format = "ssh";
                   ssh = {
@@ -67,15 +68,19 @@ in {
                 commit.gpgsign = config.myConfig.onepassword.enableGitSigning;
                 user.signingkey = config.myConfig.onepassword.signingKey;
               };
-            };
+          };
 
           programs.ssh = {
             enable = true;
+            enableDefaultConfig = false;
             includes = user.sshIncludes;
-            extraConfig = lib.optionalString (config.myConfig.onepassword.enableSSHAgent && isDarwin) ''
-              Host *
-                IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-            '';
+            matchBlocks = lib.optionalAttrs (config.myConfig.onepassword.enableSSHAgent && isDarwin) {
+              "*" = {
+                extraOptions = {
+                  IdentityAgent = "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock";
+                };
+              };
+            };
           };
 
           # Allowed signers file for SSH signature verification
