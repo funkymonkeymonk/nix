@@ -454,10 +454,10 @@ tasks:
 
       # Get auth token from 1Password
       echo "🔑 Fetching Cachix auth token from 1Password..."
-      CACHIX_AUTH_TOKEN=$(op read "op://Private/Cachix Auth Token/password" 2>/dev/null)
+      CACHIX_AUTH_TOKEN=$(op read "op://Private/Cachix/Auth Token" 2>/dev/null)
       if [[ -z "$CACHIX_AUTH_TOKEN" ]]; then
         echo "❌ Failed to get Cachix auth token from 1Password"
-        echo "Make sure you have a 'Cachix Auth Token' item in your Private vault"
+        echo "Make sure you have a 'Cachix' item with 'Auth Token' field in Private vault"
         exit 1
       fi
       export CACHIX_AUTH_TOKEN
@@ -512,10 +512,10 @@ tasks:
 
       # Get auth token from 1Password
       echo "🔑 Fetching Cachix auth token from 1Password..."
-      CACHIX_AUTH_TOKEN=$(op read "op://Private/Cachix Auth Token/password" 2>/dev/null)
+      CACHIX_AUTH_TOKEN=$(op read "op://Private/Cachix/Auth Token" 2>/dev/null)
       if [[ -z "$CACHIX_AUTH_TOKEN" ]]; then
         echo "❌ Failed to get Cachix auth token from 1Password"
-        echo "Make sure you have a 'Cachix Auth Token' item in your Private vault"
+        echo "Make sure you have a 'Cachix' item with 'Auth Token' field in Private vault"
         exit 1
       fi
       export CACHIX_AUTH_TOKEN

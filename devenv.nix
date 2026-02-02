@@ -20,6 +20,8 @@
     pkgs.yamlfmt
     pkgs.nixd
     pkgs.optnix
+    # Cachix CLI for pushing to binary cache
+    pkgs.cachix
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user
