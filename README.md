@@ -19,17 +19,14 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 ```
 .
 ├── .github/                    # GitHub Actions workflows
-├── bundles/                    # Package collections by role/platform
-│   ├── base/                   # Essential packages
-│   ├── roles/                  # Role-based bundles (developer, creative, etc.)
-│   └── platforms/              # Platform-specific packages
 ├── modules/                    # Reusable Nix configurations
-│   ├── common/                 # Shared configurations
+│   ├── common/                 # Shared configurations (options, users, shell, onepassword)
 │   ├── home-manager/           # User environment modules
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
 ├── templates/                  # Templates for new configurations
+├── bundles.nix                 # Consolidated package collections (roles + platforms)
 ├── flake.nix                   # Main Nix flake definition
 ├── devenv.nix                  # Development environment configuration
 ├── Taskfile.yml               # Task automation
@@ -242,9 +239,24 @@ The workflow creates PRs with the `flake-update` label and includes:
 4. Test with `task build:{platform}:{machine}`
 
 ### Adding a New Role
-1. Create bundle in `bundles/roles/`
+1. Add role definition in `bundles.nix` under `roles` attribute
 2. Add documentation in `README.md`
-3. Update flake configurations as needed
+3. Reference in flake configurations as needed
+
+### Available Roles
+All roles are defined in `bundles.nix`:
+- `base` - Essential packages and shell aliases (always included)
+- `developer` - Development tools (emacs, docker, k8s tools)
+- `creative` - Media tools (ffmpeg, imagemagick, pandoc)
+- `desktop` - Desktop applications (logseq, vivaldi on Linux)
+- `workstation` - Work tools (slack, trippy)
+- `entertainment` - Entertainment apps (steam, obs, discord via homebrew)
+- `gaming` - Gaming tools (moonlight-qt)
+- `agent-skills` - AI agent skills management
+- `llm-client` - OpenCode with LLM server connection (auto-enables agent-skills)
+- `llm-claude` - Claude Code integration (auto-enables agent-skills)
+- `llm-host` - Ollama for local model hosting
+- `llm-server` - LiteLLM server (placeholder)
 
 ### Adding a New Module
 1. Create module in appropriate `modules/` subdirectory
