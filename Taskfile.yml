@@ -87,6 +87,16 @@ tasks:
             fi
           done
 
+          # Test microvm configuration
+          echo "🖥️  Testing dev-vm microvm configuration..."
+          if nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
+            --json >/dev/null 2>&1; then
+            echo "✅ Microvm dev-vm configuration valid"
+          else
+            echo "❌ Microvm dev-vm configuration invalid"
+            failed_checks="$failed_checks microvm:dev-vm"
+          fi
+
           # Report all failures
           if [ -n "$failed_checks" ]; then
             echo ""
@@ -109,6 +119,13 @@ tasks:
                   config=${check#Darwin:}
                   echo "  - Run: nix eval \\"
                   echo "             .#darwinConfigurations.$config.system \\"
+                  echo "             --json --show-trace"
+                  ;;
+                "microvm:"*)
+                  config=${check#microvm:}
+                  echo "  - Run: nix eval \\"
+                  echo "             .#microvm.nixosConfigurations.$config\\"
+                  echo "             .config.system.build.toplevel \\"
                   echo "             --json --show-trace"
                   ;;
               esac
