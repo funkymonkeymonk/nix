@@ -131,6 +131,42 @@
       ./modules/common/onepassword.nix
       ./modules/common/cachix.nix
     ];
+
+    # Helper to create microvm configuration
+    mkMicrovm = name: roles:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules =
+          [
+            microvm.nixosModules.microvm
+            home-manager.nixosModules.home-manager
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./os/microvm.nix
+            ./modules/microvm
+            ./targets/microvms/${name}.nix
+            (mkBundleModule "linux" roles)
+            {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              myConfig = {
+                users = [
+                  {
+                    name = "dev";
+                    email = "dev@localhost";
+                    fullName = "Development User";
+                    isAdmin = true;
+                    sshIncludes = [];
+                  }
+                ];
+                development.enable = true;
+                agent-skills.enable = false;
+                onepassword.enable = false;
+              };
+            }
+          ];
+      };
   in {
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules =
@@ -214,6 +250,11 @@
           }
           home-manager.nixosModules.home-manager
         ];
+    };
+
+    # Microvm configurations
+    microvm.nixosConfigurations = {
+      dev-vm = mkMicrovm "dev-vm" ["developer"];
     };
   };
 }
