@@ -9,8 +9,8 @@
   # The actual import happens in flake.nix via microvm.nixosModules.microvm
 
   microvm = {
-    # Use cloud-hypervisor for good performance
-    hypervisor = "cloud-hypervisor";
+    # Use QEMU - supports user-mode networking (no root required)
+    hypervisor = "qemu";
 
     # Resource allocation
     mem = 4096; # 4GB RAM
