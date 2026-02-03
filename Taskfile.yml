@@ -569,3 +569,37 @@ tasks:
       fi
 
       echo "✅ All configurations built and pushed to Cachix"
+  microvm:build:
+    desc: Build microvm image
+    cmd: |
+      echo "Building dev-vm microvm..."
+      nix build .#microvm.nixosConfigurations.dev-vm.config.microvm.declaredRunner -o result-microvm
+      echo "Build complete: ./result-microvm"
+  microvm:run:
+    desc: Run dev-vm microvm
+    cmd: |
+      if [[ "$(uname)" == "Darwin" ]]; then
+        echo "macOS detected - microvm.nix requires Linux/KVM"
+        echo "Please run from a Linux host or inside Colima"
+        echo ""
+        echo "To run in Colima:"
+        echo "  1. colima start --arch x86_64 --vm-type vz"
+        echo "  2. colima ssh"
+        echo "  3. cd /path/to/nix && task microvm:run"
+        exit 1
+      fi
+      echo "Starting dev-vm microvm..."
+      nix run .#microvm.nixosConfigurations.dev-vm.config.microvm.declaredRunner
+  microvm:test:
+    desc: Validate microvm configuration
+    cmd: |
+      echo "Validating dev-vm microvm configuration..."
+      if nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
+        --json >/dev/null 2>&1; then
+        echo "dev-vm configuration valid"
+      else
+        echo "dev-vm configuration invalid"
+        nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
+          --json --show-trace
+        exit 1
+      fi
