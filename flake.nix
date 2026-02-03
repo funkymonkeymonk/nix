@@ -164,6 +164,42 @@
 
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
+
+    # Helper to create microvm configuration
+    mkMicrovm = name: roles:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules =
+          [
+            microvm.nixosModules.microvm
+            home-manager.nixosModules.home-manager
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./os/microvm.nix
+            ./modules/microvm
+            ./targets/microvms/${name}.nix
+            (mkBundleModule "linux" roles)
+            {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              myConfig = {
+                users = [
+                  {
+                    name = "dev";
+                    email = "dev@localhost";
+                    fullName = "Development User";
+                    isAdmin = true;
+                    sshIncludes = [];
+                  }
+                ];
+                development.enable = true;
+                agent-skills.enable = false;
+                onepassword.enable = false;
+              };
+            }
+          ];
+      };
   in {
     packages = forAllSystems (system: let
       pkgs = import nixpkgs {
@@ -405,5 +441,10 @@
     # 2. Clone this repo
     # 3. Create a target with your hardware-configuration.nix
     # 4. Apply with: sudo nixos-rebuild switch --flake .#<your-target>
+
+    # Microvm configurations
+    microvm.nixosConfigurations = {
+      dev-vm = mkMicrovm "dev-vm" ["developer"];
+    };
   };
 }
