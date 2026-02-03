@@ -39,68 +39,77 @@ in {
     # Configure home-manager for each user
     home-manager.users = listToAttrs (map (user: {
         inherit (user) name;
-        value = {
-          home = {
-            username = user.name;
-            homeDirectory = lib.mkDefault (
-              if isDarwin
-              then "/Users/${user.name}"
-              else "/home/${user.name}"
-            );
-            stateVersion = "25.05";
-          };
+        value =
+          {
+            home = {
+              username = user.name;
+              homeDirectory = lib.mkDefault (
+                if isDarwin
+                then "/Users/${user.name}"
+                else "/home/${user.name}"
+              );
+              stateVersion = "25.05";
+            };
 
-          programs.git = {
-            settings =
-              {
-                user = {
-                  inherit (user) name email;
-                };
-              }
-              // lib.optionalAttrs config.myConfig.onepassword.enable {
-                gpg = lib.mkIf isDarwin {
-                  format = "ssh";
-                  ssh = {
-                    program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
-                    allowedSignersFile = "~/.ssh/allowed_signers";
+            programs.git = {
+              settings =
+                {
+                  user = {
+                    inherit (user) name email;
                   };
+                }
+                // lib.optionalAttrs config.myConfig.onepassword.enable {
+                  gpg = lib.mkIf isDarwin {
+                    format = "ssh";
+                    ssh = {
+                      program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
+                      allowedSignersFile = "~/.ssh/allowed_signers";
+                    };
+                  };
+                  commit.gpgsign = config.myConfig.onepassword.enableGitSigning;
+                  user.signingkey = config.myConfig.onepassword.signingKey;
                 };
-                commit.gpgsign = config.myConfig.onepassword.enableGitSigning;
-                user.signingkey = config.myConfig.onepassword.signingKey;
-              };
-          };
+            };
 
-          programs.ssh = {
-            enable = true;
-            enableDefaultConfig = false;
-            includes = user.sshIncludes;
-            matchBlocks = lib.optionalAttrs (config.myConfig.onepassword.enableSSHAgent && isDarwin) {
-              "*" = {
-                extraOptions = {
-                  IdentityAgent = "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\"";
+            programs.ssh = {
+              enable = true;
+              enableDefaultConfig = false;
+              includes = user.sshIncludes;
+              matchBlocks = lib.optionalAttrs (config.myConfig.onepassword.enableSSHAgent && isDarwin) {
+                "*" = {
+                  extraOptions = {
+                    IdentityAgent = "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\"";
+                  };
                 };
               };
             };
+
+            # Allowed signers file for SSH signature verification
+            # Maps email addresses to trusted SSH public keys for local commit verification
+            home.file.".ssh/allowed_signers".text =
+              lib.optionalString (
+                config.myConfig.onepassword.enableGitSigning
+                && config.myConfig.onepassword.enable
+                && isDarwin
+              ) ''
+                ${user.email} ${config.myConfig.onepassword.signingKey}
+              '';
+
+            # Include shared home-manager modules
+            imports =
+              [
+                ../../modules/home-manager/shell.nix
+              ]
+              ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
+              ++ optional isDarwin ../../modules/home-manager/hammerspoon.nix;
+          }
+          // lib.optionalAttrs isDarwin {
+            # Enable Hammerspoon on Darwin for trackpad gesture handling
+            programs.hammerspoon = {
+              enable = true;
+              enableAerospaceSwipes = true;
+            };
           };
-
-          # Allowed signers file for SSH signature verification
-          # Maps email addresses to trusted SSH public keys for local commit verification
-          home.file.".ssh/allowed_signers".text =
-            lib.optionalString (
-              config.myConfig.onepassword.enableGitSigning
-              && config.myConfig.onepassword.enable
-              && isDarwin
-            ) ''
-              ${user.email} ${config.myConfig.onepassword.signingKey}
-            '';
-
-          # Include shared home-manager modules
-          imports =
-            [
-              ../../modules/home-manager/shell.nix
-            ]
-            ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix;
-        };
       })
       config.myConfig.users);
   };
