@@ -19,6 +19,9 @@
 
     mac-app-util.url = "github:hraban/mac-app-util";
 
+    microvm.url = "github:astro/microvm.nix";
+    microvm.inputs.nixpkgs.follows = "nixpkgs";
+
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
 
@@ -39,6 +42,7 @@
     homebrew-core,
     homebrew-cask,
     opnix,
+    microvm,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
