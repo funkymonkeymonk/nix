@@ -9,8 +9,8 @@
   # The actual import happens in flake.nix via microvm.nixosModules.microvm
 
   microvm = {
-    # Use cloud-hypervisor for good performance
-    hypervisor = "cloud-hypervisor";
+    # Use QEMU - supports user-mode networking (no root required)
+    hypervisor = "qemu";
 
     # Resource allocation
     mem = 4096; # 4GB RAM
@@ -46,17 +46,14 @@
     firewall.enable = false; # Trust host
   };
 
-  # Enable SSH for easy access
+  # Enable SSH for easy access (key-based only)
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "yes";
-      PasswordAuthentication = true;
+      PermitRootLogin = "prohibit-password";
+      PasswordAuthentication = false;
     };
   };
-
-  # Set root password for easy access (development only!)
-  users.users.root.password = "dev";
 
   # Minimal packages for guest
   environment.systemPackages = with pkgs; [

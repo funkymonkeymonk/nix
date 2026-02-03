@@ -444,7 +444,7 @@
 
     # Microvm configurations
     microvm.nixosConfigurations = {
-      dev-vm = mkMicrovm "dev-vm" ["developer"];
+      dev-vm = mkMicrovm "dev-vm" ["llm-client"];
     };
   };
 }
