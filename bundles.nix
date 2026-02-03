@@ -248,6 +248,7 @@ with pkgs.lib; {
             "sensei"
             "vivaldi"
             "1password"
+            "hammerspoon" # For trackpad gesture handling
           ];
         };
       };
