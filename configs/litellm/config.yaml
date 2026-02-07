@@ -37,5 +37,5 @@ router_settings:
 
 # Security
 security:
-  require_api_key: false  # Set to true for production
-  allowed_api_keys: []  # Add your API keys here
+  require_api_key: true  # Authentication required by default
+  allowed_api_keys: ["os.environ/LITELLM_MASTER_KEY"]  # Use environment variable
