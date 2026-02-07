@@ -354,8 +354,23 @@ tasks:
       SESSION_NAME="ide-$(basename "$PWD")-${GUID}"
       LAYOUT_FILE=$(mktemp)
       trap "rm -f $LAYOUT_FILE" EXIT
-      envsubst < configs/ide/layout.kdl.template > "$LAYOUT_FILE"
+      # Use 3-pane layout with PR review if WITH_PR is set
+      if [[ -n "${WITH_PR}" ]]; then
+        TEMPLATE="configs/ide/layout-with-pr.kdl.template"
+      else
+        TEMPLATE="configs/ide/layout.kdl.template"
+      fi
+      envsubst < "$TEMPLATE" > "$LAYOUT_FILE"
       zellij -s "$SESSION_NAME" -n "$LAYOUT_FILE"
+  pr:review:
+    desc: Launch PR review dashboard (gh-dash)
+    aliases:
+      - pr
+    cmd: |
+      export PWD="$(pwd)"
+      GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -d'-' -f1)
+      SESSION_NAME="pr-review-$(basename "$PWD")-${GUID}"
+      zellij -s "$SESSION_NAME" run -- gh dash --config "${PWD}/configs/ide/gh-dash.yml"
   devenv:update:
     desc: Update devenv lock file.
     cmd: devenv update

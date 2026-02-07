@@ -27,6 +27,7 @@
     pkgs.zellij
     pkgs.yazi
     pkgs.helix
+    pkgs.gh-dash
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user

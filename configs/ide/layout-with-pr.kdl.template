@@ -1,0 +1,21 @@
+layout {
+    pane size=1 borderless=true {
+        plugin location="zellij:tab-bar"
+    }
+    pane split_direction="vertical" {
+        pane size="30%" name="files" {
+            command "env"
+            args "YAZI_CONFIG_HOME=${PWD}/configs/ide" "${FILE_MANAGER}"
+        }
+        pane size="40%" name="agent" {
+            command "${AGENT}"
+        }
+        pane size="30%" name="pr-review" {
+            command "gh"
+            args "dash" "--config" "${PWD}/configs/ide/gh-dash.yml"
+        }
+    }
+    pane size=2 borderless=true {
+        plugin location="zellij:status-bar"
+    }
+}

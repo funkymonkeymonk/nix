@@ -87,6 +87,7 @@ with pkgs.lib; {
         kubectl
         kubernetes-helm
         k9s
+        gh-dash
         # opencode is provided by llm-client role
       ];
 
