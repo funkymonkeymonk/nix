@@ -100,7 +100,8 @@ in {
               ../../modules/home-manager/shell.nix
             ]
             ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
-            ++ optional (config.myConfig ? litellm.enable && config.myConfig.litellm.enable) ../../modules/home-manager/litellm.nix;
+            ++ optional (config.myConfig ? litellm.enable && config.myConfig.litellm.enable) ../../modules/home-manager/litellm.nix
+            ++ optional (config.myConfig ? media.enable && config.myConfig.media.enable) ../../modules/home-manager/media.nix;
         };
       })
       config.myConfig.users);
