@@ -34,6 +34,22 @@ Then open the dashboard for detailed review.
 
 ## Notes
 
+- **Important**: Run from a terminal pane in zellij, not directly from opencode (zellij actions don't work from subprocesses)
 - Requires zellij session (works within `task ide`)
 - Uses project-specific gh-dash config from `configs/ide/gh-dash.yml`
 - Dashboard shows: CI status, review status, merge readiness
+
+## Alternative: Inline PR Status
+
+If you can't open a new pane, use these commands to check PR status inline:
+
+```bash
+# View PR details
+gh pr view <PR_NUMBER>
+
+# Check CI status
+gh pr checks <PR_NUMBER>
+
+# List your PRs with status
+gh pr list --author @me --json number,title,state,statusCheckRollup
+```

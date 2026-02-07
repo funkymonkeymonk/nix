@@ -53,6 +53,8 @@ gh pr merge <PR_NUMBER> --auto --squash
 
 For comprehensive PR review with visual interface, use the `/pr-review` slash command to open `gh-dash` in a new zellij pane.
 
+**Note**: The `zellij run` command must be executed from a terminal pane within the zellij session, not from within opencode. If you're in opencode, use the CLI commands above for inline status, or ask the user to run the command in a terminal pane.
+
 The dashboard shows:
 - CI status for each PR
 - Review status (approved, changes requested, pending)
