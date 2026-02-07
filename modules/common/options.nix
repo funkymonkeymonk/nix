@@ -124,5 +124,19 @@ with lib; {
         description = "Require API key authentication for security";
       };
     };
+
+    colima-open-webui = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Open WebUI via Colima container runtime";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 3000;
+        description = "Port for Open WebUI service";
+      };
+    };
   };
 }

@@ -8,6 +8,7 @@
 
     sharedModules = [
       ./litellm.nix
+      ./colima-open-webui.nix
     ];
   };
 }
