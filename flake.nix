@@ -212,7 +212,7 @@
         ./modules/common/onepassword.nix
         ./os/darwin.nix
         ./modules/home-manager/aerospace.nix
-        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "megamanx_llm_host"])
+        (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "megamanx_llm_host" "megamanx_llm_server"])
         {
           nixpkgs.hostPlatform = "aarch64-darwin";
           system.primaryUser = "monkey";
@@ -231,7 +231,15 @@
             development.enable = true;
             agent-skills.enable = true;
             onepassword.enable = true;
-            litellm.enable = true;
+            litellm = {
+              enable = true;
+              port = 4000;
+              masterKeyFile = "/Users/monkey/.config/litellm/master_key.txt";
+            };
+            colima-open-webui = {
+              enable = true;
+              port = 3000;
+            };
           };
 
           # Configure nix-homebrew
