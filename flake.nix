@@ -162,17 +162,26 @@
         ++ [
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host"])
+          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-server"])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "monkey";
             system.stateVersion = 4;
-            myConfig = mkUser "monkey" // { litellm.enable = true; };
+            myConfig = mkUser "monkey" // {
+              litellm = {
+                enable = true;
+                port = 4000;
+                masterKeyFile = "/Users/monkey/.config/litellm/master_key.txt";
+              };
+              colima-open-webui = {
+                enable = true;
+                port = 3000;
+              };
+            };
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
         ];
-
     };
 
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
