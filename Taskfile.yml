@@ -341,11 +341,21 @@ tasks:
       - q
     cmds:
       - devenv test
-  dev:
-    desc: Enter development shell with all tools available.
+  ide:
+    desc: Launch zellij IDE with file explorer and agent
     aliases:
-      - d
-    cmd: devenv shell
+      - i
+    cmd: |
+      export FILE_MANAGER="${FILE_MANAGER:-yazi}"
+      export AGENT="${AGENT:-opencode}"
+      export EDITOR="${EDITOR:-hx}"
+      export PWD="$(pwd)"
+      GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -d'-' -f1)
+      SESSION_NAME="ide-$(basename "$PWD")-${GUID}"
+      LAYOUT_FILE=$(mktemp)
+      trap "rm -f $LAYOUT_FILE" EXIT
+      envsubst < configs/ide/layout.kdl.template > "$LAYOUT_FILE"
+      zellij -s "$SESSION_NAME" -n "$LAYOUT_FILE"
   devenv:update:
     desc: Update devenv lock file.
     cmd: devenv update

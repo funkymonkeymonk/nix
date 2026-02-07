@@ -30,6 +30,10 @@ with pkgs.lib; {
       config = {
         programs.zsh.enable = true;
 
+        environment.variables = {
+          EDITOR = "emacs";
+        };
+
         environment.shellAliases = {
           # Git aliases
           g = "git";
