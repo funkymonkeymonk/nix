@@ -252,12 +252,30 @@ with lib; {
 
       server = {
         packages = with pkgs; [
-          # Add litellm and related server packages here when available in nixpkgs
+          colima
+          docker
+          docker-compose
         ];
 
         config = {
-          # litellm server configuration
-          # This would include service definitions and startup scripts
+          # Enable Colima for container management
+          virtualisation.colima = {
+            enable = true;
+            cpu = 4;
+            memory = 8192;
+          };
+
+          # Open WebUI via home-manager
+          myConfig = {
+            colima-open-webui = {
+              enable = true;
+              port = 3000;
+            };
+            litellm = {
+              enable = true;
+              port = 4000;
+            };
+          };
         };
       };
     };
