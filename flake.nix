@@ -231,6 +231,7 @@
             development.enable = true;
             agent-skills.enable = true;
             onepassword.enable = true;
+            litellm.enable = true;
           };
 
           # Configure nix-homebrew
