@@ -106,22 +106,22 @@ with lib; {
         description = "Port for litellm server";
       };
 
-      masterKey = mkOption {
-        type = types.str;
-        default = "sk-12345";
-        description = "Master key for litellm server";
+      masterKeyFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to file containing litellm master key (required for security)";
       };
 
-      openaiApiKey = mkOption {
-        type = types.str;
-        default = "";
-        description = "OpenAI API key";
+      environmentFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to file containing API keys as environment variables";
       };
 
-      anthropicApiKey = mkOption {
-        type = types.str;
-        default = "";
-        description = "Anthropic API key";
+      requireApiKey = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Require API key authentication for security";
       };
     };
   };
