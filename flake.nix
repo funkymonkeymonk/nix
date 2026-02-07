@@ -167,11 +167,12 @@
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "monkey";
             system.stateVersion = 4;
-            myConfig = mkUser "monkey";
+            myConfig = mkUser "monkey" // { litellm.enable = true; };
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
         ];
+
     };
 
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {

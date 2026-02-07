@@ -1,0 +1,41 @@
+model_list:
+  # Local Ollama models
+  - model_name: "ollama/llama3.2"
+    litellm_params:
+      model: "ollama/llama3.2"
+      api_base: "http://localhost:11434"
+
+  - model_name: "ollama/qwen2.5:7b"
+    litellm_params:
+      model: "ollama/qwen2.5:7b"
+      api_base: "http://localhost:11434"
+
+  # OpenAI models (if API key provided)
+  - model_name: "openai/gpt-4o-mini"
+    litellm_params:
+      model: "gpt-4o-mini"
+      api_base: "https://api.openai.com/v1"
+
+  # Claude models (if API key provided)
+  - model_name: "anthropic/claude-3-5-sonnet"
+    litellm_params:
+      model: "claude-3-5-sonnet-20241022"
+      api_base: "https://api.anthropic.com"
+
+# Server configuration
+general_settings:
+  master_key: os.environ/"LITELLM_MASTER_KEY"
+  database_url: "sqlite:///litellm.db"
+
+# Router settings
+router_settings:
+  model_group_alias:
+    "llama3.2": "ollama/llama3.2"
+    "qwen2.5": "ollama/qwen2.5:7b"
+    "gpt-4o-mini": "openai/gpt-4o-mini"
+    "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet"
+
+# Security
+security:
+  require_api_key: false  # Set to true for production
+  allowed_api_keys: []  # Add your API keys here

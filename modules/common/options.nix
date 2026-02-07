@@ -92,5 +92,37 @@ with lib; {
         description = "SSH key name for git signing in 1Password";
       };
     };
+
+    litellm = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable litellm service for LLM model management";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 4000;
+        description = "Port for litellm server";
+      };
+
+      masterKey = mkOption {
+        type = types.str;
+        default = "sk-12345";
+        description = "Master key for litellm server";
+      };
+
+      openaiApiKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "OpenAI API key";
+      };
+
+      anthropicApiKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Anthropic API key";
+      };
+    };
   };
 }
