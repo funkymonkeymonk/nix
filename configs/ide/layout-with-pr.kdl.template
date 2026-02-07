@@ -11,8 +11,8 @@ layout {
             command "${AGENT}"
         }
         pane size="30%" name="pr-review" {
-            command "gh"
-            args "dash" "--config" "${PWD}/configs/ide/gh-dash.yml"
+            command "gh-dash"
+            args "--config" "${PWD}/configs/ide/gh-dash.yml"
         }
     }
     pane size=2 borderless=true {

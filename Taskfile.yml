@@ -370,7 +370,7 @@ tasks:
       export PWD="$(pwd)"
       GUID=$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -d'-' -f1)
       SESSION_NAME="pr-review-$(basename "$PWD")-${GUID}"
-      zellij -s "$SESSION_NAME" run -- gh dash --config "${PWD}/configs/ide/gh-dash.yml"
+      zellij -s "$SESSION_NAME" run -- gh-dash --config "${PWD}/configs/ide/gh-dash.yml"
   devenv:update:
     desc: Update devenv lock file.
     cmd: devenv update

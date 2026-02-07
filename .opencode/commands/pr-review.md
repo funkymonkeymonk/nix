@@ -21,7 +21,7 @@ Opens the gh-dash PR review dashboard in a new zellij pane within the current se
 Run this command to open gh-dash in a new pane:
 
 ```bash
-zellij run -- gh dash --config "$(pwd)/configs/ide/gh-dash.yml"
+zellij run -- gh-dash --config "$(pwd)/configs/ide/gh-dash.yml"
 ```
 
 If a PR number is provided, you can also show its status inline first:
