@@ -30,6 +30,10 @@ with pkgs.lib; {
       config = {
         programs.zsh.enable = true;
 
+        environment.variables = {
+          EDITOR = "emacs";
+        };
+
         environment.shellAliases = {
           # Git aliases
           g = "git";
@@ -83,6 +87,7 @@ with pkgs.lib; {
         kubectl
         kubernetes-helm
         k9s
+        gh-dash
         # opencode is provided by llm-client role
       ];
 

@@ -1,0 +1,55 @@
+# gh-dash configuration for PR review workflow
+# Documentation: https://gh-dash.dev/docs/configuration
+
+prSections:
+  - title: My PRs
+    filters: author:@me
+    layout:
+      author:
+        hidden: true
+  - title: Review Requested
+    filters: review-requested:@me
+  - title: Assigned
+    filters: assignee:@me
+
+issuesSections:
+  - title: My Issues
+    filters: author:@me
+  - title: Assigned
+    filters: assignee:@me
+
+defaults:
+  prsLimit: 20
+  issuesLimit: 20
+  preview:
+    open: true
+    width: 60
+  refetchIntervalMinutes: 5
+
+# Use repo-specific views for better context
+repoPaths:
+  funkymonkeymonk/*: ~/repos
+
+keybindings:
+  prs:
+    - key: c
+      command: gh pr checkout {{.PrNumber}}
+    - key: d
+      command: gh pr diff {{.PrNumber}}
+    - key: v
+      command: gh pr view {{.PrNumber}} --web
+    - key: m
+      command: gh pr merge {{.PrNumber}} --auto --squash
+  issues:
+    - key: v
+      command: gh issue view {{.IssueNumber}} --web
+
+theme:
+  ui:
+    sectionsShowCount: true
+  colors:
+    text:
+      primary: "#E2E1ED"
+      secondary: "#666CA6"
+    border:
+      primary: "#383B5B"

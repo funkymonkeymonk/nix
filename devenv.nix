@@ -13,6 +13,7 @@
     pkgs.ripgrep
     pkgs.fd
     pkgs.jq
+    pkgs.envsubst
     # Documentation
     pkgs.mdbook
     # YAML linting
@@ -22,6 +23,11 @@
     pkgs.optnix
     # Cachix CLI for pushing to binary cache
     pkgs.cachix
+    # IDE tools (task ide)
+    pkgs.zellij
+    pkgs.yazi
+    pkgs.helix
+    pkgs.gh-dash
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user
