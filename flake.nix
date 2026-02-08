@@ -234,7 +234,6 @@
             litellm = {
               enable = true;
               port = 4000;
-              masterKeyFile = "/Users/monkey/.config/litellm/master_key.txt";
             };
             colima-open-webui = {
               enable = true;
