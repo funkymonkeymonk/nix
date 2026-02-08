@@ -7,7 +7,6 @@
     useUserPackages = true;
 
     sharedModules = [
-      ./litellm.nix
       ./colima-open-webui.nix
     ];
   };

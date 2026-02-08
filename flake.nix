@@ -21,6 +21,9 @@
 
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
+
+    opnix.url = "github:brizzbuzz/opnix";
+    opnix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -33,6 +36,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    opnix,
     ...
   }: let
     # Base configuration shared by all systems
@@ -133,6 +137,7 @@
         [
           configuration
           nix-homebrew.darwinModules.nix-homebrew
+          opnix.darwinModules.default
         ]
         ++ commonModules
         ++ [
@@ -146,6 +151,9 @@
             system.stateVersion = 4;
             myConfig = mkUser "wweaver";
             nix-homebrew = mkNixHomebrew "wweaver";
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+            ];
           }
           home-manager.darwinModules.home-manager
         ];
@@ -156,29 +164,35 @@
         [
           mac-app-util.darwinModules.default
           nix-homebrew.darwinModules.nix-homebrew
+          opnix.darwinModules.default
           configuration
         ]
         ++ commonModules
         ++ [
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-server"])
+          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-server" "llm-client"])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "monkey";
             system.stateVersion = 4;
-            myConfig = mkUser "monkey" // {
-              litellm = {
-                enable = true;
-                port = 4000;
-                masterKeyFile = "/Users/monkey/.config/litellm/master_key.txt";
+            myConfig =
+              mkUser "monkey"
+              // {
+                litellm = {
+                  enable = true;
+                  port = 4000;
+                  masterKeyReference = "op://Homelab/LiteLLM Master Key/password";
+                };
+                colima-open-webui = {
+                  enable = true;
+                  port = 3000;
+                };
               };
-              colima-open-webui = {
-                enable = true;
-                port = 3000;
-              };
-            };
             nix-homebrew = mkNixHomebrew "monkey";
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+            ];
           }
           home-manager.darwinModules.home-manager
         ];
@@ -190,6 +204,7 @@
         [configuration]
         ++ commonModules
         ++ [
+          opnix.nixosModules.default
           ./modules/home-manager
           ./os/nixos.nix
           ./targets/drlight
@@ -198,6 +213,9 @@
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
             myConfig = mkUser "monkey";
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+            ];
           }
           home-manager.nixosModules.home-manager
         ];
@@ -209,6 +227,7 @@
         [configuration]
         ++ commonModules
         ++ [
+          opnix.nixosModules.default
           ./modules/home-manager
           ./os/nixos.nix
           ./targets/zero
@@ -217,6 +236,9 @@
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
             myConfig = mkUser "monkey";
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+            ];
           }
           home-manager.nixosModules.home-manager
         ];

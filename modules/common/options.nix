@@ -93,6 +93,20 @@ with lib; {
       };
     };
 
+    colima-open-webui = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Open WebUI via Colima container runtime";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 3000;
+        description = "Port for Open WebUI service";
+      };
+    };
+
     litellm = {
       enable = mkOption {
         type = types.bool;
@@ -109,7 +123,13 @@ with lib; {
       masterKeyFile = mkOption {
         type = types.nullOr types.path;
         default = null;
-        description = "Path to file containing litellm master key (optional - will use 1Password if not provided)";
+        description = "Path to file containing litellm master key (optional - will use 1Password CLI if not provided)";
+      };
+
+      masterKeyReference = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "1Password reference for litellm master key (e.g., 'op://vault/item/field'). Requires 1Password CLI authentication";
       };
 
       environmentFile = mkOption {
@@ -122,20 +142,6 @@ with lib; {
         type = types.bool;
         default = true;
         description = "Require API key authentication for security";
-      };
-    };
-
-    colima-open-webui = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Enable Open WebUI via Colima container runtime";
-      };
-
-      port = mkOption {
-        type = types.port;
-        default = 3000;
-        description = "Port for Open WebUI service";
       };
     };
   };
