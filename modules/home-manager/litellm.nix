@@ -14,6 +14,12 @@ with lib; let
       require_api_key: true
       allowed_api_keys: ["os.environ/LITELLM_MASTER_KEY"]
   '';
+
+  # Script to retrieve master key from 1Password
+  getMasterKey = pkgs.writeShellScript "get-litellm-master-key" ''
+    set -euo pipefail
+    op item get "LiteLLM Master Key" --vault Homelab --field password --reveal
+  '';
 in {
   config = mkIf (config.myConfig.litellm.enable or false) {
     home.packages = with pkgs; [
@@ -24,6 +30,7 @@ in {
           uvicorn
           pyyaml
         ]))
+      unstable._1password-cli # Required for secure key retrieval
     ];
 
     # litellm systemd service for user with secure environment
@@ -35,18 +42,15 @@ in {
 
       Service =
         {
-          ExecStart = "${pkgs.litellm}/bin/litellm --config ${secureConfig} --port ${toString (config.myConfig.litellm.port or 4000)}";
+          ExecStartPre = "${getMasterKey}";
+          ExecStart = "${pkgs.bash}/bin/bash -c 'export LITELLM_MASTER_KEY=\"$(${getMasterKey})\" && exec ${pkgs.litellm}/bin/litellm --config ${secureConfig} --port ${toString (config.myConfig.litellm.port or 4000)}'";
           Restart = "on-failure";
           RestartSec = 5;
 
           # Secure environment variable handling
-          Environment =
-            [
-              "LITELLM_MASTER_KEY_FILE=${config.myConfig.litellm.masterKeyFile or ""}"
-            ]
-            ++ lib.optionals (config.myConfig.litellm.environmentFile != null) [
-              "ENVIRONMENT_FILE=${config.myConfig.litellm.environmentFile}"
-            ];
+          Environment = lib.optionals (config.myConfig.litellm.environmentFile != null) [
+            "ENVIRONMENT_FILE=${config.myConfig.litellm.environmentFile}"
+          ];
 
           # Load credentials from files if provided
           PassEnvironment = "LITELLM_MASTER_KEY";
@@ -60,11 +64,11 @@ in {
       };
     };
 
-    # Security validation
+    # Security validation - ensure 1Password CLI is available for secure key retrieval
     assertions = [
       {
-        assertion = config.myConfig.litellm.masterKeyFile != null;
-        message = "litellm.masterKeyFile must be set for security - hardcoded keys are not allowed";
+        assertion = config.programs._1password-cli.enable || config.myConfig.onepassword.enable;
+        message = "1Password CLI must be enabled to securely retrieve LiteLLM master key";
       }
     ];
   };

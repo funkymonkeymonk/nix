@@ -109,7 +109,7 @@ with lib; {
       masterKeyFile = mkOption {
         type = types.nullOr types.path;
         default = null;
-        description = "Path to file containing litellm master key (required for security)";
+        description = "Path to file containing litellm master key (optional - will use 1Password if not provided)";
       };
 
       environmentFile = mkOption {
