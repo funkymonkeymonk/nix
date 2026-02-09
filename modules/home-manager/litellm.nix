@@ -38,8 +38,11 @@ in {
           requests
           openai
           anthropic
+          orjson
+          python-dotenv
+          tokenizers
         ]))
-      unstable._1password-cli # Required for secure key retrieval
+      # 1Password CLI should be available via system configuration
     ];
 
     # litellm systemd service for user with secure environment
