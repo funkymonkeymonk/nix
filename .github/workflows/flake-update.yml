@@ -77,8 +77,8 @@ jobs:
           # Store current flake.lock for comparison
           cp flake.lock flake.lock.before
 
-          # Try to update without committing to see what changes are available
-          if nix flake update --no-commit; then
+          # Try to update (nix flake update only modifies flake.lock, doesn't commit)
+          if nix flake update; then
             echo "Update process completed successfully"
 
             # Compare old and new flake.lock
