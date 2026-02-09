@@ -204,6 +204,9 @@ jobs:
         run: |
           branch_name="flake-update-$(date +%Y-%m-%d)"
 
+          # Delete remote branch if it exists (from a previous failed run)
+          git push origin --delete "$branch_name" 2>/dev/null || true
+
           # Create and push branch
           git checkout -b "$branch_name"
           git push origin "$branch_name"
