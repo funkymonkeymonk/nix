@@ -1,31 +1,47 @@
 # Consolidated bundle configurations
 {pkgs}:
-with pkgs.lib; {
+with pkgs.lib; let
+  # Background browser opener script for macOS
+  # Opens URLs without stealing focus from current window
+  open-browser-background = pkgs.writeShellScriptBin "open-browser-background" ''
+    # Opens a URL in the default browser without stealing focus
+    # Used by GH_BROWSER to prevent browser from interrupting workflow
+    if [ -z "$1" ]; then
+      echo "Usage: open-browser-background <url>" >&2
+      exit 1
+    fi
+    # -g flag prevents bringing the application to the foreground
+    open -g "$1"
+  '';
+in {
   roles = {
     base = {
-      packages = with pkgs; [
-        vim
-        git
-        gh
-        devenv
-        direnv
-        go-task
-        rclone
-        bat
-        jq
-        tree
-        watchman
-        jnv
-        zinit
-        fzf
-        zsh
-        ripgrep
-        fd
-        coreutils
-        htop
-        glow
-        antigen
-      ];
+      packages = with pkgs;
+        [
+          vim
+          git
+          gh
+          devenv
+          direnv
+          go-task
+          rclone
+          bat
+          jq
+          tree
+          watchman
+          jnv
+          zinit
+          fzf
+          zsh
+          ripgrep
+          fd
+          coreutils
+          htop
+          glow
+          antigen
+        ]
+        # Add background browser opener on macOS
+        ++ optional stdenv.isDarwin open-browser-background;
 
       config = {
         programs.zsh.enable = true;
@@ -236,6 +252,11 @@ with pkgs.lib; {
       ];
 
       config = {
+        # Use background browser opener for gh CLI to prevent focus stealing
+        environment.variables = {
+          GH_BROWSER = "open-browser-background";
+        };
+
         homebrew = {
           enable = true;
           onActivation = {
