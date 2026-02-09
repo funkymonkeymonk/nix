@@ -41,6 +41,18 @@ in {
           orjson
           python-dotenv
           tokenizers
+          apscheduler
+          sentry-sdk
+          posthog
+          sqlalchemy
+          aiosqlite
+          prometheus-client
+          python-multipart
+          cryptography
+          jwt
+          redis
+          email-validator
+          jinja2
         ]))
       # 1Password CLI should be available via system configuration
     ];
