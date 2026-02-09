@@ -28,6 +28,8 @@
     pkgs.yazi
     pkgs.helix
     pkgs.gh-dash
+    # GitHub Actions local runner
+    pkgs.act
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user
