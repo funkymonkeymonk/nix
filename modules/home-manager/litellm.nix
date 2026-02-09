@@ -53,7 +53,9 @@ in {
           redis
           email-validator
           jinja2
+          prisma
         ]))
+      nodePackages.prisma # Prisma CLI for database setup
       # 1Password CLI should be available via system configuration
     ];
 
