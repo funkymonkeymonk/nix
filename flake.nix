@@ -131,6 +131,7 @@
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules =
         [
+          mac-app-util.darwinModules.default
           configuration
           nix-homebrew.darwinModules.nix-homebrew
         ]
