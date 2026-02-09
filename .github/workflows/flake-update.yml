@@ -77,8 +77,8 @@ jobs:
           # Store current flake.lock for comparison
           cp flake.lock flake.lock.before
 
-          # Try to update without committing to see what changes are available
-          if nix flake update --no-commit; then
+          # Try to update (nix flake update only modifies flake.lock, doesn't commit)
+          if nix flake update; then
             echo "Update process completed successfully"
 
             # Compare old and new flake.lock
@@ -88,30 +88,23 @@ jobs:
               # Generate summary of changes
               echo "changes_detected=true" >> $GITHUB_OUTPUT
 
-              # Count changed inputs
+              # Count changed inputs (tr -d ' ' removes whitespace from wc -l output)
               changed_inputs=$(diff -u flake.lock.before flake.lock \
-                | grep "^-[[:space:]]*\"rev\"" | wc -l || echo "0")
+                | grep "^-[[:space:]]*\"rev\"" | wc -l | tr -d ' ' || echo "0")
               echo "changed_inputs=$changed_inputs" >> $GITHUB_OUTPUT
 
-              # Extract updated package information
-              echo "package_updates<<EOF" >> $GITHUB_OUTPUT
-              echo "## Detected Package Updates" >> $GITHUB_OUTPUT
-              echo "" >> $GITHUB_OUTPUT
-
-              # Parse changes to show updated packages
-              diff -u flake.lock.before flake.lock \
-                | grep -E "^(\+|\-)[[:space:]]*\"rev\"" \
-                | while IFS= read -r line; do
-                  if [[ $line == -* ]]; then
-                    echo "📦 Old version: $(echo $line \
-                      | sed 's/.*"rev": *"\([^"]*\)".*/\1/')"
-                  elif [[ $line == +* ]]; then
-                    echo "🆕 New version: $(echo $line \
-                      | sed 's/.*"rev": *"\([^"]*\)".*/\1/')"
-                  fi
-                done >> $GITHUB_OUTPUT
-              echo "" >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
+              # Extract updated package information using heredoc for multiline output
+              {
+                echo "package_updates<<EOF"
+                echo "## Detected Package Updates"
+                echo ""
+                diff -u flake.lock.before flake.lock \
+                  | grep -E "^(\+|\-)[[:space:]]*\"rev\"" \
+                  | sed 's/^-.*"rev": *"\([^"]*\)".*/📦 Old: \1/' \
+                  | sed 's/^+.*"rev": *"\([^"]*\)".*/🆕 New: \1/' || true
+                echo ""
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
 
               # Commit the actual changes
               git config user.name "github-actions[bot]"
