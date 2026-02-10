@@ -53,9 +53,9 @@ jobs:
 
           if [ -n "$existing_prs" ]; then
             echo "Found existing PRs"
-            echo "existing_prs<<EOF" >> $GITHUB_OUTPUT
-            echo "$existing_prs" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            echo "existing_prs<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$existing_prs" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
           else
             echo "No existing PRs found"
           fi
@@ -86,25 +86,30 @@ jobs:
               echo "Changes detected in flake.lock"
 
               # Generate summary of changes
-              echo "changes_detected=true" >> $GITHUB_OUTPUT
+              echo "changes_detected=true" >> "$GITHUB_OUTPUT"
 
-              # Count changed inputs (tr -d ' ' removes whitespace from wc -l output)
+              # Count changed inputs using grep -c for clean output
+              # Use explicit variable assignment to avoid any newline/whitespace issues
               changed_inputs=$(diff -u flake.lock.before flake.lock \
-                | grep "^-[[:space:]]*\"rev\"" | wc -l | tr -d ' ' || echo "0")
-              echo "changed_inputs=$changed_inputs" >> $GITHUB_OUTPUT
+                | grep -c "^-[[:space:]]*\"rev\"" 2>/dev/null || echo "0")
+              # Ensure it's a clean integer with no whitespace
+              changed_inputs="${changed_inputs//[^0-9]/}"
+              [ -z "$changed_inputs" ] && changed_inputs="0"
+              echo "changed_inputs=$changed_inputs" >> "$GITHUB_OUTPUT"
 
               # Extract updated package information using heredoc for multiline output
+              # Use quoted GITHUB_OUTPUT as recommended by GitHub docs
               {
                 echo "package_updates<<EOF"
                 echo "## Detected Package Updates"
                 echo ""
                 diff -u flake.lock.before flake.lock \
-                  | grep -E "^(\+|\-)[[:space:]]*\"rev\"" \
+                  | grep -E "^[+-][[:space:]]*\"rev\"" \
                   | sed 's/^-.*"rev": *"\([^"]*\)".*/📦 Old: \1/' \
                   | sed 's/^+.*"rev": *"\([^"]*\)".*/🆕 New: \1/' || true
                 echo ""
                 echo "EOF"
-              } >> $GITHUB_OUTPUT
+              } >> "$GITHUB_OUTPUT"
 
               # Commit the actual changes
               git config user.name "github-actions[bot]"
@@ -115,16 +120,16 @@ jobs:
               echo "Changes committed and ready for PR"
             else
               echo "No changes detected in flake.lock"
-              echo "changes_detected=false" >> $GITHUB_OUTPUT
-              echo "changed_inputs=0" >> $GITHUB_OUTPUT
+              echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+              echo "changed_inputs=0" >> "$GITHUB_OUTPUT"
 
               # Restore original state
               git checkout -- flake.lock
             fi
           else
             echo "Failed to check for updates"
-            echo "changes_detected=false" >> $GITHUB_OUTPUT
-            echo "changed_inputs=0" >> $GITHUB_OUTPUT
+            echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+            echo "changed_inputs=0" >> "$GITHUB_OUTPUT"
 
             # Restore original state
             git checkout -- flake.lock
@@ -199,6 +204,9 @@ jobs:
         run: |
           branch_name="flake-update-$(date +%Y-%m-%d)"
 
+          # Delete remote branch if it exists (from a previous failed run)
+          git push origin --delete "$branch_name" 2>/dev/null || true
+
           # Create and push branch
           git checkout -b "$branch_name"
           git push origin "$branch_name"
@@ -252,6 +260,10 @@ jobs:
           EOF
           )
 
+          # Create labels if they don't exist (ignore errors if they already exist)
+          gh label create "flake-update" --description "Weekly flake dependency updates" --color "0e8a16" --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "dependencies" --description "Pull requests that update a dependency file" --color "0366d6" --repo ${{ github.repository }} 2>/dev/null || true
+
           # Create PR
           pr_url=$(gh pr create \
             --title "Weekly Flake Update - $(date +%Y-%m-%d)" \
@@ -261,8 +273,8 @@ jobs:
             --repo ${{ github.repository }})
 
           echo "PR created: $pr_url"
-          echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
-          echo "pr_number=$(echo $pr_url | sed 's/.*\/pull\/\([0-9]*\).*/\1/')" >> $GITHUB_OUTPUT
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(echo $pr_url | sed 's/.*\/pull\/\([0-9]*\).*/\1/')" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Close existing PRs (no updates needed)
