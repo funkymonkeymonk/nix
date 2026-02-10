@@ -217,9 +217,32 @@ with pkgs.lib; {
     };
 
     llm-server = {
-      packages = [];
+      packages = with pkgs; [
+        colima
+        docker
+        docker-compose
+      ];
 
-      config = {};
+      config = {
+        # Enable Colima for container management
+        virtualisation.colima = {
+          enable = true;
+          cpu = 4;
+          memory = 8192;
+        };
+
+        # Open WebUI via home-manager
+        myConfig = {
+          colima-open-webui = {
+            enable = true;
+            port = 3000;
+          };
+          litellm = {
+            enable = true;
+            port = 4000;
+          };
+        };
+      };
     };
   };
 

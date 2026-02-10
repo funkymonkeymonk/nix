@@ -5,5 +5,9 @@
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
+
+    sharedModules = [
+      ./colima-open-webui.nix
+    ];
   };
 }

@@ -17,6 +17,7 @@ in {
       else ""; # 1Password CLI (conditional)
     # AI assistant aliases
     oc = "opencode";
+    occ = "opencode --continue";
     kk = "opencode run";
   };
 }
