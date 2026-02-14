@@ -162,7 +162,7 @@
         ++ [
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host"])
+          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-client" "llm-claude"])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "monkey";
