@@ -61,6 +61,38 @@ with lib; {
       };
     };
 
+    opencode = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable opencode user configuration management";
+      };
+
+      model = mkOption {
+        type = types.str;
+        default = "opencode/kimi-k2.5-free";
+        description = "Default LLM model for opencode";
+      };
+
+      theme = mkOption {
+        type = types.str;
+        default = "opencode";
+        description = "UI theme for opencode";
+      };
+
+      autoupdate = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable automatic updates for opencode";
+      };
+
+      enableBrowserAgents = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable browser automation agents (chrome-devtools, puppeteer-mcp). These agents are only loaded when explicitly invoked to minimize context usage.";
+      };
+    };
+
     onepassword = {
       enable = mkOption {
         type = types.bool;

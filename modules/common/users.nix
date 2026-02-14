@@ -99,7 +99,8 @@ in {
             [
               ../../modules/home-manager/shell.nix
             ]
-            ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix;
+            ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
+            ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix;
         };
       })
       config.myConfig.users);

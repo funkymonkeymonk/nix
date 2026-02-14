@@ -62,6 +62,7 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
+      opencode.enable = true;
     };
 
     # Helper for nix-homebrew config
