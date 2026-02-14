@@ -261,8 +261,14 @@ jobs:
           )
 
           # Create labels if they don't exist (ignore errors if they already exist)
-          gh label create "flake-update" --description "Weekly flake dependency updates" --color "0e8a16" --repo ${{ github.repository }} 2>/dev/null || true
-          gh label create "dependencies" --description "Pull requests that update a dependency file" --color "0366d6" --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "flake-update" \
+            --description "Weekly flake dependency updates" \
+            --color "0e8a16" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "dependencies" \
+            --description "Pull requests that update a dependency file" \
+            --color "0366d6" \
+            --repo ${{ github.repository }} 2>/dev/null || true
 
           # Create PR
           pr_url=$(gh pr create \
