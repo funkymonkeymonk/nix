@@ -34,7 +34,7 @@
     homebrew-core,
     homebrew-cask,
     ...
-  }: let
+  } @ inputs: let
     # Base configuration shared by all systems
     configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
@@ -177,6 +177,7 @@
 
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = {inherit inputs;};
       modules =
         [configuration]
         ++ commonModules
@@ -196,6 +197,7 @@
 
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = {inherit inputs;};
       modules =
         [configuration]
         ++ commonModules
