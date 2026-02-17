@@ -60,6 +60,7 @@
         }
       ];
       development.enable = true;
+      agent-skills.enable = true;
       onepassword.enable = true;
       opencode.enable = true;
     };
@@ -91,9 +92,6 @@
 
       # Collect all homebrew configs from enabled roles
       roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) finalRoles;
-
-      # Collect opencode configs from enabled roles
-      roleOpencodeConfigs = map (role: bundles.roles.${role}.opencode or {}) finalRoles;
     in {
       config =
         {
@@ -113,15 +111,6 @@
           programs =
             bundles.roles.base.config.programs or {}
             // bundles.platforms.${system}.config.programs or {};
-
-          myConfig = {
-            opencode = {
-              roles = roleOpencodeConfigs;
-            };
-            skills = {
-              enabledRoles = finalRoles;
-            };
-          };
         }
         // nixpkgs.lib.optionalAttrs (system == "darwin") {
           homebrew = nixpkgs.lib.mkMerge ([
@@ -148,6 +137,7 @@
         ]
         ++ commonModules
         ++ [
+          ./modules/home-manager
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           (mkBundleModule "darwin" ["developer" "desktop" "workstation" "llm-client" "llm-claude"])
@@ -159,7 +149,6 @@
             nix-homebrew = mkNixHomebrew "wweaver";
           }
           home-manager.darwinModules.home-manager
-          ./modules/home-manager/settings.nix
         ];
     };
 
@@ -183,7 +172,6 @@
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
-          ./modules/home-manager/settings.nix
         ];
     };
 
@@ -194,6 +182,7 @@
         [configuration]
         ++ commonModules
         ++ [
+          ./modules/home-manager
           ./os/nixos.nix
           ./targets/drlight
           (mkBundleModule "linux" ["developer" "creative" "llm-client"])
@@ -203,7 +192,6 @@
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
-          ./modules/home-manager/settings.nix
         ];
     };
 
@@ -214,6 +202,7 @@
         [configuration]
         ++ commonModules
         ++ [
+          ./modules/home-manager
           ./os/nixos.nix
           ./targets/zero
           (mkBundleModule "linux" ["developer" "desktop" "llm-client"])
@@ -223,7 +212,6 @@
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
-          ./modules/home-manager/settings.nix
         ];
     };
   };

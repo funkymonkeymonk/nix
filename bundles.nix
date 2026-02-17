@@ -88,26 +88,10 @@ with pkgs.lib; {
         kubernetes-helm
         k9s
         gh-dash
+        # opencode is provided by llm-client role
       ];
 
-      opencode = {
-        permission.bash = {
-          "docker *" = "allow";
-          "docker-compose *" = "allow";
-          "kubectl *" = "allow";
-          "helm *" = "allow";
-          "k3s *" = "allow";
-          "k3d *" = "allow";
-          "go *" = "allow";
-          "node *" = "allow";
-          "npm *" = "allow";
-          "npx *" = "allow";
-          "yarn *" = "allow";
-        };
-        tools = {
-          devenv = true;
-        };
-      };
+      config = {};
     };
 
     creative = {

@@ -91,26 +91,6 @@ with lib; {
         default = false;
         description = "Enable browser automation agents (chrome-devtools, puppeteer-mcp). These agents are only loaded when explicitly invoked to minimize context usage.";
       };
-
-      roles = mkOption {
-        type = types.listOf types.attrs;
-        default = [];
-        description = "Opencode configurations from enabled roles";
-      };
-    };
-
-    skills = {
-      enabledRoles = mkOption {
-        type = types.listOf types.str;
-        default = [];
-        description = "List of enabled roles for skill discovery";
-      };
-
-      skillsPath = mkOption {
-        type = types.str;
-        default = "~/.config/opencode/skills";
-        description = "Path where skills are installed";
-      };
     };
 
     onepassword = {

@@ -101,8 +101,7 @@ in {
             ]
             ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
             ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix
-            ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix
-            ++ optional ((config.myConfig.skills.enabledRoles or []) != []) ../../modules/home-manager/skills/install.nix;
+            ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix;
         };
       })
       config.myConfig.users);
