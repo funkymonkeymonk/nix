@@ -159,7 +159,7 @@
             nix-homebrew = mkNixHomebrew "wweaver";
           }
           home-manager.darwinModules.home-manager
-          ./modules/home-manager
+          ./modules/home-manager/settings.nix
         ];
     };
 
@@ -183,7 +183,7 @@
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
-          ./modules/home-manager
+          ./modules/home-manager/settings.nix
         ];
     };
 
@@ -203,7 +203,7 @@
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
-          ./modules/home-manager
+          ./modules/home-manager/settings.nix
         ];
     };
 
@@ -223,7 +223,7 @@
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
-          ./modules/home-manager
+          ./modules/home-manager/settings.nix
         ];
     };
   };
