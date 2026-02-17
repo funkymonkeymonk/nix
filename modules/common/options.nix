@@ -31,7 +31,7 @@ with lib; {
           };
           isAdmin = mkOption {
             type = types.bool;
-            default = false;
+            default = true;
             description = "Whether the user should have admin privileges";
           };
           sshIncludes = mkOption {
@@ -122,6 +122,14 @@ with lib; {
         type = types.str;
         default = "";
         description = "SSH key name for git signing in 1Password";
+      };
+    };
+
+    zellij = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable zellij terminal multiplexer configuration";
       };
     };
   };
