@@ -88,6 +88,25 @@ This repository includes automatic AI agent skills management:
 - Use `task agent-skills:status` to check current state
 - Skills follow Agent Skills specification
 
+### Version Control Preference (Jujutsu/jj)
+
+When working in repositories that use Jujutsu (jj) for version control:
+
+1. **Auto-detect jj repositories**: Check for `.jj/` directory (colocated repos have both `.jj/` and `.git/`)
+2. **Use jj skill**: Load the `jj` skill when:
+   - A `.jj/` directory exists in the repository
+   - The user asks for any git-related operations (commit, push, log, diff, etc.)
+   - The user explicitly mentions jj or Jujutsu
+
+3. **Key jj principles to follow**:
+   - Working copy IS a commit (no staging area)
+   - Always run `jj status` first before any operation
+   - Create new commits with `jj new` before starting work
+   - Use `jj describe` to set commit messages
+   - Never mix git and jj commands in the same session
+
+4. **The jj skill is available at**: `~/.config/opencode/skills/jj/SKILL.md` (installs automatically with `opencode` bundle)
+
 ## Platform Support
 
 ### Supported Systems
