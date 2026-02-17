@@ -7,6 +7,7 @@
 }:
 with lib; let
   cfg = osConfig.myConfig.opencode;
+  roleConfigs = cfg.roles or [];
 
   # Base opencode configuration (always present)
   baseConfig = {
@@ -30,6 +31,11 @@ with lib; let
       devenv = true;
     };
   };
+
+  # Merge all role configs
+  roleConfig = foldl' (acc: roleCfg: recursiveUpdate acc roleCfg) {} roleConfigs;
+
+  mergedWithRoles = recursiveUpdate baseConfig roleConfig;
 
   # Browser agents configuration (only when enabled)
   browserAgentsConfig = mkIf cfg.enableBrowserAgents {
@@ -87,18 +93,18 @@ with lib; let
   finalConfig =
     if cfg.enableBrowserAgents
     then
-      lib.recursiveUpdate baseConfig {
+      lib.recursiveUpdate mergedWithRoles {
         mcp = {
-          inherit (baseConfig.mcp) devenv;
+          inherit (mergedWithRoles.mcp) devenv;
           inherit (browserAgentsConfig.mcp) chrome-devtools puppeteer-mcp;
         };
         inherit (browserAgentsConfig) agent;
         permission = {
-          bash = baseConfig.permission.bash // browserAgentsConfig.permission.bash;
+          bash = mergedWithRoles.permission.bash // browserAgentsConfig.permission.bash;
         };
-        tools = baseConfig.tools // browserAgentsConfig.tools;
+        tools = mergedWithRoles.tools // browserAgentsConfig.tools;
       }
-    else baseConfig;
+    else mergedWithRoles;
 in {
   config = mkIf cfg.enable {
     home.file.".config/opencode/opencode.json" = {
