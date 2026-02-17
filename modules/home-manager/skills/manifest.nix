@@ -103,4 +103,16 @@
   #   };
   #   deps = [];
   # };
+
+  # Jujutsu (jj) version control skill
+  # Based on @coreyja/jj from https://github.com/coreyja/dotfiles/tree/main/.claude/skills/jj
+  "jj" = {
+    description = "Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, and stacked PRs";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./external/jj;
+    };
+    deps = [];
+  };
 }
