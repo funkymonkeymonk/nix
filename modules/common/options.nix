@@ -69,9 +69,9 @@ with lib; {
       };
 
       model = mkOption {
-        type = types.str;
-        default = "opencode/kimi-k2.5-free";
-        description = "Default LLM model for opencode";
+        type = types.nullOr types.str;
+        default = null;
+        description = "Default LLM model for opencode (null means no default, user selects on first run)";
       };
 
       theme = mkOption {
@@ -118,6 +118,12 @@ with lib; {
         });
         default = {};
         description = "Additional MCP servers to configure (merged with base devenv MCP server)";
+      };
+
+      disabledProviders = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "List of built-in provider names to disable (e.g., [\"opencode\" \"anthropic\"])";
       };
 
       providers = mkOption {

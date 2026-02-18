@@ -43,10 +43,27 @@ with lib; let
     })
     cfg.providers;
 
+  # Transform MCP server config from our options format to opencode's expected format
+  transformMcpServer = name: server:
+    {
+      inherit (server) enabled;
+    }
+    // (
+      if server.type == "remote"
+      then {
+        type = "remote";
+        inherit (server) url;
+      }
+      else {
+        type = "local";
+        inherit (server) command;
+      }
+    );
+
   # Build complete settings
   settings =
     {
-      inherit (cfg) theme model autoupdate;
+      inherit (cfg) theme autoupdate;
       mcp =
         {
           devenv = {
@@ -55,7 +72,7 @@ with lib; let
             enabled = true;
           };
         }
-        // cfg.extraMcpServers;
+        // lib.mapAttrs transformMcpServer cfg.extraMcpServers;
       permission = {
         bash = {
           "task *" = "allow";
@@ -67,6 +84,12 @@ with lib; let
         devenv = true;
       };
     }
+    // (optionalAttrs (cfg.model != null) {
+      inherit (cfg) model;
+    })
+    // (optionalAttrs (cfg.disabledProviders != []) {
+      disabled_providers = cfg.disabledProviders;
+    })
     // (optionalAttrs (cfg.providers != {}) {
       provider = providerConfig;
     });
