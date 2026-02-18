@@ -21,6 +21,9 @@
 
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
+
+    opnix.url = "github:brizzbuzz/opnix";
+    opnix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -33,6 +36,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    opnix,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -81,7 +85,11 @@
       bundles = import ./bundles.nix {inherit pkgs;};
 
       # Auto-enable agent-skills if any role requests it
-      hasAgentSkills = builtins.any (role: (bundles.roles.${role} or {}).enableAgentSkills or false) enabledRoles;
+      hasAgentSkills =
+        builtins.any (
+          role: (bundles.roles.${role} or {}).enableAgentSkills or false
+        )
+        enabledRoles;
       finalRoles =
         if hasAgentSkills
         then nixpkgs.lib.unique (enabledRoles ++ ["agent-skills"])
@@ -97,9 +105,7 @@
         {
           environment = {
             systemPackages =
-              bundles.roles.base.packages
-              ++ rolePackages
-              ++ bundles.platforms.${system}.packages;
+              bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
 
             shellAliases = bundles.roles.base.config.environment.shellAliases or {};
 
@@ -109,14 +115,15 @@
           };
 
           programs =
-            bundles.roles.base.config.programs or {}
-            // bundles.platforms.${system}.config.programs or {};
+            bundles.roles.base.config.programs or {} // bundles.platforms.${system}.config.programs or {};
         }
         // nixpkgs.lib.optionalAttrs (system == "darwin") {
-          homebrew = nixpkgs.lib.mkMerge ([
+          homebrew = nixpkgs.lib.mkMerge (
+            [
               (bundles.platforms.darwin.config.homebrew or {})
             ]
-            ++ roleHomebrewConfigs);
+            ++ roleHomebrewConfigs
+          );
         };
     };
 
@@ -140,15 +147,83 @@
           ./modules/home-manager
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "llm-client" "llm-claude"])
+          (mkBundleModule "darwin" [
+            "developer"
+            "desktop"
+            "workstation"
+            "llm-client"
+            "llm-claude"
+          ])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "wweaver";
             system.stateVersion = 4;
-            myConfig = mkUser "wweaver";
+            myConfig =
+              (mkUser "wweaver")
+              // {
+                opencode = {
+                  enable = true;
+                  disabledProviders = [
+                    "opencode"
+                  ];
+                  extraMcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = false;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                  providers = {
+                    just-llms = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Just LLMs";
+                      baseURL = "https://litellm.justworksai.net";
+                      onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                      models = {
+                        "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                          name = "justworks-dev";
+                        };
+                      };
+                    };
+                  };
+                };
+                claude-code = {
+                  enable = true;
+                  mcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = true;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                };
+              };
             nix-homebrew = mkNixHomebrew "wweaver";
           }
           home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -163,7 +238,15 @@
         ++ [
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-client" "llm-claude"])
+          (mkBundleModule "darwin" [
+            "developer"
+            "desktop"
+            "workstation"
+            "entertainment"
+            "llm-host"
+            "llm-client"
+            "llm-claude"
+          ])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "monkey";
@@ -172,6 +255,9 @@
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -179,19 +265,28 @@
       system = "x86_64-linux";
       specialArgs = {inherit inputs;};
       modules =
-        [configuration]
+        [
+          configuration
+        ]
         ++ commonModules
         ++ [
           ./modules/home-manager
           ./os/nixos.nix
           ./targets/drlight
-          (mkBundleModule "linux" ["developer" "creative" "llm-client"])
+          (mkBundleModule "linux" [
+            "developer"
+            "creative"
+            "llm-client"
+          ])
           {
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -199,19 +294,28 @@
       system = "x86_64-linux";
       specialArgs = {inherit inputs;};
       modules =
-        [configuration]
+        [
+          configuration
+        ]
         ++ commonModules
         ++ [
           ./modules/home-manager
           ./os/nixos.nix
           ./targets/zero
-          (mkBundleModule "linux" ["developer" "desktop" "llm-client"])
+          (mkBundleModule "linux" [
+            "developer"
+            "desktop"
+            "llm-client"
+          ])
           {
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
   };

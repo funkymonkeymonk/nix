@@ -101,6 +101,7 @@ in {
             ]
             ++ optional config.myConfig.development.enable ../../modules/home-manager/development.nix
             ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix
+            ++ optional config.myConfig.claude-code.enable ../../modules/home-manager/claude-code.nix
             ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix;
         };
       })
