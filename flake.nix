@@ -103,6 +103,9 @@
     in {
       config =
         {
+          # Pass enabled roles to skills configuration
+          myConfig.skills.enabledRoles = finalRoles;
+
           environment = {
             systemPackages =
               bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;

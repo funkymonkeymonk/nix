@@ -22,6 +22,11 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 ├── modules/                    # Reusable Nix configurations
 │   ├── common/                 # Shared configurations (options, users, shell, onepassword)
 │   ├── home-manager/           # User environment modules
+│   │   └── skills/             # Agent skills management
+│   │       ├── install.nix     # Skills installation module
+│   │       ├── manifest.nix    # Skill definitions and role assignments
+│   │       ├── internal/       # Skills defined in this repo
+│   │       └── external/       # Skills adapted from external sources
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
@@ -118,9 +123,9 @@ This configuration uses 1Password CLI directly for secret management. Secrets ar
 This configuration includes automatic management of AI agent skills for OpenCode and Claude Code integration.
 
 ### Features
-- **Automatic Installation**: Skills install automatically with opencode or claude bundles
-- **Upstream Updates**: Clean update mechanism from superpowers repository
-- **Local Customization**: Override or extend skills in repository
+- **Automatic Installation**: Skills install automatically when `llm-client` or `llm-claude` roles are enabled
+- **Role-Based Filtering**: Skills are assigned to roles and only installed when relevant roles are active
+- **Local Customization**: Define custom skills in `modules/home-manager/skills/internal/`
 - **Cross-Platform**: Works on all configured systems (macOS and NixOS)
 - **Validation**: Skills follow Agent Skills specification compliance
 
@@ -142,9 +147,15 @@ skills-list
 
 ### Configuration
 
-Agent skills are automatically enabled when either `opencode` or `claude` bundles are active. Skills are installed to:
+Agent skills are automatically enabled when `llm-client` or `llm-claude` roles are active (via the `enableAgentSkills` flag in bundles.nix). Skills are installed to:
 - `~/.config/opencode/skills/` - Primary skills directory
-- `~/.config/opencode/superpowers/skills/` - Superpowers compatibility
+
+### Adding Custom Skills
+
+1. Create skill directory: `modules/home-manager/skills/internal/my-skill/`
+2. Add `SKILL.md` with frontmatter (`name`, `description`)
+3. Register in `modules/home-manager/skills/manifest.nix` with role assignments
+4. Rebuild system to install
 
 See [docs/agent-skills.md](docs/agent-skills.md) for detailed documentation.
 
