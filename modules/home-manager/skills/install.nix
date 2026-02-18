@@ -1,10 +1,8 @@
 # Skills installation module
 # Filters skills by enabled roles and installs them to ~/.config/opencode/skills/
 {
-  config,
   osConfig,
   lib,
-  pkgs,
   ...
 }: let
   # Get skills config from OS config
@@ -14,8 +12,8 @@
   # Get all enabled roles from config
   enabledRoles = cfg.enabledRoles or [];
 
-  # Use default path if not specified
-  skillsPath = cfg.skillsPath or "~/.config/opencode/skills";
+  # Use default path if not specified (relative to home directory for home.file)
+  skillsPath = cfg.skillsPath or ".config/opencode/skills";
 
   # Filter skills that match any enabled role
   skillsForRoles = roles:

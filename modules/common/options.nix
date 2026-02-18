@@ -61,6 +61,20 @@ with lib; {
       };
     };
 
+    skills = {
+      enabledRoles = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "List of enabled roles for skills filtering (set automatically by bundle configuration)";
+      };
+
+      skillsPath = mkOption {
+        type = types.str;
+        default = ".config/opencode/skills";
+        description = "Path relative to home directory where skills are installed";
+      };
+    };
+
     opencode = {
       enable = mkOption {
         type = types.bool;
