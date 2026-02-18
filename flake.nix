@@ -21,6 +21,9 @@
 
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
+
+    opnix.url = "github:brizzbuzz/opnix";
+    opnix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -33,6 +36,7 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    opnix,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -145,10 +149,69 @@
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "wweaver";
             system.stateVersion = 4;
-            myConfig = mkUser "wweaver";
+            myConfig =
+              (mkUser "wweaver")
+              // {
+                opencode = {
+                  enable = true;
+                  extraMcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = true;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                  providers = {
+                    just-llms = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Just LLMs";
+                      baseURL = "https://litellm.justworksai.net";
+                      onePasswordItem = "op://Private/Justworks LiteLLM/wweaver-poweruser-key";
+                      models = {
+                        "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                          name = "justworks-dev";
+                        };
+                      };
+                    };
+                  };
+                };
+                claude-code = {
+                  enable = true;
+                  mcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = true;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                };
+              };
             nix-homebrew = mkNixHomebrew "wweaver";
           }
           home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -172,6 +235,9 @@
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -192,6 +258,9 @@
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -212,6 +281,9 @@
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
   };
