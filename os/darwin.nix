@@ -1,8 +1,15 @@
 {
   _config,
   pkgs,
+  lib,
   ...
 }: {
+  nixpkgs.config.allowUnfree = true;
+  nixpkgs.config.allowUnfreePredicate = pkg:
+    builtins.elem (lib.getName pkg) [
+      "claude-code"
+    ];
+
   nix.enable = false;
 
   # Enable auto-migration for nix-homebrew by default

@@ -182,3 +182,42 @@ The `task test:full` command validates both platforms regardless of host:
 6. **Commit**: Use conventional commit messages
 
 This workflow ensures consistent, high-quality contributions to the configuration repository.
+
+## RTK Token Optimization
+
+This repository uses **RTK (Rust Token Killer)** to reduce LLM token consumption by 60-90% on common dev commands.
+
+### Available Commands
+
+When working with this codebase, use RTK-prefixed commands for token-efficient output:
+
+| Standard Command | RTK Equivalent | Token Savings |
+|------------------|---------------|---------------|
+| `git status` | `rtk git status` | ~80% |
+| `git diff` | `rtk git diff` | ~75% |
+| `git log` | `rtk git log` | ~80% |
+| `git push` | `rtk git push` | ~92% |
+| `ls` | `rtk ls` | ~80% |
+| `cat <file>` | `rtk read <file>` | ~70% |
+| `grep` | `rtk grep` | ~80% |
+| `cargo test` | `rtk cargo test` | ~90% |
+| `npm test` | `rtk npm test` | ~90% |
+| `ruff check` | `rtk ruff check` | ~80% |
+| `pytest` | `rtk pytest` | ~90% |
+| `docker ps` | `rtk docker ps` | ~80% |
+
+### For Claude Code
+
+Claude Code users: RTK hooks are configured automatically when `claude-code.rtk.enable = true` is set. Commands are transparently rewritten to their RTK equivalents.
+
+### For OpenCode
+
+Since OpenCode does not have native RTK hook support, agents should manually use RTK commands when appropriate. The global OpenCode config at `~/.config/opencode/opencode.json` includes these instructions.
+
+### Verification
+
+To check token savings:
+```bash
+rtk gain        # Show token savings stats
+rtk gain --graph  # Show ASCII graph of savings
+```
