@@ -24,7 +24,7 @@ tasks:
       PASSWORD_PATH="op://Private/${HOSTNAME} Sudo Password/password"
       op run \
         --env-file=<(echo "SUDO_PASSWORD=$(op read "$PASSWORD_PATH")") \
-        -- bash -c 'echo "$SUDO_PASSWORD" | sudo -S darwin-rebuild switch --flake ./'
+        -- bash -c 'echo "$SUDO_PASSWORD" | sudo -S darwin-rebuild switch --flake ./#'"$HOSTNAME"
   switch:nixos:
     desc: Perform linux based build
     aliases:

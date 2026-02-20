@@ -115,4 +115,15 @@
     };
     deps = [];
   };
+
+  # Zellij terminal multiplexer management
+  "zellij" = {
+    description = "Manage Zellij terminal multiplexer. Create panes, tabs, run commands, and control the terminal workspace from within OpenCode";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./internal/zellij;
+    };
+    deps = [];
+  };
 }

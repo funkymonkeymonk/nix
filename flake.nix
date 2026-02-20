@@ -239,6 +239,7 @@
         ]
         ++ commonModules
         ++ [
+          ./modules/home-manager
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           (mkBundleModule "darwin" [
