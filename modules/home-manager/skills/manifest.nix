@@ -43,11 +43,21 @@
   };
 
   "writing-skills" = {
-    description = "Writing skills for documentation, skill files, and technical content";
-    roles = ["developer" "creative"];
+    description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment";
+    roles = ["developer" "creative" "llm-client" "llm-claude"];
+    source = {
+      type = "superpowers";
+      skillName = "writing-skills";
+    };
+    deps = [];
+  };
+
+  "diataxis-docs" = {
+    description = "Use when updating, rewriting, or auditing documentation to follow the Diataxis framework";
+    roles = ["developer" "creative" "llm-client" "llm-claude"];
     source = {
       type = "internal";
-      path = ./internal/writing-skills;
+      path = ./internal/diataxis-docs;
     };
     deps = [];
   };
