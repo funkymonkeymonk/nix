@@ -1,7 +1,5 @@
 {
     "$schema": "https://opencode.ai/config.json",
-    "theme": "opencode",
-    "autoupdate": true,
     "instructions": ["AGENTS.md", "README.md"],
     "formatter": {
         "alejandra": {
@@ -53,12 +51,8 @@
             "gh org": "ask",
             "gh project": "ask",
             "gh release": "ask",
-            "gh repo": "ask",
-            "task *": "allow"
+            "gh repo": "ask"
         }
-    },
-    "tools": {
-        "run": true
     },
     "lsp": {
         "nixd": {
@@ -88,13 +82,6 @@
                     }
                 }
             }
-        }
-    },
-    "mcp": {
-        "devenv": {
-            "type": "local",
-            "command": ["devenv", "mcp"],
-            "enabled": true
         }
     },
     "share": "manual"
