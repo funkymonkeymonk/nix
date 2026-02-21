@@ -1,6 +1,6 @@
 {
     "$schema": "https://opencode.ai/config.json",
-    "instructions": ["AGENTS.md", "README.md"],
+    "instructions": ["AGENTS.md", "RTK.md", "README.md"],
     "formatter": {
         "alejandra": {
             "command": ["alejandra"],
@@ -36,7 +36,8 @@
         "switch": {
             "template": "Apply system configuration changes using task switch",
             "description": "Apply system configuration",
-            "agent": "build"
+            "agent": "build",
+            "instructions": ["RTK.md"]
         }
     },
     "permission": {

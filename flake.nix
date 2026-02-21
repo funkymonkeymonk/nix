@@ -43,12 +43,17 @@
     configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
       nixpkgs.config.allowUnfree = true;
+      nixpkgs.config.allowUnfreePredicate = pkg:
+        builtins.elem (nixpkgs.lib.getName pkg) [
+          "claude-code"
+        ];
       nixpkgs.overlays = [
         (final: _prev: {
           stable = import nixpkgs-stable {
             inherit (final) system config;
           };
         })
+        (import ./overlays)
       ];
     };
 
@@ -67,6 +72,10 @@
       agent-skills.enable = true;
       onepassword.enable = true;
       opencode.enable = true;
+      claude-code = {
+        enable = true;
+        rtk.enable = true;
+      };
     };
 
     # Helper for nix-homebrew config
@@ -138,7 +147,18 @@
       ./modules/common/onepassword.nix
       ./modules/common/cachix.nix
     ];
+
+    # Package overlays for each system
+    forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
   in {
+    packages = forAllSystems (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [(import ./overlays)];
+      };
+    in {
+      inherit (pkgs) rtk;
+    });
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules =
         [
@@ -202,6 +222,7 @@
                 };
                 claude-code = {
                   enable = true;
+                  rtk.enable = true;
                   mcpServers = {
                     github = {
                       type = "remote";
