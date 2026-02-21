@@ -30,30 +30,46 @@ This is a modular Nix Flakes configuration for managing macOS and NixOS systems 
 │   │       └── external/       # Skills adapted from external sources
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
+│   └── core/                   # Minimal bootstrap configuration
 ├── os/                         # Platform OS configurations
 ├── templates/                  # Templates for new configurations
 ├── bundles.nix                 # Consolidated package collections (roles + platforms)
 ├── flake.nix                   # Main Nix flake definition
-├── devenv.nix                  # Development environment configuration
-└── Taskfile.yml               # Task automation
+├── devenv.nix                  # Development environment and tasks
+└── bootstrap.sh                # Bootstrap script for new machines
 ```
 
 ## Available Tasks
 
-Use task for common operations
-Run `task --list` for a list of all tasks available and a quick definition
+Use devenv tasks for common operations:
+```bash
+devenv tasks list              # List all available tasks
+devenv tasks run <task-name>   # Run a specific task
+```
+
+### Common Tasks
+- `devenv tasks run switch` - Apply configuration to current system
+- `devenv tasks run test` - Run quick validation checks
+- `devenv tasks run test:full` - Full cross-platform validation
+- `devenv tasks run quality` - Run code quality checks (format + lint)
+- `devenv tasks run fmt` - Format all Nix files
+- `devenv tasks run build` - Build all configurations (dry-run)
+
+### Shell Aliases
+- `dt <task>` or `dtr <task>` - Run devenv task
+- `dtl` - List all devenv tasks
 
 ## Working with This Repository
 
 ### Before Making Changes
-1. Always run `task test:full` to validate the current state
-2. Check existing code style by running `task fmt`
-3. Use the development shell with `task dev` for proper tooling
+1. Always run `devenv tasks run test:full` to validate the current state
+2. Check existing code style by running `devenv tasks run fmt`
+3. Use `devenv shell` for proper tooling
 
 ### Making Changes
 1. Create or modify files as needed
-2. Run `task quality` to format and lint code
-3. Run `task test:full` to validate changes
+2. Run `devenv tasks run quality` to format and lint code
+3. Run `devenv tasks run test:full` to validate changes
 4. Commit with descriptive messages
 
 ### Adding New Features
@@ -85,13 +101,25 @@ Run `task --list` for a list of all tasks available and a quick definition
 ### Computed Options
 - `myConfig.isDarwin` - Boolean for platform detection (use instead of manual checks)
 
+## Bootstrapping a New Machine
+
+Use the bootstrap script to set up a new machine:
+```bash
+curl -fsSL https://raw.githubusercontent.com/funkymonkeymonk/nix/main/bootstrap.sh | bash
+```
+
+The bootstrap script:
+1. Detects if Nix is installed (installs using Determinate Systems installer if not)
+2. Clones this repository
+3. Applies the `core` configuration with essential tools (devenv, direnv, git, etc.)
+
 ## Agent Skills Integration
 
 This repository includes automatic AI agent skills management:
 - Skills auto-install when `agent-skills.enable = true` and roles like `developer`, `llm-client`, or `llm-claude` are active
 - Skills are defined in `modules/home-manager/skills/manifest.nix` with role-based filtering
 - Installed to `~/.config/opencode/skills/` via home-manager symlinks
-- Use `task agent-skills:status` to check current state
+- Use `devenv tasks run agent-skills:status` to check current state
 - Skills follow Agent Skills specification
 
 ### Adding New Skills
@@ -127,7 +155,7 @@ When working in repositories that use Jujutsu (jj) for version control:
 - **Linux**: NixOS configuration (x86_64-linux)
 
 ### Cross-Platform Validation
-The `task test:full` command validates both platforms regardless of host:
+The `devenv tasks run test:full` command validates both platforms regardless of host:
 - On macOS: Tests both Darwin and Linux configs
 - On Linux: Tests both Linux and Darwin configs
 - Uses dry-run builds for cross-architecture validation
@@ -135,7 +163,7 @@ The `task test:full` command validates both platforms regardless of host:
 ## Code Style Guidelines
 
 ### Nix Files
-- Use alejandra formatter (`task fmt`)
+- Use alejandra formatter (`devenv tasks run fmt`)
 - Remove dead code (checked by deadnix)
 - Follow existing patterns and conventions
 - Use type-safe options with proper validation
@@ -154,31 +182,31 @@ The `task test:full` command validates both platforms regardless of host:
 - Git commit signing via 1Password SSH signing
 
 ### Code Review
-- All changes should pass `task quality` checks
+- All changes should pass `devenv tasks run quality` checks
 - Validate cross-platform compatibility
 - Review security implications of module changes
 
 ## Troubleshooting
 
 ### Common Issues
-1. **Build failures**: Check `task test:full` output for specific errors
-2. **Formatting issues**: Run `task fmt` to fix style problems
+1. **Build failures**: Check `devenv tasks run test:full` output for specific errors
+2. **Formatting issues**: Run `devenv tasks run fmt` to fix style problems
 3. **Cross-platform issues**: Ensure platform-specific dependencies are correct
-4. **Skills issues**: Use `task agent-skills:validate` to check skills format
+4. **Skills issues**: Use `devenv tasks run agent-skills:validate` to check skills format
 
 ### Getting Help
 - Check existing documentation in `docs/`
-- Review Taskfile.yml for available commands
+- Run `devenv tasks list` to see available commands
 - Examine similar configurations in the codebase
 - Use built-in validation tools to diagnose issues
 
 ## Development Workflow
 
-1. **Setup**: `task dev` to enter development environment
-2. **Validate**: `task test:full` to ensure clean state
+1. **Setup**: `devenv shell` to enter development environment
+2. **Validate**: `devenv tasks run test:full` to ensure clean state
 3. **Implement**: Make changes following existing patterns
-4. **Quality**: `task quality` to run all checks
-5. **Test**: `task test:full` to validate changes
+4. **Quality**: `devenv tasks run quality` to run all checks
+5. **Test**: `devenv tasks run test:full` to validate changes
 6. **Commit**: Use conventional commit messages
 
 This workflow ensures consistent, high-quality contributions to the configuration repository.

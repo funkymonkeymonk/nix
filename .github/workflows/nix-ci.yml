@@ -36,7 +36,7 @@ jobs:
       - name: Run devenv tests and git hooks
         run: devenv test
       - name: Run quick tests
-        run: task test:quick
+        run: devenv tasks run test:quick
   # Job 2: Darwin-specific testing
   test-darwin:
     name: Darwin Configuration Tests
@@ -65,19 +65,19 @@ jobs:
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Darwin-specific tests (dry-run)
         if: github.event_name == 'pull_request'
-        run: task test:darwin-only
+        run: devenv tasks run test:darwin-only
       - name: Build Darwin configurations (push to Cachix)
         if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           echo "Building Darwin configurations and pushing to Cachix..."
-          echo "🍎 Building wweaver configuration..."
+          echo "Building wweaver configuration..."
           nix build .#darwinConfigurations.wweaver.system --no-link
-          echo "✅ wweaver build complete"
-          echo "🍎 Building MegamanX configuration..."
+          echo "wweaver build complete"
+          echo "Building MegamanX configuration..."
           nix build .#darwinConfigurations.MegamanX.system --no-link
-          echo "✅ MegamanX build complete"
-          echo "✅ All Darwin configurations built and pushed to Cachix"
+          echo "MegamanX build complete"
+          echo "All Darwin configurations built and pushed to Cachix"
   # Job 3: Linux-specific testing
   test-linux:
     name: Linux Configuration Tests
@@ -106,16 +106,16 @@ jobs:
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Linux-specific tests (dry-run)
         if: github.event_name == 'pull_request'
-        run: task test:nixos-only
+        run: devenv tasks run test:nixos-only
       - name: Build Linux configurations (push to Cachix)
         if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           echo "Building NixOS configurations and pushing to Cachix..."
-          echo "🐧 Building drlight configuration..."
+          echo "Building drlight configuration..."
           nix build .#nixosConfigurations.drlight.config.system.build.toplevel --no-link
-          echo "✅ drlight build complete"
-          echo "🐧 Building zero configuration..."
+          echo "drlight build complete"
+          echo "Building zero configuration..."
           nix build .#nixosConfigurations.zero.config.system.build.toplevel --no-link
-          echo "✅ zero build complete"
-          echo "✅ All NixOS configurations built and pushed to Cachix"
+          echo "zero build complete"
+          echo "All NixOS configurations built and pushed to Cachix"
