@@ -78,7 +78,6 @@ with pkgs.lib; {
     developer = {
       packages = with pkgs; [
         emacs
-        helix
         clang
         python3
         nodejs
