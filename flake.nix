@@ -110,8 +110,9 @@
     in {
       config =
         {
-          # Pass enabled roles to skills configuration
+          # Pass enabled roles and superpowers path to skills configuration
           myConfig.skills.enabledRoles = finalRoles;
+          myConfig.skills.superpowersPath = inputs.superpowers;
 
           environment = {
             systemPackages =
@@ -191,6 +192,22 @@
                       type = "remote";
                       url = "https://mcp.atlassian.com/v1/mcp";
                       enabled = false;
+                    };
+                  };
+                  commands = {
+                    diataxis = {
+                      description = "Audit and rewrite documentation using the Diataxis framework";
+                      template = ''
+                        Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
+
+                        Follow the Diataxis framework to organize content into:
+                        - Tutorials (learning-oriented)
+                        - How-to guides (goal-oriented)
+                        - Reference (information-oriented)
+                        - Explanation (understanding-oriented)
+
+                        $ARGUMENTS
+                      '';
                     };
                   };
                   providers = {
@@ -328,5 +345,37 @@
           }
         ];
     };
+
+    # Core configuration - minimal bootstrap for any system
+    # This provides essential tools (devenv, direnv, git, etc.) for working with this repo
+    darwinConfigurations."core" = nix-darwin.lib.darwinSystem {
+      modules = [
+        configuration
+        ./modules/common/options.nix
+        ./targets/core
+        ({lib, ...}: {
+          nixpkgs.hostPlatform = "aarch64-darwin";
+          system.stateVersion = 4;
+          # Core doesn't set primaryUser - it's a minimal bootstrap
+          # User-specific settings are disabled to avoid requiring primaryUser
+          nix.enable = false;
+          # Minimal user config - just enough to bootstrap
+          myConfig = {
+            users = [];
+            development.enable = false;
+            agent-skills.enable = false;
+            onepassword.enable = false;
+            opencode.enable = false;
+          };
+        })
+      ];
+    };
+
+    # Note: NixOS core configuration is not provided because it requires
+    # hardware-specific filesystem definitions. For NixOS bootstrap:
+    # 1. Install NixOS using the standard installer
+    # 2. Clone this repo
+    # 3. Create a target with your hardware-configuration.nix
+    # 4. Apply with: sudo nixos-rebuild switch --flake .#<your-target>
   };
 }

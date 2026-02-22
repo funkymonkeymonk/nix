@@ -60,6 +60,26 @@ with lib; let
       }
     );
 
+  # Generate markdown command files
+  commandFiles = lib.mapAttrs' (name: cmd:
+    lib.nameValuePair ".config/opencode/commands/${name}.md" {
+      text = let
+        frontmatter = lib.concatStringsSep "\n" (
+          ["---"]
+          ++ optional (cmd.description != "") "description: ${cmd.description}"
+          ++ optional (cmd.agent != null) "agent: ${cmd.agent}"
+          ++ optional (cmd.subtask != null) "subtask: ${lib.boolToString cmd.subtask}"
+          ++ optional (cmd.model != null) "model: ${cmd.model}"
+          ++ ["---"]
+        );
+      in ''
+        ${frontmatter}
+
+        ${cmd.template}
+      '';
+    })
+  cfg.commands;
+
   # Build complete settings
   settings =
     {
@@ -100,6 +120,9 @@ in {
       enable = true;
       inherit settings;
     };
+
+    # Generate command files
+    home.file = commandFiles;
 
     # Configure opnix secrets for providers with 1Password items
     programs.onepassword-secrets = mkIf (providersWithSecrets != {} && osConfig.myConfig.onepassword.enable) {
