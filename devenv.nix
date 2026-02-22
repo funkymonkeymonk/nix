@@ -28,6 +28,8 @@
     pkgs.yazi
     pkgs.helix
     pkgs.gh-dash
+    # GitHub Actions local runner
+    pkgs.act
   ];
 
   # Disable automatic Cachix management so devenv can run without being a trusted Nix user
@@ -51,6 +53,39 @@
       yamllint = {
         enable = true;
       };
+      # Pre-push hook for documentation updates
+      docs-update = {
+        enable = true;
+        name = "docs-update";
+        entry = "${./scripts/docs-update.sh}";
+        files = "\\.(nix|md)$";
+        pass_filenames = false;
+        stages = ["pre-push"];
+      };
+    };
+  };
+
+  # Documentation tasks
+  tasks = {
+    "docs:update" = {
+      description = "Update and validate documentation (Diataxis)";
+      exec = ''
+        ./scripts/docs-update.sh
+      '';
+    };
+
+    "docs:validate" = {
+      description = "Validate documentation structure only";
+      exec = ''
+        ./scripts/docs-update.sh --validate-only
+      '';
+    };
+
+    "docs:generate" = {
+      description = "Generate reference documentation only";
+      exec = ''
+        ./scripts/docs-update.sh --generate-only
+      '';
     };
   };
 

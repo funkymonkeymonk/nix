@@ -21,6 +21,11 @@
 
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
+
+    opnix.url = "github:brizzbuzz/opnix";
+    opnix.inputs.nixpkgs.follows = "nixpkgs";
+
+    devenv.url = "github:cachix/devenv";
   };
 
   outputs = {
@@ -33,12 +38,18 @@
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
+    opnix,
     ...
-  }: let
+  } @ inputs: let
     # Base configuration shared by all systems
     configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
-      nixpkgs.config.allowUnfree = true;
+      nixpkgs.config = {
+        allowUnfree = true;
+        permittedInsecurePackages = [
+          "google-chrome-144.0.7559.97"
+        ];
+      };
       nixpkgs.overlays = [
         (final: _prev: {
           stable = import nixpkgs-stable {
@@ -62,6 +73,7 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
+      opencode.enable = true;
     };
 
     # Helper for nix-homebrew config
@@ -80,7 +92,11 @@
       bundles = import ./bundles.nix {inherit pkgs;};
 
       # Auto-enable agent-skills if any role requests it
-      hasAgentSkills = builtins.any (role: (bundles.roles.${role} or {}).enableAgentSkills or false) enabledRoles;
+      hasAgentSkills =
+        builtins.any (
+          role: (bundles.roles.${role} or {}).enableAgentSkills or false
+        )
+        enabledRoles;
       finalRoles =
         if hasAgentSkills
         then nixpkgs.lib.unique (enabledRoles ++ ["agent-skills"])
@@ -94,11 +110,13 @@
     in {
       config =
         {
+          # Pass enabled roles and superpowers path to skills configuration
+          myConfig.skills.enabledRoles = finalRoles;
+          myConfig.skills.superpowersPath = inputs.superpowers;
+
           environment = {
             systemPackages =
-              bundles.roles.base.packages
-              ++ rolePackages
-              ++ bundles.platforms.${system}.packages;
+              bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
 
             shellAliases = bundles.roles.base.config.environment.shellAliases or {};
 
@@ -108,14 +126,15 @@
           };
 
           programs =
-            bundles.roles.base.config.programs or {}
-            // bundles.platforms.${system}.config.programs or {};
+            bundles.roles.base.config.programs or {} // bundles.platforms.${system}.config.programs or {};
         }
         // nixpkgs.lib.optionalAttrs (system == "darwin") {
-          homebrew = nixpkgs.lib.mkMerge ([
+          homebrew = nixpkgs.lib.mkMerge (
+            [
               (bundles.platforms.darwin.config.homebrew or {})
             ]
-            ++ roleHomebrewConfigs);
+            ++ roleHomebrewConfigs
+          );
         };
     };
 
@@ -140,15 +159,99 @@
           ./modules/home-manager
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "llm-client" "llm-claude"])
+          (mkBundleModule "darwin" [
+            "developer"
+            "desktop"
+            "workstation"
+            "llm-client"
+            "llm-claude"
+          ])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "wweaver";
             system.stateVersion = 4;
-            myConfig = mkUser "wweaver";
+            myConfig =
+              (mkUser "wweaver")
+              // {
+                opencode = {
+                  enable = true;
+                  disabledProviders = [
+                    "opencode"
+                  ];
+                  extraMcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = false;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                  commands = {
+                    diataxis = {
+                      description = "Audit and rewrite documentation using the Diataxis framework";
+                      template = ''
+                        Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
+
+                        Follow the Diataxis framework to organize content into:
+                        - Tutorials (learning-oriented)
+                        - How-to guides (goal-oriented)
+                        - Reference (information-oriented)
+                        - Explanation (understanding-oriented)
+
+                        $ARGUMENTS
+                      '';
+                    };
+                  };
+                  providers = {
+                    just-llms = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Just LLMs";
+                      baseURL = "https://litellm.justworksai.net";
+                      onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                      models = {
+                        "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                          name = "justworks-dev";
+                        };
+                      };
+                    };
+                  };
+                };
+                claude-code = {
+                  enable = true;
+                  mcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = true;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                };
+              };
             nix-homebrew = mkNixHomebrew "wweaver";
           }
           home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
@@ -163,7 +266,15 @@
         ++ [
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          (mkBundleModule "darwin" ["developer" "desktop" "workstation" "entertainment" "llm-host"])
+          (mkBundleModule "darwin" [
+            "developer"
+            "desktop"
+            "workstation"
+            "entertainment"
+            "llm-host"
+            "llm-client"
+            "llm-claude"
+          ])
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.primaryUser = "monkey";
@@ -172,45 +283,100 @@
             nix-homebrew = mkNixHomebrew "monkey";
           }
           home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
     nixosConfigurations."drlight" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = {inherit inputs;};
       modules =
-        [configuration]
+        [
+          configuration
+        ]
         ++ commonModules
         ++ [
           ./modules/home-manager
           ./os/nixos.nix
           ./targets/drlight
-          (mkBundleModule "linux" ["developer" "creative" "llm-client"])
+          (mkBundleModule "linux" [
+            "developer"
+            "creative"
+            "llm-client"
+          ])
           {
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
 
     nixosConfigurations."zero" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
+      specialArgs = {inherit inputs;};
       modules =
-        [configuration]
+        [
+          configuration
+        ]
         ++ commonModules
         ++ [
           ./modules/home-manager
           ./os/nixos.nix
           ./targets/zero
-          (mkBundleModule "linux" ["developer" "desktop" "llm-client"])
+          (mkBundleModule "linux" [
+            "developer"
+            "desktop"
+            "llm-client"
+          ])
           {
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
             myConfig = mkUser "monkey";
           }
           home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [opnix.homeManagerModules.default];
+          }
         ];
     };
+
+    # Core configuration - minimal bootstrap for any system
+    # This provides essential tools (devenv, direnv, git, etc.) for working with this repo
+    darwinConfigurations."core" = nix-darwin.lib.darwinSystem {
+      modules = [
+        configuration
+        ./modules/common/options.nix
+        ./targets/core
+        ({lib, ...}: {
+          nixpkgs.hostPlatform = "aarch64-darwin";
+          system.stateVersion = 4;
+          # Core doesn't set primaryUser - it's a minimal bootstrap
+          # User-specific settings are disabled to avoid requiring primaryUser
+          nix.enable = false;
+          # Minimal user config - just enough to bootstrap
+          myConfig = {
+            users = [];
+            development.enable = false;
+            agent-skills.enable = false;
+            onepassword.enable = false;
+            opencode.enable = false;
+          };
+        })
+      ];
+    };
+
+    # Note: NixOS core configuration is not provided because it requires
+    # hardware-specific filesystem definitions. For NixOS bootstrap:
+    # 1. Install NixOS using the standard installer
+    # 2. Clone this repo
+    # 3. Create a target with your hardware-configuration.nix
+    # 4. Apply with: sudo nixos-rebuild switch --flake .#<your-target>
   };
 }
