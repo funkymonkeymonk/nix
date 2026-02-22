@@ -88,7 +88,10 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
-      opencode.enable = true;
+      opencode = {
+        enable = true;
+        model = "opencode/big-pickle";
+      };
       claude-code = {
         enable = true;
         rtk.enable = true;
