@@ -12,6 +12,9 @@
   # Get all enabled roles from config
   enabledRoles = cfg.enabledRoles or [];
 
+  # Get superpowers path from flake input
+  superpowersPath = cfg.superpowersPath or null;
+
   # Use default path if not specified (relative to home directory for home.file)
   skillsPath = cfg.skillsPath or ".config/opencode/skills";
 
@@ -52,8 +55,15 @@
             source = skill.source.path;
             recursive = true;
           }
+        else if skill.source.type == "superpowers" && superpowersPath != null
+        then
+          # Superpowers: link from the flake input
+          lib.nameValuePair skillDir {
+            source = "${superpowersPath}/skills/${skill.source.skillName}";
+            recursive = true;
+          }
         else
-          # External: fetch and link (simplified - just reference for now)
+          # External: placeholder for future implementation
           lib.nameValuePair "${skillDir}/SKILL.md" {
             text = ''
               # ${name}
@@ -62,7 +72,7 @@
 
               ## Source
 
-              External skill from: ${skill.source.url}
+              External skill from: ${skill.source.url or "unknown"}
 
               **Note**: External skill fetching not yet implemented.
               To add this skill, copy the content from the URL above.

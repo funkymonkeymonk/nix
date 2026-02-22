@@ -73,6 +73,12 @@ with lib; {
         default = ".config/opencode/skills";
         description = "Path relative to home directory where skills are installed";
       };
+
+      superpowersPath = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to the superpowers flake input (set automatically from flake inputs)";
+      };
     };
 
     opencode = {
@@ -177,6 +183,39 @@ with lib; {
         });
         default = {};
         description = "LLM providers configuration";
+      };
+
+      commands = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            template = mkOption {
+              type = types.str;
+              description = "The prompt template for the command";
+            };
+            description = mkOption {
+              type = types.str;
+              default = "";
+              description = "Description shown in the TUI";
+            };
+            agent = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Agent to use for this command";
+            };
+            subtask = mkOption {
+              type = types.nullOr types.bool;
+              default = null;
+              description = "Force command to run as subtask";
+            };
+            model = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Override model for this command";
+            };
+          };
+        });
+        default = {};
+        description = "Custom opencode commands (slash commands)";
       };
     };
 
