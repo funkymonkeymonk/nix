@@ -117,11 +117,32 @@
   # Jujutsu (jj) version control skill
   # Based on @coreyja/jj from https://github.com/coreyja/dotfiles/tree/main/.claude/skills/jj
   "jj" = {
-    description = "Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, and stacked PRs";
+    description = "Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, stacked PRs, and workspaces for multi-project isolation";
     roles = ["developer" "llm-client" "llm-claude"];
     source = {
       type = "internal";
       path = ./external/jj;
+    };
+    deps = [];
+  };
+
+  # Ralph Loop specification skills
+  "ralph-specs" = {
+    description = "Write specifications optimized for Ralph Loop autonomous agent execution. Covers PRD structure, atomic user stories, and machine-verifiable acceptance criteria";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./internal/ralph-specs;
+    };
+    deps = [];
+  };
+
+  "prd-review" = {
+    description = "Display PRD files in human-readable format for review and status tracking. Shows progress, story details, and flags potential issues";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./internal/prd-review;
     };
     deps = [];
   };
