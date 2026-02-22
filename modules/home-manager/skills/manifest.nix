@@ -125,4 +125,25 @@
     };
     deps = [];
   };
+
+  # Ralph Loop specification skills
+  "ralph-specs" = {
+    description = "Write specifications optimized for Ralph Loop autonomous agent execution. Covers PRD structure, atomic user stories, and machine-verifiable acceptance criteria";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./internal/ralph-specs;
+    };
+    deps = [];
+  };
+
+  "prd-review" = {
+    description = "Display PRD files in human-readable format for review and status tracking. Shows progress, story details, and flags potential issues";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./internal/prd-review;
+    };
+    deps = [];
+  };
 }
