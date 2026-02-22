@@ -1,6 +1,6 @@
 ---
 name: jj
-description: Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, and stacked PRs. Use when working with jj, creating commits, pushing changes, or managing version control.
+description: Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, stacked PRs, and workspaces for multi-project isolation. Use when working with jj, creating commits, pushing changes, or managing version control.
 ---
 
 # Jujutsu (jj) Version Control
@@ -221,6 +221,172 @@ jj split
 JJ_EDITOR=true jj split -m "First commit message" file1.rs file2.rs
 # Remaining files stay in second commit
 jj describe -m "Second commit message"
+```
+
+## Workspaces (Multi-Project Isolation)
+
+Workspaces let you work on multiple independent features in the same repo without context pollution. Each workspace has its own working copy and working-copy commit, but shares the repo's history, bookmarks, and remote connections.
+
+**Why use workspaces for agents?**
+
+- **Context isolation**: Each workspace sees only its own files, limiting token usage
+- **No permission issues**: Workspaces are local - no git auth or GitHub tokens needed
+- **Shared history**: All workspaces see the same commits, bookmarks, and PRs
+- **Independent builds**: Run tests in one workspace while coding in another
+
+### Creating a Workspace
+
+```bash
+# From your main repo directory, create workspace for a specific feature
+jj workspace add ./workspaces/feature-auth
+
+# Start work from a specific commit (e.g., main)
+jj workspace add ./workspaces/api-refactor -r main
+
+# Create workspace with empty sparse patterns (minimal checkout)
+jj workspace add ./workspaces/docs --sparse-patterns=empty
+```
+
+The workspace name defaults to the directory basename (e.g., `feature-auth`).
+
+**Important**: Add `workspaces/` to your `.gitignore` to prevent tracking workspace directories.
+
+### Listing Workspaces
+
+```bash
+jj workspace list
+```
+
+In `jj log`, workspace indicators show which workspace owns each working-copy commit:
+
+```
+@      abc123   feature-auth@    (empty) Working copy
+|  @   def456   api-refactor@    (empty) Working copy
+| /
+o      789xyz   main             "Latest release"
+```
+
+### Workflow: Agent Per Workspace
+
+For AI agents working on multiple tasks:
+
+```bash
+# 1. Create isolated workspace for each task
+jj workspace add ./workspaces/task-1 -r main
+jj workspace add ./workspaces/task-2 -r main
+
+# 2. Agent works in task-1 directory
+cd ./workspaces/task-1
+jj new
+# ... make changes ...
+jj describe -m "Implement feature X"
+jj git push -c @-
+
+# 3. Switch to task-2 (different directory, different context)
+cd ../task-2
+jj new
+# ... different changes ...
+jj describe -m "Fix bug Y"
+jj git push -c @-
+
+# 4. Both PRs visible from either workspace
+gh pr list  # Works from any workspace
+```
+
+### Rebasing Across Workspaces
+
+Since all workspaces share the repo, rebase operations affect all:
+
+```bash
+# From any workspace, fetch updates
+jj git fetch
+
+# Rebase a commit (affects all workspaces that descend from it)
+jj rebase -r <commit> -d main
+
+# Push all changed bookmarks (from any workspace)
+jj git push --all
+```
+
+If a workspace's working-copy commit gets rebased from another workspace, it becomes "stale":
+
+```bash
+# In the affected workspace, update to latest
+jj workspace update-stale
+```
+
+### PR Management from Any Workspace
+
+GitHub CLI works identically from any workspace since they share the `.git` directory:
+
+```bash
+# Create PR (works from any workspace)
+jj git push -c @-
+gh pr create --head push-abcdefgh
+
+# List all PRs
+gh pr list
+
+# Check PR status
+gh pr view <number>
+
+# Merge a PR (triggers CI, merges on GitHub)
+gh pr merge <number>
+```
+
+### Sparse Patterns for Focused Work
+
+Limit which files appear in a workspace to reduce agent context:
+
+```bash
+# Create workspace with only specific directories
+jj workspace add ./workspaces/backend
+cd ./workspaces/backend
+jj sparse set --add 'src/backend/**' --add 'tests/backend/**'
+
+# Or start empty and add incrementally
+jj workspace add ./workspaces/minimal --sparse-patterns=empty
+cd ./workspaces/minimal
+jj sparse set --add 'src/api/endpoints.rs'
+```
+
+### Cleaning Up Workspaces
+
+```bash
+# Remove a workspace (keeps its commits, just detaches working copy)
+jj workspace forget <workspace-name>
+
+# Then delete the directory manually
+rm -rf ./workspaces/<workspace-name>
+```
+
+### Common Workspace Commands
+
+```bash
+jj workspace list              # Show all workspaces
+jj workspace add <path>        # Create new workspace
+jj workspace add <path> -r @   # New workspace starting at current commit
+jj workspace forget <name>     # Stop tracking workspace
+jj workspace update-stale      # Sync after external rebase
+jj workspace root              # Show workspace root directory
+jj sparse list                 # Show current sparse patterns
+jj sparse set --add 'path/**'  # Add paths to sparse checkout
+jj sparse reset                # Reset to full checkout
+```
+
+### Workspace Naming Conventions
+
+For multi-agent or multi-task setups, use `./workspaces/` subdirectory:
+
+```
+myrepo/
+├── workspaces/          # Add to .gitignore
+│   ├── feature-foo/     # Feature work
+│   ├── bugfix-bar/      # Bug fix
+│   ├── review-123/      # PR review workspace
+│   └── experiment/      # Throwaway experiments
+├── src/
+└── ...
 ```
 
 ## Undo
