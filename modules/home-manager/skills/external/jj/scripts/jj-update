@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# jj-update: Update an existing PR (squash changes into parent and push)
+# Usage: jj-update [commit-message]
+# Example: jj-update "Fix review comments"
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat <<EOF
+Usage: jj-update [commit-message]
+
+Update an existing PR by squashing current changes into parent commit.
+
+This script:
+1. Checks that you have changes to squash
+2. Optionally updates the commit message
+3. Squashes changes into parent
+4. Pushes to remote
+
+Arguments:
+  commit-message - Optional new commit message (keeps existing if not provided)
+
+Examples:
+  jj-update                           # Squash and push, keep existing message
+  jj-update "Add error handling"      # Squash with new message
+EOF
+    exit 1
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    usage
+fi
+
+MESSAGE="${1:-}"
+
+echo -e "${YELLOW}Updating PR...${NC}"
+
+# Check current state
+echo -e "\n${GREEN}1. Checking status...${NC}"
+jj status
+
+# Check if we have changes
+if ! jj diff --stat | grep -q .; then
+    echo -e "${RED}Error: No changes in working copy to squash${NC}"
+    echo "Make some changes first, then run jj-update"
+    exit 1
+fi
+
+# Show what will be squashed
+echo -e "\n${GREEN}2. Changes to squash:${NC}"
+jj diff --stat
+
+# Squash into parent
+echo -e "\n${GREEN}3. Squashing into parent commit...${NC}"
+jj squash
+
+# Update message if provided
+if [[ -n "$MESSAGE" ]]; then
+    echo -e "\n${GREEN}4. Updating commit message...${NC}"
+    jj describe -m "$MESSAGE"
+fi
+
+# Push to remote
+echo -e "\n${GREEN}5. Pushing to remote...${NC}"
+jj git push
+
+echo -e "\n${GREEN}Done! PR updated.${NC}"
+
+# Show final state
+echo -e "\n${YELLOW}Current state:${NC}"
+jj log -r '@-::@' --no-graph

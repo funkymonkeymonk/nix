@@ -1,0 +1,110 @@
+{
+  "project": "APIServer",
+  "branchName": "ralph/extract-validation-utils",
+  "description": "Extract inline validation logic into reusable validation utilities",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create validation utilities module",
+      "description": "As a developer, I want a dedicated validation module so validation logic is centralized.",
+      "acceptanceCriteria": [
+        "File created at src/utils/validation.ts",
+        "Module exports empty object (placeholder)",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Add email validation utility",
+      "description": "As a developer, I want a reusable email validator to replace inline regex.",
+      "acceptanceCriteria": [
+        "isValidEmail function exported from src/utils/validation.ts",
+        "Function accepts string, returns boolean",
+        "Validates standard email format",
+        "Unit tests cover valid/invalid cases",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Add string length validation utility",
+      "description": "As a developer, I want length validators to replace inline checks.",
+      "acceptanceCriteria": [
+        "isValidLength function exported from src/utils/validation.ts",
+        "Accepts: value (string), min (number), max (number)",
+        "Returns boolean",
+        "Unit tests cover edge cases (empty, exact bounds)",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Add required field validation utility",
+      "description": "As a developer, I want a required field checker for form validation.",
+      "acceptanceCriteria": [
+        "isRequired function exported from src/utils/validation.ts",
+        "Returns false for null, undefined, empty string",
+        "Returns true for all other values including 0 and false",
+        "Unit tests pass",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Refactor user registration to use validators",
+      "description": "As a developer, I want registration to use shared validators for consistency.",
+      "acceptanceCriteria": [
+        "src/handlers/registration.ts imports from validation utils",
+        "Inline email regex replaced with isValidEmail",
+        "Inline length checks replaced with isValidLength",
+        "No inline validation regex remaining in file",
+        "Existing tests still pass",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Refactor profile update to use validators",
+      "description": "As a developer, I want profile updates to use shared validators.",
+      "acceptanceCriteria": [
+        "src/handlers/profile.ts imports from validation utils",
+        "All inline validation replaced with utility functions",
+        "Existing tests still pass",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Add validation utilities to barrel export",
+      "description": "As a developer, I want validators accessible from main utils export.",
+      "acceptanceCriteria": [
+        "src/utils/index.ts re-exports all from validation.ts",
+        "Import { isValidEmail } from '@/utils' works",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
