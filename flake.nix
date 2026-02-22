@@ -44,7 +44,12 @@
     # Base configuration shared by all systems
     configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
-      nixpkgs.config.allowUnfree = true;
+      nixpkgs.config = {
+        allowUnfree = true;
+        permittedInsecurePackages = [
+          "google-chrome-144.0.7559.97"
+        ];
+      };
       nixpkgs.overlays = [
         (final: _prev: {
           stable = import nixpkgs-stable {
