@@ -36,7 +36,7 @@ jobs:
       - name: Run devenv tests and git hooks
         run: devenv test
       - name: Run quick tests
-        run: task test:quick
+        run: devenv tasks run test:quick
   # Job 2: Darwin-specific testing
   test-darwin:
     name: Darwin Configuration Tests
@@ -65,7 +65,7 @@ jobs:
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Darwin-specific tests (dry-run)
         if: github.event_name == 'pull_request'
-        run: task test:darwin-only
+        run: devenv tasks run test:darwin-only
       - name: Build Darwin configurations (push to Cachix)
         if: github.ref == 'refs/heads/main'
         shell: bash
@@ -106,7 +106,7 @@ jobs:
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Linux-specific tests (dry-run)
         if: github.event_name == 'pull_request'
-        run: task test:nixos-only
+        run: devenv tasks run test:nixos-only
       - name: Build Linux configurations (push to Cachix)
         if: github.ref == 'refs/heads/main'
         shell: bash
