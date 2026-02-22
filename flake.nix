@@ -65,6 +65,10 @@
               inherit (final) system config;
             };
           })
+          # Use devenv 2.x from the cachix/devenv flake
+          (final: _prev: {
+            devenv = inputs.devenv.packages.${final.system}.devenv;
+          })
           (import ./overlays)
         ];
       };
