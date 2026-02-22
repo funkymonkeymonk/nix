@@ -24,7 +24,8 @@ tasks:
       PASSWORD_PATH="op://Private/${HOSTNAME} Sudo Password/password"
       NIXPKGS_ALLOW_UNFREE=1 op run \
         --env-file=<(echo "SUDO_PASSWORD=$(op read "$PASSWORD_PATH")") \
-        -- bash -c 'echo "$SUDO_PASSWORD" | sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch --flake ./#MegamanX --impure'
+        -- bash -c 'echo "$SUDO_PASSWORD" | \
+        sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch --flake ./#MegamanX --impure'
   switch:nixos:
     desc: Perform linux based build
     aliases:
