@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# jj-stack: Add another PR to the current stack
+# Usage: jj-stack <type> <description> [commit-message]
+# Example: jj-stack feat login-ui "Add login UI components"
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat <<EOF
+Usage: jj-stack <type> <description> [commit-message]
+
+Add another PR to the current stack (stacked PRs workflow).
+
+This script:
+1. Creates a new commit on top of current
+2. Sets commit message
+3. Creates conventional branch bookmark
+4. Pushes to remote
+5. Creates PR with proper base branch
+
+Types:
+  feat, feature  - New features
+  fix, bugfix    - Bug fixes
+  hotfix         - Urgent fixes
+  release        - Release preparation
+  chore          - Non-code tasks (deps, docs)
+
+Arguments:
+  type           - Branch type prefix
+  description    - Branch description (kebab-case)
+  commit-message - Optional commit message (uses description if not provided)
+
+Examples:
+  jj-stack feat login-ui "Add login UI components"
+  jj-stack fix validation-error
+EOF
+    exit 1
+}
+
+# Validate type
+validate_type() {
+    local type="$1"
+    case "$type" in
+        feat|feature|fix|bugfix|hotfix|release|chore)
+            return 0
+            ;;
+        *)
+            echo -e "${RED}Error: Invalid type '$type'${NC}"
+            echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore"
+            exit 1
+            ;;
+    esac
+}
+
+# Normalize type (feature -> feat, bugfix -> fix)
+normalize_type() {
+    local type="$1"
+    case "$type" in
+        feature) echo "feat" ;;
+        bugfix) echo "fix" ;;
+        *) echo "$type" ;;
+    esac
+}
+
+# Validate description (kebab-case, no special chars)
+validate_description() {
+    local desc="$1"
+    if [[ ! "$desc" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo -e "${RED}Error: Description must be kebab-case (lowercase, hyphens only)${NC}"
+        echo "Got: $desc"
+        echo "Example: user-auth, fix-null-pointer, gh-123-add-feature"
+        exit 1
+    fi
+}
+
+# Get bookmark name for a revision
+get_bookmark() {
+    local rev="$1"
+    jj log -r "$rev" --no-graph -T 'bookmarks' 2>/dev/null | head -1 | sed 's/\*.*//' | tr -d ' '
+}
+
+# Main
+if [[ $# -lt 2 ]]; then
+    usage
+fi
+
+TYPE="$1"
+DESC="$2"
+MESSAGE="${3:-$DESC}"
+
+validate_type "$TYPE"
+validate_description "$DESC"
+
+TYPE=$(normalize_type "$TYPE")
+BRANCH="${TYPE}/${DESC}"
+
+# Get parent bookmark for PR base
+PARENT_BOOKMARK=$(get_bookmark '@-')
+if [[ -z "$PARENT_BOOKMARK" ]]; then
+    echo -e "${RED}Error: Parent commit has no bookmark${NC}"
+    echo "The parent commit needs a bookmark for stacked PRs to work."
+    echo "Create one with: jj bookmark set <name> -r @-"
+    exit 1
+fi
+
+echo -e "${YELLOW}Adding to stack: ${BRANCH} (based on ${PARENT_BOOKMARK})${NC}"
+
+# Check current state
+echo -e "\n${GREEN}1. Current stack:${NC}"
+jj log -r 'ancestors(@, 5)' --no-graph
+
+# Check if we have changes
+if jj diff --stat | grep -q .; then
+    echo -e "\n${GREEN}2. Changes detected in working copy${NC}"
+else
+    echo -e "\n${YELLOW}Warning: No changes in working copy${NC}"
+    read -p "Continue anyway? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Describe the commit
+echo -e "\n${GREEN}3. Setting commit message...${NC}"
+jj describe -m "$MESSAGE"
+
+# Create bookmark
+echo -e "\n${GREEN}4. Creating bookmark: ${BRANCH}${NC}"
+jj bookmark set "$BRANCH" -r @
+
+# Push to remote
+echo -e "\n${GREEN}5. Pushing to remote...${NC}"
+jj git push --bookmark "$BRANCH" --allow-new
+
+# Create PR with correct base
+echo -e "\n${GREEN}6. Creating PR (base: ${PARENT_BOOKMARK})...${NC}"
+gh pr create --head "$BRANCH" --base "$PARENT_BOOKMARK" --fill
+
+# Create new empty commit for next work
+echo -e "\n${GREEN}7. Creating new commit for next work...${NC}"
+jj new
+
+echo -e "\n${GREEN}Done! Stacked PR created.${NC}"
+echo -e "Stack: ${PARENT_BOOKMARK} -> ${BRANCH}"

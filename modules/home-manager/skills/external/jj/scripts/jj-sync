@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# jj-sync: Fetch latest and rebase current work onto main
+# Usage: jj-sync [base-branch]
+# Example: jj-sync main
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat <<EOF
+Usage: jj-sync [base-branch]
+
+Fetch latest from remote and rebase current work onto base branch.
+
+This script:
+1. Fetches latest from remote
+2. Rebases current commit (or stack) onto base branch
+3. Shows the new state
+
+Arguments:
+  base-branch - Branch to rebase onto (default: main)
+
+Examples:
+  jj-sync              # Rebase onto main
+  jj-sync develop      # Rebase onto develop
+EOF
+    exit 1
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    usage
+fi
+
+BASE="${1:-main}"
+
+echo -e "${YELLOW}Syncing with ${BASE}...${NC}"
+
+# Show current state
+echo -e "\n${GREEN}1. Current state:${NC}"
+jj log -r '@-::@' --no-graph
+
+# Fetch latest
+echo -e "\n${GREEN}2. Fetching from remote...${NC}"
+jj git fetch
+
+# Check if we're already on base
+CURRENT_PARENT=$(jj log -r '@-' --no-graph -T 'change_id' 2>/dev/null || echo "")
+BASE_ID=$(jj log -r "$BASE" --no-graph -T 'change_id' 2>/dev/null || echo "")
+
+if [[ "$CURRENT_PARENT" == "$BASE_ID" ]]; then
+    echo -e "\n${GREEN}Already up to date with ${BASE}${NC}"
+else
+    # Rebase onto base
+    echo -e "\n${GREEN}3. Rebasing onto ${BASE}...${NC}"
+    jj rebase -r @ -d "$BASE"
+fi
+
+# Show new state
+echo -e "\n${GREEN}4. New state:${NC}"
+jj log -r "${BASE}::@" --no-graph
+
+# Check if push is needed
+if jj log -r '@' --no-graph | grep -q '\*'; then
+    echo -e "\n${YELLOW}Note: Bookmark needs pushing (marked with *)${NC}"
+    echo "Run 'jj git push' to update remote"
+fi
+
+echo -e "\n${GREEN}Done! Synced with ${BASE}${NC}"
