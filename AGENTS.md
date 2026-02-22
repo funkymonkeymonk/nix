@@ -34,26 +34,39 @@ This is a modular Nix Flakes configuration for managing macOS and NixOS systems 
 ├── templates/                  # Templates for new configurations
 ├── bundles.nix                 # Consolidated package collections (roles + platforms)
 ├── flake.nix                   # Main Nix flake definition
-├── devenv.nix                  # Development environment configuration
-└── Taskfile.yml               # Task automation
+└── devenv.nix                  # Development environment and task definitions
 ```
 
 ## Available Tasks
 
-Use task for common operations
-Run `task --list` for a list of all tasks available and a quick definition
+Use devenv for common operations:
+```bash
+devenv tasks list              # List all available tasks
+devenv tasks run <task>        # Run a specific task
+```
+
+### Shell Aliases
+After configuration is applied, these aliases are available:
+- `dt <task>` / `dtr <task>` - Run a devenv task
+- `dtl` - List all tasks
+- `t` - Run test:quick
+- `tf` - Run test:full
+- `s` - Run switch
+- `q` - Run quality
+- `b` - Run nix:build
+- `i` - Run dev:ide
 
 ## Working with This Repository
 
 ### Before Making Changes
-1. Always run `task test:full` to validate the current state
-2. Check existing code style by running `task fmt`
-3. Use the development shell with `task dev` for proper tooling
+1. Always run `devenv tasks run test:full` to validate the current state
+2. Check existing code style by running `devenv tasks run quality`
+3. Use the development shell with `devenv shell` for proper tooling
 
 ### Making Changes
 1. Create or modify files as needed
-2. Run `task quality` to format and lint code
-3. Run `task test:full` to validate changes
+2. Run `devenv tasks run quality` to format and lint code
+3. Run `devenv tasks run test:full` to validate changes
 4. Commit with descriptive messages
 
 ### Adding New Features
@@ -91,7 +104,7 @@ This repository includes automatic AI agent skills management:
 - Skills auto-install when `agent-skills.enable = true` and roles like `developer`, `llm-client`, or `llm-claude` are active
 - Skills are defined in `modules/home-manager/skills/manifest.nix` with role-based filtering
 - Installed to `~/.config/opencode/skills/` via home-manager symlinks
-- Use `task agent-skills:status` to check current state
+- Use `devenv tasks run agent-skills:status` to check current state
 - Skills follow Agent Skills specification
 
 ### Adding New Skills
@@ -127,7 +140,7 @@ When working in repositories that use Jujutsu (jj) for version control:
 - **Linux**: NixOS configuration (x86_64-linux)
 
 ### Cross-Platform Validation
-The `task test:full` command validates both platforms regardless of host:
+The `devenv tasks run test:full` command validates both platforms regardless of host:
 - On macOS: Tests both Darwin and Linux configs
 - On Linux: Tests both Linux and Darwin configs
 - Uses dry-run builds for cross-architecture validation
@@ -135,7 +148,7 @@ The `task test:full` command validates both platforms regardless of host:
 ## Code Style Guidelines
 
 ### Nix Files
-- Use alejandra formatter (`task fmt`)
+- Use alejandra formatter (`devenv tasks run quality`)
 - Remove dead code (checked by deadnix)
 - Follow existing patterns and conventions
 - Use type-safe options with proper validation
@@ -154,31 +167,31 @@ The `task test:full` command validates both platforms regardless of host:
 - Git commit signing via 1Password SSH signing
 
 ### Code Review
-- All changes should pass `task quality` checks
+- All changes should pass `devenv tasks run quality` checks
 - Validate cross-platform compatibility
 - Review security implications of module changes
 
 ## Troubleshooting
 
 ### Common Issues
-1. **Build failures**: Check `task test:full` output for specific errors
-2. **Formatting issues**: Run `task fmt` to fix style problems
+1. **Build failures**: Check `devenv tasks run test:full` output for specific errors
+2. **Formatting issues**: Run `devenv tasks run quality` to fix style problems
 3. **Cross-platform issues**: Ensure platform-specific dependencies are correct
-4. **Skills issues**: Use `task agent-skills:validate` to check skills format
+4. **Skills issues**: Use `devenv tasks run agent-skills:validate` to check skills format
 
 ### Getting Help
 - Check existing documentation in `docs/`
-- Review Taskfile.yml for available commands
+- Review devenv.nix for available tasks
 - Examine similar configurations in the codebase
 - Use built-in validation tools to diagnose issues
 
 ## Development Workflow
 
-1. **Setup**: `task dev` to enter development environment
-2. **Validate**: `task test:full` to ensure clean state
+1. **Setup**: `devenv shell` to enter development environment
+2. **Validate**: `devenv tasks run test:full` to ensure clean state
 3. **Implement**: Make changes following existing patterns
-4. **Quality**: `task quality` to run all checks
-5. **Test**: `task test:full` to validate changes
+4. **Quality**: `devenv tasks run quality` to run all checks
+5. **Test**: `devenv tasks run test:full` to validate changes
 6. **Commit**: Use conventional commit messages
 
 This workflow ensures consistent, high-quality contributions to the configuration repository.
