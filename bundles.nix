@@ -178,6 +178,7 @@ with pkgs.lib; {
     llm-client = {
       packages = with pkgs; [
         opencode
+        rtk
       ];
 
       enableAgentSkills = true;
