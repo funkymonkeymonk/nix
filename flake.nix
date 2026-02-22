@@ -44,19 +44,26 @@
     # Base configuration shared by all systems
     configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
-      nixpkgs.config = {
-        allowUnfree = true;
-        permittedInsecurePackages = [
-          "google-chrome-144.0.7559.97"
+      nixpkgs = {
+        config = {
+          allowUnfree = true;
+          allowUnfreePredicate = pkg:
+            builtins.elem (nixpkgs.lib.getName pkg) [
+              "claude-code"
+            ];
+          permittedInsecurePackages = [
+            "google-chrome-144.0.7559.97"
+          ];
+        };
+        overlays = [
+          (final: _prev: {
+            stable = import nixpkgs-stable {
+              inherit (final) system config;
+            };
+          })
+          (import ./overlays)
         ];
       };
-      nixpkgs.overlays = [
-        (final: _prev: {
-          stable = import nixpkgs-stable {
-            inherit (final) system config;
-          };
-        })
-      ];
     };
 
     # Helper to create user config
@@ -74,6 +81,10 @@
       agent-skills.enable = true;
       onepassword.enable = true;
       opencode.enable = true;
+      claude-code = {
+        enable = true;
+        rtk.enable = true;
+      };
     };
 
     # Helper for nix-homebrew config
@@ -146,7 +157,18 @@
       ./modules/common/onepassword.nix
       ./modules/common/cachix.nix
     ];
+
+    # Package overlays for each system
+    forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
   in {
+    packages = forAllSystems (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [(import ./overlays)];
+      };
+    in {
+      inherit (pkgs) rtk;
+    });
     darwinConfigurations."wweaver" = nix-darwin.lib.darwinSystem {
       modules =
         [
@@ -226,6 +248,7 @@
                 };
                 claude-code = {
                   enable = true;
+                  rtk.enable = true;
                   mcpServers = {
                     github = {
                       type = "remote";
@@ -263,6 +286,7 @@
         ]
         ++ commonModules
         ++ [
+          ./modules/home-manager
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           (mkBundleModule "darwin" [

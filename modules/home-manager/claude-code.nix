@@ -58,6 +58,39 @@ with lib; let
     });
 in {
   config = mkIf cfg.enable {
+    # RTK hook script - fetched from upstream when RTK is enabled
+    home.file.".claude/hooks/rtk-rewrite.sh" = mkIf cfg.rtk.enable {
+      source = pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/rtk-ai/rtk/master/hooks/rtk-rewrite.sh";
+        sha256 = "21de002d0a25d3dbf0690fab46898fd763838975f0077568e18a13e1ea23999d";
+      };
+      executable = true;
+    };
+
+    # Claude Code settings.json - managed manually to support hooks
+    home.file.".claude/settings.json" = mkIf cfg.rtk.enable {
+      text = let
+        fullSettings =
+          settings
+          // {
+            hooks = {
+              PreToolUse = [
+                {
+                  matcher = "Bash";
+                  hooks = [
+                    {
+                      type = "command";
+                      command = "~/.claude/hooks/rtk-rewrite.sh";
+                    }
+                  ];
+                }
+              ];
+            };
+          };
+      in
+        builtins.toJSON fullSettings;
+    };
+
     # Use home-manager's native programs.claude-code
     programs.claude-code = {
       enable = true;

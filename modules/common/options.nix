@@ -333,6 +333,14 @@ with lib; {
         default = {};
         description = "Custom hooks for Claude Code";
       };
+
+      rtk = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable RTK (Rust Token Killer) hook for Claude Code";
+        };
+      };
     };
   };
 }

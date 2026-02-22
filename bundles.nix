@@ -194,6 +194,7 @@ in {
     llm-client = {
       packages = with pkgs; [
         opencode
+        rtk
       ];
 
       enableAgentSkills = true;
