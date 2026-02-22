@@ -94,6 +94,7 @@ in {
     developer = {
       packages = with pkgs; [
         emacs
+        helix
         clang
         python3
         nodejs

@@ -23,6 +23,11 @@ This is a modular Nix Flakes configuration for managing macOS and NixOS systems 
 ├── modules/                    # Reusable Nix configurations
 │   ├── common/                 # Shared configurations (options, users, shell, onepassword)
 │   ├── home-manager/           # User environment modules
+│   │   └── skills/             # Agent skills management
+│   │       ├── install.nix     # Skills installation module
+│   │       ├── manifest.nix    # Skill definitions and role assignments
+│   │       ├── internal/       # Skills defined in this repo
+│   │       └── external/       # Skills adapted from external sources
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine-specific configurations
 ├── os/                         # Platform OS configurations
@@ -83,10 +88,37 @@ Run `task --list` for a list of all tasks available and a quick definition
 ## Agent Skills Integration
 
 This repository includes automatic AI agent skills management:
-- Skills auto-install with `opencode` or `claude` bundles
-- Installed to `~/.config/opencode/skills/` and `~/.config/opencode/superpowers/skills/`
+- Skills auto-install when `agent-skills.enable = true` and roles like `developer`, `llm-client`, or `llm-claude` are active
+- Skills are defined in `modules/home-manager/skills/manifest.nix` with role-based filtering
+- Installed to `~/.config/opencode/skills/` via home-manager symlinks
 - Use `task agent-skills:status` to check current state
 - Skills follow Agent Skills specification
+
+### Adding New Skills
+
+1. Create skill directory in `modules/home-manager/skills/internal/skill-name/`
+2. Add `SKILL.md` with frontmatter (`name`, `description`)
+3. Register in `modules/home-manager/skills/manifest.nix` with role assignments
+4. Rebuild system to install
+
+### Version Control Preference (Jujutsu/jj)
+
+When working in repositories that use Jujutsu (jj) for version control:
+
+1. **Auto-detect jj repositories**: Check for `.jj/` directory (colocated repos have both `.jj/` and `.git/`)
+2. **Use jj skill**: Load the `jj` skill when:
+   - A `.jj/` directory exists in the repository
+   - The user asks for any git-related operations (commit, push, log, diff, etc.)
+   - The user explicitly mentions jj or Jujutsu
+
+3. **Key jj principles to follow**:
+   - Working copy IS a commit (no staging area)
+   - Always run `jj status` first before any operation
+   - Create new commits with `jj new` before starting work
+   - Use `jj describe` to set commit messages
+   - Never mix git and jj commands in the same session
+
+4. **The jj skill is available at**: `~/.config/opencode/skills/jj/SKILL.md` (installs automatically with `opencode` bundle)
 
 ## Platform Support
 
