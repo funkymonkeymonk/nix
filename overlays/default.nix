@@ -1,4 +1,4 @@
 # Custom package overlays
-final: prev: {
+final: _prev: {
   rtk = final.callPackage ../packages/rtk {};
 }

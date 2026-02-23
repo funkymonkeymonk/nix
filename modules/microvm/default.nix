@@ -1,6 +1,5 @@
 # Microvm module - integrates microvm.nix with our configuration
 {
-  config,
   lib,
   pkgs,
   ...

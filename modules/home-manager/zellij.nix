@@ -1,14 +1,13 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }: {
   home-manager.users = let
     cfg = config.myConfig.zellij;
   in
     lib.mkIf cfg.enable (
-      lib.mapAttrs (_: user: {
+      lib.mapAttrs (_: _user: {
         programs.zellij = {
           enable = true;
           settings = {
