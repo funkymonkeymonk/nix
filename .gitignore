@@ -13,9 +13,16 @@ secrets.nix
 
 # Build artifacts
 result
+result-*
 
 # Git worktrees
 .worktrees/
 
 # Logs
 logs
+
+# Dagger
+ci/internal/
+ci/go.sum
+ci/dagger.gen.go
+formatted/

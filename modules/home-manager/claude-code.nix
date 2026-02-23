@@ -1,5 +1,4 @@
 {
-  config,
   osConfig,
   lib,
   pkgs,
@@ -9,7 +8,7 @@ with lib; let
   cfg = osConfig.myConfig.claude-code;
 
   # Filter MCP servers that have 1Password items configured for API keys
-  mcpServersWithSecrets = lib.filterAttrs (name: server: server.onePasswordItem != "") cfg.mcpServers;
+  mcpServersWithSecrets = lib.filterAttrs (_name: server: server.onePasswordItem != "") cfg.mcpServers;
 
   # Convert kebab-case to camelCase for opnix secret names
   toCamelCase = str:
