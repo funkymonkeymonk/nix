@@ -19,19 +19,22 @@ usage() {
 Usage: jj-workspace <command> [args]
 
 Manage jj workspaces for isolated multi-task work.
+Workspace names use convention: <type>/<topic>-<date>-<id>
 
 Commands:
-  create <name> [base]   Create a new workspace (default base: main)
-  list                   List all workspaces
-  remove <name>          Remove a workspace
-  clean                  Remove all workspaces
-  status                 Show status of all workspaces
+  create <type/topic> [base]   Create a new workspace (default base: main)
+  list                         List all workspaces
+  remove <name>                Remove a workspace
+  clean                        Remove all workspaces
+  status                       Show status of all workspaces
+
+Types: feat, fix, hotfix, chore, release
 
 Examples:
-  jj-workspace create feature-auth          # New workspace from main
-  jj-workspace create bugfix-login develop  # New workspace from develop
+  jj-workspace create feat/user-auth        # Creates feat/user-auth-20260223-a1b2
+  jj-workspace create fix/login develop     # Creates fix/login-20260223-c3d4 from develop
   jj-workspace list                         # Show all workspaces
-  jj-workspace remove feature-auth          # Remove workspace
+  jj-workspace remove feat-user-auth-*      # Remove workspace
   jj-workspace clean                        # Remove all workspaces
 EOF
     exit 1
@@ -53,29 +56,59 @@ ensure_workspaces_dir() {
     fi
 }
 
+generate_id() {
+    # Generate short unique id (4 hex chars)
+    head -c 4 /dev/urandom | xxd -p | head -c 4
+}
+
 cmd_create() {
     local name="${1:-}"
     local base="${2:-main}"
     
     if [[ -z "$name" ]]; then
         echo -e "${RED}Error: Workspace name required${NC}"
-        echo "Usage: jj-workspace create <name> [base]"
+        echo "Usage: jj-workspace create <type>/<topic> [base]"
+        echo ""
+        echo "Naming convention: <type>/<topic>-<date>-<id>"
+        echo "Types: feat, fix, hotfix, chore, release"
+        echo ""
+        echo "Examples:"
+        echo "  jj-workspace create feat/user-auth"
+        echo "  jj-workspace create fix/login-bug develop"
         exit 1
     fi
     
     ensure_workspaces_dir
     
-    local workspace_path="${WORKSPACES_DIR}/${name}"
+    # Generate full workspace name with date and id
+    local date_str=$(date +%Y%m%d)
+    local session_id=$(generate_id)
+    
+    # Handle type/topic format
+    local full_name
+    if [[ "$name" == */* ]]; then
+        full_name="${name}-${date_str}-${session_id}"
+    else
+        # Default to feat/ if no type specified
+        full_name="feat/${name}-${date_str}-${session_id}"
+    fi
+    
+    # Create directory-safe version (replace / with -)
+    local dir_name=$(echo "$full_name" | tr '/' '-')
+    local workspace_path="${WORKSPACES_DIR}/${dir_name}"
     
     if [[ -d "$workspace_path" ]]; then
         echo -e "${RED}Error: Workspace already exists: ${workspace_path}${NC}"
         exit 1
     fi
     
-    echo -e "${GREEN}Creating workspace: ${name} (base: ${base})${NC}"
+    echo -e "${GREEN}Creating workspace: ${full_name} (base: ${base})${NC}"
     jj workspace add "$workspace_path" -r "$base"
     
     echo -e "\n${GREEN}Workspace created!${NC}"
+    echo -e "Name:   ${BLUE}${full_name}${NC}"
+    echo -e "Path:   ${BLUE}${workspace_path}${NC}"
+    echo -e ""
     echo -e "To use: ${BLUE}cd ${workspace_path}${NC}"
     echo -e "Then:   ${BLUE}jj new${NC} to start working"
 }

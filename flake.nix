@@ -88,6 +88,10 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
+      jj-autosync = {
+        enable = true;
+        username = name;
+      };
       opencode = {
         enable = true;
         model = "opencode/big-pickle";
@@ -169,6 +173,18 @@
       ./modules/common/cachix.nix
     ];
 
+    # Darwin-specific modules
+    darwinModules = [
+      ./modules/darwin/ollama.nix
+      ./modules/darwin/litellm.nix
+    ];
+
+    # NixOS-specific modules
+    nixosModules = [
+      ./modules/nixos/ollama.nix
+      ./modules/nixos/litellm.nix
+    ];
+
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
 
@@ -183,6 +199,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./os/microvm.nix
             ./modules/microvm
@@ -223,6 +240,7 @@
             nix-homebrew.darwinModules.nix-homebrew
           ]
           ++ commonModules
+          ++ darwinModules
           ++ [
             ./modules/home-manager
             ./os/darwin.nix
@@ -260,6 +278,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./modules/home-manager
             ./modules/nixos/base.nix
@@ -332,6 +351,27 @@
                   $ARGUMENTS
                 '';
               };
+              workspace = {
+                description = "Create a jj workspace for isolated work with fast sync enabled";
+                template = ''
+                  Create a new jj workspace for this coding session. This ensures:
+                  1. Work is isolated from main branch
+                  2. Fast sync (every 5 minutes) is enabled during the session
+                  3. Main branch stays clean and synced with upstream
+
+                  Steps to execute:
+                  1. First check if we're in a jj repository (look for .jj directory)
+                  2. If arguments provided, use them as: jj-workspace-session start <type/topic> [base]
+                     - If no type prefix (feat/, fix/, etc.), default to feat/
+                     - Example: "/workspace user-auth" creates "feat/user-auth-<date>-<id>"
+                     - Example: "/workspace fix/login-bug develop" creates from develop branch
+                  3. If no arguments, just start session tracking: jj-workspace-session start
+                  4. After workspace is created, cd into it and run jj new to prepare for work
+                  5. Report the workspace name and path to the user
+
+                  Arguments: $ARGUMENTS
+                '';
+              };
             };
             providers = {
               just-llms = {
@@ -374,7 +414,7 @@
       "MegamanX" = mkDarwinHost {
         target = ./targets/MegamanX;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-client" "llm-claude"];
+        roles = ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-server" "llm-client" "llm-claude"];
         extraModules = [mac-app-util.darwinModules.default];
       };
 

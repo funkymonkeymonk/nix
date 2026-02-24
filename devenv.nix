@@ -227,7 +227,6 @@
             echo "  - Network connectivity for fetching packages"
             exit $EXIT_CODE
           }
-
         else
           # Linux/NixOS
           CONFIG_NAME="$HOSTNAME"
