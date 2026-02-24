@@ -1,9 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   # System-level shell configuration
   # This module handles global shell setup that applies to all users
 

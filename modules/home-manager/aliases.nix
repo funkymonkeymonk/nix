@@ -1,9 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}: let
+{config, ...}: let
   cfg = config.myConfig.onepassword or {};
 in {
   # Shell aliases configuration

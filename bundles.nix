@@ -9,7 +9,7 @@ with pkgs.lib; {
         gh
         devenv
         direnv
-        go-task
+
         rclone
         bat
         jq
@@ -63,11 +63,6 @@ with pkgs.lib; {
 
           # Nix tools
           try = "nix-shell -p";
-
-          # Task runner
-          t = "task";
-          tb = "task build";
-          tt = "task test";
 
           # Navigation
           "..." = "cd ../..";
@@ -168,7 +163,7 @@ with pkgs.lib; {
 
         environment.shellAliases = {
           skills-status = "ls -la $AGENT_SKILLS_PATH $SUPERPOWERS_SKILLS_PATH";
-          skills-update = "task agent-skills:update";
+          skills-update = "devenv tasks run agent-skills:update";
           skills-list = "find $AGENT_SKILLS_PATH -name 'SKILL.md' -exec basename {} \\; | sort";
         };
       };

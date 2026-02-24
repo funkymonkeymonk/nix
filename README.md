@@ -2,19 +2,18 @@
 
 A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager. This repository provides a complete system management solution with cross-platform support, automated tooling, and enterprise-grade development workflows.
 
-## 🚀 Features
+## Features
 
 - **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS) with unified configuration
 - **Modular architecture**: Shared configurations with role-based bundles for different use cases
 - **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
 - **SSH commit signing**: 1Password-based git commit signing with biometric authentication
 - **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing across platforms
-- **Enhanced development environment**: Devenv with pre-commit hooks, formatters, and linters
-- **Task automation**: Go-task integration for local and CI workflows
+- **Enhanced development environment**: Devenv with pre-commit hooks, formatters, linters, and task automation
 - **Code quality**: Automated formatting and linting with alejandra and deadnix
 - **Agent skills integration**: Automatic management of AI agent skills for OpenCode and Claude Code
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 .
@@ -33,16 +32,14 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 ├── templates/                  # Templates for new configurations
 ├── bundles.nix                 # Consolidated package collections (roles + platforms)
 ├── flake.nix                   # Main Nix flake definition
-├── devenv.nix                  # Development environment configuration
-├── Taskfile.yml               # Task automation
+├── devenv.nix                  # Development environment and task definitions
 └── README.md                   # This file
 ```
 
-## 🛠️ Development
+## Development
 
 ### Prerequisites
 - Nix with flakes enabled
-- Go-task (installed via nix)
 
 ### Quick Start
 ```bash
@@ -50,15 +47,33 @@ A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS s
 git clone <repository-url>
 cd nix
 
+# Enter development environment
+devenv shell
+
 # Test configurations
-task test
+devenv tasks run test:run
 
 # Build all systems
-task build
+devenv tasks run nix:build
 
-# Format code
-task fmt
+# Apply configuration
+devenv tasks run system:switch
+
+# Run code quality checks
+devenv tasks run quality:check
 ```
+
+### Shell Aliases
+
+After configuration is applied, these aliases are available:
+- `dt <task>` / `dtr <task>` - Run a devenv task
+- `dtl` - List all tasks
+- `t` - Run test:run
+- `tf` - Run test:full
+- `s` - Run system:switch
+- `q` - Run quality:check
+- `b` - Run nix:build
+- `i` - Run dev:ide
 
 ### Keyboard Shortcuts
 
@@ -74,7 +89,7 @@ The project uses [devenv](https://devenv.sh) for a consistent development enviro
 
 ### Cross-Platform Validation
 
-The `task test:full` command provides comprehensive validation that works regardless of host platform:
+The `devenv tasks run test:full` command provides comprehensive validation that works regardless of host platform:
 
 - **On Darwin (macOS)**: Validates both Darwin and Linux configurations
 - **On Linux**: Validates both Linux and Darwin configurations
@@ -82,12 +97,12 @@ The `task test:full` command provides comprehensive validation that works regard
 - **Cross-architecture**: Validates x86_64-linux from aarch64-darwin and vice versa
 
 **What it validates:**
-- ✅ Flake structure and syntax (`nix flake check`)
-- ✅ Linux configurations buildable (`nix build --dry-run`)
-- ✅ macOS configurations evaluable (`nix eval`)
-- ✅ All platform-specific packages and modules
-- ✅ Home-manager configurations
-- ✅ Cross-platform dependencies
+- Flake structure and syntax (`nix flake check`)
+- Linux configurations buildable (`nix build --dry-run`)
+- macOS configurations evaluable (`nix eval`)
+- All platform-specific packages and modules
+- Home-manager configurations
+- Cross-platform dependencies
 
 #### Development Tools
 The development environment includes:
@@ -103,9 +118,8 @@ This configuration uses 1Password CLI directly for secret management. Secrets ar
 
 #### Setup
 1. **Install 1Password CLI**: Ensure `op` command is available
-2. **Authenticate**: Run `task 1password:setup` to sign in
-3. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
-4. **Store SSH keys**: Add your SSH keys to 1Password for authentication and signing
+2. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
+3. **Store SSH keys**: Add your SSH keys to 1Password for authentication and signing
 
 #### How It Works
 - **SSH Authentication**: Uses 1Password's SSH agent for key management
@@ -118,7 +132,7 @@ This configuration uses 1Password CLI directly for secret management. Secrets ar
 - Secrets are only accessible during Nix builds
 - No secrets are stored in the Nix store
 
-## 🤖 Agent Skills Management
+## Agent Skills Management
 
 This configuration includes automatic management of AI agent skills for OpenCode and Claude Code integration.
 
@@ -133,13 +147,13 @@ This configuration includes automatic management of AI agent skills for OpenCode
 
 ```bash
 # Check skills status
-task agent-skills:status
+devenv tasks run agent-skills:status
 
 # Update skills from upstream
-task agent-skills:update
+devenv tasks run agent-skills:update
 
 # Validate skills format
-task agent-skills:validate
+devenv tasks run agent-skills:validate
 
 # List available skills
 skills-list
@@ -191,22 +205,38 @@ git config --global gpg.ssh.program "/Applications/1Password.app/Contents/MacOS/
 - Use `git log --show-signature` for local verification
 - Biometric prompt appears for each signed commit
 
-## 🤖 CI/CD Pipeline
+## CI/CD Pipeline
 
-The repository includes automated testing and validation:
+The repository uses a devenv-based CI/CD pipeline that runs locally and in GitHub Actions.
 
-### Matrix Builds
-- **x86_64-linux**: Ubuntu runners for NixOS configuration testing
-- **aarch64-darwin**: macOS runners for Darwin configuration testing
+### Pipeline Stages
+
+| Stage | Duration | Description |
+|-------|----------|-------------|
+| Quick | ~30s | Lint, format, flake check |
+| Validate | 5-10min | Platform-specific dry-run builds |
+| Build | 10-20min | Full builds + Cachix push (main only) |
+| Publish | ~1min | FlakeHub publish (main only) |
+
+### Running Locally
+
+```bash
+# Fast feedback loop (~30s)
+devenv tasks run ci:quick
+
+# Full PR validation
+devenv tasks run ci:pr
+
+# Platform-specific validation
+devenv tasks run ci:validate:darwin
+devenv tasks run ci:validate:nixos
+```
 
 ### Features
-- **Multi-architecture testing**: Validates flake configurations on both platforms
-- **Automated formatting**: Ensures code style consistency with alejandra
-- **Caching**: Nix store caching for faster CI runs
-
-### Workflows
-- **Pull requests**: Matrix testing and formatting validation
-- **Main branch**: Matrix testing and formatting validation
+- **Local parity**: Same tasks run locally and in CI
+- **Fast feedback**: Quick checks complete in ~30 seconds
+- **Cross-platform validation**: Validates both Darwin and NixOS configurations
+- **FlakeHub integration**: Automatic publishing on merge to main
 
 ### Weekly Flake Updates
 
@@ -224,7 +254,7 @@ The workflow creates PRs with the `flake-update` label and includes:
 - List of automated fixes applied
 - Validation results and next steps
 
-## 🏗️ Architecture
+## Architecture
 
 ### Modular System
 - **Modules**: Reusable configuration logic (how things work)
@@ -241,13 +271,13 @@ The workflow creates PRs with the `flake-update` label and includes:
 3. **Bundles** provide package collections
 4. **Flake** composes everything for each system
 
-## 🔧 Customization
+## Customization
 
 ### Adding a New Machine
 1. Create target configuration in `targets/`
 2. Add flake output in `flake.nix`
 3. Configure users and roles
-4. Test with `task build:{platform}:{machine}`
+4. Test with `devenv tasks run build`
 
 ### Adding a New Role
 1. Add role definition in `bundles.nix` under `roles` attribute
@@ -274,22 +304,22 @@ All roles are defined in `bundles.nix`:
 2. Add options in `modules/common/options.nix`
 3. Import in relevant flake configurations
 
-## 📋 Status
+## Status
 
-### ✅ Completed
+### Completed
 - Modular configuration system
 - Multi-platform support (macOS + Linux)
 - CI/CD pipeline with matrix testing
-- Task automation
+- Task automation via devenv
 - Configuration validation
 - Role-based bundles (developer, creative, gaming, workstation)
 - Secret management with 1Password
 - Window manager integration with AeroSpace (dropdown terminal, window rules)
 
-### 🔄 In Progress
+### In Progress
 - Performance optimizations
 
-### 📝 Future
+### Future
 - GUI application management
 - Backup automation
 - Monitoring and alerting

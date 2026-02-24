@@ -1,15 +1,13 @@
 {
-  config,
   osConfig,
   lib,
-  pkgs,
   ...
 }:
 with lib; let
   cfg = osConfig.myConfig.opencode;
 
   # Filter providers that have 1Password items configured
-  providersWithSecrets = lib.filterAttrs (name: provider: provider.onePasswordItem != "") cfg.providers;
+  providersWithSecrets = lib.filterAttrs (_name: provider: provider.onePasswordItem != "") cfg.providers;
 
   # Convert kebab-case to camelCase for opnix secret names
   toCamelCase = str:
@@ -44,7 +42,7 @@ with lib; let
     cfg.providers;
 
   # Transform MCP server config from our options format to opencode's expected format
-  transformMcpServer = name: server:
+  transformMcpServer = _name: server:
     {
       inherit (server) enabled;
     }

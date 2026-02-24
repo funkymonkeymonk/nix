@@ -21,7 +21,7 @@
   # Filter skills that match any enabled role
   skillsForRoles = roles:
     lib.filterAttrs (
-      name: skill:
+      _name: skill:
         lib.any (role: lib.elem role skill.roles) roles
     )
     manifest;
