@@ -145,16 +145,117 @@
     "system:switch" = {
       description = "Apply configuration to current system (platform-aware)";
       exec = ''
+        set -euo pipefail
+
+        echo "=== System Switch ==="
+        echo ""
+
+        # Detect platform
         if [[ "$(uname)" == "Darwin" ]]; then
-          HOSTNAME=$(hostname -s)
-          PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
-          NIXPKGS_ALLOW_UNFREE=1 op run \
-            --env-file=<(echo "SUDO_PASSWORD=$(op read "$PASSWORD_PATH")") \
-            -- bash -c 'echo "$SUDO_PASSWORD" | \
-            sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch --flake ./#MegamanX --impure'
+          PLATFORM="Darwin"
         else
-          sudo nixos-rebuild switch --flake ./
+          PLATFORM="Linux"
         fi
+        echo "Platform: $PLATFORM"
+
+        # Get hostname and map to configuration name
+        HOSTNAME=$(hostname -s)
+        echo "Hostname: $HOSTNAME"
+
+        if [[ "$PLATFORM" == "Darwin" ]]; then
+          # Map hostname to configuration name for Darwin
+          case "$HOSTNAME" in
+            "wweaver"|"Will-Stride-MBP")
+              CONFIG_NAME="wweaver"
+              ;;
+            "MegamanX")
+              CONFIG_NAME="MegamanX"
+              ;;
+            *)
+              echo ""
+              echo "ERROR: Unknown Darwin host: $HOSTNAME"
+              echo "Add a mapping for this host in devenv.nix system:switch task"
+              exit 1
+              ;;
+          esac
+          echo "Configuration: $CONFIG_NAME"
+          echo ""
+
+          # Check for 1Password CLI
+          if ! command -v op &> /dev/null; then
+            echo "ERROR: 1Password CLI (op) not found"
+            echo "Install 1Password CLI to use this task"
+            exit 1
+          fi
+          echo "1Password CLI: found"
+
+          # Get sudo password from 1Password
+          PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+          echo "Fetching sudo password from 1Password..."
+          echo "  Path: $PASSWORD_PATH"
+
+          SUDO_PASSWORD=$(op read "$PASSWORD_PATH" 2>&1) || {
+            echo ""
+            echo "ERROR: Failed to read sudo password from 1Password"
+            echo "  Attempted path: $PASSWORD_PATH"
+            echo ""
+            echo "Ensure you have a '$HOSTNAME Sudo Password' item in your Private vault"
+            echo "with a 'password' field containing your sudo password."
+            exit 1
+          }
+          echo "Sudo password: retrieved"
+          echo ""
+
+          # Build and switch
+          echo "--- Building Configuration ---"
+          echo "Running: darwin-rebuild switch --flake ./#$CONFIG_NAME --impure"
+          echo ""
+
+          echo "$SUDO_PASSWORD" | sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
+            --flake "./#$CONFIG_NAME" \
+            --impure \
+            --show-trace 2>&1 || {
+            EXIT_CODE=$?
+            echo ""
+            echo "ERROR: darwin-rebuild failed with exit code $EXIT_CODE"
+            echo ""
+            echo "Common issues to check:"
+            echo "  - Nix evaluation errors (check --show-trace output above)"
+            echo "  - Package build failures"
+            echo "  - Permission issues"
+            echo "  - Network connectivity for fetching packages"
+            exit $EXIT_CODE
+          }
+
+        else
+          # Linux/NixOS
+          CONFIG_NAME="$HOSTNAME"
+          echo "Configuration: $CONFIG_NAME"
+          echo ""
+
+          echo "--- Building Configuration ---"
+          echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"
+          echo ""
+
+          sudo nixos-rebuild switch \
+            --flake "./#$CONFIG_NAME" \
+            --show-trace 2>&1 || {
+            EXIT_CODE=$?
+            echo ""
+            echo "ERROR: nixos-rebuild failed with exit code $EXIT_CODE"
+            echo ""
+            echo "Common issues to check:"
+            echo "  - Nix evaluation errors (check --show-trace output above)"
+            echo "  - Package build failures"
+            echo "  - Permission issues"
+            echo "  - Network connectivity for fetching packages"
+            exit $EXIT_CODE
+          }
+        fi
+
+        echo ""
+        echo "=== System Switch Complete ==="
+        echo "Configuration '$CONFIG_NAME' applied successfully"
       '';
     };
 
