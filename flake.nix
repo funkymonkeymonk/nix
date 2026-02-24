@@ -75,11 +75,10 @@
     };
 
     # Helper to create user config
-    mkUser = name: {
+    mkUser = name: email: {
       users = [
         {
-          inherit name;
-          email = "me@willweaver.dev";
+          inherit name email;
           fullName = "Will Weaver";
           isAdmin = true;
           sshIncludes = [];
@@ -241,7 +240,7 @@
               system.primaryUser = "wweaver";
               system.stateVersion = 4;
               myConfig =
-                (mkUser "wweaver")
+                (mkUser "wweaver" "wweaver@justworks.com")
                 // {
                   opencode = {
                     enable = true;
@@ -351,7 +350,7 @@
               nixpkgs.hostPlatform = "aarch64-darwin";
               system.primaryUser = "monkey";
               system.stateVersion = 4;
-              myConfig = mkUser "monkey";
+              myConfig = mkUser "monkey" "me@willweaver.dev";
               nix-homebrew = mkNixHomebrew "monkey";
             }
             home-manager.darwinModules.home-manager
@@ -408,7 +407,7 @@
             {
               nixpkgs.hostPlatform = "x86_64-linux";
               system.stateVersion = "25.05";
-              myConfig = mkUser "monkey";
+              myConfig = mkUser "monkey" "me@willweaver.dev";
             }
             home-manager.nixosModules.home-manager
             {
@@ -437,7 +436,7 @@
             {
               nixpkgs.hostPlatform = "x86_64-linux";
               system.stateVersion = "25.05";
-              myConfig = mkUser "monkey";
+              myConfig = mkUser "monkey" "me@willweaver.dev";
             }
             home-manager.nixosModules.home-manager
             {

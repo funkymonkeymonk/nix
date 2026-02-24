@@ -1,17 +1,21 @@
 {config, ...}: let
   cfg = config.myConfig.onepassword or {};
 in {
-  # Shell aliases configuration
-  # This module contains aliases for programs NOT installed in base bundle
-
   home.shellAliases = {
-    # Development tool aliases
     ops =
       if cfg.enable or false
       then "op signin"
-      else ""; # 1Password CLI (conditional)
-    # AI assistant aliases
+      else "";
     oc = "opencode";
     kk = "opencode run";
+
+    jjn = "jj new";
+    jjf = "jj git fetch";
+    jjl = "jj log";
+    jjd = "jj diff";
+    jjs = "jj show";
+    jja = "jj absorb";
+    jjst = "jj status";
+    jjco = "jj comment";
   };
 }
