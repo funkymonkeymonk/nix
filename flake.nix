@@ -87,6 +87,10 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
+      jj-autosync = {
+        enable = true;
+        username = name;
+      };
       opencode = {
         enable = true;
         model = "opencode/big-pickle";
@@ -128,23 +132,62 @@
 
       # Collect all homebrew configs from enabled roles
       roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) finalRoles;
+
+      # Collect all myConfig options from enabled roles
+      roleMyConfigs = map (role: bundles.roles.${role}.config.myConfig or {}) finalRoles;
+
+      # Collect shell aliases from enabled roles
+      roleShellAliases =
+        nixpkgs.lib.foldl' (
+          acc: role:
+            acc // (bundles.roles.${role}.config.environment.shellAliases or {})
+        ) {}
+        finalRoles;
+
+      # Collect session variables from enabled roles
+      roleSessionVariables =
+        nixpkgs.lib.foldl' (
+          acc: role:
+            acc // (bundles.roles.${role}.config.environment.sessionVariables or {})
+        ) {}
+        finalRoles;
     in {
       config =
         {
-          # Pass enabled roles and superpowers path to skills configuration
-          myConfig.skills.enabledRoles = finalRoles;
-          myConfig.skills.superpowersPath = inputs.superpowers;
+          # Merge myConfig options from all enabled roles, plus skills config
+          myConfig = nixpkgs.lib.mkMerge (
+            roleMyConfigs
+            ++ [
+              {
+                skills.enabledRoles = finalRoles;
+                skills.superpowersPath = inputs.superpowers;
+              }
+            ]
+          );
 
-          environment = {
-            systemPackages =
-              bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
+          environment =
+            {
+              systemPackages =
+                bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
 
-            shellAliases = bundles.roles.base.config.environment.shellAliases or {};
+              shellAliases =
+                bundles.roles.base.config.environment.shellAliases or {}
+                // roleShellAliases;
 
-            variables =
-              bundles.roles.base.config.environment.variables or {}
-              // bundles.platforms.${system}.config.environment.variables or {};
-          };
+              # On Darwin, merge session variables into variables since sessionVariables doesn't exist
+              # On Linux/NixOS, keep them separate
+              variables =
+                bundles.roles.base.config.environment.variables or {}
+                // bundles.platforms.${system}.config.environment.variables or {}
+                // (
+                  if system == "darwin"
+                  then roleSessionVariables
+                  else {}
+                );
+            }
+            // nixpkgs.lib.optionalAttrs (system != "darwin") {
+              sessionVariables = roleSessionVariables;
+            };
 
           programs =
             bundles.roles.base.config.programs or {} // bundles.platforms.${system}.config.programs or {};
@@ -168,6 +211,18 @@
       ./modules/common/cachix.nix
     ];
 
+    # Darwin-specific modules
+    darwinModules = [
+      ./modules/darwin/ollama.nix
+      ./modules/darwin/litellm.nix
+    ];
+
+    # NixOS-specific modules
+    nixosModules = [
+      ./modules/nixos/ollama.nix
+      ./modules/nixos/litellm.nix
+    ];
+
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
 
@@ -182,6 +237,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./os/microvm.nix
             ./modules/microvm
@@ -224,6 +280,7 @@
             nix-homebrew.darwinModules.nix-homebrew
           ]
           ++ commonModules
+          ++ darwinModules
           ++ [
             ./modules/home-manager
             ./os/darwin.nix
@@ -277,6 +334,27 @@
                           - Explanation (understanding-oriented)
 
                           $ARGUMENTS
+                        '';
+                      };
+                      workspace = {
+                        description = "Create a jj workspace for isolated work with fast sync enabled";
+                        template = ''
+                          Create a new jj workspace for this coding session. This ensures:
+                          1. Work is isolated from main branch
+                          2. Fast sync (every 5 minutes) is enabled during the session
+                          3. Main branch stays clean and synced with upstream
+
+                          Steps to execute:
+                          1. First check if we're in a jj repository (look for .jj directory)
+                          2. If arguments provided, use them as: jj-workspace-session start <type/topic> [base]
+                             - If no type prefix (feat/, fix/, etc.), default to feat/
+                             - Example: "/workspace user-auth" creates "feat/user-auth-<date>-<id>"
+                             - Example: "/workspace fix/login-bug develop" creates from develop branch
+                          3. If no arguments, just start session tracking: jj-workspace-session start
+                          4. After workspace is created, cd into it and run jj new to prepare for work
+                          5. Report the workspace name and path to the user
+
+                          Arguments: $ARGUMENTS
                         '';
                       };
                     };
@@ -333,6 +411,7 @@
             configuration
           ]
           ++ commonModules
+          ++ darwinModules
           ++ [
             ./modules/home-manager
             ./os/darwin.nix
@@ -343,6 +422,7 @@
               "workstation"
               "entertainment"
               "llm-host"
+              "llm-server"
               "llm-client"
               "llm-claude"
             ])
@@ -395,6 +475,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./modules/home-manager
             ./os/nixos.nix
@@ -424,6 +505,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./modules/home-manager
             ./os/nixos.nix

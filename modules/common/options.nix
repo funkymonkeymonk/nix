@@ -259,6 +259,208 @@ with lib; {
       };
     };
 
+    jj-autosync = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable automatic jj repository synchronization";
+      };
+
+      username = mkOption {
+        type = types.str;
+        default = "";
+        description = "Username for launchd environment (required on Darwin)";
+      };
+
+      reposDir = mkOption {
+        type = types.str;
+        default = "$HOME/repos";
+        description = "Directory containing jj repositories to sync";
+      };
+
+      mainBranch = mkOption {
+        type = types.str;
+        default = "main";
+        description = "Main branch name to sync";
+      };
+
+      hourlySync = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable hourly background sync for all repos";
+      };
+
+      fastSyncInterval = mkOption {
+        type = types.int;
+        default = 300;
+        description = "Sync interval in seconds for active sessions (default: 300 = 5 minutes)";
+      };
+    };
+
+    ollama = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Ollama local LLM service";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Host address for Ollama to bind to (use 0.0.0.0 for network access)";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 11434;
+        description = "Port for Ollama API";
+      };
+
+      models = mkOption {
+        type = types.listOf types.str;
+        default = ["llama3.2" "codellama"];
+        description = "List of models to pre-pull on service start";
+      };
+
+      acceleration = mkOption {
+        type = types.nullOr (types.enum ["cuda" "rocm" "metal"]);
+        default = null;
+        description = "GPU acceleration type (null for auto-detection)";
+      };
+
+      environmentFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to environment file with additional Ollama configuration";
+      };
+    };
+
+    litellm = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable LiteLLM proxy server";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "0.0.0.0";
+        description = "Host address for LiteLLM to bind to";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 4000;
+        description = "Port for LiteLLM API (OpenAI-compatible)";
+      };
+
+      configFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to LiteLLM config.yaml file";
+      };
+
+      masterKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Master API key for LiteLLM (leave empty to use 1Password)";
+      };
+
+      masterKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for master key (e.g., 'op://vault/item/field')";
+      };
+
+      ollamaBaseUrl = mkOption {
+        type = types.str;
+        default = "http://localhost:11434";
+        description = "Base URL for local Ollama instance";
+      };
+
+      anthropicApiKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Anthropic API key (leave empty to use 1Password)";
+      };
+
+      anthropicApiKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for Anthropic API key";
+      };
+
+      openaiApiKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "OpenAI API key (leave empty to use 1Password)";
+      };
+
+      openaiApiKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for OpenAI API key";
+      };
+
+      extraProviders = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            apiBase = mkOption {
+              type = types.str;
+              description = "Base URL for the provider API";
+            };
+            apiKey = mkOption {
+              type = types.str;
+              default = "";
+              description = "API key (leave empty to use 1Password)";
+            };
+            apiKeyOnePassword = mkOption {
+              type = types.str;
+              default = "";
+              description = "1Password item reference for API key";
+            };
+          };
+        });
+        default = {};
+        description = "Additional LLM providers to configure";
+      };
+
+      models = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            modelName = mkOption {
+              type = types.str;
+              description = "Name to expose via LiteLLM API";
+            };
+            litellmParams = mkOption {
+              type = types.submodule {
+                options = {
+                  model = mkOption {
+                    type = types.str;
+                    description = "Provider model identifier (e.g., 'ollama/llama3.2', 'claude-3-opus')";
+                  };
+                  apiBase = mkOption {
+                    type = types.nullOr types.str;
+                    default = null;
+                    description = "Override API base URL for this model";
+                  };
+                };
+              };
+              description = "LiteLLM model parameters";
+            };
+          };
+        });
+        default = [];
+        description = "List of models to expose through LiteLLM";
+      };
+
+      logLevel = mkOption {
+        type = types.enum ["DEBUG" "INFO" "WARNING" "ERROR"];
+        default = "INFO";
+        description = "Log level for LiteLLM";
+      };
+    };
+
     claude-code = {
       enable = mkOption {
         type = types.bool;

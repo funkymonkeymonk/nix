@@ -1,0 +1,12 @@
+# jj-autosync configuration
+# This file opts this repository into automatic sync
+# Commit this file to share the setting with the team
+
+# Enable hourly background sync (fetch from origin)
+enabled=true
+
+# Main branch name to track
+main=main
+
+# Enable fast sync (every 5 min) during active OpenCode sessions
+fast_sync=true

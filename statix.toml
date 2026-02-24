@@ -1,0 +1,10 @@
+# Statix configuration
+# https://github.com/oppiliappan/statix
+
+# Disabled lints
+# - manual_inherit_from (W04): This has false positives when the attribute name
+#   differs from the source name (e.g., `model = m.litellmParams.model;`).
+#   The `inherit` syntax cannot be used in these cases.
+disabled = [
+  "manual_inherit_from"
+]

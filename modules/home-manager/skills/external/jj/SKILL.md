@@ -1,6 +1,6 @@
 ---
 name: jj
-description: Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks with Conventional Branch naming, pushing to GitHub, absorb, squash, stacked PRs, and workspaces for multi-project isolation. Use when working with jj, creating commits, pushing changes, or managing version control.
+description: Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks with Conventional Branch naming, pushing to GitHub, absorb, squash, stacked PRs, workspaces with auto-sync for OpenCode sessions. Use when working with jj, creating commits, pushing changes, or managing version control.
 ---
 
 # Jujutsu (jj) Version Control
@@ -26,6 +26,47 @@ description: Use Jujutsu (jj) for version control. Covers workflow, commits, boo
 | `jj absorb` | Auto-distribute to ancestors |
 | `jj git push` | Push to remote |
 | `jj git fetch` | Fetch from remote |
+
+## OpenCode Workspace Workflow
+
+When working with OpenCode, use **workspace sessions** to isolate your work and enable fast sync:
+
+### Starting a Session
+
+Use the `/workspace` command in OpenCode:
+```
+/workspace feat/user-auth        # Create workspace from main
+/workspace fix/login develop     # Create workspace from develop branch
+/workspace                       # Just enable fast sync in current workspace
+```
+
+Or use the CLI directly:
+```bash
+jj-workspace-session start feat/auth      # Create workspace + start session
+jj-workspace-session start                # Start session in current workspace
+```
+
+### What Happens
+
+1. **Workspace Created**: `feat/auth-20260223-a1b2` (type/topic-date-guid format)
+2. **Fast Sync Enabled**: Repository syncs every 5 minutes (vs hourly)
+3. **Main Stays Clean**: Your work is isolated, main auto-syncs with upstream
+
+### Session Commands
+
+```bash
+jj-workspace-session start [type/topic] [base]   # Start session
+jj-workspace-session stop                         # End session
+jj-workspace-session status                       # Show active sessions
+jj-workspace-session sync                         # Manual sync
+```
+
+### Ending a Session
+
+```bash
+jj-workspace-session stop    # Stops fast sync, keeps workspace
+jj-workspace remove <name>   # Remove workspace when done
+```
 
 ## Workflow Scripts
 
@@ -70,13 +111,17 @@ Creates PR with correct base branch for stacking.
 ### `jj-workspace` - Manage Workspaces
 
 ```bash
-jj-workspace create feature-auth      # New workspace from main
-jj-workspace create bugfix main       # New workspace from specific base
-jj-workspace list                     # Show all workspaces
-jj-workspace remove feature-auth      # Remove workspace
-jj-workspace clean                    # Remove all workspaces
-jj-workspace status                   # Status of all workspaces
+jj-workspace create feat/user-auth      # Creates feat/user-auth-<date>-<id>
+jj-workspace create fix/bug develop     # New workspace from develop
+jj-workspace list                       # Show all workspaces
+jj-workspace remove <name>              # Remove workspace
+jj-workspace clean                      # Remove all workspaces
+jj-workspace status                     # Status of all workspaces
 ```
+
+**Naming Convention**: `<type>/<topic>-<date>-<guid>`
+- Types: `feat`, `fix`, `hotfix`, `chore`, `release`
+- Auto-generated date (YYYYMMDD) and 4-char guid
 
 ## Conventional Branch Naming
 
@@ -124,6 +169,26 @@ jj git fetch
 jj rebase -r @ -d main
 jj git push
 ```
+
+## Background Auto-Sync
+
+Repositories opt-in to auto-sync by adding a `.jj-autosync` config file (commit it to share with team):
+
+```bash
+# .jj-autosync - add to repo root
+enabled=true      # Enable hourly sync
+main=main         # Main branch name
+fast_sync=true    # Enable 5-min sync during OpenCode sessions
+```
+
+| Mode | Frequency | Requires |
+|------|-----------|----------|
+| **Hourly** | Every hour | `enabled=true` |
+| **Session** | Every 5 min | `fast_sync=true` + active session |
+
+Logs are at:
+- `/tmp/jj-autosync.log` - Hourly sync log
+- `/tmp/jj-fast-sync.log` - Session sync log
 
 ## Common Mistakes
 

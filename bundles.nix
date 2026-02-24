@@ -210,13 +210,56 @@ with pkgs.lib; {
         ollama
       ];
 
-      config = {};
+      config = {
+        myConfig.ollama = {
+          enable = true;
+          host = "0.0.0.0"; # Allow network access for LiteLLM
+          port = 11434;
+          models = ["llama3.2" "llama3.2:8b" "qwen2.5-coder:14b"];
+        };
+      };
     };
 
     llm-server = {
-      packages = [];
+      packages = with pkgs; [
+        litellm
+      ];
 
-      config = {};
+      config = {
+        myConfig.litellm = {
+          enable = true;
+          host = "0.0.0.0";
+          port = 4000;
+          ollamaBaseUrl = "http://localhost:11434";
+          # 1Password secrets for LiteLLM (Homelab vault)
+          masterKeyOnePassword = "op://Homelab/LiteLLM Master Key/password";
+
+          # OpenCode Zen provider
+          extraProviders = {
+            opencode-zen = {
+              apiBase = "https://opencode.ai/zen";
+              apiKeyOnePassword = "op://Homelab/OpenCode Zen/api-key";
+            };
+          };
+
+          # Custom models including OpenCode Zen
+          models = [
+            {
+              modelName = "opencode/zen";
+              litellmParams = {
+                model = "openai/claude-3-5-sonnet-20241022";
+                apiBase = "https://opencode.ai/zen";
+              };
+            }
+          ];
+        };
+
+        environment.shellAliases = {
+          llm-server-status = "curl -s http://localhost:4000/health | jq";
+          llm-server-models = "curl -s http://localhost:4000/v1/models | jq";
+          llm-server-logs = "tail -f /tmp/litellm.log";
+        };
+      };
     };
   };
 
