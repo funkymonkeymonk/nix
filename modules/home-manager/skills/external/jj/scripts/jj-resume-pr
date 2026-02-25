@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# jj-resume-pr: Resume work on an existing GitHub PR
+# Usage: jj-resume-pr <pr-url-or-number>
+# Example: jj-resume-pr https://github.com/owner/repo/pull/123
+# Example: jj-resume-pr 123
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+usage() {
+    cat <<EOF
+Usage: jj-resume-pr <pr-url-or-number>
+
+Resume work on an existing GitHub PR by:
+1. Fetching the latest commits from the PR branch
+2. Updating the jj bookmark to track the PR branch
+3. Creating a new jj commit on that bookmark
+
+Arguments:
+  pr-url-or-number  - Full PR URL or just the PR number
+
+Examples:
+  jj-resume-pr https://github.com/funkymonkeymonk/nix/pull/123
+  jj-resume-pr 123
+EOF
+    exit 1
+}
+
+parse_pr_arg() {
+    local arg="$1"
+    
+    if [[ "$arg" =~ ^https?://github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
+        OWNER="${BASH_REMATCH[1]}"
+        REPO="${BASH_REMATCH[2]}"
+        PR_NUM="${BASH_REMATCH[3]}"
+    elif [[ "$arg" =~ ^github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
+        OWNER="${BASH_REMATCH[1]}"
+        REPO="${BASH_REMATCH[2]}"
+        PR_NUM="${BASH_REMATCH[3]}"
+    elif [[ "$arg" =~ ^([0-9]+)$ ]]; then
+        PR_NUM="${BASH_REMATCH[1]}"
+        OWNER=""
+        REPO=""
+    else
+        echo -e "${RED}Error: Invalid PR format. Use full URL or PR number.${NC}"
+        exit 1
+    fi
+}
+
+get_current_repo() {
+    if [[ -z "$OWNER" || -z "$REPO" ]]; then
+        local remote_url
+        remote_url=$(git remote get-url origin 2>/dev/null || echo "")
+        
+        if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/]+)(\.git)?$ ]]; then
+            OWNER="${BASH_REMATCH[1]}"
+            REPO="${BASH_REMATCH[2]}"
+            REPO="${REPO%.git}"
+        else
+            echo -e "${RED}Error: Could not determine repo from git remote. Provide full PR URL.${NC}"
+            exit 1
+        fi
+    fi
+}
+
+main() {
+    if [[ $# -lt 1 ]]; then
+        usage
+    fi
+    
+    local pr_arg="$1"
+    
+    echo -e "${YELLOW}Resume work on PR: ${pr_arg}${NC}\n"
+    
+    parse_pr_arg "$pr_arg"
+    get_current_repo
+    
+    echo -e "${GREEN}Target: ${OWNER}/${REPO}#${PR_NUM}${NC}"
+    
+    echo -e "\n${GREEN}1. Fetching PR info...${NC}"
+    local pr_info
+    pr_info=$(gh pr view "$PR_NUM" --json headRefName,headRepository,headRepositoryOwner --repo "$OWNER/$REPO" 2>/dev/null)
+    
+    if [[ -z "$pr_info" ]]; then
+        echo -e "${RED}Error: Could not fetch PR info. Check if PR exists and you have access.${NC}"
+        exit 1
+    fi
+    
+    local branch_name
+    branch_name=$(echo "$pr_info" | jq -r '.headRefName')
+    
+    echo -e "${GREEN}2. PR branch: ${branch_name}${NC}"
+    
+    echo -e "\n${GREEN}3. Fetching latest from remote...${NC}"
+    jj git fetch
+    
+    echo -e "\n${GREEN}4. Updating jj bookmark: ${branch_name}${NC}"
+    jj bookmark set "$branch_name"
+    
+    echo -e "\n${GREEN}5. Creating new commit on bookmark...${NC}"
+    jj new "$branch_name"
+    
+    echo -e "\n${GREEN}6. Current status:${NC}"
+    jj status
+    
+    echo -e "\n${GREEN}Done! Ready to continue work on PR #${PR_NUM} (${branch_name})${NC}"
+}
+
+main "$@"
