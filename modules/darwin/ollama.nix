@@ -56,6 +56,8 @@ in {
         StandardOutPath = "/tmp/ollama.log";
         StandardErrorPath = "/tmp/ollama.err";
         EnvironmentVariables = {
+          HOME = "/Users/monkey";
+          USER = "monkey";
           OLLAMA_HOST = "${cfg.host}:${toString cfg.port}";
           PATH = "/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/bin:/bin";
         };
