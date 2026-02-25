@@ -83,6 +83,16 @@ jj-pr chore deps-update
 
 Types: `feat`, `fix`, `hotfix`, `release`, `chore`
 
+### `jj-resume-pr` - Resume Work on Existing PR
+
+```bash
+# Usage: jj-resume-pr <pr-url-or-number>
+jj-resume-pr https://github.com/funkymonkeymonk/nix/pull/123
+jj-resume-pr 123
+```
+
+This fetches the latest commits from the PR branch, updates your jj bookmark, and creates a new commit ready for more work.
+
 ### `jj-update` - Update Existing PR
 
 ```bash
