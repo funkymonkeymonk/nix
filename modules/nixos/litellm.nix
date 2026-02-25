@@ -143,6 +143,8 @@ with lib; let
         export LITELLM_MASTER_KEY="$(op read '${cfg.masterKeyOnePassword}' 2>/dev/null || echo '${defaultMasterKey}')"
       fi
     ''}
+
+    export STORE_MODEL_IN_DB="False"
     ${optionalString (cfg.saltKeyOnePassword != "") ''
       if command -v op &> /dev/null; then
         export LITELLM_SALT_KEY="$(op read '${cfg.saltKeyOnePassword}' 2>/dev/null || echo "")"
