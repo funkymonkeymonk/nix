@@ -233,6 +233,8 @@ with pkgs.lib; {
           ollamaBaseUrl = "http://localhost:11434";
           # 1Password secrets for LiteLLM (Homelab vault)
           masterKeyOnePassword = "op://Homelab/LiteLLM Master Key/password";
+          saltKeyOnePassword = "op://Homelab/LiteLLM Salt Key/password";
+          databaseUrlOnePassword = "op://Homelab/LiteLLM Database URL/url";
 
           # OpenCode Zen provider
           extraProviders = {
