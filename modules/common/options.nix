@@ -372,6 +372,30 @@ with lib; {
         description = "1Password item reference for master key (e.g., 'op://vault/item/field')";
       };
 
+      saltKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Salt key for encrypting credentials in DB (CANNOT CHANGE once set)";
+      };
+
+      saltKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for salt key";
+      };
+
+      databaseUrl = mkOption {
+        type = types.str;
+        default = "";
+        description = "PostgreSQL database URL for storing model credentials";
+      };
+
+      databaseUrlOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for database URL";
+      };
+
       ollamaBaseUrl = mkOption {
         type = types.str;
         default = "http://localhost:11434";

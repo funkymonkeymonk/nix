@@ -134,11 +134,23 @@ with lib; let
     # Set up environment variables for API keys
     ${optionalString (cfg.anthropicApiKey != "") "export ANTHROPIC_API_KEY='${cfg.anthropicApiKey}'"}
     ${optionalString (cfg.openaiApiKey != "") "export OPENAI_API_KEY='${cfg.openaiApiKey}'"}
+    ${optionalString (cfg.saltKey != "") "export LITELLM_SALT_KEY='${cfg.saltKey}'"}
+    ${optionalString (cfg.databaseUrl != "") "export DATABASE_URL='${cfg.databaseUrl}'"}
 
     # 1Password integration - fetch secrets at runtime
     ${optionalString (cfg.masterKeyOnePassword != "") ''
       if command -v op &> /dev/null; then
         export LITELLM_MASTER_KEY="$(op read '${cfg.masterKeyOnePassword}' 2>/dev/null || echo '${defaultMasterKey}')"
+      fi
+    ''}
+    ${optionalString (cfg.saltKeyOnePassword != "") ''
+      if command -v op &> /dev/null; then
+        export LITELLM_SALT_KEY="$(op read '${cfg.saltKeyOnePassword}' 2>/dev/null || echo "")"
+      fi
+    ''}
+    ${optionalString (cfg.databaseUrlOnePassword != "") ''
+      if command -v op &> /dev/null; then
+        export DATABASE_URL="$(op read '${cfg.databaseUrlOnePassword}' 2>/dev/null || echo "")"
       fi
     ''}
     ${optionalString (cfg.anthropicApiKeyOnePassword != "") ''
