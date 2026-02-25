@@ -131,6 +131,23 @@ with lib; let
   litellmStartScript = pkgs.writeShellScript "litellm-start" ''
     set -euo pipefail
 
+    # Wait for PostgreSQL if database is configured
+    ${
+      if cfg.databaseUrl != "" || cfg.databaseUrlOnePassword != ""
+      then ''
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in $(seq 1 30); do
+          if ${pkgs.postgresql_17}/bin/pg_isready -q 2>/dev/null; then
+            echo "PostgreSQL is ready"
+            break
+          fi
+          echo "Waiting for PostgreSQL... ($i/30)"
+          sleep 2
+        done
+      ''
+      else ""
+    }
+
     # Set up environment variables for API keys
     ${optionalString (cfg.anthropicApiKey != "") "export ANTHROPIC_API_KEY='${cfg.anthropicApiKey}'"}
     ${optionalString (cfg.openaiApiKey != "") "export OPENAI_API_KEY='${cfg.openaiApiKey}'"}
@@ -144,7 +161,12 @@ with lib; let
       fi
     ''}
 
-    export STORE_MODEL_IN_DB="False"
+    # Enable database storage if database URL is configured
+    ${
+      if cfg.databaseUrl != "" || cfg.databaseUrlOnePassword != ""
+      then ''export STORE_MODEL_IN_DB="True"''
+      else ''export STORE_MODEL_IN_DB="False"''
+    }
     ${optionalString (cfg.saltKeyOnePassword != "") ''
       if command -v op &> /dev/null; then
         export LITELLM_SALT_KEY="$(op read '${cfg.saltKeyOnePassword}' 2>/dev/null || echo "")"
@@ -196,8 +218,12 @@ in {
     systemd.services.litellm = {
       description = "LiteLLM Proxy Server";
       wantedBy = ["multi-user.target"];
-      after = ["network-online.target" "ollama.service"];
-      wants = ["ollama.service"];
+      after =
+        ["network-online.target" "ollama.service"]
+        ++ optional (cfg.databaseUrl != "" || cfg.databaseUrlOnePassword != "") "postgresql.service";
+      wants =
+        ["ollama.service"]
+        ++ optional (cfg.databaseUrl != "" || cfg.databaseUrlOnePassword != "") "postgresql.service";
 
       serviceConfig = {
         Type = "simple";

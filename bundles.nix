@@ -234,9 +234,23 @@ with pkgs.lib; {
     llm-server = {
       packages = with pkgs; [
         litellm
+        postgresql_17
       ];
 
       config = {
+        # Enable PostgreSQL for LiteLLM
+        myConfig.postgresql = {
+          enable = true;
+          port = 5432;
+          databases = ["litellm"];
+          users = [
+            {
+              name = "litellm";
+              ensureDBOwnership = true;
+            }
+          ];
+        };
+
         myConfig.litellm = {
           enable = true;
           host = "0.0.0.0";
@@ -244,6 +258,9 @@ with pkgs.lib; {
           ollamaBaseUrl = "http://localhost:11434";
           # 1Password secrets for LiteLLM (Homelab vault)
           masterKeyOnePassword = "op://Homelab/LiteLLM Master Key/password";
+          saltKeyOnePassword = "op://Homelab/LiteLLM Salt Key/password";
+          # Local PostgreSQL database URL (peer auth via socket)
+          databaseUrl = "postgresql://litellm@localhost/litellm";
 
           # OpenCode Zen provider
           extraProviders = {
@@ -269,6 +286,7 @@ with pkgs.lib; {
           llm-server-status = "curl -s http://localhost:4000/health | jq";
           llm-server-models = "curl -s http://localhost:4000/v1/models | jq";
           llm-server-logs = "tail -f /tmp/litellm.log";
+          llm-db = "psql -U litellm -d litellm";
         };
       };
     };
@@ -293,6 +311,8 @@ with pkgs.lib; {
             autoUpdate = false;
             cleanup = "uninstall";
           };
+
+          brews = [];
 
           casks = [
             "raycast"

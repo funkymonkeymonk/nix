@@ -335,6 +335,62 @@ with lib; {
       };
     };
 
+    postgresql = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable PostgreSQL database server";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 5432;
+        description = "Port for PostgreSQL to listen on";
+      };
+
+      enableTCPIP = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether PostgreSQL should listen on all network interfaces";
+      };
+
+      databases = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "List of databases to create";
+      };
+
+      users = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Username for the PostgreSQL user";
+            };
+            ensureDBOwnership = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether to grant ownership of a database with the same name";
+            };
+          };
+        });
+        default = [];
+        description = "List of PostgreSQL users to create";
+      };
+
+      dataDir = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Custom data directory for PostgreSQL (null uses default)";
+      };
+
+      package = mkOption {
+        type = types.nullOr types.package;
+        default = null;
+        description = "PostgreSQL package to use (null uses default)";
+      };
+    };
+
     litellm = {
       enable = mkOption {
         type = types.bool;
