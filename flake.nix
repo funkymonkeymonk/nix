@@ -206,6 +206,80 @@
             }
           ];
       };
+
+    # Helper to create Darwin host configuration
+    mkDarwinHost = {
+      target,
+      user,
+      roles,
+      extraModules ? [],
+      extraConfig ? {},
+    }:
+      nix-darwin.lib.darwinSystem {
+        modules =
+          [
+            configuration
+            nix-homebrew.darwinModules.nix-homebrew
+          ]
+          ++ commonModules
+          ++ [
+            ./modules/home-manager
+            ./os/darwin.nix
+            ./modules/home-manager/aerospace.nix
+            target
+            (mkBundleModule "darwin" roles)
+            {
+              nixpkgs.hostPlatform = "aarch64-darwin";
+              system.stateVersion = 4;
+              system.primaryUser = (builtins.head user.users).name;
+              myConfig = user // extraConfig;
+              nix-homebrew = mkNixHomebrew (builtins.head user.users).name;
+            }
+            home-manager.darwinModules.home-manager
+            {
+              home-manager.sharedModules = [opnix.homeManagerModules.default];
+            }
+          ]
+          ++ extraModules;
+      };
+
+    # Helper to create NixOS host configuration
+    mkNixosHost = {
+      target,
+      user,
+      roles,
+      extraModules ? [],
+      extraConfig ? {},
+    }:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs;};
+        modules =
+          [
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./modules/home-manager
+            ./modules/nixos/base.nix
+            ./modules/nixos/desktop.nix
+            ./modules/nixos/gaming.nix
+            ./modules/nixos/streaming.nix
+            ./os/nixos.nix
+            target
+            (mkBundleModule "linux" roles)
+            {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              system.stateVersion = "25.05";
+              myConfig = user // extraConfig;
+            }
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.sharedModules = [opnix.homeManagerModules.default];
+            }
+          ]
+          ++ extraModules;
+      };
   in {
     packages = forAllSystems (system: let
       pkgs = import nixpkgs {
@@ -217,151 +291,93 @@
     });
 
     darwinConfigurations = {
-      "wweaver" = nix-darwin.lib.darwinSystem {
-        modules =
-          [
-            configuration
-            nix-homebrew.darwinModules.nix-homebrew
-          ]
-          ++ commonModules
-          ++ [
-            ./modules/home-manager
-            ./os/darwin.nix
-            ./modules/home-manager/aerospace.nix
-            (mkBundleModule "darwin" [
-              "developer"
-              "desktop"
-              "workstation"
-              "llm-client"
-              "llm-claude"
-            ])
-            {
-              nixpkgs.hostPlatform = "aarch64-darwin";
-              system.primaryUser = "wweaver";
-              system.stateVersion = 4;
-              myConfig =
-                (mkUser "wweaver" "wweaver@justworks.com")
-                // {
-                  opencode = {
-                    enable = true;
-                    disabledProviders = [
-                      "opencode"
-                    ];
-                    extraMcpServers = {
-                      github = {
-                        type = "remote";
-                        url = "https://api.githubcopilot.com/mcp/";
-                        enabled = false;
-                      };
-                      jira = {
-                        type = "remote";
-                        url = "https://mcp.atlassian.com/v1/mcp";
-                        enabled = false;
-                      };
-                      confluence = {
-                        type = "remote";
-                        url = "https://mcp.atlassian.com/v1/mcp";
-                        enabled = false;
-                      };
-                    };
-                    commands = {
-                      diataxis = {
-                        description = "Audit and rewrite documentation using the Diataxis framework";
-                        template = ''
-                          Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
+      "wweaver" = mkDarwinHost {
+        target = ./targets/wweaver;
+        user = mkUser "wweaver" "wweaver@justworks.com";
+        roles = ["developer" "desktop" "workstation" "llm-client" "llm-claude"];
+        extraConfig = {
+          opencode = {
+            enable = true;
+            disabledProviders = ["opencode"];
+            extraMcpServers = {
+              github = {
+                type = "remote";
+                url = "https://api.githubcopilot.com/mcp/";
+                enabled = false;
+              };
+              jira = {
+                type = "remote";
+                url = "https://mcp.atlassian.com/v1/mcp";
+                enabled = false;
+              };
+              confluence = {
+                type = "remote";
+                url = "https://mcp.atlassian.com/v1/mcp";
+                enabled = false;
+              };
+            };
+            commands = {
+              diataxis = {
+                description = "Audit and rewrite documentation using the Diataxis framework";
+                template = ''
+                  Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
 
-                          Follow the Diataxis framework to organize content into:
-                          - Tutorials (learning-oriented)
-                          - How-to guides (goal-oriented)
-                          - Reference (information-oriented)
-                          - Explanation (understanding-oriented)
+                  Follow the Diataxis framework to organize content into:
+                  - Tutorials (learning-oriented)
+                  - How-to guides (goal-oriented)
+                  - Reference (information-oriented)
+                  - Explanation (understanding-oriented)
 
-                          $ARGUMENTS
-                        '';
-                      };
-                    };
-                    providers = {
-                      just-llms = {
-                        npm = "@ai-sdk/openai-compatible";
-                        name = "Just LLMs";
-                        baseURL = "https://litellm.justworksai.net";
-                        onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
-                        models = {
-                          "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
-                            name = "justworks-dev";
-                          };
-                        };
-                      };
-                    };
-                  };
-                  claude-code = {
-                    enable = true;
-                    rtk.enable = true;
-                    mcpServers = {
-                      github = {
-                        type = "remote";
-                        url = "https://api.githubcopilot.com/mcp/";
-                        enabled = true;
-                      };
-                      jira = {
-                        type = "remote";
-                        url = "https://mcp.atlassian.com/v1/mcp";
-                        enabled = false;
-                      };
-                      confluence = {
-                        type = "remote";
-                        url = "https://mcp.atlassian.com/v1/mcp";
-                        enabled = false;
-                      };
-                    };
+                  $ARGUMENTS
+                '';
+              };
+            };
+            providers = {
+              just-llms = {
+                npm = "@ai-sdk/openai-compatible";
+                name = "Just LLMs";
+                baseURL = "https://litellm.justworksai.net";
+                onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                models = {
+                  "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                    name = "justworks-dev";
                   };
                 };
-              nix-homebrew = mkNixHomebrew "wweaver";
-            }
-            home-manager.darwinModules.home-manager
-            {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
-            }
-          ];
+              };
+            };
+          };
+          claude-code = {
+            enable = true;
+            rtk.enable = true;
+            mcpServers = {
+              github = {
+                type = "remote";
+                url = "https://api.githubcopilot.com/mcp/";
+                enabled = true;
+              };
+              jira = {
+                type = "remote";
+                url = "https://mcp.atlassian.com/v1/mcp";
+                enabled = false;
+              };
+              confluence = {
+                type = "remote";
+                url = "https://mcp.atlassian.com/v1/mcp";
+                enabled = false;
+              };
+            };
+          };
+        };
       };
 
-      "MegamanX" = nix-darwin.lib.darwinSystem {
-        modules =
-          [
-            mac-app-util.darwinModules.default
-            nix-homebrew.darwinModules.nix-homebrew
-            configuration
-          ]
-          ++ commonModules
-          ++ [
-            ./modules/home-manager
-            ./os/darwin.nix
-            ./modules/home-manager/aerospace.nix
-            (mkBundleModule "darwin" [
-              "developer"
-              "desktop"
-              "workstation"
-              "entertainment"
-              "llm-host"
-              "llm-client"
-              "llm-claude"
-            ])
-            {
-              nixpkgs.hostPlatform = "aarch64-darwin";
-              system.primaryUser = "monkey";
-              system.stateVersion = 4;
-              myConfig = mkUser "monkey" "me@willweaver.dev";
-              nix-homebrew = mkNixHomebrew "monkey";
-            }
-            home-manager.darwinModules.home-manager
-            {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
-            }
-          ];
+      "MegamanX" = mkDarwinHost {
+        target = ./targets/MegamanX;
+        user = mkUser "monkey" "me@willweaver.dev";
+        roles = ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-client" "llm-claude"];
+        extraModules = [mac-app-util.darwinModules.default];
       };
 
       # Core configuration - minimal bootstrap for any system
-      # This provides essential tools (devenv, direnv, git, etc.) for working with this repo
       "core" = nix-darwin.lib.darwinSystem {
         modules = [
           configuration
@@ -370,10 +386,7 @@
           (_: {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.stateVersion = 4;
-            # Core doesn't set primaryUser - it's a minimal bootstrap
-            # User-specific settings are disabled to avoid requiring primaryUser
             nix.enable = false;
-            # Minimal user config - just enough to bootstrap
             myConfig = {
               users = [];
               development.enable = false;
@@ -387,62 +400,24 @@
     };
 
     nixosConfigurations = {
-      "drlight" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = {inherit inputs;};
-        modules =
-          [
-            configuration
-          ]
-          ++ commonModules
-          ++ [
-            ./modules/home-manager
-            ./os/nixos.nix
-            ./targets/drlight
-            (mkBundleModule "linux" [
-              "developer"
-              "creative"
-              "llm-client"
-            ])
-            {
-              nixpkgs.hostPlatform = "x86_64-linux";
-              system.stateVersion = "25.05";
-              myConfig = mkUser "monkey" "me@willweaver.dev";
-            }
-            home-manager.nixosModules.home-manager
-            {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
-            }
-          ];
+      "drlight" = mkNixosHost {
+        target = ./targets/drlight;
+        user = mkUser "monkey" "me@willweaver.dev";
+        roles = ["developer" "creative" "llm-client"];
       };
 
-      "zero" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = {inherit inputs;};
-        modules =
-          [
-            configuration
-          ]
-          ++ commonModules
-          ++ [
-            ./modules/home-manager
-            ./os/nixos.nix
-            ./targets/zero
-            (mkBundleModule "linux" [
-              "developer"
-              "desktop"
-              "llm-client"
-            ])
-            {
-              nixpkgs.hostPlatform = "x86_64-linux";
-              system.stateVersion = "25.05";
-              myConfig = mkUser "monkey" "me@willweaver.dev";
-            }
-            home-manager.nixosModules.home-manager
-            {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
-            }
-          ];
+      "zero" = mkNixosHost {
+        target = ./targets/zero;
+        user = mkUser "monkey" "me@willweaver.dev";
+        roles = ["developer" "desktop" "llm-client"];
+        extraConfig = {
+          desktop = {
+            enable = true;
+            autoLoginUser = "monkey";
+          };
+          gaming.enable = true;
+          streaming.enable = true;
+        };
       };
     };
 
