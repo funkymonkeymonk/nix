@@ -38,6 +38,19 @@
     # it in devenv packages to avoid CI failures.
   ];
 
+  # Devenv scripts (available when entering devenv shell)
+  scripts.openclaw-bootstrap = {
+    exec = ./scripts/openclaw-bootstrap.sh;
+    description = "Bootstrap OpenClaw secure setup with GitHub PR workflow";
+    packages = [ 
+      pkgs._1password-cli
+      pkgs.gh
+      pkgs.git
+      pkgs.jq
+      pkgs.openssl
+    ];
+  };
+
   # Shell aliases for devenv tasks
   enterShell = ''
     # devenv task runner aliases

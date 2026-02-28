@@ -28,6 +28,9 @@
     opnix.url = "github:brizzbuzz/opnix";
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
+    nix-openclaw.url = "github:openclaw/nix-openclaw";
+    nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
+
     devenv.url = "github:cachix/devenv";
   };
 
@@ -43,6 +46,7 @@
     homebrew-cask,
     opnix,
     microvm,
+    nix-openclaw,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -57,7 +61,6 @@
             ];
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
-            "olm-3.2.16"
           ];
         };
         overlays = [
@@ -68,7 +71,7 @@
           })
           # Use devenv 2.x from the cachix/devenv flake
           (final: _prev: {
-            inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+            inherit (inputs.devenv.packages.${final.system}) devenv;
           })
           (import ./overlays)
         ];
@@ -88,10 +91,6 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
-      jj-autosync = {
-        enable = true;
-        username = name;
-      };
       opencode = {
         enable = true;
         model = "opencode/big-pickle";
@@ -128,72 +127,27 @@
         then nixpkgs.lib.unique (enabledRoles ++ ["agent-skills"])
         else enabledRoles;
 
-      # Default LLM endpoint to local Ollama
-      # Additional endpoints can be configured via myConfig.llmEndpoints
-      defaultLlmHost = "127.0.0.1";
-      defaultLlmPort = "11434";
-
       # Collect all packages from enabled roles
       rolePackages = nixpkgs.lib.concatMap (role: bundles.roles.${role}.packages or []) finalRoles;
 
       # Collect all homebrew configs from enabled roles
       roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) finalRoles;
-
-      # Collect all myConfig settings from enabled roles
-      roleMyConfigs = map (role: bundles.roles.${role}.config.myConfig or {}) finalRoles;
     in {
       config =
         {
           # Pass enabled roles and superpowers path to skills configuration
-          # Merge with myConfig from all enabled roles
-          myConfig = nixpkgs.lib.mkMerge (
-            roleMyConfigs
-            ++ [
-              {
-                skills.enabledRoles = finalRoles;
-                skills.superpowersPath = inputs.superpowers;
-              }
-              # Configure LLM endpoints when llm-client or llm-claude roles are enabled
-              (
-                nixpkgs.lib.optionalAttrs
-                (builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles)
-                {
-                  llmClient = {
-                    serverHost = defaultLlmHost;
-                    serverPort = defaultLlmPort;
-                  };
-                }
-              )
-            ]
-          );
+          myConfig.skills.enabledRoles = finalRoles;
+          myConfig.skills.superpowersPath = inputs.superpowers;
 
           environment = {
             systemPackages =
               bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
 
-            shellAliases =
-              bundles.roles.base.config.environment.shellAliases or {}
-              // (
-                if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
-                then {
-                  llm-status = "curl http://${defaultLlmHost}:${defaultLlmPort}/status";
-                }
-                else {}
-              );
+            shellAliases = bundles.roles.base.config.environment.shellAliases or {};
 
             variables =
               bundles.roles.base.config.environment.variables or {}
-              // bundles.platforms.${system}.config.environment.variables or {}
-              // (
-                if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
-                then {
-                  LLM_SERVER_HOST = defaultLlmHost;
-                  LLM_SERVER_PORT = defaultLlmPort;
-                  OPENCODE_ENDPOINT = "http://${defaultLlmHost}:${defaultLlmPort}";
-                  CLAUDE_API_BASE = "http://${defaultLlmHost}:${defaultLlmPort}";
-                }
-                else {}
-              );
+              // bundles.platforms.${system}.config.environment.variables or {};
           };
 
           programs =
@@ -218,21 +172,8 @@
       ./modules/common/cachix.nix
     ];
 
-    # Darwin-specific modules
-    darwinModules = [
-      ./modules/services/ollama/darwin.nix
-    ];
-
-    # NixOS-specific modules
-    nixosModules = [
-      ./modules/services/ollama/nixos.nix
-    ];
-
     # Package overlays for each system
-    forAllSystems = nixpkgs.lib.genAttrs [
-      "aarch64-darwin"
-      "x86_64-linux"
-    ];
+    forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
 
     # Helper to create microvm configuration
     mkMicrovm = name: roles:
@@ -245,7 +186,6 @@
             configuration
           ]
           ++ commonModules
-          ++ nixosModules
           ++ [
             ./os/microvm.nix
             ./modules/microvm
@@ -271,233 +211,357 @@
           ];
       };
 
-    # Helper to create Darwin host configuration
-    mkDarwinHost = {
-      target,
-      user,
-      roles,
-      extraModules ? [],
-      extraConfig ? {},
-    }:
-      nix-darwin.lib.darwinSystem {
+    # Helper to create SECURE OpenClaw microvm configuration with GitHub integration
+    # Uses GitHub PRs for all changes - no direct filesystem modification
+    mkOpenclawMicrovm = { name, targetRepo }:  # targetRepo = "funkymonkeymonk/nix"
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules =
+          [
+            microvm.nixosModules.microvm
+            home-manager.nixosModules.home-manager
+            nix-openclaw.homeManagerModules.default
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./os/microvm.nix
+            ./targets/microvms/${name}.nix
+            ({ config, pkgs, ... }: {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              system.stateVersion = "25.05";
+              
+              # Install required packages + PAT request script
+              environment.systemPackages = with pkgs; [
+                git
+                gh
+                jq
+                vim
+                curl
+                (writeShellScriptBin "openclaw-request-pat" 
+                  (builtins.readFile ./scripts/openclaw-request-pat.sh))
+              ];
+              
+              # Security hardening for OpenClaw
+              security.sudo.wheelNeedsPassword = true;
+              
+              # Create openclaw user
+              users.users.openclaw = {
+                isNormalUser = true;
+                description = "OpenClaw AI Agent";
+                extraGroups = [];
+                shell = pkgs.bash;
+                home = "/home/openclaw";
+                openssh.authorizedKeys.keys = [];
+              };
+              
+              # Enable 1Password CLI for secret access
+              programs._1password.enable = true;
+              
+              # OpenClaw Home Manager configuration with opnix secrets
+              home-manager.users.openclaw = { ... }: {
+                programs.openclaw = {
+                  enable = true;
+                  config = {
+                    gateway = {
+                      mode = "local";
+                      auth = {
+                        token = "{file:/run/secrets/gateway-token}";
+                      };
+                    };
+                    # Nix mode - disables auto-install/self-mutation
+                    nixMode = true;
+                    # Configure the workspace as the target repo
+                    workspace = {
+                      path = "/home/openclaw/nix";
+                      repo = "https://github.com/${targetRepo}.git";
+                    };
+                    # Git configuration with GitHub token
+                    git = {
+                      user = {
+                        name = "OpenClaw Agent";
+                        email = "openclaw@funkymonkeymonk.dev";
+                      };
+                      github = {
+                        token = "{file:/run/secrets/github-token}";
+                      };
+                    };
+                    # All changes go through PR workflow
+                    github = {
+                      pr = {
+                        enabled = true;
+                        requireReview = true;
+                        reviewers = ["funkymonkeymonk"];
+                        draft = true;  # Start as draft PRs
+                      };
+                    };
+                    # Use OpenCode Zen as the model provider
+                    provider = {
+                      opencode = {
+                        npm = "@ai-sdk/openai-compatible";
+                        name = "OpenCode Zen";
+                        baseURL = "https://opencode.ai/zen/v1";
+                        apiKey = "{file:/run/secrets/opencode-zen-apikey}";
+                        models = [
+                          "opencode/big-pickle"  # Free tier model
+                          "opencode/claude-sonnet-4-5"
+                          "opencode/gpt-5.2-codex"
+                        ];
+                      };
+                    };
+                    # Default model
+                    model = "opencode/big-pickle";
+                  };
+                };
+                
+                # Configure opnix secrets from openclaw vault
+                programs.onepassword-secrets = {
+                  enable = true;
+                  secrets = {
+                    gatewayToken = {
+                      reference = "op://openclaw/gateway-token/credential";
+                      path = "/run/secrets/gateway-token";
+                      mode = "0600";
+                    };
+                    githubToken = {
+                      reference = "op://openclaw/github-pat/credential";
+                      path = "/run/secrets/github-token";
+                      mode = "0600";
+                    };
+                    opencodeZenApiKey = {
+                      reference = "op://openclaw/opencode-zen-api-key/credential";
+                      path = "/run/secrets/opencode-zen-apikey";
+                      mode = "0600";
+                    };
+                  };
+                };
+                
+                home.stateVersion = "25.05";
+              };
+              
+              # systemd hardening
+              systemd.services.openclaw-gateway = {
+                serviceConfig = {
+                  User = "openclaw";
+                  Group = "openclaw";
+                  
+                  # Read-only access to cloned repo only
+                  ReadOnlyPaths = ["/home/openclaw/nix"];
+                  ReadWritePaths = ["/home/openclaw/nix/.git" "/tmp"];
+                  PrivateTmp = true;
+                  
+                  # No access to system directories
+                  PrivateDevices = true;
+                  PrivateMounts = true;
+                  
+                  # Process restrictions
+                  NoNewPrivileges = true;
+                  ProtectSystem = "strict";
+                  ProtectHome = true;
+                  ProtectKernelTunables = true;
+                  ProtectKernelModules = true;
+                  ProtectControlGroups = true;
+                  
+                  # Resource limits
+                  MemoryMax = "4G";
+                  CPUQuota = "200%";
+                  TasksMax = 100;
+                };
+              };
+              
+              # Initialize the nix repo on first boot
+              systemd.services.openclaw-init = {
+                description = "Initialize OpenClaw Nix Repository";
+                after = ["network.target" "home-manager-openclaw.service"];
+                wantedBy = ["multi-user.target"];
+                serviceConfig = {
+                  Type = "oneshot";
+                  User = "openclaw";
+                  RemainAfterExit = true;
+                  Environment = [
+                    "HOME=/home/openclaw"
+                    "GITHUB_TOKEN_FILE=/run/secrets/github-token"
+                  ];
+                };
+                script = ''
+                  set -e
+                  if [ ! -d /home/openclaw/nix ]; then
+                    echo "Cloning ${targetRepo}..."
+                    TOKEN=$(cat /run/secrets/github-token 2>/dev/null || echo "")
+                    if [ -n "$TOKEN" ]; then
+                      git clone "https://$TOKEN@github.com/${targetRepo}.git" /home/openclaw/nix
+                    else
+                      echo "Warning: No GitHub token available, clone will fail"
+                      exit 1
+                    fi
+                    cd /home/openclaw/nix
+                    git config user.name "OpenClaw Agent"
+                    git config user.email "openclaw@funkymonkeymonk.dev"
+                    echo "Repository cloned successfully"
+                  else
+                    echo "Repository already exists"
+                  fi
+                '';
+              };
+            })
+          ];
+      };
+  in {
+    packages = forAllSystems (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [(import ./overlays)];
+      };
+    in {
+      inherit (pkgs) rtk;
+    });
+
+    darwinConfigurations = {
+      "wweaver" = nix-darwin.lib.darwinSystem {
         modules =
           [
             configuration
             nix-homebrew.darwinModules.nix-homebrew
           ]
           ++ commonModules
-          ++ darwinModules
           ++ [
             ./modules/home-manager
             ./os/darwin.nix
             ./modules/home-manager/aerospace.nix
-            target
-            (mkBundleModule "darwin" roles)
+            (mkBundleModule "darwin" [
+              "developer"
+              "desktop"
+              "workstation"
+              "llm-client"
+              "llm-claude"
+            ])
             {
               nixpkgs.hostPlatform = "aarch64-darwin";
+              system.primaryUser = "wweaver";
               system.stateVersion = 4;
-              system.primaryUser = (builtins.head user.users).name;
-              myConfig = user // extraConfig;
-              nix-homebrew = mkNixHomebrew (builtins.head user.users).name;
+              myConfig =
+                (mkUser "wweaver" "wweaver@justworks.com")
+                // {
+                  opencode = {
+                    enable = true;
+                    disabledProviders = [
+                      "opencode"
+                    ];
+                    extraMcpServers = {
+                      github = {
+                        type = "remote";
+                        url = "https://api.githubcopilot.com/mcp/";
+                        enabled = false;
+                      };
+                      jira = {
+                        type = "remote";
+                        url = "https://mcp.atlassian.com/v1/mcp";
+                        enabled = false;
+                      };
+                      confluence = {
+                        type = "remote";
+                        url = "https://mcp.atlassian.com/v1/mcp";
+                        enabled = false;
+                      };
+                    };
+                    commands = {
+                      diataxis = {
+                        description = "Audit and rewrite documentation using the Diataxis framework";
+                        template = ''
+                          Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
+
+                          Follow the Diataxis framework to organize content into:
+                          - Tutorials (learning-oriented)
+                          - How-to guides (goal-oriented)
+                          - Reference (information-oriented)
+                          - Explanation (understanding-oriented)
+
+                          $ARGUMENTS
+                        '';
+                      };
+                    };
+                    providers = {
+                      just-llms = {
+                        npm = "@ai-sdk/openai-compatible";
+                        name = "Just LLMs";
+                        baseURL = "https://litellm.justworksai.net";
+                        onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                        models = {
+                          "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                            name = "justworks-dev";
+                          };
+                        };
+                      };
+                    };
+                  };
+                  claude-code = {
+                    enable = true;
+                    rtk.enable = true;
+                    mcpServers = {
+                      github = {
+                        type = "remote";
+                        url = "https://api.githubcopilot.com/mcp/";
+                        enabled = true;
+                      };
+                      jira = {
+                        type = "remote";
+                        url = "https://mcp.atlassian.com/v1/mcp";
+                        enabled = false;
+                      };
+                      confluence = {
+                        type = "remote";
+                        url = "https://mcp.atlassian.com/v1/mcp";
+                        enabled = false;
+                      };
+                    };
+                  };
+                };
+              nix-homebrew = mkNixHomebrew "wweaver";
             }
             home-manager.darwinModules.home-manager
             {
               home-manager.sharedModules = [opnix.homeManagerModules.default];
             }
-          ]
-          ++ extraModules;
+          ];
       };
 
-    # Helper to create NixOS host configuration
-    mkNixosHost = {
-      target,
-      user,
-      roles,
-      extraModules ? [],
-      extraConfig ? {},
-    }:
-      nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = {inherit inputs;};
+      "MegamanX" = nix-darwin.lib.darwinSystem {
         modules =
           [
+            mac-app-util.darwinModules.default
+            nix-homebrew.darwinModules.nix-homebrew
             configuration
           ]
           ++ commonModules
-          ++ nixosModules
           ++ [
             ./modules/home-manager
-            ./modules/nixos/base.nix
-            ./modules/nixos/desktop.nix
-            ./modules/nixos/gaming.nix
-            ./modules/nixos/streaming.nix
-            ./os/nixos.nix
-            target
-            (mkBundleModule "linux" roles)
+            ./os/darwin.nix
+            ./modules/home-manager/aerospace.nix
+            (mkBundleModule "darwin" [
+              "developer"
+              "desktop"
+              "workstation"
+              "entertainment"
+              "llm-host"
+              "llm-client"
+              "llm-claude"
+            ])
             {
-              nixpkgs.hostPlatform = "x86_64-linux";
-              system.stateVersion = "25.05";
-              myConfig = user // extraConfig;
+              nixpkgs.hostPlatform = "aarch64-darwin";
+              system.primaryUser = "monkey";
+              system.stateVersion = 4;
+              myConfig = mkUser "monkey" "me@willweaver.dev";
+              nix-homebrew = mkNixHomebrew "monkey";
             }
-            home-manager.nixosModules.home-manager
+            home-manager.darwinModules.home-manager
             {
               home-manager.sharedModules = [opnix.homeManagerModules.default];
             }
-          ]
-          ++ extraModules;
-      };
-  in {
-    packages = forAllSystems (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [(import ./overlays)];
-        };
-      in {
-        inherit (pkgs) rtk;
-        installer = pkgs.callPackage ./packages/installer {};
-      }
-    );
-
-    apps = forAllSystems (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [(import ./overlays)];
-        };
-      in {
-        installer = {
-          type = "app";
-          program = "${pkgs.callPackage ./packages/installer {}}/bin/nixos-flake-installer";
-        };
-      }
-    );
-
-    darwinConfigurations = {
-      "wweaver" = mkDarwinHost {
-        target = ./targets/wweaver;
-        user = mkUser "wweaver" "wweaver@justworks.com";
-        roles = [
-          "developer"
-          "desktop"
-          "workstation"
-          "llm-host"
-          "llm-client"
-          "llm-claude"
-        ];
-        extraConfig = {
-          opencode = {
-            enable = true;
-            disabledProviders = ["opencode"];
-            extraMcpServers = {
-              github = {
-                type = "remote";
-                url = "https://api.githubcopilot.com/mcp/";
-                enabled = false;
-              };
-              jira = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-              confluence = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-            };
-            commands = {
-              diataxis = {
-                description = "Audit and rewrite documentation using the Diataxis framework";
-                template = ''
-                  Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
-
-                  Follow the Diataxis framework to organize content into:
-                  - Tutorials (learning-oriented)
-                  - How-to guides (goal-oriented)
-                  - Reference (information-oriented)
-                  - Explanation (understanding-oriented)
-
-                  $ARGUMENTS
-                '';
-              };
-              workspace = {
-                description = "Create a jj workspace for isolated work with fast sync enabled";
-                template = ''
-                  Create a jj workspace session for isolated development work.
-
-                  Run this command:
-                  ```bash
-                  jj-workspace-session start $ARGUMENTS
-                  ```
-
-                  Then report the workspace name and path to the user, and cd into the workspace directory.
-
-                  If no arguments provided, this starts session tracking in the current workspace.
-                  If a name is provided (e.g., "feat/auth" or "fix/bug"), it creates a new workspace.
-                  A second argument can specify the base branch (defaults to main).
-
-                  Examples:
-                  - /workspace feat/user-auth      -> Creates feat/user-auth-<date>-<id> from main
-                  - /workspace fix/bug develop     -> Creates fix/bug-<date>-<id> from develop
-                  - /workspace                     -> Starts session in current workspace
-                '';
-              };
-            };
-            providers = {
-              just-llms = {
-                npm = "@ai-sdk/openai-compatible";
-                name = "Just LLMs";
-                baseURL = "https://litellm.justworksai.net";
-                onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
-                models = {
-                  "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
-                    name = "justworks-dev";
-                  };
-                };
-              };
-            };
-          };
-          claude-code = {
-            enable = true;
-            rtk.enable = true;
-            mcpServers = {
-              github = {
-                type = "remote";
-                url = "https://api.githubcopilot.com/mcp/";
-                enabled = true;
-              };
-              jira = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-              confluence = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-            };
-          };
-        };
-      };
-
-      "MegamanX" = mkDarwinHost {
-        target = ./targets/MegamanX;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = [
-          "developer"
-          "desktop"
-          "workstation"
-          "entertainment"
-          "llm-host"
-          "llm-client"
-          "llm-claude"
-        ];
-        extraModules = [mac-app-util.darwinModules.default];
+          ];
       };
 
       # Core configuration - minimal bootstrap for any system
+      # This provides essential tools (devenv, direnv, git, etc.) for working with this repo
       "core" = nix-darwin.lib.darwinSystem {
         modules = [
           configuration
@@ -506,7 +570,10 @@
           (_: {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.stateVersion = 4;
+            # Core doesn't set primaryUser - it's a minimal bootstrap
+            # User-specific settings are disabled to avoid requiring primaryUser
             nix.enable = false;
+            # Minimal user config - just enough to bootstrap
             myConfig = {
               users = [];
               development.enable = false;
@@ -520,61 +587,79 @@
     };
 
     nixosConfigurations = {
-      # Bootstrap configuration - minimal setup for initial install
-      # Used by the installer for all fresh NixOS installations
-      "bootstrap" = nixpkgs.lib.nixosSystem {
+      "drlight" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        modules = [
-          ./targets/bootstrap
-          ./modules/common/options.nix
-          {
-            nixpkgs.hostPlatform = "x86_64-linux";
-            system.stateVersion = "25.05";
-          }
-        ];
+        specialArgs = {inherit inputs;};
+        modules =
+          [
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./modules/home-manager
+            ./os/nixos.nix
+            ./targets/drlight
+            (mkBundleModule "linux" [
+              "developer"
+              "creative"
+              "llm-client"
+            ])
+            {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              system.stateVersion = "25.05";
+              myConfig = mkUser "monkey" "me@willweaver.dev";
+            }
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.sharedModules = [opnix.homeManagerModules.default];
+            }
+          ];
       };
 
-      "drlight" = mkNixosHost {
-        target = ./targets/drlight;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["bootstrap"];
-        extraConfig = {
-          llmEndpoints = {
-            MegamanX = {
-              host = "MegamanX.local";
-              port = "4000";
-            };
-          };
-        };
-      };
-
-      "zero" = mkNixosHost {
-        target = ./targets/zero;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = [
-          "developer"
-          "desktop"
-          "llm-client"
-        ];
-        extraConfig = {
-          desktop = {
-            enable = true;
-            autoLoginUser = "monkey";
-          };
-          gaming.enable = true;
-          streaming.enable = true;
-          llmEndpoints = {
-            MegamanX = {
-              host = "MegamanX.local";
-              port = "4000";
-            };
-          };
-        };
+      "zero" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs;};
+        modules =
+          [
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./modules/home-manager
+            ./os/nixos.nix
+            ./targets/zero
+            (mkBundleModule "linux" [
+              "developer"
+              "desktop"
+              "llm-client"
+            ])
+            {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              system.stateVersion = "25.05";
+              myConfig = mkUser "monkey" "me@willweaver.dev";
+            }
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.sharedModules = [opnix.homeManagerModules.default];
+            }
+          ];
       };
     };
 
+    # Note: NixOS core configuration is not provided because it requires
+    # hardware-specific filesystem definitions. For NixOS bootstrap:
+    # 1. Install NixOS using the standard installer
+    # 2. Clone this repo
+    # 3. Create a target with your hardware-configuration.nix
+    # 4. Apply with: sudo nixos-rebuild switch --flake .#<your-target>
+
+    # Microvm configurations
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
+      openclaw-secure = mkOpenclawMicrovm {
+        name = "openclaw-secure";
+        targetRepo = "funkymonkeymonk/nix";
+      };
     };
   };
 }
