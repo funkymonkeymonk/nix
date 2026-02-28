@@ -13,7 +13,11 @@ echo "  1. 1Password 'openclaw' vault"
 echo "  2. Required secrets in 1Password"
 echo "  3. GitHub PAT request directory"
 echo "  4. GitHub Actions workflow for PAT automation"
-echo "  5. OpenClaw GitHub account setup instructions"
+echo "  5. OpenClaw GitHub account configuration"
+echo ""
+echo "⚠️  IMPORTANT: You will be asked to specify which GitHub account"
+echo "   OpenClaw should use. This should be a DEDICATED account, not"
+echo "   your personal account, for security and audit purposes."
 echo ""
 read -p "Continue? (y/N): " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -53,9 +57,90 @@ if ! gh auth status &> /dev/null; then
 fi
 echo "✅ Authenticated with GitHub"
 
-# Step 2: Create 1Password vault
+# Step 2: Configure GitHub account for OpenClaw
 echo ""
-echo "Step 2: Creating 1Password vault 'openclaw'..."
+echo "Step 2: Configure GitHub Account for OpenClaw"
+echo "=============================================="
+echo ""
+echo "⚠️  IMPORTANT: OpenClaw should use a DEDICATED GitHub account, not your personal one."
+echo ""
+
+# Get the target repository owner
+REPO_OWNER="funkymonkeymonk"
+echo "Target repository: $REPO_OWNER/nix"
+echo ""
+
+# Check if GitHub user is already configured
+CONFIG_FILE=".openclaw-config"
+CONFIGURED_USER=""
+if [ -f "$CONFIG_FILE" ]; then
+  CONFIGURED_USER=$(grep '^GITHUB_USER=' "$CONFIG_FILE" | cut -d'=' -f2)
+fi
+
+if [ -n "$CONFIGURED_USER" ]; then
+  echo "✅ OpenClaw is currently configured to use GitHub user: @$CONFIGURED_USER"
+  read -p "Use this user? (Y/n/change): " use_configured
+  
+  if [[ "$use_configured" =~ ^[Cc]hange$ ]] || [[ "$use_configured" =~ ^[Nn]$ ]]; then
+    # User wants to change
+    read -p "Enter the new GitHub username for OpenClaw: " OPENCLAW_GITHUB_USER
+    if [ -z "$OPENCLAW_GITHUB_USER" ]; then
+      echo "❌ No username provided. Exiting."
+      exit 1
+    fi
+  else
+    # Use configured user
+    OPENCLAW_GITHUB_USER="$CONFIGURED_USER"
+  fi
+else
+  echo "Options:"
+  echo "  1. Use existing dedicated OpenClaw account (e.g., 'openclaw-agent')"
+  echo "  2. Create a new GitHub account for OpenClaw"
+  echo "  3. Use your personal account (NOT recommended for security)"
+  echo ""
+  
+  # Ask for the GitHub username to use
+  read -p "Enter the GitHub username for OpenClaw: " OPENCLAW_GITHUB_USER
+  
+  if [ -z "$OPENCLAW_GITHUB_USER" ]; then
+    echo "❌ No username provided. Exiting."
+    exit 1
+  fi
+fi
+
+# Validate the GitHub user exists
+echo ""
+echo "Validating GitHub user '@$OPENCLAW_GITHUB_USER'..."
+if gh api "users/$OPENCLAW_GITHUB_USER" &> /dev/null; then
+  echo "✅ GitHub user '@$OPENCLAW_GITHUB_USER' exists"
+  
+  # Check if user is already a collaborator
+  if gh api "repos/$REPO_OWNER/nix/collaborators/$OPENCLAW_GITHUB_USER" &> /dev/null; then
+    echo "✅ User is already a collaborator on $REPO_OWNER/nix"
+    COLLABORATOR_STATUS="existing"
+  else
+    echo "⚠️  User is NOT yet a collaborator on $REPO_OWNER/nix"
+    echo "   You'll need to invite them in Step 6"
+    COLLABORATOR_STATUS="pending"
+  fi
+else
+  echo "⚠️  GitHub user '@$OPENCLAW_GITHUB_USER' not found or not visible"
+  echo "   If this is a new account, create it at https://github.com/join"
+  echo "   Then re-run this bootstrap script"
+  read -p "Continue anyway? (y/N): " continue_anyway
+  if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+    exit 1
+  fi
+  COLLABORATOR_STATUS="unknown"
+fi
+
+# Store the username for later use
+echo "$OPENCLAW_GITHUB_USER" > /tmp/openclaw-github-user
+echo "$COLLABORATOR_STATUS" > /tmp/openclaw-collab-status
+
+# Step 3: Create 1Password vault
+echo ""
+echo "Step 3: Creating 1Password vault 'openclaw'..."
 
 if op vault list | grep -q "openclaw"; then
   echo "ℹ️  Vault 'openclaw' already exists"
@@ -118,6 +203,10 @@ echo "Step 4: Setting up GitHub repository structure..."
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
+
+# Read the configured GitHub user
+OPENCLAW_GITHUB_USER=$(cat /tmp/openclaw-github-user 2>/dev/null || echo "openclaw")
+REPO_OWNER="funkymonkeymonk"
 
 # Create .pat-requests directory
 if [ -d ".pat-requests" ]; then
@@ -237,23 +326,81 @@ echo ""
 echo "Step 6: GitHub Account Setup Instructions"
 echo "=========================================="
 echo ""
-echo "Create a dedicated OpenClaw GitHub account:"
+
+# Read the configured user and collaborator status
+OPENCLAW_GITHUB_USER=$(cat /tmp/openclaw-github-user 2>/dev/null || echo "openclaw")
+COLLABORATOR_STATUS=$(cat /tmp/openclaw-collab-status 2>/dev/null || echo "unknown")
+REPO_OWNER="funkymonkeymonk"
+
+echo "Configured GitHub user for OpenClaw: @$OPENCLAW_GITHUB_USER"
 echo ""
-echo "1. Sign up at https://github.com with email like 'openclaw@yourdomain.com'"
-echo "2. Go to https://github.com/funkymonkeymonk/nix/settings/access"
-echo "3. Invite 'openclaw' as collaborator with 'Write' permission"
-echo "4. Accept the invitation from the OpenClaw account"
-echo "5. Create a fine-grained PAT from the OpenClaw account:"
-echo "   - Go to https://github.com/settings/personal-access-tokens/new"
-echo "   - Repository: funkymonkeymonk/nix ONLY"
-echo "   - Permissions:"
-echo "     - Contents: Read & Write"
-echo "     - Pull requests: Read & Write"
-echo "     - Metadata: Read (automatic)"
-echo "   - Expiration: 90 days"
-echo "6. Copy the PAT and update in 1Password:"
-echo "   op item edit github-pat --vault openclaw password='github_pat_...'"
+
+if [ "$COLLABORATOR_STATUS" = "existing" ]; then
+  echo "✅ @$OPENCLAW_GITHUB_USER is already a collaborator on $REPO_OWNER/nix"
+  echo ""
+  echo "Next steps for the PAT:"
+  echo "1. Sign in to GitHub as @$OPENCLAW_GITHUB_USER"
+  echo "2. Go to https://github.com/settings/personal-access-tokens/new"
+  echo "3. Create a fine-grained PAT:"
+  echo "   - Repository: $REPO_OWNER/nix ONLY"
+  echo "   - Permissions:"
+  echo "     - Contents: Read & Write"
+  echo "     - Pull requests: Read & Write"
+  echo "     - Metadata: Read (automatic)"
+  echo "   - Expiration: 90 days"
+  echo "4. Copy the PAT and update in 1Password:"
+  echo "   op item edit github-pat --vault openclaw password='github_pat_...'"
+  
+elif [ "$COLLABORATOR_STATUS" = "pending" ] || [ "$COLLABORATOR_STATUS" = "unknown" ]; then
+  echo "⚠️  @$OPENCLAW_GITHUB_USER needs to be added as a collaborator"
+  echo ""
+  echo "Complete these steps:"
+  echo ""
+  echo "1. Go to https://github.com/$REPO_OWNER/nix/settings/access"
+  echo "2. Click 'Invite a collaborator'"
+  echo "3. Enter: $OPENCLAW_GITHUB_USER"
+  echo "4. Set permission level to 'Write'"
+  echo "5. Send the invitation"
+  echo ""
+  echo "6. Sign in to GitHub as @$OPENCLAW_GITHUB_USER"
+  echo "7. Accept the invitation at: https://github.com/$REPO_OWNER/nix"
+  echo "8. Go to https://github.com/settings/personal-access-tokens/new"
+  echo "9. Create a fine-grained PAT:"
+  echo "   - Repository: $REPO_OWNER/nix ONLY"
+  echo "   - Permissions:"
+  echo "     - Contents: Read & Write"
+  echo "     - Pull requests: Read & Write"
+  echo "     - Metadata: Read (automatic)"
+  echo "   - Expiration: 90 days"
+  echo "10. Copy the PAT and update in 1Password:"
+  echo "    op item edit github-pat --vault openclaw password='github_pat_...'"
+fi
+
 echo ""
+
+# Save configuration
+echo "💾 Saving configuration..."
+CONFIG_FILE=".openclaw-config"
+cat > "$CONFIG_FILE" << EOF
+# OpenClaw Configuration
+# This file is auto-generated by the bootstrap script
+GITHUB_USER=$OPENCLAW_GITHUB_USER
+REPO_OWNER=$REPO_OWNER
+REPO_NAME=nix
+EOF
+
+if ! git check-ignore -q "$CONFIG_FILE" 2>/dev/null; then
+  echo "⚠️  Warning: $CONFIG_FILE is not in .gitignore"
+  echo "   Adding to .gitignore..."
+  echo "$CONFIG_FILE" >> .gitignore
+  git add .gitignore
+fi
+
+git add "$CONFIG_FILE"
+echo "✅ Configuration saved to $CONFIG_FILE"
+
+# Cleanup temp files
+rm -f /tmp/openclaw-github-user /tmp/openclaw-collab-status
 
 # Step 7: Summary
 echo ""
@@ -268,14 +415,15 @@ echo "   - .pat-requests/ directory created"
 echo "   - GitHub Actions workflow created"
 echo ""
 echo "⚠️  Manual steps required:"
-echo "   1. Create OpenClaw GitHub account"
-echo "   2. Add as collaborator to funkymonkeymonk/nix"
-echo "   3. Create fine-grained PAT with minimal scopes"
-echo "   4. Update github-pat secret in 1Password"
-echo "   5. Update opencode-zen-api-key in 1Password"
-echo "   6. Add GitHub secrets to repo for automation"
-echo "   7. Enable branch protection on main"
-echo "   8. Commit the new files: git add -A && git commit -m 'Add OpenClaw infrastructure'"
+echo "   1. Ensure GitHub user '@$OPENCLAW_GITHUB_USER' can access $REPO_OWNER/nix"
+echo "   2. Create fine-grained PAT from '@$OPENCLAW_GITHUB_USER' account"
+echo "   3. Update github-pat secret in 1Password"
+echo "   4. Update opencode-zen-api-key in 1Password"
+echo "   5. Add GitHub secrets to repo for automation"
+echo "   6. Enable branch protection on main"
+echo "   7. Commit the new files: jj new && jj describe -m 'Add OpenClaw infrastructure'"
+echo ""
+echo "💡 Tip: Run 'openclaw-bootstrap' again to verify setup"
 echo ""
 echo "📚 Documentation:"
 echo "   - docs/openclaw-secure-setup.md (setup guide)"
