@@ -28,6 +28,9 @@
     opnix.url = "github:brizzbuzz/opnix";
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
+    nix-openclaw.url = "github:openclaw/nix-openclaw";
+    nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
+
     devenv.url = "github:cachix/devenv";
   };
 
@@ -43,6 +46,7 @@
     homebrew-cask,
     opnix,
     microvm,
+    nix-openclaw,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -204,6 +208,202 @@
                 onepassword.enable = false;
               };
             }
+          ];
+      };
+
+    # Helper to create SECURE OpenClaw microvm configuration with GitHub integration
+    # Uses GitHub PRs for all changes - no direct filesystem modification
+    mkOpenclawMicrovm = { name, targetRepo }:  # targetRepo = "funkymonkeymonk/nix"
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules =
+          [
+            microvm.nixosModules.microvm
+            home-manager.nixosModules.home-manager
+            nix-openclaw.homeManagerModules.default
+            configuration
+          ]
+          ++ commonModules
+          ++ [
+            ./os/microvm.nix
+            ./targets/microvms/${name}.nix
+            ({ config, pkgs, ... }: {
+              nixpkgs.hostPlatform = "x86_64-linux";
+              system.stateVersion = "25.05";
+              
+              # Install required packages + PAT request script
+              environment.systemPackages = with pkgs; [
+                git
+                gh
+                jq
+                vim
+                curl
+                (writeShellScriptBin "openclaw-request-pat" 
+                  (builtins.readFile ./scripts/openclaw-request-pat.sh))
+              ];
+              
+              # Security hardening for OpenClaw
+              security.sudo.wheelNeedsPassword = true;
+              
+              # Create openclaw user
+              users.users.openclaw = {
+                isNormalUser = true;
+                description = "OpenClaw AI Agent";
+                extraGroups = [];
+                shell = pkgs.bash;
+                home = "/home/openclaw";
+                openssh.authorizedKeys.keys = [];
+              };
+              
+              # Enable 1Password CLI for secret access
+              programs._1password.enable = true;
+              
+              # OpenClaw Home Manager configuration with opnix secrets
+              home-manager.users.openclaw = { ... }: {
+                programs.openclaw = {
+                  enable = true;
+                  config = {
+                    gateway = {
+                      mode = "local";
+                      auth = {
+                        token = "{file:/run/secrets/gateway-token}";
+                      };
+                    };
+                    # Nix mode - disables auto-install/self-mutation
+                    nixMode = true;
+                    # Configure the workspace as the target repo
+                    workspace = {
+                      path = "/home/openclaw/nix";
+                      repo = "https://github.com/${targetRepo}.git";
+                    };
+                    # Git configuration with GitHub token
+                    git = {
+                      user = {
+                        name = "OpenClaw Agent";
+                        email = "openclaw@funkymonkeymonk.dev";
+                      };
+                      github = {
+                        token = "{file:/run/secrets/github-token}";
+                      };
+                    };
+                    # All changes go through PR workflow
+                    github = {
+                      pr = {
+                        enabled = true;
+                        requireReview = true;
+                        reviewers = ["funkymonkeymonk"];
+                        draft = true;  # Start as draft PRs
+                      };
+                    };
+                    # Use OpenCode Zen as the model provider
+                    provider = {
+                      opencode = {
+                        npm = "@ai-sdk/openai-compatible";
+                        name = "OpenCode Zen";
+                        baseURL = "https://opencode.ai/zen/v1";
+                        apiKey = "{file:/run/secrets/opencode-zen-apikey}";
+                        models = [
+                          "opencode/big-pickle"  # Free tier model
+                          "opencode/claude-sonnet-4-5"
+                          "opencode/gpt-5.2-codex"
+                        ];
+                      };
+                    };
+                    # Default model
+                    model = "opencode/big-pickle";
+                  };
+                };
+                
+                # Configure opnix secrets from openclaw vault
+                programs.onepassword-secrets = {
+                  enable = true;
+                  secrets = {
+                    gatewayToken = {
+                      reference = "op://openclaw/gateway-token/credential";
+                      path = "/run/secrets/gateway-token";
+                      mode = "0600";
+                    };
+                    githubToken = {
+                      reference = "op://openclaw/github-pat/credential";
+                      path = "/run/secrets/github-token";
+                      mode = "0600";
+                    };
+                    opencodeZenApiKey = {
+                      reference = "op://openclaw/opencode-zen-api-key/credential";
+                      path = "/run/secrets/opencode-zen-apikey";
+                      mode = "0600";
+                    };
+                  };
+                };
+                
+                home.stateVersion = "25.05";
+              };
+              
+              # systemd hardening
+              systemd.services.openclaw-gateway = {
+                serviceConfig = {
+                  User = "openclaw";
+                  Group = "openclaw";
+                  
+                  # Read-only access to cloned repo only
+                  ReadOnlyPaths = ["/home/openclaw/nix"];
+                  ReadWritePaths = ["/home/openclaw/nix/.git" "/tmp"];
+                  PrivateTmp = true;
+                  
+                  # No access to system directories
+                  PrivateDevices = true;
+                  PrivateMounts = true;
+                  
+                  # Process restrictions
+                  NoNewPrivileges = true;
+                  ProtectSystem = "strict";
+                  ProtectHome = true;
+                  ProtectKernelTunables = true;
+                  ProtectKernelModules = true;
+                  ProtectControlGroups = true;
+                  
+                  # Resource limits
+                  MemoryMax = "4G";
+                  CPUQuota = "200%";
+                  TasksMax = 100;
+                };
+              };
+              
+              # Initialize the nix repo on first boot
+              systemd.services.openclaw-init = {
+                description = "Initialize OpenClaw Nix Repository";
+                after = ["network.target" "home-manager-openclaw.service"];
+                wantedBy = ["multi-user.target"];
+                serviceConfig = {
+                  Type = "oneshot";
+                  User = "openclaw";
+                  RemainAfterExit = true;
+                  Environment = [
+                    "HOME=/home/openclaw"
+                    "GITHUB_TOKEN_FILE=/run/secrets/github-token"
+                  ];
+                };
+                script = ''
+                  set -e
+                  if [ ! -d /home/openclaw/nix ]; then
+                    echo "Cloning ${targetRepo}..."
+                    TOKEN=$(cat /run/secrets/github-token 2>/dev/null || echo "")
+                    if [ -n "$TOKEN" ]; then
+                      git clone "https://$TOKEN@github.com/${targetRepo}.git" /home/openclaw/nix
+                    else
+                      echo "Warning: No GitHub token available, clone will fail"
+                      exit 1
+                    fi
+                    cd /home/openclaw/nix
+                    git config user.name "OpenClaw Agent"
+                    git config user.email "openclaw@funkymonkeymonk.dev"
+                    echo "Repository cloned successfully"
+                  else
+                    echo "Repository already exists"
+                  fi
+                '';
+              };
+            })
           ];
       };
   in {
@@ -456,6 +656,10 @@
     # Microvm configurations
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
+      openclaw-secure = mkOpenclawMicrovm {
+        name = "openclaw-secure";
+        targetRepo = "funkymonkeymonk/nix";
+      };
     };
   };
 }

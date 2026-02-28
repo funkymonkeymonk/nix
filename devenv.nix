@@ -896,6 +896,17 @@
         echo "Formatting complete"
       '';
     };
+
+    # ============================================
+    # OPENCLAW BOOTSTRAP TASK
+    # ============================================
+
+    "openclaw:bootstrap" = {
+      description = "Bootstrap OpenClaw secure setup (1Password vault, GitHub repo, secrets)";
+      exec = ''
+        ${pkgs.bash}/bin/bash ${./scripts/openclaw-bootstrap.sh}
+      '';
+    };
   };
 
   # See full reference at https://devenv.sh/reference/options/
