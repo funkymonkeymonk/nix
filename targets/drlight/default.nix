@@ -1,4 +1,8 @@
-{...}:
+{
+  inputs,
+  pkgs,
+  ...
+}:
 # NixOS module for the `drlight` machine.
 # - Configures basic networking / SSH settings used in flake.nix
 # - Runs Jellyfin and Mealie services
@@ -22,9 +26,7 @@
   system.autoUpgrade = {
     enable = true;
     flake = inputs.self.outPath;
-    flags = [
-      "-L" # print build logs
-    ];
+    flags = ["-L"];
     dates = "02:00";
     randomizedDelaySec = "45min";
   };
