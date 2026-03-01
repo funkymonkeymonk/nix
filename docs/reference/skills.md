@@ -10,17 +10,17 @@ Agent skills are defined in `modules/home-manager/skills/manifest.nix` and insta
 | `debugging` | Systematic debugging approach | developer |
 | `diataxis-docs` | Documentation restructuring (Diataxis framework) | developer, creative, llm-client, llm-claude |
 | `jj` | Jujutsu version control | developer, llm-client, llm-claude |
+| `prd-review` | Display PRD files for review and status tracking | developer, llm-client, llm-claude |
+| `ralph-specs` | Write specs for Ralph Loop autonomous agent | developer, llm-client, llm-claude |
 | `receiving-code-review` | Process review feedback | developer, workstation |
 | `requesting-code-review` | Prepare and request reviews | developer, workstation |
 | `tdd` | Test-driven development workflow | developer |
 | `using-superpowers` | Access available skills | llm-client, llm-claude |
 | `verification-before-completion` | Pre-completion verification | developer |
 | `writing-plans` | Implementation plan creation | developer |
-| `writing-skills` | Documentation and skill writing | developer, creative, llm-client, llm-claude |
+| `writing-skills` | Skill documentation and creation | developer, creative, llm-client, llm-claude |
 
 ## Skill Structure
-
-Each skill contains:
 
 ```
 skills/<skill-name>/
@@ -32,7 +32,7 @@ skills/<skill-name>/
 ```markdown
 ---
 name: skill-name
-description: Brief description of what the skill does
+description: Brief description
 ---
 
 # Skill Name
@@ -47,21 +47,24 @@ description: Brief description of what the skill does
 ...
 ```
 
+## Skill Sources
+
+| Type | Location | Description |
+|------|----------|-------------|
+| `internal` | `modules/home-manager/skills/internal/` | Defined in this repo |
+| `external` | `modules/home-manager/skills/external/` | Adapted from external sources |
+| `superpowers` | From flake input | Skills from superpowers repo |
+
 ## Installation
 
-Skills are installed automatically based on enabled roles:
+Skills install automatically based on enabled roles:
 
-1. `flake.nix` sets `myConfig.skills.enabledRoles`
+1. `mkBundleModule` sets `myConfig.skills.enabledRoles`
 2. `skills/install.nix` filters manifest by roles
 3. Matching skills are symlinked via home-manager
+4. Dependencies are resolved and included
 
-## Skill Locations
-
-- **Internal skills**: `modules/home-manager/skills/internal/`
-- **External skills**: `modules/home-manager/skills/external/`
-- **Installed location**: `~/.config/opencode/skills/`
-
-## Manifest Entry Format
+## Manifest Entry
 
 ```nix
 "skill-name" = {

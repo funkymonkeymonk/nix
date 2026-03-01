@@ -1,325 +1,97 @@
 # Nix System Configuration
 
-A comprehensive, modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager. This repository provides a complete system management solution with cross-platform support, automated tooling, and enterprise-grade development workflows.
+A modular Nix Flakes configuration for managing macOS and NixOS systems.
 
 ## Features
 
-- **Multi-platform support**: macOS (nix-darwin) and Linux (NixOS) with unified configuration
-- **Modular architecture**: Shared configurations with role-based bundles for different use cases
-- **Window manager integration**: AeroSpace with floating dropdown terminal (Shift+Ctrl+Alt+G)
-- **SSH commit signing**: 1Password-based git commit signing with biometric authentication
-- **Comprehensive CI/CD**: Matrix builds, caching, and artifact publishing across platforms
-- **Enhanced development environment**: Devenv with pre-commit hooks, formatters, linters, and task automation
-- **Code quality**: Automated formatting and linting with alejandra and deadnix
-- **Agent skills integration**: Automatic management of AI agent skills for OpenCode and Claude Code
+- **Multi-platform**: macOS (nix-darwin) and NixOS with unified configuration
+- **Modular architecture**: Role-based bundles for different use cases
+- **AI agent skills**: Automatic management of OpenCode and Claude Code skills
+- **1Password integration**: SSH authentication and commit signing
+- **CI/CD pipeline**: Automated validation and caching
+
+## Quick Start
+
+```bash
+# Clone and enter development environment
+git clone https://github.com/funkymonkeymonk/nix.git
+cd nix
+nix develop
+
+# Run validation
+devenv tasks run ci:quick
+
+# Apply configuration (macOS)
+darwin-rebuild switch --flake .#<hostname>
+```
+
+> **New here?** See the [Getting Started tutorial](docs/tutorials/getting-started.md).
+
+## Documentation
+
+| Type | Description |
+|------|-------------|
+| [Tutorials](docs/tutorials/) | Learning-oriented walkthroughs |
+| [How-To Guides](docs/how-to/) | Task-oriented instructions |
+| [Reference](docs/reference/) | Technical specifications |
+| [Explanation](docs/explanation/) | Design and architecture |
+
+### Common Tasks
+
+- [Add a new machine](docs/how-to/add-machine.md)
+- [Add a new role](docs/how-to/add-role.md)
+- [Run CI locally](docs/how-to/run-ci-locally.md)
+- [Set up 1Password signing](docs/how-to/setup-1password.md)
 
 ## Project Structure
 
 ```
-.
-├── .github/                    # GitHub Actions workflows
-├── modules/                    # Reusable Nix configurations
-│   ├── common/                 # Shared configurations (options, users, shell, onepassword)
-│   ├── home-manager/           # User environment modules
-│   │   └── skills/             # Agent skills management
-│   │       ├── install.nix     # Skills installation module
-│   │       ├── manifest.nix    # Skill definitions and role assignments
-│   │       ├── internal/       # Skills defined in this repo
-│   │       └── external/       # Skills adapted from external sources
-│   └── nixos/                  # Linux-specific modules
-├── targets/                    # Machine-specific configurations
-├── os/                         # Platform OS configurations
-├── templates/                  # Templates for new configurations
-├── bundles.nix                 # Consolidated package collections (roles + platforms)
-├── flake.nix                   # Main Nix flake definition
-├── devenv.nix                  # Development environment and task definitions
-└── README.md                   # This file
+├── modules/          # Reusable Nix configurations
+│   ├── common/       # Shared options, users, shell
+│   ├── home-manager/ # User environment, skills
+│   └── nixos/        # NixOS-specific modules
+├── targets/          # Machine-specific configurations
+├── bundles.nix       # Role definitions (packages, skills)
+├── flake.nix         # Main flake with helper functions
+└── docs/             # Documentation (Diataxis)
 ```
 
-## Development
+> **Learn more:** [Architecture explanation](docs/explanation/architecture.md)
 
-### Prerequisites
-- Nix with flakes enabled
+## Available Roles
 
-### Quick Start
-```bash
-# Clone repository
-git clone <repository-url>
-cd nix
+| Role | Description |
+|------|-------------|
+| `base` | Essential tools (always included) |
+| `developer` | Development environment |
+| `creative` | Media tools |
+| `desktop` | Desktop applications |
+| `workstation` | Work tools |
+| `entertainment` | Entertainment apps (macOS) |
+| `gaming` | Gaming tools |
+| `llm-client` | OpenCode + rtk + agent skills |
+| `llm-claude` | Claude Code + agent skills |
+| `llm-host` | Ollama |
 
-# Enter development environment
-devenv shell
+> **Full list:** [Roles reference](docs/reference/roles.md)
 
-# Test configurations
-devenv tasks run test:run
+## Shell Aliases
 
-# Build all systems
-devenv tasks run nix:build
+After entering devenv shell:
 
-# Apply configuration
-devenv tasks run system:switch
+| Alias | Command |
+|-------|---------|
+| `s` | `devenv tasks run system:switch` |
+| `q` | `devenv tasks run quality:check` |
+| `t` | `devenv tasks run test:run` |
+| `tf` | `devenv tasks run test:full` |
 
-# Run code quality checks
-devenv tasks run quality:check
-```
+> **All tasks:** [Tasks reference](docs/reference/tasks.md)
 
-### Shell Aliases
+## For AI Agents
 
-After configuration is applied, these aliases are available:
-- `dt <task>` / `dtr <task>` - Run a devenv task
-- `dtl` - List all tasks
-- `t` - Run test:run
-- `tf` - Run test:full
-- `s` - Run system:switch
-- `q` - Run quality:check
-- `b` - Run nix:build
-- `i` - Run dev:ide
+See [AGENTS.md](AGENTS.md) for AI-specific guidance on working with this repository.
 
-### Keyboard Shortcuts
+## License
 
-- **Shift+Ctrl+Alt+G**: Toggle floating dropdown terminal (AeroSpace window manager)
-
-### Development Environment
-
-The project uses [devenv](https://devenv.sh) for a consistent development environment with pre-commit hooks and development tools.
-
-#### Pre-commit Hooks
-- **Alejandra**: Nix code formatter (runs automatically on commit)
-- **Deadnix**: Dead code detection (runs automatically on commit)
-
-### Cross-Platform Validation
-
-The `devenv tasks run test:full` command provides comprehensive validation that works regardless of host platform:
-
-- **On Darwin (macOS)**: Validates both Darwin and Linux configurations
-- **On Linux**: Validates both Linux and Darwin configurations
-- **Uses dry-run builds**: Tests build plans without actually building
-- **Cross-architecture**: Validates x86_64-linux from aarch64-darwin and vice versa
-
-**What it validates:**
-- Flake structure and syntax (`nix flake check`)
-- Linux configurations buildable (`nix build --dry-run`)
-- macOS configurations evaluable (`nix eval`)
-- All platform-specific packages and modules
-- Home-manager configurations
-- Cross-platform dependencies
-
-#### Development Tools
-The development environment includes:
-- **Code formatting**: alejandra, nixpkgs-fmt, yamlfmt
-- **Linting**: deadnix, statix, yamllint
-- **Language server**: nil, nixd
-- **Analysis tools**: nix-tree, nvd
-- **Utilities**: ripgrep, fd, jq, mdbook
-
-### Secrets Management
-
-This configuration uses 1Password CLI directly for secret management. Secrets are accessed at runtime through 1Password's SSH agent and signing capabilities.
-
-#### Setup
-1. **Install 1Password CLI**: Ensure `op` command is available
-2. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
-3. **Store SSH keys**: Add your SSH keys to 1Password for authentication and signing
-
-#### How It Works
-- **SSH Authentication**: Uses 1Password's SSH agent for key management
-- **Git Signing**: Uses 1Password's `op-ssh-sign` program for commit signing on macOS
-- **Runtime Access**: Secrets are accessed when needed, not stored in Nix configuration
-
-#### Security Notes
-- Secrets file is gitignored and never committed
-- 1Password provides end-to-end encryption
-- Secrets are only accessible during Nix builds
-- No secrets are stored in the Nix store
-
-## Agent Skills Management
-
-This configuration includes automatic management of AI agent skills for OpenCode and Claude Code integration.
-
-### Features
-- **Automatic Installation**: Skills install automatically when `llm-client` or `llm-claude` roles are enabled
-- **Role-Based Filtering**: Skills are assigned to roles and only installed when relevant roles are active
-- **Local Customization**: Define custom skills in `modules/home-manager/skills/internal/`
-- **Cross-Platform**: Works on all configured systems (macOS and NixOS)
-- **Validation**: Skills follow Agent Skills specification compliance
-
-### Usage
-
-```bash
-# Check skills status
-devenv tasks run agent-skills:status
-
-# Update skills from upstream
-devenv tasks run agent-skills:update
-
-# Validate skills format
-devenv tasks run agent-skills:validate
-
-# List available skills
-skills-list
-```
-
-### Configuration
-
-Agent skills are automatically enabled when `llm-client` or `llm-claude` roles are active (via the `enableAgentSkills` flag in bundles.nix). Skills are installed to:
-- `~/.config/opencode/skills/` - Primary skills directory
-
-### Adding Custom Skills
-
-1. Create skill directory: `modules/home-manager/skills/internal/my-skill/`
-2. Add `SKILL.md` with frontmatter (`name`, `description`)
-3. Register in `modules/home-manager/skills/manifest.nix` with role assignments
-4. Rebuild system to install
-
-See [docs/agent-skills.md](docs/agent-skills.md) for detailed documentation.
-
-### SSH Commit Signing
-
-This configuration supports SSH-based git commit signing using 1Password, providing a modern alternative to GPG signing.
-
-#### Features
-- **Biometric authentication**: Uses Touch ID/Face ID for commit signing
-- **Unified keys**: Same SSH key for authentication and signing
-- **Secure storage**: Private keys never leave 1Password vault
-- **Cross-platform**: Works on macOS, Linux, and Windows
-
-#### Setup
-1. **Enable 1Password SSH agent**: In 1Password app → Settings → Developer → Enable SSH agent
-2. **Store SSH key in 1Password**: Add your SSH private key to 1Password
-3. **Register public key**: Add your SSH public key to GitHub/GitLab/Bitbucket as a "Signing key" type
-4. **Rebuild system**: Run `darwin-rebuild switch` to apply the configuration
-5. **Test signing**: `git commit -m "test"` and verify with `git log --show-signature`
-
-#### Configuration Details
-The following Git configuration is applied automatically on macOS:
-```bash
-git config --global gpg.format ssh
-git config --global commit.gpgsign true
-git config --global gpg.ssh.program "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
-```
-
-1Password's `op-ssh-sign` program automatically determines which SSH key to use for signing based on your 1Password vault contents.
-
-#### Verification
-- GitHub/GitLab/Bitbucket will show commits as "Verified"
-- Use `git log --show-signature` for local verification
-- Biometric prompt appears for each signed commit
-
-## CI/CD Pipeline
-
-The repository uses a devenv-based CI/CD pipeline that runs locally and in GitHub Actions.
-
-### Pipeline Stages
-
-| Stage | Duration | Description |
-|-------|----------|-------------|
-| Quick | ~30s | Lint, format, flake check |
-| Validate | 5-10min | Platform-specific dry-run builds |
-| Build | 10-20min | Full builds + Cachix push (main only) |
-| Publish | ~1min | FlakeHub publish (main only) |
-
-### Running Locally
-
-```bash
-# Fast feedback loop (~30s)
-devenv tasks run ci:quick
-
-# Full PR validation
-devenv tasks run ci:pr
-
-# Platform-specific validation
-devenv tasks run ci:validate:darwin
-devenv tasks run ci:validate:nixos
-```
-
-### Features
-- **Local parity**: Same tasks run locally and in CI
-- **Fast feedback**: Quick checks complete in ~30 seconds
-- **Cross-platform validation**: Validates both Darwin and NixOS configurations
-- **FlakeHub integration**: Automatic publishing on merge to main
-
-### Weekly Flake Updates
-
-- **Schedule**: Every Friday at 4:00 AM UTC
-- **Function**: Updates flake.lock with latest package versions
-- **Features**:
-  - Automated basic fixes for common package renames
-  - Comprehensive PR with technical details and summaries
-  - Automatic cleanup of previous week's PR
-  - Validation and reporting of all changes
-
-The workflow creates PRs with the `flake-update` label and includes:
-- Executive summary of changes
-- Technical details of package updates
-- List of automated fixes applied
-- Validation results and next steps
-
-## Architecture
-
-### Modular System
-- **Modules**: Reusable configuration logic (how things work)
-- **Bundles**: Package collections (what gets installed)
-- **Options**: Type-safe configuration with validation
-
-### Supported Systems
-- **macOS**: Will-Stride-MBP, MegamanX (aarch64-darwin)
-- **NixOS**: drlight, zero (x86_64-linux)
-
-### Configuration Flow
-1. **Options** define available configuration
-2. **Modules** implement configuration logic
-3. **Bundles** provide package collections
-4. **Flake** composes everything for each system
-
-## Customization
-
-### Adding a New Machine
-1. Create target configuration in `targets/`
-2. Add flake output in `flake.nix`
-3. Configure users and roles
-4. Test with `devenv tasks run build`
-
-### Adding a New Role
-1. Add role definition in `bundles.nix` under `roles` attribute
-2. Add documentation in `README.md`
-3. Reference in flake configurations as needed
-
-### Available Roles
-All roles are defined in `bundles.nix`:
-- `base` - Essential packages and shell aliases (always included)
-- `developer` - Development tools (emacs, docker, k8s tools)
-- `creative` - Media tools (ffmpeg, imagemagick, pandoc)
-- `desktop` - Desktop applications (logseq, vivaldi on Linux)
-- `workstation` - Work tools (slack, trippy)
-- `entertainment` - Entertainment apps (steam, obs, discord via homebrew)
-- `gaming` - Gaming tools (moonlight-qt)
-- `agent-skills` - AI agent skills management
-- `llm-client` - OpenCode with LLM server connection (auto-enables agent-skills)
-- `llm-claude` - Claude Code integration (auto-enables agent-skills)
-- `llm-host` - Ollama for local model hosting
-- `llm-server` - LiteLLM server (placeholder)
-
-### Adding a New Module
-1. Create module in appropriate `modules/` subdirectory
-2. Add options in `modules/common/options.nix`
-3. Import in relevant flake configurations
-
-## Status
-
-### Completed
-- Modular configuration system
-- Multi-platform support (macOS + Linux)
-- CI/CD pipeline with matrix testing
-- Task automation via devenv
-- Configuration validation
-- Role-based bundles (developer, creative, gaming, workstation)
-- Secret management with 1Password
-- Window manager integration with AeroSpace (dropdown terminal, window rules)
-
-### In Progress
-- Performance optimizations
-
-### Future
-- GUI application management
-- Backup automation
-- Monitoring and alerting
+MIT

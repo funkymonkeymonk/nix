@@ -6,9 +6,11 @@ Roles are defined in `bundles.nix` and group packages and configurations by purp
 
 ### base
 
-Essential packages and shell aliases. Always included.
+Essential packages and shell configuration. Always included.
 
 **Packages:** vim, git, gh, devenv, direnv, rclone, bat, jq, tree, watchman, jnv, zinit, fzf, zsh, ripgrep, fd, coreutils, htop, glow, antigen
+
+**Config:** Shell aliases, environment variables, zsh enabled
 
 ### developer
 
@@ -16,7 +18,7 @@ Development tools and environment.
 
 **Packages:** emacs, helix, clang, python3, nodejs, yarn, docker, k3d, kubectl, kubernetes-helm, k9s, gh-dash
 
-**Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj
+**Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj, diataxis-docs, ralph-specs, prd-review, writing-skills
 
 ### creative
 
@@ -38,7 +40,9 @@ Gaming tools.
 
 Desktop applications.
 
-**Packages:** logseq, super-productivity, vivaldi (Linux only)
+**Packages:** logseq, super-productivity
+
+**Linux only:** vivaldi
 
 ### workstation
 
@@ -50,25 +54,23 @@ Work-related tools.
 
 ### entertainment
 
-Entertainment applications.
+Entertainment applications (macOS only).
 
-**Homebrew Casks (macOS):** steam, obs, discord
+**Homebrew Casks:** steam, obs, discord
 
 ### agent-skills
 
-AI agent skills management.
+AI agent skills management. Auto-enabled by `llm-client` or `llm-claude`.
 
-**Packages:** git, jq
-
-Automatically enabled by `llm-client` or `llm-claude` roles.
+**Config:** Session variables (`AGENT_SKILLS_PATH`, `SUPERPOWERS_SKILLS_PATH`), shell aliases (`skills-status`, `skills-update`, `skills-list`)
 
 ### llm-client
 
 OpenCode with LLM server connection.
 
-**Packages:** opencode
+**Packages:** opencode, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`
 
@@ -78,7 +80,7 @@ Claude Code integration.
 
 **Packages:** claude-code
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`
 
@@ -92,22 +94,28 @@ Local model hosting.
 
 LiteLLM server (placeholder).
 
-## Role Combinations
+## Platform-Specific
 
-Common role combinations:
+### darwin (macOS)
+
+**Packages:** google-chrome, hidden-bar, goose-cli, claude-code, alacritty-theme, colima, home-manager
+
+**Homebrew Casks:** raycast, zed, zen, ghostty, deezer, block-goose, sensei, vivaldi, 1password
+
+## Role Combinations
 
 | Use Case | Roles |
 |----------|-------|
-| Basic development | `base`, `developer` |
-| Full workstation | `base`, `developer`, `workstation`, `llm-client` |
-| Creative work | `base`, `creative`, `desktop` |
-| Gaming setup | `base`, `entertainment`, `gaming` |
+| Basic development | `developer` |
+| Full workstation | `developer`, `workstation`, `llm-client` |
+| Creative work | `creative`, `desktop` |
+| Gaming setup | `entertainment`, `gaming` |
 
-## Platform-Specific Packages
+## Role Attributes
 
-Roles can define platform-specific packages:
-
-- `packages` - All platforms
-- `darwinPackages` - macOS only
-- `linuxPackages` - Linux only
-- `homebrewCasks` - macOS Homebrew casks
+| Attribute | Platform | Description |
+|-----------|----------|-------------|
+| `packages` | All | Nix packages |
+| `homebrewCasks` | macOS | Homebrew cask apps |
+| `enableAgentSkills` | All | Auto-enable agent-skills role |
+| `config` | All | Environment variables, aliases |

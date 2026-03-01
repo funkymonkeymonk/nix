@@ -1,38 +1,11 @@
 # Microvm platform configuration
-# Similar to os/nixos.nix but stripped down for VM guests
+# Stripped down for VM guests - no boot config needed (microvm.nix handles it)
 {lib, ...}: {
-  # Microvms don't need traditional boot configuration
-  # microvm.nix handles kernel/initrd directly
+  i18n.defaultLocale = "en_US.UTF-8";
 
-  # Select internationalisation properties
-  i18n = {
-    defaultLocale = "en_US.UTF-8";
-    extraLocaleSettings = {
-      LC_ADDRESS = "en_US.UTF-8";
-      LC_IDENTIFICATION = "en_US.UTF-8";
-      LC_MEASUREMENT = "en_US.UTF-8";
-      LC_MONETARY = "en_US.UTF-8";
-      LC_NAME = "en_US.UTF-8";
-      LC_NUMERIC = "en_US.UTF-8";
-      LC_PAPER = "en_US.UTF-8";
-      LC_TELEPHONE = "en_US.UTF-8";
-      LC_TIME = "en_US.UTF-8";
-    };
-  };
+  nix.settings.experimental-features = ["nix-command" "flakes"];
 
-  # Enable flakes
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
-
-  # Disable documentation to reduce closure size
-  documentation = {
-    enable = lib.mkDefault false;
-    man.enable = lib.mkDefault false;
-    nixos.enable = lib.mkDefault false;
-  };
-
-  # Minimal system - no X11
+  # Minimal footprint
+  documentation.enable = lib.mkDefault false;
   services.xserver.enable = lib.mkDefault false;
 }
