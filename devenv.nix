@@ -48,6 +48,7 @@
     alias tq="devenv tasks run test:quick"
     alias tf="devenv tasks run test:full"
     alias s="devenv tasks run system:switch"
+    alias switch="devenv tasks run system:switch"
     alias q="devenv tasks run quality:check"
     alias b="devenv tasks run nix:build"
     alias i="devenv tasks run dev:ide"
