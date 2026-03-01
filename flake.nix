@@ -246,6 +246,7 @@
               home-manager.sharedModules = [
                 opnix.homeManagerModules.default
                 nix-openclaw.homeManagerModules.openclaw
+                ./modules/home-manager/openclaw.nix
               ];
             }
           ]
@@ -287,6 +288,7 @@
               home-manager.sharedModules = [
                 opnix.homeManagerModules.default
                 nix-openclaw.homeManagerModules.openclaw
+                ./modules/home-manager/openclaw.nix
               ];
             }
           ]
