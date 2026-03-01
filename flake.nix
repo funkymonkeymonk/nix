@@ -73,6 +73,8 @@
           (final: _prev: {
             inherit (inputs.devenv.packages.${final.system}) devenv;
           })
+          # nix-openclaw overlay
+          nix-openclaw.overlays.default
           (import ./overlays)
         ];
       };
