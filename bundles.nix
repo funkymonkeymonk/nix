@@ -220,6 +220,16 @@ with pkgs.lib; {
 
       config = {};
     };
+
+    openclaw-host = {
+      packages = with pkgs; [
+        openclaw
+      ];
+
+      enableAgentSkills = true;
+
+      config = {};
+    };
   };
 
   platforms = {
