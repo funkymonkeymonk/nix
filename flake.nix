@@ -243,7 +243,10 @@
             }
             home-manager.darwinModules.home-manager
             {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
+              home-manager.sharedModules = [
+                opnix.homeManagerModules.default
+                nix-openclaw.homeManagerModules.openclaw
+              ];
             }
           ]
           ++ extraModules;
@@ -281,7 +284,10 @@
             }
             home-manager.nixosModules.home-manager
             {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
+              home-manager.sharedModules = [
+                opnix.homeManagerModules.default
+                nix-openclaw.homeManagerModules.openclaw
+              ];
             }
           ]
           ++ extraModules;
