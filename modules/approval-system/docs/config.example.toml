@@ -1,0 +1,50 @@
+# Sample approval system configuration
+# Copy to ~/.config/approval/config.toml and customize
+
+[notification]
+# Options: ntfy, pushover, matrix, discord
+type = "ntfy"
+
+[notification.ntfy]
+# Use public ntfy.sh or self-host: https://docs.ntfy.sh/install/
+server = "https://ntfy.sh"
+topic = "approval-monkey-drlight"
+# Optional: for private topics
+token = "your-ntfy-token-here"
+
+[notification.pushover]
+# Get credentials at https://pushover.net/
+user_key = "your-pushover-user-key"
+app_token = "your-pushover-app-token"
+
+[onepassword]
+# Enable 1Password integration
+enabled = true
+# Your 1Password account (e.g., myaccount.1password.com)
+account = "your-account.1password.com"
+
+[policy]
+# Commands that don't require phone approval (use with caution!)
+auto_approve = [
+  "uptime",
+  "whoami",
+  "ls",
+  "pwd",
+  "echo"
+]
+
+# Require justification for all requests
+require_justification = true
+
+# Timeout for approval (seconds)
+timeout = 300
+
+[security]
+# Audit log location
+audit_log = "~/.local/log/approval-audit.log"
+
+# Maximum secrets to cache in memory (0 = disable cache)
+secret_cache_size = 0
+
+# Require biometric unlock for every secret (most secure)
+require_biometric_per_secret = true

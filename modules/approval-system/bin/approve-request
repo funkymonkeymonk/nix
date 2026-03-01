@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+#
+# approve-request - CLI tool for requesting phone-based approvals
+#
+# Usage:
+#   approve-request sudo --command "systemctl restart nginx"
+#   approve-request secret --vault "Dev" --item "AWS" --field "key"
+#
+
+set -euo pipefail
+
+# Configuration
+APPROVAL_SOCKET="${APPROVAL_SOCKET:-/run/approvald/request.sock}"
+APPROVAL_TIMEOUT="${APPROVAL_TIMEOUT:-300}"  # 5 minutes
+APPROVAL_CONFIG="${APPROVAL_CONFIG:-$HOME/.config/approval/config.toml}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
+log_success() { echo -e "${GREEN}✓${NC} $*"; }
+log_error() { echo -e "${RED}✗${NC} $*" >&2; }
+log_waiting() { echo -e "${YELLOW}⏳${NC} $*"; }
+
+# Generate unique request ID
+generate_request_id() {
+  echo "req-$(date +%s)-$(openssl rand -hex 4)"
+}
+
+# Create request payload
+create_request() {
+  local type="$1"
+  shift
+  
+  local request_id=$(generate_request_id)
+  local timestamp=$(date -Iseconds)
+  local hostname=$(hostname)
+  local user=$(whoami)
+  local session_key=$(openssl rand -hex 32)
+  
+  # Build JSON request
+  jq -n \
+    --arg id "$request_id" \
+    --arg type "$type" \
+    --arg timestamp "$timestamp" \
+    --arg hostname "$hostname" \
+    --arg user "$user" \
+    --arg session_key "$session_key" \
+    --arg timeout "$APPROVAL_TIMEOUT" \
+    '$ARGS.named + {status: "pending", args: $ARGS.positional}'
+}
+
+# Send request to approval daemon
+send_request() {
+  local request_json="$1"
+  
+  if [[ ! -S "$APPROVAL_SOCKET" ]]; then
+    log_error "Approval daemon not running (socket not found: $APPROVAL_SOCKET)"
+    log_info "Start it with: systemctl --user start approvald"
+    return 1
+  fi
+  
+  # Send via socat or nc
+  if command -v socat >/dev/null 2>&1; then
+    echo "$request_json" | socat - UNIX-CONNECT:"$APPROVAL_SOCKET"
+  else
+    echo "$request_json" | nc -U "$APPROVAL_SOCKET"
+  fi
+}
+
+# Wait for approval response
+wait_for_response() {
+  local request_id="$1"
+  local timeout="$2"
+  
+  log_waiting "Sent to phone... waiting for approval (timeout: ${timeout}s)"
+  
+  # Create response socket/pipe
+  local response_pipe="/tmp/approval-response-${request_id}.pipe"
+  mkfifo "$response_pipe" 2>/dev/null || true
+  
+  # Wait for response
+  local waited=0
+  while (( waited < timeout )); do
+    if [[ -f "/tmp/approval-response-${request_id}.json" ]]; then
+      cat "/tmp/approval-response-${request_id}.json"
+      rm -f "/tmp/approval-response-${request_id}.json"
+      return 0
+    fi
+    
+    sleep 1
+    ((waited++))
+    
+    # Show progress every 10 seconds
+    if (( waited % 10 == 0 )); then
+      log_waiting "Still waiting... (${waited}s / ${timeout}s)"
+    fi
+  done
+  
+  log_error "Approval timed out after ${timeout} seconds"
+  return 1
+}
+
+# Handle sudo approval
+handle_sudo() {
+  local command=""
+  local duration="5m"
+  local reason=""
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --command|-c)
+        command="$2"
+        shift 2
+        ;;
+      --duration|-d)
+        duration="$2"
+        shift 2
+        ;;
+      --reason|-r)
+        reason="$2"
+        shift 2
+        ;;
+      *)
+        command="${command:+$command }$1"
+        shift
+        ;;
+    esac
+  done
+  
+  if [[ -z "$command" ]]; then
+    log_error "No command specified. Use --command or pass command directly."
+    exit 1
+  fi
+  
+  # Calculate hash of command for verification
+  local command_hash=$(echo -n "$command" | sha256sum | cut -d' ' -f1)
+  
+  # Create request
+  local request=$(create_request "sudo" \
+    --arg command "$command" \
+    --arg command_hash "$command_hash" \
+    --arg duration "$duration" \
+    --arg reason "${reason:-Not specified}")
+  
+  log_info "Requesting approval for: sudo $command"
+  
+  # Send and wait
+  local request_id=$(echo "$request" | jq -r '.id')
+  if send_request "$request"; then
+    local response=$(wait_for_response "$request_id" "$APPROVAL_TIMEOUT")
+    
+    if [[ $(echo "$response" | jq -r '.approved') == "true" ]]; then
+      log_success "Approved! Executing command..."
+      
+      # Get temporary credential from response
+      local credential=$(echo "$response" | jq -r '.credential')
+      
+      # Execute with credential (e.g., sudo with temp password)
+      # In real implementation, this would use a secure channel
+      echo "$credential" | sudo -S bash -c "$command"
+    else
+      log_error "Request denied"
+      exit 1
+    fi
+  else
+    log_error "Failed to send approval request"
+    exit 1
+  fi
+}
+
+# Handle secret approval
+handle_secret() {
+  local vault=""
+  local item=""
+  local field="password"
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --vault|-v)
+        vault="$2"
+        shift 2
+        ;;
+      --item|-i)
+        item="$2"
+        shift 2
+        ;;
+      --field|-f)
+        field="$2"
+        shift 2
+        ;;
+      *)
+        log_error "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+  done
+  
+  if [[ -z "$vault" || -z "$item" ]]; then
+    log_error "Usage: approve-request secret --vault <vault> --item <item> [--field <field>]"
+    exit 1
+  fi
+  
+  # Create request
+  local request=$(create_request "secret" \
+    --arg vault "$vault" \
+    --arg item "$item" \
+    --arg field "$field")
+  
+  log_info "Requesting secret: $vault/$item/$field"
+  
+  # Send and wait
+  local request_id=$(echo "$request" | jq -r '.id')
+  if send_request "$request"; then
+    local response=$(wait_for_response "$request_id" "$APPROVAL_TIMEOUT")
+    
+    if [[ $(echo "$response" | jq -r '.approved') == "true" ]]; then
+      local secret=$(echo "$response" | jq -r '.secret')
+      
+      # Output secret (caller should capture)
+      echo "$secret"
+    else
+      log_error "Request denied"
+      exit 1
+    fi
+  else
+    log_error "Failed to send approval request"
+    exit 1
+  fi
+}
+
+# Main entry point
+main() {
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: approve-request {sudo|secret} [options]"
+    echo ""
+    echo "Commands:"
+    echo "  sudo   Request approval for sudo command"
+    echo "  secret Request approval for 1Password secret"
+    echo ""
+    echo "Examples:"
+    echo "  approve-request sudo --command 'systemctl restart nginx'"
+    echo "  approve-request secret --vault Dev --item 'API Key' --field token"
+    exit 1
+  fi
+  
+  local cmd="$1"
+  shift
+  
+  # Check dependencies
+  if ! command -v jq >/dev/null 2>&1; then
+    log_error "Required: jq (JSON processor)"
+    exit 1
+  fi
+  
+  case "$cmd" in
+    sudo)
+      handle_sudo "$@"
+      ;;
+    secret)
+      handle_secret "$@"
+      ;;
+    *)
+      log_error "Unknown command: $cmd"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
