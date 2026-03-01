@@ -228,7 +228,9 @@ with pkgs.lib; {
 
       enableAgentSkills = true;
 
-      config = {};
+      config = {
+        myConfig.openclaw-host.enable = true;
+      };
     };
   };
 
