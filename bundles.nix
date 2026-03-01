@@ -12,6 +12,7 @@ with pkgs.lib; {
 
         rclone
         bat
+        delta
         jq
         tree
         watchman
@@ -28,10 +29,23 @@ with pkgs.lib; {
       ];
 
       config = {
-        programs.zsh.enable = true;
+        programs = {
+          zsh.enable = true;
+          jj = {
+            enable = true;
+            settings = {
+              user = {
+                name = "Will Weaver";
+                email = "me@willweaver.dev";
+              };
+            };
+          };
+          home-manager.enable = true;
+        };
 
         environment.variables = {
-          EDITOR = "emacs";
+          EDITOR = "helix";
+          VISUAL = "helix";
         };
 
         environment.shellAliases = {
