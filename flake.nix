@@ -29,6 +29,9 @@
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
     devenv.url = "github:cachix/devenv";
+
+    nix-openclaw.url = "github:openclaw/nix-openclaw";
+    nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -43,6 +46,7 @@
     homebrew-cask,
     opnix,
     microvm,
+    nix-openclaw,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
