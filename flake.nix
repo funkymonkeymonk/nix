@@ -417,7 +417,7 @@
       "drlight" = mkNixosHost {
         target = ./targets/drlight;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "creative" "llm-client"];
+        roles = ["developer"];
       };
 
       "zero" = mkNixosHost {
@@ -445,6 +445,7 @@
     # Microvm configurations
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
+      openclaw-vm = mkMicrovm "openclaw-vm" ["openclaw-host"];
     };
   };
 }
