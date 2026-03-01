@@ -31,16 +31,6 @@ with pkgs.lib; {
       config = {
         programs = {
           zsh.enable = true;
-          jj = {
-            enable = true;
-            settings = {
-              user = {
-                name = "Will Weaver";
-                email = "me@willweaver.dev";
-              };
-            };
-          };
-          home-manager.enable = true;
         };
 
         environment.variables = {
