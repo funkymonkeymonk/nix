@@ -1,52 +1,19 @@
-{
-  _config,
-  pkgs,
-  _lib,
-  inputs,
-  ...
-}:
+{...}:
 # NixOS module for the `drlight` machine.
-# - Sets up the `monkey` user with zsh as the login shell
-# - Installs zsh system-wide
 # - Configures basic networking / SSH settings used in flake.nix
+# - Runs Jellyfin and Mealie services
+# Note: User configuration comes from modules/nixos/base.nix via myConfig.users
 {
   imports = [
     ./hardware-configuration.nix
+    ../../modules/nixos/services.nix
   ];
 
-  # Ensure the user exists with the desired shell and groups
-  users.users.monkey = {
-    isNormalUser = true;
-    description = "monkey";
-    extraGroups = ["networkmanager" "wheel"];
-    # Use the zsh from nixpkgs as the login shell
-    shell = pkgs.zsh;
-    # Keep explicit home to match other entries; adjust if you prefer default
-    home = "/home/monkey";
-  };
-
-  # Make sure zsh is available system-wide (so the shell path exists)
-  environment.systemPackages = with pkgs; [
-    zsh
-  ];
-
-  # Host/network/time/SSH settings for drlight
+  # Host/network/time settings for drlight
   networking = {
     hostName = "drlight";
     networkmanager.enable = true;
     firewall.allowedTCPPorts = [9000];
   };
   time.timeZone = "America/New_York";
-
-  services.openssh.enable = true;
-
-  system.autoUpgrade = {
-    enable = true;
-    flake = inputs.self.outPath;
-    flags = [
-      "-L" # print build logs
-    ];
-    dates = "02:00";
-    randomizedDelaySec = "45min";
-  };
 }

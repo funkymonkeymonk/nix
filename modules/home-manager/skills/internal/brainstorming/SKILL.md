@@ -26,4 +26,4 @@ Help turn ideas into fully formed designs through collaborative dialogue.
 
 ## After Design
 
-Write validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
+Write validated design to `plans/YYYY-MM-DD-<topic>-design.md`
