@@ -53,4 +53,17 @@
       RandomizedDelaySec = "30min";
     };
   };
+
+  # Run openclaw-vm microvm as a systemd service
+  systemd.services.openclaw-vm = {
+    description = "OpenClaw MicroVM";
+    wantedBy = ["multi-user.target"];
+    after = ["network.target"];
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.nix}/bin/nix run ${inputs.self}#microvm.nixosConfigurations.openclaw-vm.config.microvm.runner";
+      Restart = "always";
+      RestartSec = "10";
+    };
+  };
 }

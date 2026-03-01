@@ -29,6 +29,9 @@
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
     devenv.url = "github:cachix/devenv";
+
+    nix-openclaw.url = "github:openclaw/nix-openclaw";
+    nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -43,6 +46,7 @@
     homebrew-cask,
     opnix,
     microvm,
+    nix-openclaw,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -69,6 +73,8 @@
           (final: _prev: {
             inherit (inputs.devenv.packages.${final.system}) devenv;
           })
+          # nix-openclaw overlay
+          nix-openclaw.overlays.default
           (import ./overlays)
         ];
       };
@@ -237,7 +243,11 @@
             }
             home-manager.darwinModules.home-manager
             {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
+              home-manager.sharedModules = [
+                opnix.homeManagerModules.default
+                nix-openclaw.homeManagerModules.openclaw
+                ./modules/home-manager/openclaw.nix
+              ];
             }
           ]
           ++ extraModules;
@@ -275,7 +285,11 @@
             }
             home-manager.nixosModules.home-manager
             {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
+              home-manager.sharedModules = [
+                opnix.homeManagerModules.default
+                nix-openclaw.homeManagerModules.openclaw
+                ./modules/home-manager/openclaw.nix
+              ];
             }
           ]
           ++ extraModules;
@@ -403,7 +417,7 @@
       "drlight" = mkNixosHost {
         target = ./targets/drlight;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "creative" "llm-client"];
+        roles = ["developer"];
       };
 
       "zero" = mkNixosHost {
@@ -431,6 +445,7 @@
     # Microvm configurations
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
+      openclaw-vm = mkMicrovm "openclaw-vm" ["openclaw-host"];
     };
   };
 }
