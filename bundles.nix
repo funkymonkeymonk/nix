@@ -150,10 +150,8 @@ with pkgs.lib; {
     };
 
     agent-skills = {
-      packages = with pkgs; [
-        git
-        jq
-      ];
+      # Note: git and jq are already in base role
+      packages = [];
 
       config = {
         environment.sessionVariables = {

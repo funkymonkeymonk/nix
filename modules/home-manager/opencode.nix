@@ -5,29 +5,19 @@
 }:
 with lib; let
   cfg = osConfig.myConfig.opencode;
+  hmLib = import ./lib.nix {inherit lib;};
 
   # Filter providers that have 1Password items configured
   providersWithSecrets = lib.filterAttrs (_name: provider: provider.onePasswordItem != "") cfg.providers;
 
-  # Convert kebab-case to camelCase for opnix secret names
-  toCamelCase = str:
-    lib.concatStrings (
-      lib.imap0 (
-        i: s:
-          if i == 0
-          then s
-          else lib.toUpper (lib.substring 0 1 s) + lib.substring 1 (-1) s
-      ) (lib.splitString "-" str)
-    );
-
-  # Build opnix secrets configuration
-  opnixSecrets = lib.mapAttrs' (name: provider:
-    lib.nameValuePair "opencode${toCamelCase name}ApiKey" {
-      reference = provider.onePasswordItem;
-      path = ".config/opencode/secrets/${name}-apikey";
-      mode = "0600";
+  # Build opnix secrets configuration using shared helper
+  opnixSecrets = hmLib.mkOpnixSecrets "opencode" (
+    lib.mapAttrs (name: provider: {
+      inherit (provider) onePasswordItem;
+      secretPath = ".config/opencode/secrets/${name}-apikey";
     })
-  providersWithSecrets;
+    providersWithSecrets
+  );
 
   # Build provider config with API key references
   providerConfig =

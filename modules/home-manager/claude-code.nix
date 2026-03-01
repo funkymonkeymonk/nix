@@ -6,29 +6,19 @@
 }:
 with lib; let
   cfg = osConfig.myConfig.claude-code;
+  hmLib = import ./lib.nix {inherit lib;};
 
   # Filter MCP servers that have 1Password items configured for API keys
   mcpServersWithSecrets = lib.filterAttrs (_name: server: server.onePasswordItem != "") cfg.mcpServers;
 
-  # Convert kebab-case to camelCase for opnix secret names
-  toCamelCase = str:
-    lib.concatStrings (
-      lib.imap0 (
-        i: s:
-          if i == 0
-          then s
-          else lib.toUpper (lib.substring 0 1 s) + lib.substring 1 (-1) s
-      ) (lib.splitString "-" str)
-    );
-
-  # Build opnix secrets configuration for MCP server API keys
-  opnixSecrets = lib.mapAttrs' (name: server:
-    lib.nameValuePair "claudeCode${toCamelCase name}ApiKey" {
-      reference = server.onePasswordItem;
-      path = ".config/claude-code/secrets/${name}-apikey";
-      mode = "0600";
+  # Build opnix secrets configuration using shared helper
+  opnixSecrets = hmLib.mkOpnixSecrets "claudeCode" (
+    lib.mapAttrs (name: server: {
+      inherit (server) onePasswordItem;
+      secretPath = ".config/claude-code/secrets/${name}-apikey";
     })
-  mcpServersWithSecrets;
+    mcpServersWithSecrets
+  );
 
   # Build MCP server config with API key references
   mcpServerConfig =

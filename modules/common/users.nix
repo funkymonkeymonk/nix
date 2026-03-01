@@ -104,6 +104,9 @@ in {
             ++ optional config.myConfig.claude-code.enable ../../modules/home-manager/claude-code.nix
             ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix
             ++ optional config.myConfig.agent-skills.enable ../../modules/home-manager/skills/install.nix;
+
+          # Pass user info to home-manager modules
+          _module.args.userConfig = user;
         };
       })
       config.myConfig.users);

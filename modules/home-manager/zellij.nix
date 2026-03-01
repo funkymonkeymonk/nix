@@ -1,21 +1,19 @@
+# Zellij terminal multiplexer configuration
 {
-  config,
+  osConfig,
   lib,
   ...
-}: {
-  home-manager.users = let
-    cfg = config.myConfig.zellij;
-  in
-    lib.mkIf cfg.enable (
-      lib.mapAttrs (_: _user: {
-        programs.zellij = {
-          enable = true;
-          settings = {
-            theme = "dark";
-            assumeUTF-8 = true;
-          };
-        };
-      })
-      config.home-manager.users
-    );
+}:
+with lib; let
+  cfg = osConfig.myConfig.zellij;
+in {
+  config = mkIf cfg.enable {
+    programs.zellij = {
+      enable = true;
+      settings = {
+        theme = "dark";
+        assumeUTF-8 = true;
+      };
+    };
+  };
 }

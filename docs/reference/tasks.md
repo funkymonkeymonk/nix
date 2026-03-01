@@ -8,110 +8,154 @@ Tasks are defined in `devenv.nix` and provide common operations.
 devenv tasks run <task-name>
 ```
 
-Or use the shell alias:
+Or use shell aliases:
 ```bash
-dt <task-name>
-dtr <task-name>
+dt <task-name>    # Run any task
+dtl               # List all tasks
 ```
 
-List all tasks:
-```bash
-devenv tasks list
-dtl
-```
+## Shell Aliases
 
-## Available Tasks
+| Alias | Task | Description |
+|-------|------|-------------|
+| `dt` | `devenv tasks run` | Run any task |
+| `dtr` | `devenv tasks run` | Run any task |
+| `dtl` | `devenv tasks list` | List all tasks |
+| `t` | `test:run` | Quick validation |
+| `tq` | `test:quick` | Quick syntax checks |
+| `tf` | `test:full` | Full cross-platform tests |
+| `s` | `system:switch` | Apply configuration |
+| `q` | `quality:check` | Run quality checks |
+| `b` | `nix:build` | Build configurations |
+| `i` | `dev:ide` | Launch IDE environment |
 
-### Configuration
+## System Configuration
 
 | Task | Description |
 |------|-------------|
-| `switch` | Apply configuration to current system |
-| `init` | Initial setup commands for nix-darwin |
-| `build` | Build all configurations (dry-run) |
-| `build:darwin` | Build all Darwin (macOS) configurations |
-| `build:nixos` | Build all NixOS configurations |
+| `system:switch` | Apply configuration (auto-detects platform/hostname) |
+| `system:init` | Initial nix-darwin setup (macOS, first-time) |
 
-### Testing
+## Testing
 
 | Task | Description |
 |------|-------------|
-| `test` | Run quick validation checks |
-| `test:quick` | Quick syntax and validation checks (30s) |
+| `test:run` | Run quick validation |
+| `test:quick` | Quick syntax and lint checks (~30s) |
 | `test:full` | Full cross-platform validation (5-10min) |
 | `test:darwin-only` | Test only Darwin configurations |
 | `test:nixos-only` | Test only NixOS configurations |
 
-### Code Quality
+## Code Quality
 
 | Task | Description |
 |------|-------------|
-| `quality` | Run all quality checks (format + lint) |
-| `fmt` | Format all Nix files with alejandra |
+| `quality:check` | Format, deadnix, statix, yamllint |
 
-### Flake Management
-
-| Task | Description |
-|------|-------------|
-| `flake:update` | Update flake inputs |
-| `devenv:update` | Update devenv lock file |
-
-### Development
+## Build
 
 | Task | Description |
 |------|-------------|
-| `ide` | Launch zellij IDE with file explorer and agent |
-| `pr:review` | Launch PR review dashboard (gh-dash) |
+| `nix:build` | Build all configurations (dry-run) |
+| `nix:build:darwin` | Build Darwin configurations |
+| `nix:build:nixos` | Build NixOS configurations |
 
-### Agent Skills
-
-| Task | Description |
-|------|-------------|
-| `agent-skills:status` | Check skills installation status |
-| `agent-skills:update` | Update skills from upstream superpowers |
-| `agent-skills:validate` | Validate skills format |
-
-### Git Remote
+## CI Pipeline
 
 | Task | Description |
 |------|-------------|
-| `git:set-remote-ssh` | Switch git remote to SSH |
-| `git:set-remote-https` | Switch git remote to HTTPS |
+| `ci:quick` | Fast checks (~30s): lint only |
+| `ci:lint` | Formatting and static analysis |
+| `ci:format` | Apply formatting fixes (alejandra) |
+| `ci:flake-check` | Check flake structure |
+| `ci:validate` | Full validation (test:full) |
+| `ci:validate:darwin` | Darwin configurations only |
+| `ci:validate:nixos` | NixOS configurations only |
+| `ci:pr` | Full PR pipeline (lint + validate) |
+| `ci:local` | Platform-aware local checks |
 
-### Cachix
-
-| Task | Description |
-|------|-------------|
-| `cachix:push` | Build current host config and push to Cachix |
-| `cachix:push:all` | Build all configs for current platform and push |
-
-### Documentation
+## Documentation
 
 | Task | Description |
 |------|-------------|
 | `docs:update` | Update and validate documentation |
-| `docs:validate` | Validate documentation structure |
-| `docs:generate` | Generate reference documentation |
+| `docs:validate` | Validate structure only |
+| `docs:generate` | Generate reference docs only |
 
-## Cross-Platform Validation
+## Development Environment
 
-The `test:full` task validates both platforms regardless of host:
+| Task | Description |
+|------|-------------|
+| `dev:ide` | Launch zellij IDE (yazi, helix, opencode) |
+| `dev:pr-review` | Launch PR review dashboard (gh-dash) |
 
-- On Darwin: Tests Darwin and Linux configurations
-- On Linux: Tests Linux and Darwin configurations
+## Flake Management
 
-Validation includes:
-- Flake structure and syntax (`nix flake check`)
-- Build plans (`nix build --dry-run`)
-- Configuration evaluation (`nix eval`)
+| Task | Description |
+|------|-------------|
+| `flake:update` | Update nix flake inputs |
+| `devenv:update` | Update devenv lock file |
 
-## Shell Aliases
+## Agent Skills
 
-After configuration is applied:
+| Task | Description |
+|------|-------------|
+| `agent-skills:status` | Check skills installation status |
+| `agent-skills:update` | Update skills from superpowers |
+| `agent-skills:validate` | Validate skills format |
 
-| Alias | Expands To |
-|-------|------------|
-| `dt <task>` | `devenv tasks run <task>` |
-| `dtr <task>` | `devenv tasks run <task>` |
-| `dtl` | `devenv tasks list` |
-| `skills-list` | List installed agent skills |
+## Git Remote
+
+| Task | Description |
+|------|-------------|
+| `git:set-remote-ssh` | Switch to SSH remote |
+| `git:set-remote-https` | Switch to HTTPS remote |
+
+## Cachix
+
+| Task | Description |
+|------|-------------|
+| `cachix:push` | Build and push current host to Cachix |
+| `cachix:push:all` | Build and push all platform configs |
+
+## MicroVM
+
+| Task | Description |
+|------|-------------|
+| `microvm:build` | Build microvm image |
+| `microvm:run` | Run dev-vm (Linux only) |
+| `microvm:test` | Validate microvm configuration |
+
+## Task Details
+
+### system:switch
+
+Auto-detects platform and hostname. Hostname mappings:
+- `wweaver`, `Will-Stride-MBP` -> `wweaver`
+- `MegamanX` -> `MegamanX`
+
+Uses 1Password for sudo password retrieval on macOS.
+
+### dev:ide
+
+Launches zellij with configurable tools:
+- `$FILE_MANAGER` (default: yazi)
+- `$EDITOR` (default: helix)
+- `$AGENT` (default: opencode)
+
+Set `WITH_PR=1` for PR review layout.
+
+### cachix:push
+
+Requires 1Password with token at `op://Private/Cachix/Auth Token`.
+
+## Git Hooks
+
+Pre-commit hooks run automatically:
+- `alejandra` - Nix formatting
+- `statix` - Static analysis
+- `deadnix` - Dead code detection
+- `yamllint` - YAML validation
+
+Pre-push hooks:
+- `docs-update` - Documentation validation

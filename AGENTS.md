@@ -1,247 +1,156 @@
 # Agents Guide
 
-This guide helps AI agents understand and work effectively with this Nix system configuration repository.
+Guide for AI agents working with this Nix system configuration repository.
 
 ## Repository Overview
 
-This repository manages the configuration of all computers via Nix flakes. The purpose is to maintain declarative configurations that define system setups, packages, and settings. **Agents should only modify the Nix configuration files in this repository - never attempt to directly change the computers' configurations.**
+This repository manages the configuration of computers via Nix flakes. **Agents should only modify Nix configuration files - never directly change computer configurations.**
 
-This is a modular Nix Flakes configuration for managing macOS and NixOS systems with home-manager. It uses a sophisticated architecture with modules, bundles, and role-based configurations.
+## Architecture
 
-## Key Concepts
+- **Modules**: Reusable configuration logic (`modules/`)
+- **Bundles**: Package collections by role (`bundles.nix`)
+- **Targets**: Machine-specific configurations (`targets/`)
+- **Options**: Type-safe configuration (`modules/common/options.nix`)
 
-### Architecture
-- **Modules**: Reusable configuration logic (how things work)
-- **Bundles**: Package collections (what gets installed)
-- **Targets**: Machine-specific configurations
-- **Options**: Type-safe configuration with validation
+## Directory Structure
 
-### Directory Structure
 ```
 .
 ├── .github/                    # GitHub Actions workflows
-├── modules/                    # Reusable Nix configurations
-│   ├── common/                 # Shared configurations (options, users, shell, onepassword)
-│   ├── home-manager/           # User environment modules
+├── modules/
+│   ├── common/                 # Shared: options, users, shell, onepassword
+│   ├── home-manager/           # User environment
 │   │   └── skills/             # Agent skills management
-│   │       ├── install.nix     # Skills installation module
-│   │       ├── manifest.nix    # Skill definitions and role assignments
-│   │       ├── internal/       # Skills defined in this repo
-│   │       └── external/       # Skills adapted from external sources
 │   └── nixos/                  # Linux-specific modules
-├── targets/                    # Machine-specific configurations
+├── targets/                    # Machine configurations
 ├── os/                         # Platform OS configurations
-├── templates/                  # Templates for new configurations
-├── bundles.nix                 # Consolidated package collections (roles + platforms)
-├── flake.nix                   # Main Nix flake definition
-└── devenv.nix                  # Development environment and task definitions
+├── bundles.nix                 # Role definitions
+├── flake.nix                   # Main flake with helpers
+└── devenv.nix                  # Tasks and dev environment
 ```
 
-## Available Tasks
+## Tasks
 
-Use devenv for common operations:
 ```bash
-devenv tasks list              # List all available tasks
-devenv tasks run <task>        # Run a specific task
+devenv tasks list              # List all tasks
+devenv tasks run <task>        # Run a task
 ```
 
-### CI/CD Tasks
-Fast feedback and validation:
-- `ci:quick` - Fast checks (~30s): lint, format, flake check
-- `ci:validate` - Full validation of all platforms
-- `ci:validate:darwin` - Validate Darwin configurations
-- `ci:validate:nixos` - Validate NixOS configurations
-- `ci:pr` - Run full PR pipeline
-- `ci:local` - Platform-aware local checks
-- `ci:lint` - Run lint checks only
-- `ci:format` - Apply formatting fixes
+### Key Tasks
+
+| Task | Description |
+|------|-------------|
+| `ci:quick` | Fast checks (~30s): lint only |
+| `ci:pr` | Full PR pipeline |
+| `quality:check` | Format and lint code |
+| `test:full` | Full cross-platform validation |
+| `system:switch` | Apply configuration |
 
 ### Shell Aliases
-After configuration is applied, these aliases are available:
-- `dt <task>` / `dtr <task>` - Run a devenv task
-- `dtl` - List all tasks
-- `t` - Run test:run
-- `tf` - Run test:full
-- `s` - Run system:switch
-- `q` - Run quality:check
-- `b` - Run nix:build
-- `i` - Run dev:ide
+
+| Alias | Task |
+|-------|------|
+| `s` | `system:switch` |
+| `q` | `quality:check` |
+| `t` | `test:run` |
+| `tf` | `test:full` |
+| `b` | `nix:build` |
+| `i` | `dev:ide` |
 
 ## Working with This Repository
 
-### Before Making Changes
+### Before Changes
 1. Run `devenv tasks run ci:quick` for fast feedback
-2. Check existing code style by running `devenv tasks run quality:check`
-3. Use the development shell with `devenv shell` for proper tooling
+2. Use `devenv shell` for proper tooling
 
 ### Making Changes
-1. Create or modify files as needed
-2. Run `devenv tasks run quality:check` to format and lint code
-3. Run `devenv tasks run ci:pr` for full validation
-4. Commit with descriptive messages
+1. Modify files as needed
+2. Run `devenv tasks run quality:check`
+3. Run `devenv tasks run ci:pr` for validation
+4. Commit with conventional commit messages
 
-### Adding New Features
-1. **New Machine**: Create target in `targets/`, update `flake.nix` using `mkUser` and `mkNixHomebrew` helpers
-2. **New Role**: Add role to `bundles.nix` under `roles` attribute
-3. **New Module**: Create in appropriate `modules/` subdirectory
-4. **New Option**: Add to `modules/common/options.nix`
+### Adding Features
 
-### Available Roles (in bundles.nix)
-- `base` - Essential packages and shell aliases
-- `developer` - Development tools (emacs, docker, k8s tools)
-- `creative` - Media tools (ffmpeg, imagemagick)
-- `desktop` - Desktop applications (logseq)
-- `workstation` - Work tools (slack, trippy)
-- `entertainment` - Entertainment apps (steam, obs, discord via homebrew)
-- `gaming` - Gaming tools (moonlight-qt)
-- `agent-skills` - AI agent skills management
-- `llm-client` - OpenCode with LLM server connection
-- `llm-claude` - Claude Code integration
-- `llm-host` - Ollama for local model hosting
-- `llm-server` - LiteLLM server (placeholder)
+| Feature | Steps |
+|---------|-------|
+| New Machine | Create `targets/<name>/`, add to `flake.nix` using `mkDarwinHost` or `mkNixosHost` |
+| New Role | Add to `bundles.nix` under `roles` |
+| New Module | Create in `modules/` subdirectory |
+| New Option | Add to `modules/common/options.nix` |
 
-### Helper Functions (in flake.nix)
-- `mkUser` - Creates standard user configuration
-- `mkNixHomebrew` - Creates homebrew configuration for Darwin
-- `mkBundleModule` - Creates bundle module from role list
-- `commonModules` - Shared module imports for all systems
+## Roles (bundles.nix)
 
-### Computed Options
-- `myConfig.isDarwin` - Boolean for platform detection (use instead of manual checks)
+| Role | Description |
+|------|-------------|
+| `base` | Essential packages and shell |
+| `developer` | Development tools |
+| `creative` | Media tools |
+| `desktop` | Desktop applications |
+| `workstation` | Work tools |
+| `entertainment` | Entertainment apps |
+| `gaming` | Gaming tools |
+| `agent-skills` | AI skills management |
+| `llm-client` | OpenCode + rtk |
+| `llm-claude` | Claude Code |
+| `llm-host` | Ollama |
 
-## Agent Skills Integration
+## Helper Functions (flake.nix)
 
-This repository includes automatic AI agent skills management:
-- Skills auto-install when `agent-skills.enable = true` and roles like `developer`, `llm-client`, or `llm-claude` are active
-- Skills are defined in `modules/home-manager/skills/manifest.nix` with role-based filtering
-- Installed to `~/.config/opencode/skills/` via home-manager symlinks
-- Use `devenv tasks run agent-skills:status` to check current state
-- Skills follow Agent Skills specification
+| Helper | Purpose |
+|--------|---------|
+| `mkUser` | Create user configuration with defaults |
+| `mkNixHomebrew` | Create homebrew config for Darwin |
+| `mkBundleModule` | Create bundle from role list |
+| `mkDarwinHost` | Create complete Darwin host |
+| `mkNixosHost` | Create complete NixOS host |
+| `mkMicrovm` | Create microvm configuration |
 
-### Adding New Skills
+## Agent Skills
 
-1. Create skill directory in `modules/home-manager/skills/internal/skill-name/`
-2. Add `SKILL.md` with frontmatter (`name`, `description`)
-3. Register in `modules/home-manager/skills/manifest.nix` with role assignments
-4. Rebuild system to install
+Skills auto-install when roles like `developer`, `llm-client`, or `llm-claude` are active.
 
-### Version Control Preference (Jujutsu/jj)
+**Location:** `~/.config/opencode/skills/`
 
-When working in repositories that use Jujutsu (jj) for version control:
+### Adding Skills
 
-1. **Auto-detect jj repositories**: Check for `.jj/` directory (colocated repos have both `.jj/` and `.git/`)
-2. **Use jj skill**: Load the `jj` skill when:
-   - A `.jj/` directory exists in the repository
-   - The user asks for any git-related operations (commit, push, log, diff, etc.)
-   - The user explicitly mentions jj or Jujutsu
+1. Create `modules/home-manager/skills/internal/skill-name/SKILL.md`
+2. Register in `modules/home-manager/skills/manifest.nix`
+3. Rebuild system
 
-3. **Key jj principles to follow**:
-   - Working copy IS a commit (no staging area)
-   - Always run `jj status` first before any operation
-   - Create new commits with `jj new` before starting work
-   - Use `jj describe` to set commit messages
-   - Never mix git and jj commands in the same session
+## Jujutsu (jj) Version Control
 
-4. **The jj skill is available at**: `~/.config/opencode/skills/jj/SKILL.md` (installs automatically with `opencode` bundle)
+If `.jj/` directory exists:
+1. Use `jj` skill for all version control
+2. Run `jj status` before any operation
+3. Use `jj new` before starting work
+4. Use `jj describe` for commit messages
+5. Never mix git and jj commands
 
 ## Platform Support
 
-### Supported Systems
-- **macOS**: nix-darwin configuration (aarch64-darwin)
-- **Linux**: NixOS configuration (x86_64-linux)
+- **macOS**: nix-darwin (aarch64-darwin)
+- **Linux**: NixOS (x86_64-linux)
 
 ### Cross-Platform Validation
-The `devenv tasks run test:full` command validates both platforms regardless of host:
-- On macOS: Tests both Darwin and Linux configs
-- On Linux: Tests both Linux and Darwin configs
-- Uses dry-run builds for cross-architecture validation
 
-## Code Style Guidelines
+`test:full` validates both platforms regardless of host using dry-run builds.
 
-### Nix Files
-- Use alejandra formatter (`devenv tasks run quality:check`)
-- Remove dead code (checked by deadnix)
-- Follow existing patterns and conventions
-- Use type-safe options with proper validation
+## Code Style
 
-### Commit Messages
-- Use conventional commits: `feat:`, `fix:`, `docs:`, etc.
-- Be concise but descriptive
-- Reference relevant files or components
-
-## Security Considerations
-
-### Secrets Management
-- Uses 1Password CLI for runtime secret access
-- Secrets never stored in repository or Nix store
-- SSH agent integration for key management
-- Git commit signing via 1Password SSH signing
-
-### Code Review
-- All changes should pass `devenv tasks run quality:check` checks
-- Validate cross-platform compatibility
-- Review security implications of module changes
-
-## Troubleshooting
-
-### Common Issues
-1. **Build failures**: Check `devenv tasks run test:full` output for specific errors
-2. **Formatting issues**: Run `devenv tasks run quality:check` to fix style problems
-3. **Cross-platform issues**: Ensure platform-specific dependencies are correct
-4. **Skills issues**: Use `devenv tasks run agent-skills:validate` to check skills format
-
-### Getting Help
-- Check existing documentation in `docs/`
-- Review devenv.nix for available tasks
-- Examine similar configurations in the codebase
-- Use built-in validation tools to diagnose issues
-
-## Development Workflow
-
-1. **Setup**: `devenv shell` to enter development environment
-2. **Validate**: `devenv tasks run test:full` to ensure clean state
-3. **Implement**: Make changes following existing patterns
-4. **Quality**: `devenv tasks run quality:check` to run all checks
-5. **Test**: `devenv tasks run test:full` to validate changes
-6. **Commit**: Use conventional commit messages
-
-This workflow ensures consistent, high-quality contributions to the configuration repository.
+- Use alejandra formatter (`quality:check`)
+- Remove dead code (deadnix)
+- Follow existing patterns
+- Conventional commits: `feat:`, `fix:`, `docs:`
 
 ## RTK Token Optimization
 
-This repository uses **RTK (Rust Token Killer)** to reduce LLM token consumption by 60-90% on common dev commands.
+Use RTK-prefixed commands for token-efficient output:
 
-### Available Commands
-
-When working with this codebase, use RTK-prefixed commands for token-efficient output:
-
-| Standard Command | RTK Equivalent | Token Savings |
-|------------------|---------------|---------------|
+| Standard | RTK | Savings |
+|----------|-----|---------|
 | `git status` | `rtk git status` | ~80% |
 | `git diff` | `rtk git diff` | ~75% |
 | `git log` | `rtk git log` | ~80% |
-| `git push` | `rtk git push` | ~92% |
-| `ls` | `rtk ls` | ~80% |
-| `cat <file>` | `rtk read <file>` | ~70% |
-| `grep` | `rtk grep` | ~80% |
-| `cargo test` | `rtk cargo test` | ~90% |
-| `npm test` | `rtk npm test` | ~90% |
-| `ruff check` | `rtk ruff check` | ~80% |
-| `pytest` | `rtk pytest` | ~90% |
-| `docker ps` | `rtk docker ps` | ~80% |
 
-### For Claude Code
-
-Claude Code users: RTK hooks are configured automatically when `claude-code.rtk.enable = true` is set. Commands are transparently rewritten to their RTK equivalents.
-
-### For OpenCode
-
-Since OpenCode does not have native RTK hook support, agents should manually use RTK commands when appropriate. The global OpenCode config at `~/.config/opencode/opencode.json` includes these instructions.
-
-### Verification
-
-To check token savings:
-```bash
-rtk gain        # Show token savings stats
-rtk gain --graph  # Show ASCII graph of savings
-```
+Check savings: `rtk gain`
