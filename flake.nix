@@ -88,6 +88,10 @@
       development.enable = true;
       agent-skills.enable = true;
       onepassword.enable = true;
+      jj-autosync = {
+        enable = true;
+        username = name;
+      };
       opencode = {
         enable = true;
         model = "opencode/big-pickle";
@@ -330,6 +334,28 @@
                   - Explanation (understanding-oriented)
 
                   $ARGUMENTS
+                '';
+              };
+              workspace = {
+                description = "Create a jj workspace for isolated work with fast sync enabled";
+                template = ''
+                  Create a jj workspace session for isolated development work.
+
+                  Run this command:
+                  ```bash
+                  jj-workspace-session start $ARGUMENTS
+                  ```
+
+                  Then report the workspace name and path to the user, and cd into the workspace directory.
+
+                  If no arguments provided, this starts session tracking in the current workspace.
+                  If a name is provided (e.g., "feat/auth" or "fix/bug"), it creates a new workspace.
+                  A second argument can specify the base branch (defaults to main).
+
+                  Examples:
+                  - /workspace feat/user-auth      -> Creates feat/user-auth-<date>-<id> from main
+                  - /workspace fix/bug develop     -> Creates fix/bug-<date>-<id> from develop
+                  - /workspace                     -> Starts session in current workspace
                 '';
               };
             };
