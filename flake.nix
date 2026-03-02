@@ -172,11 +172,15 @@
     # Darwin-specific modules
     darwinModules = [
       ./modules/darwin/ollama.nix
+      ./modules/darwin/litellm.nix
+      ./modules/darwin/postgresql.nix
     ];
 
     # NixOS-specific modules
     nixosModules = [
       ./modules/nixos/ollama.nix
+      ./modules/nixos/litellm.nix
+      ./modules/nixos/postgresql.nix
     ];
 
     # Package overlays for each system
@@ -387,7 +391,7 @@
       "MegamanX" = mkDarwinHost {
         target = ./targets/MegamanX;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-client" "llm-claude"];
+        roles = ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-server" "llm-client" "llm-claude"];
         extraModules = [mac-app-util.darwinModules.default];
       };
 
