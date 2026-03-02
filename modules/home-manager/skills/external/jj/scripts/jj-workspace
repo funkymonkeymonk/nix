@@ -1,56 +1,48 @@
 #!/usr/bin/env bash
 # jj-workspace: Manage jj workspaces for isolated work
 # Usage: jj-workspace <command> [args]
-# Example: jj-workspace create feature-auth
+# Example: jj-workspace create feat/auth
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=jj-workspace-lib
+source "${SCRIPT_DIR}/jj-workspace-lib"
 
-WORKSPACES_DIR="./workspaces"
+# Use library colors
+RED="$JJ_RED"
+GREEN="$JJ_GREEN"
+YELLOW="$JJ_YELLOW"
+BLUE="$JJ_BLUE"
+NC="$JJ_NC"
+
+WORKSPACES_DIR="$JJ_WORKSPACES_DIR"
 
 usage() {
     cat <<EOF
 Usage: jj-workspace <command> [args]
 
 Manage jj workspaces for isolated multi-task work.
+Workspace names use convention: <type>/<topic>-<date>-<id>
 
 Commands:
-  create <name> [base]   Create a new workspace (default base: main)
-  list                   List all workspaces
-  remove <name>          Remove a workspace
-  clean                  Remove all workspaces
-  status                 Show status of all workspaces
+  create <type/topic> [base]   Create a new workspace (default base: main)
+  list                         List all workspaces
+  remove <name>                Remove a workspace
+  clean                        Remove all workspaces
+  status                       Show status of all workspaces
+
+Types: feat, fix, hotfix, chore, release
 
 Examples:
-  jj-workspace create feature-auth          # New workspace from main
-  jj-workspace create bugfix-login develop  # New workspace from develop
+  jj-workspace create feat/user-auth        # Creates feat/user-auth-20260223-a1b2
+  jj-workspace create fix/login develop     # Creates fix/login-20260223-c3d4 from develop
   jj-workspace list                         # Show all workspaces
-  jj-workspace remove feature-auth          # Remove workspace
+  jj-workspace remove feat-user-auth-*      # Remove workspace
   jj-workspace clean                        # Remove all workspaces
 EOF
     exit 1
-}
-
-# Ensure workspaces directory exists
-ensure_workspaces_dir() {
-    if [[ ! -d "$WORKSPACES_DIR" ]]; then
-        mkdir -p "$WORKSPACES_DIR"
-        echo -e "${YELLOW}Created workspaces directory: ${WORKSPACES_DIR}${NC}"
-        
-        # Check if .gitignore exists and add workspaces/ if needed
-        if [[ -f .gitignore ]]; then
-            if ! grep -q "^workspaces/" .gitignore; then
-                echo "workspaces/" >> .gitignore
-                echo -e "${YELLOW}Added workspaces/ to .gitignore${NC}"
-            fi
-        fi
-    fi
 }
 
 cmd_create() {
@@ -59,25 +51,45 @@ cmd_create() {
     
     if [[ -z "$name" ]]; then
         echo -e "${RED}Error: Workspace name required${NC}"
-        echo "Usage: jj-workspace create <name> [base]"
+        echo "Usage: jj-workspace create <type>/<topic> [base]"
+        echo ""
+        echo "Naming convention: <type>/<topic>-<date>-<id>"
+        echo "Types: feat, fix, hotfix, chore, release"
+        echo ""
+        echo "Examples:"
+        echo "  jj-workspace create feat/user-auth"
+        echo "  jj-workspace create fix/login-bug develop"
         exit 1
     fi
     
-    ensure_workspaces_dir
+    jj_ensure_workspaces_dir "$WORKSPACES_DIR"
     
-    local workspace_path="${WORKSPACES_DIR}/${name}"
+    # Generate full workspace name with date and id
+    local full_name
+    full_name=$(jj_generate_workspace_name "$name")
+    
+    # Create directory-safe version (replace / with -)
+    local dir_name
+    dir_name=$(jj_workspace_to_dirname "$full_name")
+    local workspace_path="${WORKSPACES_DIR}/${dir_name}"
     
     if [[ -d "$workspace_path" ]]; then
         echo -e "${RED}Error: Workspace already exists: ${workspace_path}${NC}"
         exit 1
     fi
     
-    echo -e "${GREEN}Creating workspace: ${name} (base: ${base})${NC}"
+    echo -e "${GREEN}Creating workspace: ${full_name} (base: ${base})${NC}"
     jj workspace add "$workspace_path" -r "$base"
     
     echo -e "\n${GREEN}Workspace created!${NC}"
+    echo -e "Name:   ${BLUE}${full_name}${NC}"
+    echo -e "Path:   ${BLUE}${workspace_path}${NC}"
+    echo -e ""
     echo -e "To use: ${BLUE}cd ${workspace_path}${NC}"
     echo -e "Then:   ${BLUE}jj new${NC} to start working"
+    
+    # Output the path for scripting (last line, parseable)
+    echo "WORKSPACE_PATH=${workspace_path}"
 }
 
 cmd_list() {
@@ -88,7 +100,8 @@ cmd_list() {
         echo -e "\n${GREEN}Workspace directories:${NC}"
         for dir in "$WORKSPACES_DIR"/*/; do
             if [[ -d "$dir" ]]; then
-                local name=$(basename "$dir")
+                local name
+                name=$(basename "$dir")
                 echo -e "  ${BLUE}${name}${NC} -> ${dir}"
             fi
         done
@@ -134,7 +147,8 @@ cmd_clean() {
     fi
     
     # Get list of workspaces
-    local workspaces=$(jj workspace list | grep -v "^default" | awk '{print $1}' || true)
+    local workspaces
+    workspaces=$(jj workspace list | grep -v "^default" | awk '{print $1}' || true)
     
     for ws in $workspaces; do
         if [[ -n "$ws" && "$ws" != "default" ]]; then
@@ -164,7 +178,8 @@ cmd_status() {
     if [[ -d "$WORKSPACES_DIR" ]]; then
         for dir in "$WORKSPACES_DIR"/*/; do
             if [[ -d "$dir" ]]; then
-                local name=$(basename "$dir")
+                local name
+                name=$(basename "$dir")
                 echo -e "${BLUE}${name}:${NC}"
                 (cd "$dir" && jj log -r '@' --no-graph -T 'concat(change_id.short(), " ", description.first_line())' 2>/dev/null || echo "  (error reading)")
                 echo ""

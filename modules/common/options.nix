@@ -259,6 +259,50 @@ with lib; {
       };
     };
 
+    jj-autosync = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable automatic jj repository synchronization";
+      };
+
+      username = mkOption {
+        type = types.str;
+        default = "";
+        description = "Username for launchd environment (required on Darwin)";
+      };
+
+      reposDir = mkOption {
+        type = types.str;
+        default = "$HOME/repos";
+        description = "Directory containing jj repositories to sync";
+      };
+
+      mainBranch = mkOption {
+        type = types.str;
+        default = "main";
+        description = "Main branch name to sync";
+      };
+
+      hourlySync = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable hourly background sync for all repos";
+      };
+
+      fastSyncInterval = mkOption {
+        type = types.int;
+        default = 300;
+        description = "Sync interval in seconds for active sessions (default: 300 = 5 minutes)";
+      };
+
+      sessionTtlSeconds = mkOption {
+        type = types.int;
+        default = 1800;
+        description = "Session TTL in seconds before auto-expiry (default: 1800 = 30 minutes). TTL resets on each sync.";
+      };
+    };
+
     claude-code = {
       enable = mkOption {
         type = types.bool;
