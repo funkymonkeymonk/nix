@@ -88,6 +88,7 @@ with pkgs.lib; {
         kubernetes-helm
         k9s
         gh-dash
+        gomuks
         # opencode is provided by llm-client role
       ];
 
@@ -123,10 +124,18 @@ with pkgs.lib; {
         [
           logseq
           super-productivity
+          # element-desktop on Darwin requires Xcode 26+ to build, use Homebrew cask instead
         ]
+        ++ optional stdenv.isLinux element-desktop
         ++ optional stdenv.isLinux vivaldi;
 
-      config = {};
+      config = {
+        homebrew = {
+          casks = [
+            "element"
+          ];
+        };
+      };
     };
 
     workstation = {

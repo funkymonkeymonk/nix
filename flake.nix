@@ -57,6 +57,7 @@
             ];
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
+            "olm-3.2.16"
           ];
         };
         overlays = [
