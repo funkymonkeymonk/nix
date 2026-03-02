@@ -129,12 +129,21 @@
 
       # Collect all homebrew configs from enabled roles
       roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) finalRoles;
+
+      # Collect all myConfig settings from enabled roles
+      roleMyConfigs = map (role: bundles.roles.${role}.config.myConfig or {}) finalRoles;
     in {
       config =
         {
           # Pass enabled roles and superpowers path to skills configuration
-          myConfig.skills.enabledRoles = finalRoles;
-          myConfig.skills.superpowersPath = inputs.superpowers;
+          # Merge with myConfig from all enabled roles
+          myConfig = nixpkgs.lib.mkMerge (roleMyConfigs
+            ++ [
+              {
+                skills.enabledRoles = finalRoles;
+                skills.superpowersPath = inputs.superpowers;
+              }
+            ]);
 
           environment = {
             systemPackages =
@@ -169,6 +178,16 @@
       ./modules/common/cachix.nix
     ];
 
+    # Darwin-specific modules
+    darwinModules = [
+      ./modules/services/ollama/darwin.nix
+    ];
+
+    # NixOS-specific modules
+    nixosModules = [
+      ./modules/services/ollama/nixos.nix
+    ];
+
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
 
@@ -183,6 +202,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./os/microvm.nix
             ./modules/microvm
@@ -223,6 +243,7 @@
             nix-homebrew.darwinModules.nix-homebrew
           ]
           ++ commonModules
+          ++ darwinModules
           ++ [
             ./modules/home-manager
             ./os/darwin.nix
@@ -260,6 +281,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./modules/home-manager
             ./modules/nixos/base.nix
