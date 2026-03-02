@@ -232,9 +232,63 @@ with pkgs.lib; {
     };
 
     llm-server = {
-      packages = [];
+      packages = with pkgs; [
+        litellm
+        postgresql_17
+      ];
 
-      config = {};
+      config = {
+        # Enable PostgreSQL for LiteLLM
+        myConfig.postgresql = {
+          enable = true;
+          port = 5432;
+          databases = ["litellm"];
+          users = [
+            {
+              name = "litellm";
+              ensureDBOwnership = true;
+            }
+          ];
+        };
+
+        myConfig.litellm = {
+          enable = true;
+          host = "0.0.0.0";
+          port = 4000;
+          ollamaBaseUrl = "http://localhost:11434";
+          # 1Password secrets for LiteLLM (Homelab vault)
+          masterKeyOnePassword = "op://Homelab/LiteLLM Master Key/password";
+          saltKeyOnePassword = "op://Homelab/LiteLLM Salt Key/password";
+          # Local PostgreSQL database URL (peer auth via socket)
+          databaseUrl = "postgresql://litellm@localhost/litellm";
+
+          # OpenCode Zen provider
+          extraProviders = {
+            opencode-zen = {
+              apiBase = "https://opencode.ai/zen";
+              apiKeyOnePassword = "op://Homelab/OpenCode Zen/api-key";
+            };
+          };
+
+          # Custom models including OpenCode Zen
+          models = [
+            {
+              modelName = "opencode/zen";
+              litellmParams = {
+                model = "openai/claude-3-5-sonnet-20241022";
+                apiBase = "https://opencode.ai/zen";
+              };
+            }
+          ];
+        };
+
+        environment.shellAliases = {
+          llm-server-status = "curl -s http://localhost:4000/health | jq";
+          llm-server-models = "curl -s http://localhost:4000/v1/models | jq";
+          llm-server-logs = "tail -f /tmp/litellm.log";
+          llm-db = "psql -U litellm -d litellm";
+        };
+      };
     };
   };
 

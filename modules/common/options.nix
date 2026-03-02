@@ -297,6 +297,212 @@ with lib; {
       };
     };
 
+    postgresql = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable PostgreSQL database server";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 5432;
+        description = "Port for PostgreSQL to listen on";
+      };
+
+      enableTCPIP = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether PostgreSQL should listen on all network interfaces";
+      };
+
+      databases = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "List of databases to create";
+      };
+
+      users = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Username for the PostgreSQL user";
+            };
+            ensureDBOwnership = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether to grant ownership of a database with the same name";
+            };
+          };
+        });
+        default = [];
+        description = "List of PostgreSQL users to create";
+      };
+
+      dataDir = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Custom data directory for PostgreSQL (null uses default)";
+      };
+
+      package = mkOption {
+        type = types.nullOr types.package;
+        default = null;
+        description = "PostgreSQL package to use (null uses default)";
+      };
+    };
+
+    litellm = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable LiteLLM proxy server";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "0.0.0.0";
+        description = "Host address for LiteLLM to bind to";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 4000;
+        description = "Port for LiteLLM API (OpenAI-compatible)";
+      };
+
+      configFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to LiteLLM config.yaml file";
+      };
+
+      masterKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Master API key for LiteLLM (leave empty to use 1Password)";
+      };
+
+      masterKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for master key (e.g., 'op://vault/item/field')";
+      };
+
+      saltKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Salt key for encrypting credentials in DB (CANNOT CHANGE once set)";
+      };
+
+      saltKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for salt key";
+      };
+
+      databaseUrl = mkOption {
+        type = types.str;
+        default = "";
+        description = "PostgreSQL database URL for storing model credentials";
+      };
+
+      databaseUrlOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for database URL";
+      };
+
+      ollamaBaseUrl = mkOption {
+        type = types.str;
+        default = "http://localhost:11434";
+        description = "Base URL for local Ollama instance";
+      };
+
+      anthropicApiKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Anthropic API key (leave empty to use 1Password)";
+      };
+
+      anthropicApiKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for Anthropic API key";
+      };
+
+      openaiApiKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "OpenAI API key (leave empty to use 1Password)";
+      };
+
+      openaiApiKeyOnePassword = mkOption {
+        type = types.str;
+        default = "";
+        description = "1Password item reference for OpenAI API key";
+      };
+
+      extraProviders = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            apiBase = mkOption {
+              type = types.str;
+              description = "Base URL for the provider API";
+            };
+            apiKey = mkOption {
+              type = types.str;
+              default = "";
+              description = "API key (leave empty to use 1Password)";
+            };
+            apiKeyOnePassword = mkOption {
+              type = types.str;
+              default = "";
+              description = "1Password item reference for API key";
+            };
+          };
+        });
+        default = {};
+        description = "Additional LLM providers to configure";
+      };
+
+      models = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            modelName = mkOption {
+              type = types.str;
+              description = "Name to expose via LiteLLM API";
+            };
+            litellmParams = mkOption {
+              type = types.submodule {
+                options = {
+                  model = mkOption {
+                    type = types.str;
+                    description = "Provider model identifier (e.g., 'ollama/llama3.2', 'claude-3-opus')";
+                  };
+                  apiBase = mkOption {
+                    type = types.nullOr types.str;
+                    default = null;
+                    description = "Override API base URL for this model";
+                  };
+                };
+              };
+              description = "LiteLLM model parameters";
+            };
+          };
+        });
+        default = [];
+        description = "List of models to expose through LiteLLM";
+      };
+
+      logLevel = mkOption {
+        type = types.enum ["DEBUG" "INFO" "WARNING" "ERROR"];
+        default = "INFO";
+        description = "Log level for LiteLLM";
+      };
+    };
+
     claude-code = {
       enable = mkOption {
         type = types.bool;
