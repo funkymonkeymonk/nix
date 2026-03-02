@@ -169,6 +169,16 @@
       ./modules/common/cachix.nix
     ];
 
+    # Darwin-specific modules
+    darwinModules = [
+      ./modules/darwin/ollama.nix
+    ];
+
+    # NixOS-specific modules
+    nixosModules = [
+      ./modules/nixos/ollama.nix
+    ];
+
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
 
@@ -183,6 +193,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./os/microvm.nix
             ./modules/microvm
@@ -223,6 +234,7 @@
             nix-homebrew.darwinModules.nix-homebrew
           ]
           ++ commonModules
+          ++ darwinModules
           ++ [
             ./modules/home-manager
             ./os/darwin.nix
@@ -260,6 +272,7 @@
             configuration
           ]
           ++ commonModules
+          ++ nixosModules
           ++ [
             ./modules/home-manager
             ./modules/nixos/base.nix
