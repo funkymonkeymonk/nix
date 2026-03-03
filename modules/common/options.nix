@@ -294,6 +294,9 @@ with lib; {
         type = types.nullOr types.path;
         default = null;
         description = "Path to environment file with additional Ollama configuration";
+      };
+    };
+
     jj-autosync = {
       enable = mkOption {
         type = types.bool;
