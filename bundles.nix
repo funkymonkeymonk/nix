@@ -189,17 +189,7 @@ with pkgs.lib; {
 
       enableAgentSkills = true;
 
-      config = {
-        environment.sessionVariables = {
-          LLM_SERVER_HOST = "MegamanX.local";
-          LLM_SERVER_PORT = "4000";
-          OPENCODE_ENDPOINT = "http://MegamanX.local:4000";
-        };
-
-        environment.shellAliases = {
-          llm-status = "curl http://MegamanX.local:4000/status";
-        };
-      };
+      config = {};
     };
 
     llm-claude = {
@@ -209,11 +199,7 @@ with pkgs.lib; {
 
       enableAgentSkills = true;
 
-      config = {
-        environment.sessionVariables = {
-          CLAUDE_API_BASE = "http://MegamanX.local:4000";
-        };
-      };
+      config = {};
     };
 
     llm-host = {
