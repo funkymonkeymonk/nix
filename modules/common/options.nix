@@ -259,6 +259,44 @@ with lib; {
       };
     };
 
+    ollama = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Ollama local LLM service";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Host address for Ollama to bind to (use 0.0.0.0 for network access)";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 11434;
+        description = "Port for Ollama API";
+      };
+
+      models = mkOption {
+        type = types.listOf types.str;
+        default = ["llama3.2" "codellama"];
+        description = "List of models to pre-pull on service start";
+      };
+
+      acceleration = mkOption {
+        type = types.nullOr (types.enum ["cuda" "rocm" "metal"]);
+        default = null;
+        description = "GPU acceleration type (null for auto-detection)";
+      };
+
+      environmentFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to environment file with additional Ollama configuration";
+      };
+    };
+
     jj-autosync = {
       enable = mkOption {
         type = types.bool;
