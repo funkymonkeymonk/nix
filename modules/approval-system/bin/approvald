@@ -1,0 +1,295 @@
+#!/usr/bin/env bash
+#
+# approvald - Approval daemon for phone-based authorization
+#
+# Handles requests, sends notifications, and interfaces with 1Password
+#
+
+set -euo pipefail
+
+# Configuration
+CONFIG_FILE="${APPROVAL_CONFIG:-$HOME/.config/approval/config.toml}"
+SOCKET_PATH="${APPROVAL_SOCKET:-/run/approvald/request.sock}"
+PIDFILE="${APPROVAL_PIDFILE:-/run/approvald/approvald.pid}"
+LOG_FILE="${APPROVAL_LOG:-$HOME/.local/log/approvald.log}"
+
+# Load config
+load_config() {
+  if [[ -f "$CONFIG_FILE" ]]; then
+    # Source as bash variables (simplified TOML parsing)
+    eval "$(grep -E '^\s*[a-zA-Z_]+\s*=\s*' "$CONFIG_FILE" | sed 's/^\s*//' 2>/dev/null || true)"
+  fi
+}
+
+# Logging
+log() {
+  local level="$1"
+  shift
+  local msg="[$(date -Iseconds)] [$level] $*"
+  echo "$msg" >> "$LOG_FILE"
+  echo "$msg"
+}
+
+log_info() { log "INFO" "$@"; }
+log_error() { log "ERROR" "$@"; }
+log_debug() { [[ "${APPROVAL_DEBUG:-0}" == "1" ]] && log "DEBUG" "$@"; }
+
+# Send notification to phone
+send_notification() {
+  local request_id="$1"
+  local request_type="$2"
+  local details="$3"
+  
+  # Load notification config
+  local ntfy_server="${NTFY_SERVER:-https://ntfy.sh}"
+  local ntfy_topic="${NTFY_TOPIC:-approval-requests}"
+  
+  local title="🔐 Approval Request"
+  local message="Type: $request_type
+$details
+
+Request ID: $request_id"
+  
+  # Send via ntfy
+  local actions="[ { \"action\": \"http\", \"label\": \"✅ Approve\", \"url\": \"${ntfy_server}/$ntfy-topic/approve/${request_id}\", \"method\": \"POST\", \"headers\": { \"Authorization\": \"Bearer ${NTFY_TOKEN:-}\" } }, { \"action\": \"http\", \"label\": \"❌ Deny\", \"url\": \"${ntfy_server}/$ntfy-topic/deny/${request_id}\", \"method\": \"POST\", \"headers\": { \"Authorization\": \"Bearer ${NTFY_TOKEN:-}\" } } ]"
+  
+  curl -s -X POST "$ntfy_server/$ntfy_topic" \
+    -H "Title: $title" \
+    -H "Priority: high" \
+    -H "Actions: $actions" \
+    -d "$message" > /dev/null 2>&1 || {
+    log_error "Failed to send notification"
+    return 1
+  }
+  
+  log_info "Notification sent for request $request_id"
+}
+
+# Check if request is auto-approved (policy)
+is_auto_approved() {
+  local request_type="$1"
+  local command="${2:-}"
+  
+  # Load auto-approve rules from config
+  local auto_approve_list="${AUTO_APPROVE_COMMANDS:-}"
+  
+  if [[ -n "$auto_approve_list" ]]; then
+    for allowed in $auto_approve_list; do
+      if [[ "$command" =~ ^$allowed ]]; then
+        return 0
+      fi
+    done
+  fi
+  
+  return 1
+}
+
+# Fetch secret from 1Password
+fetch_secret() {
+  local vault="$1"
+  local item="$2"
+  local field="$3"
+  
+  if ! command -v op >/dev/null 2>&1; then
+    log_error "1Password CLI (op) not found"
+    return 1
+  fi
+  
+  # Fetch from 1Password
+  # This will trigger biometric unlock on phone if needed
+  local secret
+  if ! secret=$(op read "op://$vault/$item/$field" 2>&1); then
+    log_error "Failed to fetch secret from 1Password: $secret"
+    return 1
+  fi
+  
+  echo "$secret"
+}
+
+# Handle incoming request
+handle_request() {
+  local request_json="$1"
+  
+  log_debug "Received request: $request_json"
+  
+  local request_id=$(echo "$request_json" | jq -r '.id')
+  local request_type=$(echo "$request_json" | jq -r '.type')
+  local user=$(echo "$request_json" | jq -r '.user')
+  local hostname=$(echo "$request_json" | jq -r '.hostname')
+  
+  log_info "New $request_type request from $user@$hostname (ID: $request_id)"
+  
+  # Check auto-approval policy
+  if is_auto_approved "$request_type" "$(echo "$request_json" | jq -r '.command // empty')"; then
+    log_info "Request $request_id auto-approved by policy"
+    approve_request "$request_id" "$request_json"
+    return 0
+  fi
+  
+  # Send notification
+  local details=""
+  case "$request_type" in
+    sudo)
+      local cmd=$(echo "$request_json" | jq -r '.command')
+      local reason=$(echo "$request_json" | jq -r '.reason // "Not specified"')
+      details="Command: sudo $cmd
+Reason: $reason
+User: $user@$hostname"
+      ;;
+    secret)
+      local vault=$(echo "$request_json" | jq -r '.vault')
+      local item=$(echo "$request_json" | jq -r '.item')
+      local field=$(echo "$request_json" | jq -r '.field')
+      details="Secret: $vault/$item/$field
+Requested by: $user@$hostname"
+      ;;
+    *)
+      details="Unknown request type: $request_type"
+      ;;
+  esac
+  
+  if send_notification "$request_id" "$request_type" "$details"; then
+    # Store request for later approval
+    echo "$request_json" > "/tmp/approval-request-${request_id}.json"
+    log_info "Request $request_id stored, waiting for approval"
+  else
+    log_error "Failed to send notification for request $request_id"
+    echo '{"approved": false, "error": "notification failed"}'
+  fi
+}
+
+# Approve a request
+approve_request() {
+  local request_id="$1"
+  local request_json="${2:-$(cat "/tmp/approval-request-${request_id}.json" 2>/dev/null || echo '{}')}"
+  
+  log_info "Approving request $request_id"
+  
+  local request_type=$(echo "$request_json" | jq -r '.type')
+  local session_key=$(echo "$request_json" | jq -r '.session_key')
+  
+  local response='{"approved": true, "request_id": "'"$request_id"'"'
+  
+  case "$request_type" in
+    sudo)
+      # Generate temporary sudo credential
+      # In real implementation, this would use a secure ticket system
+      local temp_pass=$(openssl rand -base64 32)
+      response+=', "credential": "'"$temp_pass"'"'
+      ;;
+    secret)
+      local vault=$(echo "$request_json" | jq -r '.vault')
+      local item=$(echo "$request_json" | jq -r '.item')
+      local field=$(echo "$request_json" | jq -r '.field')
+      
+      log_info "Fetching secret from 1Password: $vault/$item/$field"
+      if secret=$(fetch_secret "$vault" "$item" "$field"); then
+        # Encrypt secret with session key before sending
+        response+=', "secret": "'"$secret"'"'
+      else
+        response='{"approved": false, "error": "failed to fetch secret"}'
+      fi
+      ;;
+  esac
+  
+  response+='}'
+  
+  # Write response for requester to pick up
+  echo "$response" > "/tmp/approval-response-${request_id}.json"
+  
+  # Cleanup
+  rm -f "/tmp/approval-request-${request_id}.json"
+  
+  log_info "Request $request_id approved and response sent"
+}
+
+# Deny a request
+deny_request() {
+  local request_id="$1"
+  
+  log_info "Denying request $request_id"
+  
+  echo '{"approved": false, "reason": "denied by user"}' > "/tmp/approval-response-${request_id}.json"
+  rm -f "/tmp/approval-request-${request_id}.json"
+}
+
+# Start the daemon
+start_daemon() {
+  # Create directories
+  mkdir -p "$(dirname "$SOCKET_PATH")" "$(dirname "$LOG_FILE")" 2>/dev/null || true
+  
+  # Remove old socket
+  rm -f "$SOCKET_PATH"
+  
+  # Check if already running
+  if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    log_error "Daemon already running (PID: $(cat "$PIDFILE"))"
+    exit 1
+  fi
+  
+  # Write PID
+  echo $$ > "$PIDFILE"
+  
+  log_info "Starting approval daemon (socket: $SOCKET_PATH)"
+  
+  # Load config
+  load_config
+  
+  # Create socket and listen
+  # Using socat for simplicity
+  if ! command -v socat >/dev/null 2>&1; then
+    log_error "Required: socat"
+    exit 1
+  fi
+  
+  # Listen on Unix socket
+  socat UNIX-LISTEN:"$SOCKET_PATH",fork STDIO | while read -r line; do
+    handle_request "$line"
+  done &
+  
+  # Also listen for HTTP webhooks (for ntfy responses)
+  # This would be a separate listener in production
+  
+  log_info "Daemon ready. Listening on $SOCKET_PATH"
+  
+  # Keep daemon alive
+  wait
+}
+
+# Webhook handler for ntfy responses
+handle_webhook() {
+  # This would be called by a simple HTTP server or ntfy directly
+  local action="$1"  # approve or deny
+  local request_id="$2"
+  
+  if [[ "$action" == "approve" ]]; then
+    approve_request "$request_id"
+  else
+    deny_request "$request_id"
+  fi
+}
+
+# Main
+main() {
+  case "${1:-start}" in
+    start)
+      start_daemon
+      ;;
+    stop)
+      if [[ -f "$PIDFILE" ]]; then
+        kill "$(cat "$PIDFILE")" 2>/dev/null || true
+        rm -f "$PIDFILE"
+        log_info "Daemon stopped"
+      fi
+      ;;
+    webhook)
+      handle_webhook "$2" "$3"
+      ;;
+    *)
+      echo "Usage: approvald {start|stop|webhook <approve|deny> <request-id>}"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
