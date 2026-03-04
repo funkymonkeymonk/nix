@@ -268,6 +268,7 @@ with pkgs.lib; {
             "sensei"
             "vivaldi"
             "1password"
+            "tailscale"
           ];
         };
       };
