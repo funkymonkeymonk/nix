@@ -297,6 +297,37 @@ with lib; {
       };
     };
 
+    llmEndpoints = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          host = mkOption {
+            type = types.str;
+            description = "Host address for the LLM endpoint";
+          };
+          port = mkOption {
+            type = types.str;
+            description = "Port for the LLM endpoint";
+          };
+        };
+      });
+      default = {};
+      description = "Additional LLM endpoint configurations (merged with default localhost endpoint)";
+    };
+
+    llmClient = {
+      serverHost = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Default LLM server host for client tools";
+      };
+
+      serverPort = mkOption {
+        type = types.str;
+        default = "11434";
+        description = "Default LLM server port for client tools";
+      };
+    };
+
     jj-autosync = {
       enable = mkOption {
         type = types.bool;

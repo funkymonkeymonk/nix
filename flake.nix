@@ -128,6 +128,11 @@
         then nixpkgs.lib.unique (enabledRoles ++ ["agent-skills"])
         else enabledRoles;
 
+      # Default LLM endpoint to local Ollama
+      # Additional endpoints can be configured via myConfig.llmEndpoints
+      defaultLlmHost = "127.0.0.1";
+      defaultLlmPort = "11434";
+
       # Collect all packages from enabled roles
       rolePackages = nixpkgs.lib.concatMap (role: bundles.roles.${role}.packages or []) finalRoles;
 
@@ -147,17 +152,42 @@
                 skills.enabledRoles = finalRoles;
                 skills.superpowersPath = inputs.superpowers;
               }
+              # Configure LLM endpoints when llm-client or llm-claude roles are enabled
+              (nixpkgs.lib.optionalAttrs (builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles) {
+                llmClient = {
+                  serverHost = defaultLlmHost;
+                  serverPort = defaultLlmPort;
+                };
+              })
             ]);
 
           environment = {
             systemPackages =
               bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
 
-            shellAliases = bundles.roles.base.config.environment.shellAliases or {};
+            shellAliases =
+              bundles.roles.base.config.environment.shellAliases or {}
+              // (
+                if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
+                then {
+                  llm-status = "curl http://${defaultLlmHost}:${defaultLlmPort}/status";
+                }
+                else {}
+              );
 
             variables =
               bundles.roles.base.config.environment.variables or {}
-              // bundles.platforms.${system}.config.environment.variables or {};
+              // bundles.platforms.${system}.config.environment.variables or {}
+              // (
+                if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
+                then {
+                  LLM_SERVER_HOST = defaultLlmHost;
+                  LLM_SERVER_PORT = defaultLlmPort;
+                  OPENCODE_ENDPOINT = "http://${defaultLlmHost}:${defaultLlmPort}";
+                  CLAUDE_API_BASE = "http://${defaultLlmHost}:${defaultLlmPort}";
+                }
+                else {}
+              );
           };
 
           programs =
@@ -321,7 +351,7 @@
       "wweaver" = mkDarwinHost {
         target = ./targets/wweaver;
         user = mkUser "wweaver" "wweaver@justworks.com";
-        roles = ["developer" "desktop" "workstation" "llm-client" "llm-claude"];
+        roles = ["developer" "desktop" "workstation" "llm-host" "llm-client" "llm-claude"];
         extraConfig = {
           opencode = {
             enable = true;
@@ -453,6 +483,14 @@
         target = ./targets/drlight;
         user = mkUser "monkey" "me@willweaver.dev";
         roles = ["developer" "creative" "llm-client"];
+        extraConfig = {
+          llmEndpoints = {
+            MegamanX = {
+              host = "MegamanX.local";
+              port = "4000";
+            };
+          };
+        };
       };
 
       "zero" = mkNixosHost {
@@ -466,6 +504,12 @@
           };
           gaming.enable = true;
           streaming.enable = true;
+          llmEndpoints = {
+            MegamanX = {
+              host = "MegamanX.local";
+              port = "4000";
+            };
+          };
         };
       };
     };
