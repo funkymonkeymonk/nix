@@ -220,6 +220,7 @@
     # NixOS-specific modules
     nixosModules = [
       ./modules/services/ollama/nixos.nix
+      opnix.nixosModules.default
     ];
 
     # Package overlays for each system

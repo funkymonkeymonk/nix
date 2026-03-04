@@ -21,6 +21,7 @@
     wget
     discord
     tailscale
+    jq
   ];
 
   # Disable sleep/hibernate (always-on machine)
@@ -32,7 +33,22 @@
   '';
 
   # NVIDIA GPU
-  services.xserver.videoDrivers = ["nvidia"];
+  services = {
+    xserver.videoDrivers = ["nvidia"];
+    tailscale.enable = true;
+
+    onepassword-secrets = {
+      enable = true;
+      tokenFile = "/etc/opnix-token";
+      secrets = {
+        tailscaleAuthKey = {
+          reference = "op://Homelab/Tailscale/auth-key";
+          services = ["tailscale-autoconnect"];
+        };
+      };
+    };
+  };
+
   hardware = {
     graphics.enable = true;
     nvidia = {
@@ -41,12 +57,10 @@
     };
   };
 
-  # Tailscale with auto-connect
-  services.tailscale.enable = true;
   systemd.services.tailscale-autoconnect = {
     description = "Automatic connection to Tailscale";
-    after = ["network-pre.target" "tailscale.service"];
-    wants = ["network-pre.target" "tailscale.service"];
+    after = ["network-pre.target" "tailscale.service" "opnix-secrets.service"];
+    wants = ["network-pre.target" "tailscale.service" "opnix-secrets.service"];
     wantedBy = ["multi-user.target"];
     serviceConfig.Type = "oneshot";
     script = ''
@@ -55,10 +69,13 @@
       if [ "$status" = "Running" ]; then
         exit 0
       fi
-      if [ -n "$TAILSCALE_AUTH_KEY" ]; then
-        ${pkgs.tailscale}/bin/tailscale up -authkey "$TAILSCALE_AUTH_KEY"
+      authKeyFile="${config.services.onepassword-secrets.secretPaths.tailscaleAuthKey}"
+      if [ -f "$authKeyFile" ]; then
+        authKey=$(cat "$authKeyFile")
+        ${pkgs.tailscale}/bin/tailscale up -authkey "$authKey"
       else
-        echo "Warning: TAILSCALE_AUTH_KEY not set, skipping auto-connect"
+        echo "Warning: Tailscale auth key file not found at $authKeyFile"
+        echo "Run 'opnix token set' and ensure the secret is configured in 1Password"
       fi
     '';
   };
