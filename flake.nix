@@ -113,6 +113,121 @@
       };
     };
 
+    # Matrix Synapse module configuration (tailnet-only, no federation)
+    matrixSynapseModule = {
+      config,
+      pkgs,
+      ...
+    }: {
+      services.matrix-synapse = {
+        enable = true;
+        settings = {
+          server_name = "drlight";
+          report_stats = false;
+          enable_registration = true;
+          macaroon_secret_key = "$HOME/.nix-defexpr/synapse_macaroon_secret";
+          signing_key_path = "${config.services.matrix-synapse.dataDir}/homeserver.signing.key";
+          listeners = [
+            {
+              port = 8008;
+              bind_addresses = ["100.64.0.0/10" "127.0.0.1"];
+              type = "http";
+              x_forwarded = false;
+              resources = [
+                {
+                  names = ["client"];
+                  compress = true;
+                }
+                {
+                  names = ["static"];
+                  compress = true;
+                }
+              ];
+            }
+          ];
+          database = {
+            name = "sqlite3";
+            args = {
+              database = "${config.services.matrix-synapse.dataDir}/homeserver.db";
+            };
+          };
+          log_config = "${pkgs.matrix-synapse}/log.yaml";
+          media_store = "${config.services.matrix-synapse.dataDir}/media";
+          uploads_path = "${config.services.matrix-synapse.dataDir}/uploads";
+          max_upload_size = "50M";
+          max_image_pixels = "32M";
+          dynamic_thumbnails = true;
+          thumbnail_sizes = [
+            {
+              width = 32;
+              height = 32;
+              method = "crop";
+            }
+            {
+              width = 96;
+              height = 96;
+              method = "crop";
+            }
+            {
+              width = 320;
+              height = 240;
+              method = "scale";
+            }
+            {
+              width = 640;
+              height = 480;
+              method = "scale";
+            }
+            {
+              width = 800;
+              height = 600;
+              method = "scale";
+            }
+          ];
+          url_preview_enabled = false;
+          url_preview_ip_range_blacklist = [
+            "127.0.0.0/8"
+            "10.0.0.0/8"
+            "172.16.0.0/12"
+            "192.168.0.0/16"
+            "100.64.0.0/10"
+            "169.254.0.0/16"
+          ];
+          url_preview_ip_range_whitelist = [];
+          captcha = {};
+          turn_uris = [];
+          turn_shared_secret = "";
+          turn_username = "";
+          turn_password = "";
+          cas_server_url = "";
+          cas_service_url = "";
+          saml2_enabled = false;
+          oidc_enabled = false;
+          password_config = {
+            enabled = true;
+            peppering = true;
+          };
+          oauth_config = {};
+          jwt_config = {};
+          sso_config = {};
+          login = {
+            "m.login.password" = true;
+            "m.login.token" = true;
+          };
+          registration = {
+            enabled = false;
+            require_3pid = [];
+          };
+          metrics = {
+            enabled = true;
+          };
+        };
+      };
+
+      # Tailnet-only: allow Matrix on tailnet (100.64.0.0/10) and localhost
+      networking.firewall.allowedTCPPorts = [8008];
+    };
+
     # Simplified bundle module - all roles are now flat
     mkBundleModule = system: enabledRoles: {pkgs, ...}: let
       bundles = import ./bundles.nix {inherit pkgs;};
@@ -226,7 +341,13 @@
     forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
 
     # Helper to create microvm configuration
-    mkMicrovm = name: roles:
+    mkMicrovm = name: roles: let
+      hasMatrixHost = builtins.any (role: role == "matrixhost") roles;
+      matrixModule =
+        if hasMatrixHost
+        then [matrixSynapseModule]
+        else [];
+    in
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules =
@@ -237,6 +358,7 @@
           ]
           ++ commonModules
           ++ nixosModules
+          ++ matrixModule
           ++ [
             ./os/microvm.nix
             ./modules/microvm
@@ -269,8 +391,12 @@
       roles,
       extraModules ? [],
       extraConfig ? {},
-    }:
-      nix-darwin.lib.darwinSystem {
+    }: let
+      bundleModule = mkBundleModule "darwin" roles;
+    in
+      nixpkgs.lib.darwinSystem {
+        system = "aarch64-darwin";
+        specialArgs = {inherit inputs;};
         modules =
           [
             configuration
@@ -283,7 +409,9 @@
             ./os/darwin.nix
             ./modules/home-manager/aerospace.nix
             target
-            (mkBundleModule "darwin" roles)
+            {
+              inherit (bundleModule) config;
+            }
             {
               nixpkgs.hostPlatform = "aarch64-darwin";
               system.stateVersion = 4;
@@ -306,7 +434,13 @@
       roles,
       extraModules ? [],
       extraConfig ? {},
-    }:
+    }: let
+      hasMatrixHost = builtins.any (role: role == "matrixhost") roles;
+      matrixModule =
+        if hasMatrixHost
+        then [matrixSynapseModule]
+        else [];
+    in
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = {inherit inputs;};
@@ -316,6 +450,7 @@
           ]
           ++ commonModules
           ++ nixosModules
+          ++ matrixModule
           ++ [
             ./modules/home-manager
             ./modules/nixos/base.nix
