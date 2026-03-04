@@ -49,6 +49,14 @@
     };
   };
 
+  hardware = {
+    graphics.enable = true;
+    nvidia = {
+      open = false;
+      package = config.boot.kernelPackages.nvidiaPackages.stable;
+    };
+  };
+
   systemd.services.tailscale-autoconnect = {
     description = "Automatic connection to Tailscale";
     after = ["network-pre.target" "tailscale.service" "opnix-secrets.service"];
