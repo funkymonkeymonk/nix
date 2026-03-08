@@ -51,7 +51,7 @@ in {
     home.file.".claude/hooks/rtk-rewrite.sh" = mkIf cfg.rtk.enable {
       source = pkgs.fetchurl {
         url = "https://raw.githubusercontent.com/rtk-ai/rtk/master/hooks/rtk-rewrite.sh";
-        sha256 = "21de002d0a25d3dbf0690fab46898fd763838975f0077568e18a13e1ea23999d";
+        sha256 = "1m7fjvrnglr2mkdbmjjhhaji9jnr70f9qkhx4vy8hv08ng06xf3g";
       };
       executable = true;
     };

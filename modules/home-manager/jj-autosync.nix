@@ -19,7 +19,7 @@ with lib; let
   isDarwin =
     if osConfig != null
     then osConfig.myConfig.isDarwin or false
-    else pkgs.stdenv.isDarwin;
+    else pkgs.stdenv.hostPlatform.isDarwin;
 
   # Configuration values with defaults
   reposDir = cfg.reposDir or "$HOME/repos";

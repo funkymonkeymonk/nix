@@ -146,20 +146,26 @@
         {
           # Pass enabled roles and superpowers path to skills configuration
           # Merge with myConfig from all enabled roles
-          myConfig = nixpkgs.lib.mkMerge (roleMyConfigs
+          myConfig = nixpkgs.lib.mkMerge (
+            roleMyConfigs
             ++ [
               {
                 skills.enabledRoles = finalRoles;
                 skills.superpowersPath = inputs.superpowers;
               }
               # Configure LLM endpoints when llm-client or llm-claude roles are enabled
-              (nixpkgs.lib.optionalAttrs (builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles) {
-                llmClient = {
-                  serverHost = defaultLlmHost;
-                  serverPort = defaultLlmPort;
-                };
-              })
-            ]);
+              (
+                nixpkgs.lib.optionalAttrs
+                (builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles)
+                {
+                  llmClient = {
+                    serverHost = defaultLlmHost;
+                    serverPort = defaultLlmPort;
+                  };
+                }
+              )
+            ]
+          );
 
           environment = {
             systemPackages =
@@ -223,7 +229,10 @@
     ];
 
     # Package overlays for each system
-    forAllSystems = nixpkgs.lib.genAttrs ["aarch64-darwin" "x86_64-linux"];
+    forAllSystems = nixpkgs.lib.genAttrs [
+      "aarch64-darwin"
+      "x86_64-linux"
+    ];
 
     # Helper to create microvm configuration
     mkMicrovm = name: roles:
@@ -338,20 +347,44 @@
           ++ extraModules;
       };
   in {
-    packages = forAllSystems (system: let
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [(import ./overlays)];
-      };
-    in {
-      inherit (pkgs) rtk;
-    });
+    packages = forAllSystems (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [(import ./overlays)];
+        };
+      in {
+        inherit (pkgs) rtk;
+        installer = pkgs.callPackage ./packages/installer {};
+      }
+    );
+
+    apps = forAllSystems (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [(import ./overlays)];
+        };
+      in {
+        installer = {
+          type = "app";
+          program = "${pkgs.callPackage ./packages/installer {}}/bin/nixos-flake-installer";
+        };
+      }
+    );
 
     darwinConfigurations = {
       "wweaver" = mkDarwinHost {
         target = ./targets/wweaver;
         user = mkUser "wweaver" "wweaver@justworks.com";
-        roles = ["developer" "desktop" "workstation" "llm-host" "llm-client" "llm-claude"];
+        roles = [
+          "developer"
+          "desktop"
+          "workstation"
+          "llm-host"
+          "llm-client"
+          "llm-claude"
+        ];
         extraConfig = {
           opencode = {
             enable = true;
@@ -452,7 +485,15 @@
       "MegamanX" = mkDarwinHost {
         target = ./targets/MegamanX;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "desktop" "workstation" "entertainment" "llm-host" "llm-client" "llm-claude"];
+        roles = [
+          "developer"
+          "desktop"
+          "workstation"
+          "entertainment"
+          "llm-host"
+          "llm-client"
+          "llm-claude"
+        ];
         extraModules = [mac-app-util.darwinModules.default];
       };
 
@@ -482,7 +523,7 @@
       "drlight" = mkNixosHost {
         target = ./targets/drlight;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "creative" "llm-client"];
+        roles = ["bootstrap"];
         extraConfig = {
           llmEndpoints = {
             MegamanX = {
@@ -496,7 +537,11 @@
       "zero" = mkNixosHost {
         target = ./targets/zero;
         user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["developer" "desktop" "llm-client"];
+        roles = [
+          "developer"
+          "desktop"
+          "llm-client"
+        ];
         extraConfig = {
           desktop = {
             enable = true;

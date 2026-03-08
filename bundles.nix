@@ -126,8 +126,8 @@ with pkgs.lib; {
           super-productivity
           # element-desktop on Darwin requires Xcode 26+ to build, use Homebrew cask instead
         ]
-        ++ optional stdenv.isLinux element-desktop
-        ++ optional stdenv.isLinux vivaldi;
+        ++ optional stdenv.hostPlatform.isLinux element-desktop
+        ++ optional stdenv.hostPlatform.isLinux vivaldi;
 
       config = {
         homebrew = {
