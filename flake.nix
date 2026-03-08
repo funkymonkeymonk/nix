@@ -345,6 +345,19 @@
       };
     in {
       inherit (pkgs) rtk;
+      installer = pkgs.callPackage ./packages/installer {};
+    });
+
+    apps = forAllSystems (system: let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [(import ./overlays)];
+      };
+    in {
+      installer = {
+        type = "app";
+        program = "${pkgs.callPackage ./packages/installer {}}/bin/installer";
+      };
     });
 
     darwinConfigurations = {
