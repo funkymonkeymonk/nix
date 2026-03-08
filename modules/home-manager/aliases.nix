@@ -17,5 +17,8 @@ in {
     jja = "jj absorb";
     jjst = "jj status";
     jjco = "jj comment";
+
+    dtr = "devenv tasks run";
+    dtl = "devenv tasks list";
   };
 }
