@@ -2,6 +2,7 @@
 #
 # Uses launchd to manage Ollama as a system daemon.
 # Imports shared configuration from common.nix.
+# Uses nixpkgs ollama package (v0.17.7) which is kept up-to-date by the Nix community.
 {
   config,
   lib,
