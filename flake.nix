@@ -39,8 +39,6 @@
     home-manager,
     mac-app-util,
     nix-homebrew,
-    homebrew-core,
-    homebrew-cask,
     opnix,
     microvm,
     ...
@@ -99,17 +97,6 @@
       claude-code = {
         enable = true;
         rtk.enable = true;
-      };
-    };
-
-    # Helper for nix-homebrew config
-    mkNixHomebrew = user: {
-      enable = true;
-      enableRosetta = true;
-      inherit user;
-      taps = {
-        "homebrew/homebrew-core" = homebrew-core;
-        "homebrew/homebrew-cask" = homebrew-cask;
       };
     };
 
@@ -288,8 +275,9 @@
               nixpkgs.hostPlatform = "aarch64-darwin";
               system.stateVersion = 4;
               system.primaryUser = (builtins.head user.users).name;
+              # Use sharedModels for Ollama models, overridden by extraConfig
+              # if llm-host/llm-claude roles define ollama in bundles.nix
               myConfig = user // extraConfig;
-              nix-homebrew = mkNixHomebrew (builtins.head user.users).name;
             }
             home-manager.darwinModules.home-manager
             {

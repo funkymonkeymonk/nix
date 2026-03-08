@@ -19,16 +19,26 @@ with lib; let
     providersWithSecrets
   );
 
-  # Build provider config with API key references
+  # Build provider config with API key references (only if onePasswordItem is set)
   providerConfig =
-    lib.mapAttrs (name: provider: {
-      inherit (provider) npm name;
-      options = {
-        inherit (provider) baseURL;
-        apiKey = "{file:~/.config/opencode/secrets/${name}-apikey}";
-      };
-      inherit (provider) models;
-    })
+    lib.mapAttrs (
+      _name: provider: let
+        hasApiKey = (provider.onePasswordItem or "") != "";
+        hasModels = provider.models or {} != {};
+        baseOptions = {inherit (provider) baseURL;};
+        optionsWithKey = baseOptions // {apiKey = "{file:~/.config/opencode/secrets/${_name}-apikey}";};
+        baseConfig =
+          {
+            inherit (provider) name;
+            options =
+              if hasApiKey
+              then optionsWithKey
+              else baseOptions;
+          }
+          // (optionalAttrs hasModels {inherit (provider) models;});
+      in
+        baseConfig // (optionalAttrs (provider.npm != null) {inherit (provider) npm;})
+    )
     cfg.providers;
 
   # Transform MCP server config from our options format to opencode's expected format
@@ -68,6 +78,34 @@ with lib; let
     })
   cfg.commands;
 
+  # Build agent config
+  agentConfig = lib.mapAttrs (_name: agent:
+    {
+      inherit (agent) description mode;
+    }
+    // (optionalAttrs (agent.model != null) {
+      inherit (agent) model;
+    })
+    // (optionalAttrs (agent.prompt != "") {
+      inherit (agent) prompt;
+    })
+    // (optionalAttrs (agent.temperature != null) {
+      inherit (agent) temperature;
+    })
+    // (optionalAttrs agent.hidden {
+      inherit (agent) hidden;
+    })
+    // (optionalAttrs (agent.tools != {}) {
+      inherit (agent) tools;
+    })
+    // (optionalAttrs (agent.permission != {}) {
+      inherit (agent) permission;
+    })
+    // (optionalAttrs (agent.color != "") {
+      inherit (agent) color;
+    }))
+  cfg.agents;
+
   # Build complete settings
   settings =
     {
@@ -100,6 +138,9 @@ with lib; let
     })
     // (optionalAttrs (cfg.providers != {}) {
       provider = providerConfig;
+    })
+    // (optionalAttrs (cfg.agents != {}) {
+      agent = agentConfig;
     });
 in {
   config = mkIf cfg.enable {
