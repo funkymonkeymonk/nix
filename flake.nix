@@ -520,6 +520,20 @@
     };
 
     nixosConfigurations = {
+      # Bootstrap configuration - minimal setup for initial install
+      # Used by the installer for all fresh NixOS installations
+      "bootstrap" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./targets/bootstrap
+          ./modules/common/options.nix
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+          }
+        ];
+      };
+
       "drlight" = mkNixosHost {
         target = ./targets/drlight;
         user = mkUser "monkey" "me@willweaver.dev";

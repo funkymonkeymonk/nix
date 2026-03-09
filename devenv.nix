@@ -46,7 +46,7 @@
     alias dtl="devenv tasks list"
     alias t="devenv tasks run test:run"
     alias tq="devenv tasks run test:quick"
-    alias tf="devenv tasks run test:full"
+
     alias s="devenv tasks run system:switch"
     alias switch="devenv tasks run system:switch"
     alias q="devenv tasks run quality:check"
@@ -324,7 +324,6 @@
         echo "   Host-agnostic execution = SUCCESS"
       '';
     };
-
     "test:darwin-only" = {
       description = "Test only Darwin configurations (for Darwin runners)";
       exec = ''
@@ -757,10 +756,16 @@
     };
 
     "ci:validate" = {
-      description = "Run full validation";
+      description = "Run validation (platform-aware)";
       exec = ''
-        echo "Running full validation..."
-        devenv tasks run test:full
+        echo "Running validation..."
+        if [[ "$(uname)" == "Darwin" ]]; then
+          echo "Detected platform: Darwin"
+          devenv tasks run test:darwin-only
+        else
+          echo "Detected platform: Linux"
+          devenv tasks run test:nixos-only
+        fi
       '';
     };
 
@@ -781,15 +786,25 @@
     };
 
     "ci:pr" = {
-      description = "Run full PR pipeline";
+      description = "Run full PR pipeline (platform-aware)";
       exec = ''
         echo "=== PR Pipeline ==="
         echo ""
         echo "--- Stage 1: Lint Checks ---"
         devenv tasks run ci:lint
         echo ""
-        echo "--- Stage 2: Full Validation ---"
-        devenv tasks run test:full
+        echo "--- Stage 2: Validation ---"
+        if [[ "$(uname)" == "Darwin" ]]; then
+          echo "Detected platform: Darwin"
+          echo ""
+          echo "--- Darwin Validation ---"
+          devenv tasks run test:darwin-only
+        else
+          echo "Detected platform: Linux"
+          echo ""
+          echo "--- NixOS Validation ---"
+          devenv tasks run test:nixos-only
+        fi
         echo ""
         echo "=== PR Pipeline Complete ==="
       '';
