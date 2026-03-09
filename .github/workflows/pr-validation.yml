@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   lint:
-    name: Lint
+    name: Quick Validation & Code Quality
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -65,7 +65,6 @@ jobs:
       - name: Run Darwin build (dry-run)
         run: devenv tasks run build:darwin
   test-linux:
-    if: false
     name: Linux Configuration Tests
     runs-on: ubuntu-latest
     defaults:
