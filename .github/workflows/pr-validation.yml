@@ -12,9 +12,6 @@ jobs:
   lint:
     name: Quick Validation & Code Quality
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,7 +29,6 @@ jobs:
           FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
         continue-on-error: true
       - name: Install devenv.sh
-        shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run lint checks
         run: devenv tasks run check:lint
@@ -40,9 +36,6 @@ jobs:
     if: false
     name: Darwin Configuration Tests
     runs-on: macos-latest
-    defaults:
-      run:
-        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,16 +53,12 @@ jobs:
           FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
         continue-on-error: true
       - name: Install devenv.sh
-        shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Darwin build (dry-run)
         run: devenv tasks run build:darwin
   test-linux:
     name: Linux Configuration Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -87,7 +76,6 @@ jobs:
           FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
         continue-on-error: true
       - name: Install devenv.sh
-        shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Linux build (dry-run)
         run: devenv tasks run build:nixos
