@@ -520,6 +520,20 @@
     };
 
     nixosConfigurations = {
+      # Bootstrap configuration - minimal setup for initial install
+      # Used by the installer for all fresh NixOS installations
+      "bootstrap" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./targets/bootstrap
+          ./modules/common/options.nix
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+          }
+        ];
+      };
+
       "drlight" = mkNixosHost {
         target = ./targets/drlight;
         user = mkUser "monkey" "me@willweaver.dev";
@@ -559,14 +573,6 @@
       };
     };
 
-    # Note: NixOS core configuration is not provided because it requires
-    # hardware-specific filesystem definitions. For NixOS bootstrap:
-    # 1. Install NixOS using the standard installer
-    # 2. Clone this repo
-    # 3. Create a target with your hardware-configuration.nix
-    # 4. Apply with: sudo nixos-rebuild switch --flake .#<your-target>
-
-    # Microvm configurations
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
     };

@@ -1,7 +1,6 @@
 # Minimal hardware configuration for CI/testing
 # Used when /etc/nixos/hardware-configuration.nix doesn't exist
 {
-  config,
   lib,
   modulesPath,
   ...
@@ -10,10 +9,12 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  boot.loader.grub.enable = false;
-  boot.initrd.availableKernelModules = [];
-  boot.kernelModules = [];
-  boot.extraModulePackages = [];
+  boot = {
+    loader.grub.enable = false;
+    initrd.availableKernelModules = [];
+    kernelModules = [];
+    extraModulePackages = [];
+  };
 
   # Minimal filesystems for evaluation
   fileSystems."/" = {
