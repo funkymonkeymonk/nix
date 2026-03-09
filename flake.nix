@@ -68,7 +68,7 @@
           })
           # Use devenv 2.x from the cachix/devenv flake
           (final: _prev: {
-            inherit (inputs.devenv.packages.${final.system}) devenv;
+            inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
           })
           (import ./overlays)
         ];
