@@ -1,7 +1,15 @@
-{inputs, ...}: {
-  imports = [
-    ./hardware-configuration.nix
-  ];
+{
+  inputs,
+  lib,
+  ...
+}: {
+  imports =
+    lib.optionals (builtins.pathExists /etc/nixos/hardware-configuration.nix) [
+      /etc/nixos/hardware-configuration.nix
+    ]
+    ++ lib.optionals (!builtins.pathExists /etc/nixos/hardware-configuration.nix) [
+      ../hardware-stub.nix
+    ];
 
   # Host/network/time settings for drlight
   networking = {
