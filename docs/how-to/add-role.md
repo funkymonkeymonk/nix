@@ -95,7 +95,7 @@ After adding your role:
 
 ```bash
 # Check syntax
-devenv tasks run ci:quick
+devenv tasks run check:lint
 
 # Test a configuration using your role
 nix build .#darwinConfigurations.my-machine.system --dry-run

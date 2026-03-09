@@ -10,11 +10,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   lint:
-    name: Lint
+    name: Quick Validation & Code Quality
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,24 +23,16 @@ jobs:
             sandbox = false
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
-        if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
-          name: funkymonkeymonk
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        shell: bash
-        run: nix profile install --accept-flake-config nixpkgs#devenv
+        run: nix profile add --accept-flake-config nixpkgs#devenv
       - name: Run lint checks
-        run: devenv tasks run ci:lint
+        run: devenv tasks run check:lint
   test-darwin:
     name: Darwin Configuration Tests
     runs-on: macos-latest
-    defaults:
-      run:
-        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,24 +44,28 @@ jobs:
             sandbox = false
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
-        if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
-          name: funkymonkeymonk
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        shell: bash
-        run: nix profile install --accept-flake-config nixpkgs#devenv
-      - name: Run Darwin-specific tests (dry-run)
-        run: devenv tasks run test:darwin-only
+        run: nix profile add --accept-flake-config nixpkgs#devenv
+      - name: Run Darwin build (dry-run)
+        run: |
+          echo "Building Darwin configurations"
+          echo "=================================="
+          for config in wweaver MegamanX; do
+            echo "Building $config configuration..."
+            if nix build .#darwinConfigurations.$config.system --dry-run --quiet 2>&1; then
+              echo "$config build plan validated"
+            else
+              echo "$config build plan failed"
+              exit 1
+            fi
+          done
+          echo "All Darwin builds completed"
   test-linux:
     name: Linux Configuration Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: devenv shell bash -- -e {0}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -84,15 +77,10 @@ jobs:
             sandbox = false
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
-        if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
-          name: funkymonkeymonk
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        shell: bash
-        run: nix profile install --accept-flake-config nixpkgs#devenv
-      - name: Run Linux-specific tests (dry-run)
-        run: devenv tasks run test:nixos-only
+        run: nix profile add --accept-flake-config nixpkgs#devenv
+      - name: Run Linux build (dry-run)
+        run: devenv tasks run build:nixos

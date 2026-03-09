@@ -44,13 +44,11 @@
     alias dt="devenv tasks run"
     alias dtr="devenv tasks run"
     alias dtl="devenv tasks list"
-    alias t="devenv tasks run test:run"
-    alias tq="devenv tasks run test:quick"
 
     alias s="devenv tasks run system:switch"
     alias switch="devenv tasks run system:switch"
-    alias q="devenv tasks run quality:check"
-    alias b="devenv tasks run nix:build"
+    alias q="devenv tasks run check:all"
+    alias b="devenv tasks run build:all"
     alias i="devenv tasks run dev:ide"
   '';
 
@@ -80,7 +78,8 @@
         enable = true;
         name = "docs-update";
         entry = "${./scripts/docs-update.sh}";
-        files = "\\.(nix|md)$";
+        types = ["file"];
+        files = "(\.nix|\.md)$";
         pass_filenames = false;
         stages = ["pre-push"];
       };
@@ -277,61 +276,29 @@
 
     "test:run" = {
       description = "Run flake check (defaults to quick)";
-      after = ["test:quick"];
+      after = ["check:quick"];
       exec = "echo 'Test complete'";
     };
 
-    "test:quick" = {
+    "check:quick" = {
       description = "Quick syntax and lint checks (~30s)";
       exec = ''
         echo "Running quick validation checks..."
 
-        # Run lint checks (same as ci:lint)
-        devenv tasks run ci:lint
+        # Run lint checks
+        devenv tasks run check:lint
 
         echo "All quick validation checks passed"
       '';
     };
 
-    "test:full" = {
-      description = "Full cross-platform verification (5-10min) - Fail fast";
+    "build:darwin" = {
+      description = "Build Darwin configurations (dry-run)";
       exec = ''
-        echo "Universal Cross-Platform Testing Suite"
-        echo "Validating configuration definitions..."
-
-        # Detect current system
-        CURRENT_SYSTEM=$(nix eval --expr 'builtins.currentSystem' --json --impure | jq -r '.')
-        echo "Running on system: $CURRENT_SYSTEM"
-        echo ""
-
-        # Run platform-appropriate tests
-        if [[ "$CURRENT_SYSTEM" == *"darwin"* ]]; then
-          echo "Running Darwin-specific tests..."
-          devenv tasks run test:darwin-only
-        elif [[ "$CURRENT_SYSTEM" == *"linux"* ]]; then
-          echo "Running NixOS-specific tests..."
-          devenv tasks run test:nixos-only
-        else
-          echo "Unknown system: $CURRENT_SYSTEM"
-          exit 1
-        fi
-
-        echo ""
-        echo "Universal cross-platform testing completed!"
-        echo "Results Summary"
-        echo "   System detected = $CURRENT_SYSTEM"
-        echo "   Platform-specific tests = SUCCESS"
-        echo "   Host-agnostic execution = SUCCESS"
-      '';
-    };
-    "test:darwin-only" = {
-      description = "Test only Darwin configurations (for Darwin runners)";
-      exec = ''
-        echo "Testing Darwin configurations"
+        echo "Building Darwin configurations"
         echo "=================================="
         for config in wweaver MegamanX; do
-          echo "Testing $config build plan"
-          echo "Testing $config build plan..."
+          echo "Building $config configuration..."
           if nix build .#darwinConfigurations.$config.system --dry-run >/dev/null 2>&1; then
             echo "$config build plan validated"
           else
@@ -347,18 +314,17 @@
             exit 1
           fi
         done
-        echo "All Darwin tests completed"
+        echo "All Darwin builds completed"
       '';
     };
 
-    "test:nixos-only" = {
-      description = "Test only NixOS configurations (for Linux runners)";
+    "build:nixos" = {
+      description = "Build NixOS configurations (dry-run)";
       exec = ''
-        echo "Testing NixOS configurations"
+        echo "Building NixOS configurations"
         echo "================================="
         for config in drlight zero; do
-          echo "Testing $config build plan"
-          echo "Testing $config build plan..."
+          echo "Building $config configuration..."
           if nix build .#nixosConfigurations.$config.config.system.build.toplevel \
               --dry-run --quiet >/dev/null 2>&1; then
             echo "$config build plan validated"
@@ -376,7 +342,7 @@
             exit 1
           fi
         done
-        echo "All NixOS tests completed"
+        echo "All NixOS builds completed"
       '';
     };
 
@@ -384,33 +350,13 @@
     # BUILD TASKS
     # ============================================
 
-    "nix:build" = {
+    "build:all" = {
       description = "Build all configurations (dry-run)";
       exec = ''
         echo "Building flake configurations..."
-        devenv tasks run nix:build:darwin
-        devenv tasks run nix:build:nixos
+        devenv tasks run build:darwin
+        devenv tasks run build:nixos
         echo "All configurations (NixOS and Darwin) validated successfully"
-      '';
-    };
-
-    "nix:build:darwin" = {
-      description = "Build all Darwin (macOS) configurations";
-      exec = ''
-        echo "Building Darwin configurations..."
-        nix build .#darwinConfigurations.wweaver.system --dry-run
-        nix build .#darwinConfigurations.MegamanX.system --dry-run
-        echo "All Darwin configurations validated successfully"
-      '';
-    };
-
-    "nix:build:nixos" = {
-      description = "Build all NixOS configurations";
-      exec = ''
-        echo "Building NixOS configurations..."
-        nix build .#nixosConfigurations.drlight.config.system.build.toplevel --dry-run
-        # nix build .#nixosConfigurations.zero.config.system.build.toplevel --dry-run
-        echo "All NixOS configurations validated successfully"
       '';
     };
 
@@ -732,21 +678,34 @@
     };
 
     # ============================================
-    # CI TASKS (formerly Dagger-based, now native)
+    # CHECK AND LINT TASKS
     # ============================================
 
-    "ci:quick" = {
-      description = "Run quick CI checks (~30s) - lint only";
+    "check:all" = {
+      description = "Run all checks (platform-aware)";
       exec = ''
-        echo "Running quick CI checks..."
-        echo "=== Lint Checks ==="
-        devenv tasks run ci:lint
+        echo "=== Running Checks ==="
         echo ""
-        echo "=== Quick CI Checks Complete ==="
+        echo "--- Lint ---"
+        devenv tasks run check:lint
+        echo ""
+        if [[ "$(uname)" == "Darwin" ]]; then
+          echo "Detected platform: Darwin"
+          echo ""
+          echo "--- Darwin Build ---"
+          devenv tasks run build:darwin
+        else
+          echo "Detected platform: Linux"
+          echo ""
+          echo "--- NixOS Build ---"
+          devenv tasks run build:nixos
+        fi
+        echo ""
+        echo "=== Checks Complete ==="
       '';
     };
 
-    "ci:flake-check" = {
+    "check:flake" = {
       description = "Check flake structure and validity";
       exec = ''
         echo "Checking flake structure..."
@@ -755,86 +714,7 @@
       '';
     };
 
-    "ci:validate" = {
-      description = "Run validation (platform-aware)";
-      exec = ''
-        echo "Running validation..."
-        if [[ "$(uname)" == "Darwin" ]]; then
-          echo "Detected platform: Darwin"
-          devenv tasks run test:darwin-only
-        else
-          echo "Detected platform: Linux"
-          devenv tasks run test:nixos-only
-        fi
-      '';
-    };
-
-    "ci:validate:darwin" = {
-      description = "Validate Darwin configurations";
-      exec = ''
-        echo "Validating Darwin configurations..."
-        devenv tasks run test:darwin-only
-      '';
-    };
-
-    "ci:validate:nixos" = {
-      description = "Validate NixOS configurations";
-      exec = ''
-        echo "Validating NixOS configurations..."
-        devenv tasks run test:nixos-only
-      '';
-    };
-
-    "ci:pr" = {
-      description = "Run full PR pipeline (platform-aware)";
-      exec = ''
-        echo "=== PR Pipeline ==="
-        echo ""
-        echo "--- Stage 1: Lint Checks ---"
-        devenv tasks run ci:lint
-        echo ""
-        echo "--- Stage 2: Validation ---"
-        if [[ "$(uname)" == "Darwin" ]]; then
-          echo "Detected platform: Darwin"
-          echo ""
-          echo "--- Darwin Validation ---"
-          devenv tasks run test:darwin-only
-        else
-          echo "Detected platform: Linux"
-          echo ""
-          echo "--- NixOS Validation ---"
-          devenv tasks run test:nixos-only
-        fi
-        echo ""
-        echo "=== PR Pipeline Complete ==="
-      '';
-    };
-
-    "ci:local" = {
-      description = "Run local checks (platform-aware)";
-      exec = ''
-        echo "=== Local Check ==="
-        echo ""
-        echo "--- Lint Checks ---"
-        devenv tasks run ci:lint
-        echo ""
-        if [[ "$(uname)" == "Darwin" ]]; then
-          echo "Detected platform: Darwin"
-          echo ""
-          echo "--- Darwin Validation ---"
-          devenv tasks run test:darwin-only
-        else
-          echo "Detected platform: Linux"
-          echo ""
-          echo "--- NixOS Validation ---"
-          devenv tasks run test:nixos-only
-        fi
-        echo ""
-        echo "=== Local Check Complete ==="
-      '';
-    };
-
-    "ci:lint" = {
+    "check:lint" = {
       description = "Run lint checks (formatting + static analysis)";
       exec = ''
         echo "Running lint checks..."
@@ -861,7 +741,7 @@
       '';
     };
 
-    "ci:format" = {
+    "format:all" = {
       description = "Apply formatting fixes";
       exec = ''
         echo "Applying formatting fixes..."

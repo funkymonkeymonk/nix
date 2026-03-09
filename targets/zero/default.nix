@@ -31,12 +31,12 @@
   ];
 
   # Disable sleep/hibernate (always-on machine)
-  systemd.sleep.extraConfig = ''
-    AllowSuspend=no
-    AllowHibernation=no
-    AllowHybridSleep=no
-    AllowSuspendThenHibernate=no
-  '';
+  systemd.sleep.settings.Sleep = {
+    AllowSuspend = false;
+    AllowHibernation = false;
+    AllowHybridSleep = false;
+    AllowSuspendThenHibernate = false;
+  };
 
   # NVIDIA GPU
   services.xserver.videoDrivers = ["nvidia"];
