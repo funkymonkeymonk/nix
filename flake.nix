@@ -559,14 +559,6 @@
       };
     };
 
-    # Note: NixOS core configuration is not provided because it requires
-    # hardware-specific filesystem definitions. For NixOS bootstrap:
-    # 1. Install NixOS using the standard installer
-    # 2. Clone this repo
-    # 3. Create a target with your hardware-configuration.nix
-    # 4. Apply with: sudo nixos-rebuild switch --flake .#<your-target>
-
-    # Microvm configurations
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
     };
