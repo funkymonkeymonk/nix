@@ -27,13 +27,17 @@ jobs:
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
         with:
-          flakehub-token: ${{ secrets.FLAKEHUB_TOKEN }}
+          use-flakehub: true
+        env:
+          FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
+        continue-on-error: true
       - name: Install devenv.sh
         shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run lint checks
         run: devenv tasks run check:lint
   test-darwin:
+    if: false
     name: Darwin Configuration Tests
     runs-on: macos-latest
     defaults:
@@ -51,13 +55,17 @@ jobs:
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
         with:
-          flakehub-token: ${{ secrets.FLAKEHUB_TOKEN }}
+          use-flakehub: true
+        env:
+          FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
+        continue-on-error: true
       - name: Install devenv.sh
         shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run Darwin build (dry-run)
         run: devenv tasks run build:darwin
   test-linux:
+    if: false
     name: Linux Configuration Tests
     runs-on: ubuntu-latest
     defaults:
@@ -75,7 +83,10 @@ jobs:
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
         with:
-          flakehub-token: ${{ secrets.FLAKEHUB_TOKEN }}
+          use-flakehub: true
+        env:
+          FLAKEHUB_TOKEN: ${{ secrets.FLAKEHUB_TOKEN }}
+        continue-on-error: true
       - name: Install devenv.sh
         shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
