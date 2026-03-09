@@ -78,7 +78,8 @@
         enable = true;
         name = "docs-update";
         entry = "${./scripts/docs-update.sh}";
-        files = "\\.(nix|md)$";
+        types = ["file"];
+        files = "(\.nix|\.md)$";
         pass_filenames = false;
         stages = ["pre-push"];
       };
