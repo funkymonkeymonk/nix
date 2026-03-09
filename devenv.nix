@@ -44,13 +44,11 @@
     alias dt="devenv tasks run"
     alias dtr="devenv tasks run"
     alias dtl="devenv tasks list"
-    alias t="devenv tasks run test:run"
-    alias tq="devenv tasks run test:quick"
 
     alias s="devenv tasks run system:switch"
     alias switch="devenv tasks run system:switch"
-    alias q="devenv tasks run quality:check"
-    alias b="devenv tasks run nix:build"
+    alias q="devenv tasks run check:all"
+    alias b="devenv tasks run build:all"
     alias i="devenv tasks run dev:ide"
   '';
 
