@@ -7,39 +7,39 @@ This guide shows you how to run CI validation on your local machine.
 For fast feedback during development:
 
 ```bash
-devenv tasks run ci:quick
+devenv tasks run check:lint
 ```
 
 This runs:
-- Flake syntax check
-- Code formatting (alejandra)
+- Nix formatting check (alejandra)
 - Dead code detection (deadnix)
 - Static analysis (statix)
+- YAML linting (yamllint)
 
-## Full PR Validation
+## Full Validation
 
 Before opening a PR:
 
 ```bash
-devenv tasks run ci:pr
+devenv tasks run check:all
 ```
 
-This includes everything from `ci:quick` plus:
-- Darwin configuration validation
-- NixOS configuration validation
+This includes:
+- Lint checks
+- Platform-specific build validation (Darwin on macOS, NixOS on Linux)
 
 ## Platform-Specific Validation
 
 ### Darwin Only
 
 ```bash
-devenv tasks run ci:validate:darwin
+devenv tasks run build:darwin
 ```
 
 ### NixOS Only
 
 ```bash
-devenv tasks run ci:validate:nixos
+devenv tasks run build:nixos
 ```
 
 ## Fixing Issues
@@ -48,10 +48,10 @@ devenv tasks run ci:validate:nixos
 
 ```bash
 # See what needs formatting
-devenv tasks run ci:lint
+devenv tasks run check:lint
 
 # Auto-fix formatting
-devenv tasks run ci:format
+devenv tasks run format:all
 ```
 
 ### Dead Code Warnings
@@ -72,21 +72,20 @@ devenv tasks run ci:format
 
 ## Cross-Platform Testing
 
-The CI validates both platforms regardless of your host:
+CI validates both platforms using separate runners:
 
-| Host Platform | What Gets Validated |
+| Runner | What Gets Validated |
 |---------------|---------------------|
-| macOS | Darwin configs (full) + NixOS configs (eval only) |
-| Linux | NixOS configs (full) + Darwin configs (eval only) |
+| macOS | Darwin configs (dry-run build) |
+| Linux | NixOS configs (dry-run build) |
 
 ## Shell Aliases
 
 After applying the configuration, these shortcuts are available:
 
 ```bash
-q       # devenv tasks run quality:check
-t       # devenv tasks run test:run
-tf      # devenv tasks run test:full
+q       # devenv tasks run check:all
+b       # devenv tasks run build:all
 ```
 
-> **See also:** [CI/CD Reference](../reference/ci.md) for the full pipeline details
+> **See also:** [Tasks Reference](../reference/tasks.md) for the full task list

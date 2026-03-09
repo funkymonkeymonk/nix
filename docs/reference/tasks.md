@@ -21,12 +21,9 @@ dtl               # List all tasks
 | `dt` | `devenv tasks run` | Run any task |
 | `dtr` | `devenv tasks run` | Run any task |
 | `dtl` | `devenv tasks list` | List all tasks |
-| `t` | `test:run` | Quick validation |
-| `tq` | `test:quick` | Quick syntax checks |
-| `tf` | `test:full` | Full cross-platform tests |
 | `s` | `system:switch` | Apply configuration |
-| `q` | `quality:check` | Run quality checks |
-| `b` | `nix:build` | Build configurations |
+| `q` | `check:all` | Run all checks |
+| `b` | `build:all` | Build configurations |
 | `i` | `dev:ide` | Launch IDE environment |
 
 ## System Configuration
@@ -36,43 +33,27 @@ dtl               # List all tasks
 | `system:switch` | Apply configuration (auto-detects platform/hostname) |
 | `system:init` | Initial nix-darwin setup (macOS, first-time) |
 
-## Testing
-
-| Task | Description |
-|------|-------------|
-| `test:run` | Run quick validation |
-| `test:quick` | Quick syntax and lint checks (~30s) |
-| `test:full` | Full cross-platform validation (5-10min) |
-| `test:darwin-only` | Test only Darwin configurations |
-| `test:nixos-only` | Test only NixOS configurations |
-
-## Code Quality
-
-| Task | Description |
-|------|-------------|
-| `quality:check` | Format, deadnix, statix, yamllint |
-
 ## Build
 
 | Task | Description |
 |------|-------------|
-| `nix:build` | Build all configurations (dry-run) |
-| `nix:build:darwin` | Build Darwin configurations |
-| `nix:build:nixos` | Build NixOS configurations |
+| `build:all` | Build all configurations (dry-run) |
+| `build:darwin` | Build Darwin configurations (dry-run) |
+| `build:nixos` | Build NixOS configurations (dry-run) |
 
-## CI Pipeline
+## Checks
 
 | Task | Description |
 |------|-------------|
-| `ci:quick` | Fast checks (~30s): lint only |
-| `ci:lint` | Formatting and static analysis |
-| `ci:format` | Apply formatting fixes (alejandra) |
-| `ci:flake-check` | Check flake structure |
-| `ci:validate` | Full validation (test:full) |
-| `ci:validate:darwin` | Darwin configurations only |
-| `ci:validate:nixos` | NixOS configurations only |
-| `ci:pr` | Full PR pipeline (lint + validate) |
-| `ci:local` | Platform-aware local checks |
+| `check:all` | Run all checks - lint + platform tests |
+| `check:lint` | Lint checks (formatting, dead code, static analysis, YAML) |
+| `check:flake` | Check flake structure |
+
+## Formatting
+
+| Task | Description |
+|------|-------------|
+| `format:all` | Apply formatting fixes (alejandra) |
 
 ## Documentation
 

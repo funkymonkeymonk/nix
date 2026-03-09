@@ -41,10 +41,10 @@ devenv tasks run <task>        # Run a task
 
 | Task | Description |
 |------|-------------|
-| `ci:quick` | Fast checks (~30s): lint only |
-| `ci:pr` | Full PR pipeline |
-| `quality:check` | Format and lint code |
-| `test:full` | Full cross-platform validation |
+| `check:all` | Run all checks (lint + platform builds) |
+| `check:lint` | Lint only |
+| `build:darwin` | Build Darwin configurations (dry-run) |
+| `build:nixos` | Build NixOS configurations (dry-run) |
 | `system:switch` | Apply configuration |
 
 ### Shell Aliases
@@ -52,23 +52,20 @@ devenv tasks run <task>        # Run a task
 | Alias | Task |
 |-------|------|
 | `s` | `system:switch` |
-| `q` | `quality:check` |
-| `t` | `test:run` |
-| `tf` | `test:full` |
-| `b` | `nix:build` |
+| `q` | `check:all` |
+| `b` | `build:all` |
 | `i` | `dev:ide` |
 
 ## Working with This Repository
 
 ### Before Changes
-1. Run `devenv tasks run ci:quick` for fast feedback
+1. Run `devenv tasks run check:lint` for fast feedback
 2. Use `devenv shell` for proper tooling
 
 ### Making Changes
 1. Modify files as needed
-2. Run `devenv tasks run quality:check`
-3. Run `devenv tasks run ci:pr` for validation
-4. Commit with conventional commit messages
+2. Run `devenv tasks run check:all` for validation
+3. Commit with conventional commit messages
 
 ### Adding Features
 
@@ -134,7 +131,11 @@ If `.jj/` directory exists:
 
 ### Cross-Platform Validation
 
-`test:full` validates both platforms regardless of host using dry-run builds.
+Tests are platform-specific:
+- `test:darwin` on macOS
+- `test:nixos` on Linux
+
+CI runs both on separate runners.
 
 ## Code Style
 

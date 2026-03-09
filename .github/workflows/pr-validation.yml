@@ -37,7 +37,7 @@ jobs:
         shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Run lint checks
-        run: devenv tasks run ci:lint
+        run: devenv tasks run check:lint
   test-darwin:
     name: Darwin Configuration Tests
     runs-on: macos-latest
@@ -65,8 +65,8 @@ jobs:
       - name: Install devenv.sh
         shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
-      - name: Run Darwin-specific tests (dry-run)
-        run: devenv tasks run test:darwin-only
+      - name: Run Darwin build (dry-run)
+        run: devenv tasks run build:darwin
   test-linux:
     name: Linux Configuration Tests
     runs-on: ubuntu-latest
@@ -94,5 +94,5 @@ jobs:
       - name: Install devenv.sh
         shell: bash
         run: nix profile install --accept-flake-config nixpkgs#devenv
-      - name: Run Linux-specific tests (dry-run)
-        run: devenv tasks run test:nixos-only
+      - name: Run Linux build (dry-run)
+        run: devenv tasks run build:nixos

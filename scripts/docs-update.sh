@@ -329,15 +329,13 @@ dtl
 | `build:darwin` | Build all Darwin (macOS) configurations |
 | `build:nixos` | Build all NixOS configurations |
 
-### Testing
+### Build
 
 | Task | Description |
 |------|-------------|
-| `test` | Run quick validation checks |
-| `test:quick` | Quick syntax and validation checks (30s) |
-| `test:full` | Full cross-platform validation (5-10min) |
-| `test:darwin-only` | Test only Darwin configurations |
-| `test:nixos-only` | Test only NixOS configurations |
+| `build:all` | Build all configurations (dry-run) |
+| `build:darwin` | Build Darwin configurations (dry-run) |
+| `build:nixos` | Build NixOS configurations (dry-run) |
 
 ### Code Quality
 

@@ -34,19 +34,17 @@ Push to main:
          Cachix push
 ```
 
-## CI Tasks
+## Tasks
 
 | Task | Duration | Description |
 |------|----------|-------------|
-| `ci:quick` | ~30s | Lint checks only |
-| `ci:lint` | ~10s | Formatting and static analysis |
-| `ci:format` | ~5s | Apply formatting fixes |
-| `ci:flake-check` | ~30s | Validate flake structure |
-| `ci:validate` | 5-10min | All platform validation |
-| `ci:validate:darwin` | 2-5min | Darwin configurations only |
-| `ci:validate:nixos` | 2-5min | NixOS configurations only |
-| `ci:pr` | 5-10min | Full PR pipeline (lint + validate) |
-| `ci:local` | varies | Platform-aware local checks |
+| `check:lint` | ~10s | Formatting, dead code, static analysis, YAML |
+| `check:all` | 5-10min | Lint + platform builds |
+| `format:all` | ~5s | Apply formatting fixes |
+| `check:flake` | ~30s | Validate flake structure |
+| `build:darwin` | 2-5min | Darwin configurations (dry-run) |
+| `build:nixos` | 2-5min | NixOS configurations (dry-run) |
+| `build:all` | 5-10min | All configurations (dry-run) |
 
 ## Validated Configurations
 
@@ -61,7 +59,7 @@ Push to main:
 ### Microvm
 - `dev-vm` - Development VM (validated via `microvm:test`)
 
-## Quick Checks (ci:lint)
+## Lint Checks (check:lint)
 
 - **Formatting**: `alejandra` - Nix code formatting
 - **Dead Code**: `deadnix` - Unused code detection
@@ -72,8 +70,10 @@ Push to main:
 
 | Host | Darwin Configs | NixOS Configs |
 |------|----------------|---------------|
-| macOS | Full build | Eval + dry-run |
-| Linux | Eval only | Full build |
+| macOS | Full build | Not tested |
+| Linux | Not tested | Full build |
+
+CI runs platform-specific builds on separate runners.
 
 ## Secrets
 

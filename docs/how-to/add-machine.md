@@ -134,10 +134,10 @@ After adding your configuration, validate it:
 
 ```bash
 # Quick syntax check
-devenv tasks run ci:quick
+devenv tasks run check:lint
 
 # Full validation
-devenv tasks run ci:pr
+devenv tasks run check:all
 ```
 
 > **See also:** [Roles Reference](../reference/roles.md) for available role options
