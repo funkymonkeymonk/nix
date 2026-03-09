@@ -150,8 +150,9 @@ with lib; {
         type = types.attrsOf (types.submodule {
           options = {
             npm = mkOption {
-              type = types.str;
-              description = "NPM package for the provider";
+              type = types.nullOr types.str;
+              default = null;
+              description = "NPM package for the provider (optional, e.g., @ai-sdk/openai-compatible)";
             };
             name = mkOption {
               type = types.str;
@@ -217,6 +218,60 @@ with lib; {
         default = {};
         description = "Custom opencode commands (slash commands)";
       };
+
+      agents = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            description = mkOption {
+              type = types.str;
+              default = "";
+              description = "Description of what the agent does";
+            };
+            mode = mkOption {
+              type = types.enum ["primary" "subagent" "all"];
+              default = "primary";
+              description = "Agent mode: primary (switchable), subagent (@mention), or all";
+            };
+            model = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Model for this agent (e.g., ollama/qwen3.5:2b)";
+            };
+            prompt = mkOption {
+              type = types.str;
+              default = "";
+              description = "System prompt for the agent";
+            };
+            temperature = mkOption {
+              type = types.nullOr types.float;
+              default = null;
+              description = "Temperature for the agent (0.0-1.0)";
+            };
+            hidden = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Hide from autocomplete menu";
+            };
+            tools = mkOption {
+              type = types.attrsOf types.bool;
+              default = {};
+              description = "Tool permissions for this agent";
+            };
+            permission = mkOption {
+              type = types.attrsOf (types.oneOf [types.str (types.attrsOf types.str)]);
+              default = {};
+              description = "Permission settings for this agent";
+            };
+            color = mkOption {
+              type = types.str;
+              default = "";
+              description = "Agent color in UI (hex or theme color name)";
+            };
+          };
+        });
+        default = {};
+        description = "Custom agents for OpenCode";
+      };
     };
 
     onepassword = {
@@ -280,7 +335,7 @@ with lib; {
 
       models = mkOption {
         type = types.listOf types.str;
-        default = ["llama3.2" "codellama"];
+        default = [];
         description = "List of models to pre-pull on service start";
       };
 
@@ -295,6 +350,18 @@ with lib; {
         default = null;
         description = "Path to environment file with additional Ollama configuration";
       };
+
+      useHomebrew = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Use Homebrew-installed Ollama instead of Nix package (Darwin only). Useful for getting the latest version with Metal acceleration";
+      };
+    };
+
+    sharedModels = mkOption {
+      type = types.listOf types.str;
+      default = ["qwen3:4b" "gemma3:4b" "qwen3.5"];
+      description = "Central model configuration - change here to affect ALL Ollama services and instances.\n\nRecommended models:\n  qwen3:4b     - Research/Analysis\n  gemma3:4b    - Chat (fast responses)\n  qwen3.5      - Coding/Planning (best model)\n  qwen2.5-coder:7b - Coding alternatives\n  llama3.2     - Lightweight fallback";
     };
 
     llmEndpoints = mkOption {

@@ -203,16 +203,14 @@ with pkgs.lib; {
     };
 
     llm-host = {
-      packages = with pkgs; [
-        ollama
-      ];
+      packages = with pkgs; [ollama];
 
       config = {
         myConfig.ollama = {
           enable = true;
-          host = "0.0.0.0"; # Allow network access for LiteLLM
+          host = "0.0.0.0";
           port = 11434;
-          models = ["llama3.2" "llama3.2:8b" "qwen2.5-coder:14b"];
+          models = ["qwen3.5:2b" "qwen3.5" "qwen3.5:122b"];
         };
       };
     };

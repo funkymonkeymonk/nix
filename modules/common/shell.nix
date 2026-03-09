@@ -12,6 +12,9 @@
     # /etc/zshrc - system-wide configuration managed by Nix
     export SHELL=${pkgs.zsh}/bin/zsh
 
+    # Ollama configuration
+    export OLLAMA_HOST="http://localhost:11434"
+
     # Load zshenv if present (follow distribution's behavior)
     if [ -f /etc/zsh/zshenv ]; then
       . /etc/zsh/zshenv
