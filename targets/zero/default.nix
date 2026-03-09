@@ -3,9 +3,16 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }: {
-  imports = [./hardware-configuration.nix];
+  imports =
+    lib.optionals (builtins.pathExists /etc/nixos/hardware-configuration.nix) [
+      /etc/nixos/hardware-configuration.nix
+    ]
+    ++ lib.optionals (!builtins.pathExists /etc/nixos/hardware-configuration.nix) [
+      ../hardware-stub.nix
+    ];
 
   networking = {
     hostName = "zero";
