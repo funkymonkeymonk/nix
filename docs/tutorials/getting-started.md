@@ -89,17 +89,17 @@ devenv --version
 devenv tasks list
 ```
 
-You should see a list of available tasks like `ci:quick`, `test:full`, etc.
+You should see a list of available tasks like `check:lint`, `build:darwin`, etc.
 
 ## Step 7: Run Validation
 
 Verify your configuration is healthy:
 
 ```bash
-devenv tasks run ci:quick
+devenv tasks run check:lint
 ```
 
-This runs fast lint and format checks (~30 seconds).
+This runs fast lint checks (~30 seconds).
 
 ## What's Next?
 

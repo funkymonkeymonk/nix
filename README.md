@@ -19,7 +19,7 @@ cd nix
 nix develop
 
 # Run validation
-devenv tasks run ci:quick
+devenv tasks run check:all
 
 # Apply configuration (macOS)
 darwin-rebuild switch --flake .#<hostname>
@@ -82,9 +82,8 @@ After entering devenv shell:
 | Alias | Command |
 |-------|---------|
 | `s` | `devenv tasks run system:switch` |
-| `q` | `devenv tasks run quality:check` |
-| `t` | `devenv tasks run test:run` |
-| `tf` | `devenv tasks run test:full` |
+| `q` | `devenv tasks run check:all` |
+| `b` | `devenv tasks run build:all` |
 
 > **All tasks:** [Tasks reference](docs/reference/tasks.md)
 

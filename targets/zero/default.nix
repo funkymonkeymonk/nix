@@ -3,9 +3,16 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }: {
-  imports = [./hardware-configuration.nix];
+  imports =
+    lib.optionals (builtins.pathExists /etc/nixos/hardware-configuration.nix) [
+      /etc/nixos/hardware-configuration.nix
+    ]
+    ++ lib.optionals (!builtins.pathExists /etc/nixos/hardware-configuration.nix) [
+      ../hardware-stub.nix
+    ];
 
   networking = {
     hostName = "zero";
@@ -24,12 +31,12 @@
   ];
 
   # Disable sleep/hibernate (always-on machine)
-  systemd.sleep.extraConfig = ''
-    AllowSuspend=no
-    AllowHibernation=no
-    AllowHybridSleep=no
-    AllowSuspendThenHibernate=no
-  '';
+  systemd.sleep.settings.Sleep = {
+    AllowSuspend = false;
+    AllowHibernation = false;
+    AllowHybridSleep = false;
+    AllowSuspendThenHibernate = false;
+  };
 
   # NVIDIA GPU
   services.xserver.videoDrivers = ["nvidia"];

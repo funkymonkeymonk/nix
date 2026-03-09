@@ -22,7 +22,7 @@
       eval "$(direnv hook zsh)"
 
        # Drop-down terminal toggle function (macOS specific)
-       ${lib.optionalString pkgs.stdenv.isDarwin ''
+       ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
         dropdown_terminal() {
           if pgrep -f "alacritty.*dropdown" > /dev/null; then
             pkill -f "alacritty.*dropdown"
@@ -33,7 +33,7 @@
       ''}
 
       # ISO to USB function (macOS specific)
-      ${lib.optionalString pkgs.stdenv.isDarwin ''
+      ${lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
         iso2usb() {
           if [ -f "$1" ]; then
             iso_name=$1
