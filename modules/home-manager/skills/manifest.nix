@@ -146,4 +146,14 @@
     };
     deps = [];
   };
+
+  "refining-specs" = {
+    description = "Use when a specification has open questions requiring research, technical decisions, or user input to resolve";
+    roles = ["developer" "llm-client" "llm-claude"];
+    source = {
+      type = "internal";
+      path = ./internal/refining-specs;
+    };
+    deps = [];
+  };
 }
