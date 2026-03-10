@@ -522,18 +522,42 @@
         ];
       };
 
-      "drlight" = mkNixosHost {
-        target = ./targets/drlight;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["bootstrap"];
-        extraConfig = {
-          llmEndpoints = {
-            MegamanX = {
-              host = "MegamanX.local";
-              port = "4000";
+      # drlight - Standalone config for existing NixOS systems
+      # Does NOT use mkNixosHost to avoid bootloader/hardware conflicts
+      "drlight" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs;};
+        modules = [
+          ./targets/drlight
+          ./modules/common/options.nix
+          ./modules/common/users.nix
+          ./modules/common/shell.nix
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+            nixpkgs.config.allowUnfree = true;
+            myConfig = {
+              users = [
+                {
+                  name = "monkey";
+                  email = "me@willweaver.dev";
+                  fullName = "Will Weaver";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+              development.enable = true;
+              agent-skills.enable = true;
+              onepassword.enable = true;
+              llmEndpoints = {
+                MegamanX = {
+                  host = "MegamanX.local";
+                  port = "4000";
+                };
+              };
             };
-          };
-        };
+          }
+        ];
       };
 
       "zero" = mkNixosHost {

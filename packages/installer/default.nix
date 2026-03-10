@@ -203,12 +203,15 @@ pkgs.writeScriptBin "nixos-flake-installer" ''
   echo "  Flake:         $FLAKE_URL"
   echo ""
   echo "  Installation Plan:"
-  echo "    1. Install bootstrap configuration"
   if [[ "$MODE" == "liveusb" ]]; then
+    echo "    1. Install bootstrap configuration"
     echo "    2. Reboot into new system"
     echo "    3. Apply full configuration (hostname: $HOSTNAME)"
   else
-    echo "    2. Apply full configuration (hostname: $HOSTNAME)"
+    echo "    1. Apply configuration directly (hostname: $HOSTNAME)"
+    echo ""
+    echo "  Note: Bootstrap is skipped for existing systems."
+    echo "        Use bootstrap only for fresh NixOS installs."
   fi
   echo ""
 
@@ -274,17 +277,14 @@ pkgs.writeScriptBin "nixos-flake-installer" ''
     echo "the configuration matching the hostname on first boot (if network is available)"
 
   else
-    # Existing system mode - apply bootstrap first, then full config
-    log_info "Applying bootstrap configuration first..."
-    nixos-rebuild switch --flake "$FLAKE_URL#bootstrap"
-
-    log_success "Bootstrap applied!"
-    echo ""
-    log_info "Now applying full configuration: $FLAKE_URL#$HOSTNAME"
+    # Existing system mode - apply target configuration directly
+    log_info "Applying configuration: $FLAKE_URL#$HOSTNAME"
     nixos-rebuild switch --flake "$FLAKE_URL#$HOSTNAME" || {
-      log_warn "Full configuration failed - you may need to:"
+      log_warn "Configuration failed - you may need to:"
       log_info "  1. Ensure hardware-configuration.nix exists"
       log_info "  2. Check that target '$HOSTNAME' exists in the flake"
+      log_info "  3. Use bootstrap configuration for fresh systems:"
+      log_info "     sudo nixos-rebuild switch --flake $FLAKE_URL#bootstrap"
     }
 
     echo ""
