@@ -32,6 +32,9 @@
     pkgs.act
     # Additional tools for tasks
     pkgs.rsync
+    # TUI tools for interactive installers
+    pkgs.gum # Modern TUI components from Charm
+    pkgs.sshpass # For non-interactive SSH password authentication
     # Note: Dagger was removed from nixpkgs. CI tasks now use devenv tasks directly.
     # Note: 1password-cli (op) is expected to be available on machines that need
     # switch and cachix:push tasks. It has an unfree license so we don't include
@@ -323,7 +326,7 @@
       exec = ''
         echo "Building NixOS configurations"
         echo "================================="
-        for config in drlight zero; do
+          for config in zero; do
           echo "Building $config configuration..."
           if nix build .#nixosConfigurations.$config.config.system.build.toplevel \
               --dry-run --quiet >/dev/null 2>&1; then
@@ -346,6 +349,40 @@
       '';
     };
 
+    "build:cattle" = {
+      description = "Build cattle machine type configurations (dry-run)";
+      exec = ''
+        echo "Building Cattle configurations"
+        echo "================================="
+        echo ""
+        echo "Cattle configurations use nixos-facter for hardware detection"
+        echo "and disko for declarative partitioning."
+        echo ""
+
+        for config in type-desktop type-server; do
+          echo "Building $config configuration..."
+          if nix build .#nixosConfigurations.$config.config.system.build.toplevel \
+              --dry-run --quiet >/dev/null 2>&1; then
+            echo "$config build plan validated"
+          else
+            echo "$config build plan failed"
+            echo ""
+            echo "Running build plan with verbose output for debugging:"
+            nix build .#nixosConfigurations.$config.config.system.build.toplevel \
+              --dry-run --show-trace
+            echo ""
+            echo "Common issues to check:"
+            echo "  - Missing disko or nixos-facter inputs"
+            echo "  - Incorrect disk configuration paths"
+            echo "  - Hardware detection module issues"
+            exit 1
+          fi
+        done
+        echo ""
+        echo "All Cattle configurations validated successfully"
+      '';
+    };
+
     # ============================================
     # BUILD TASKS
     # ============================================
@@ -356,7 +393,64 @@
         echo "Building flake configurations..."
         devenv tasks run build:darwin
         devenv tasks run build:nixos
-        echo "All configurations (NixOS and Darwin) validated successfully"
+        devenv tasks run build:cattle
+        echo "All configurations (NixOS, Darwin, and Cattle) validated successfully"
+      '';
+    };
+
+    "validate:disko" = {
+      description = "Validate disko disk configurations";
+      exec = ''
+        echo "Validating Disko configurations"
+        echo "================================="
+
+        for config in single-disk-ext4; do
+          echo "Checking disk-configs/$config.nix..."
+          if nix eval --json .#nixosConfigurations.type-desktop.config.disko.devices \
+              --quiet >/dev/null 2>&1; then
+            echo "  disk-configs/$config.nix: valid"
+          else
+            echo "  disk-configs/$config.nix: INVALID"
+            echo ""
+            echo "Running eval with verbose output:"
+            nix eval --json .#nixosConfigurations.type-desktop.config.disko.devices --show-trace
+            exit 1
+          fi
+        done
+
+        echo ""
+        echo "All Disko configurations valid"
+      '';
+    };
+
+    "validate:install-script" = {
+      description = "Validate install-machine.sh script";
+      exec = ''
+        echo "Validating install-machine.sh"
+        echo "================================="
+
+        if [[ ! -f "scripts/install-machine.sh" ]]; then
+          echo "ERROR: scripts/install-machine.sh not found"
+          exit 1
+        fi
+
+        echo "Checking script syntax..."
+        if bash -n scripts/install-machine.sh; then
+          echo "  Syntax: OK"
+        else
+          echo "  Syntax: FAILED"
+          exit 1
+        fi
+
+        echo "Checking script is executable..."
+        if [[ -x "scripts/install-machine.sh" ]]; then
+          echo "  Executable: OK"
+        else
+          echo "  Executable: NO (chmod +x may be needed)"
+        fi
+
+        echo ""
+        echo "Installation script validation complete"
       '';
     };
 
@@ -618,7 +712,15 @@
           done
         else
           echo "Building all NixOS configurations..."
-          for config in drlight zero; do
+        for config in zero; do
+            echo "Building $config..."
+            nix build ".#nixosConfigurations.''${config}.config.system.build.toplevel" \
+              --no-link --print-out-paths | cachix push funkymonkeymonk
+            echo "$config pushed"
+          done
+          echo ""
+          echo "Building all Cattle configurations..."
+        for config in type-desktop type-server; do
             echo "Building $config..."
             nix build ".#nixosConfigurations.''${config}.config.system.build.toplevel" \
               --no-link --print-out-paths | cachix push funkymonkeymonk

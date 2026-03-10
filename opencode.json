@@ -68,9 +68,6 @@
                         "command": ["alejandra"]
                     },
                     "options": {
-                        "nixos-drlight": {
-                            "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.drlight.options"
-                        },
                         "nixos-zero": {
                             "expr": "let flake = builtins.getFlake(toString ./.); in flake.nixosConfigurations.zero.options"
                         },

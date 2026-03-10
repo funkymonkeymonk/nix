@@ -29,6 +29,13 @@
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
     devenv.url = "github:cachix/devenv";
+
+    # NEW: Cattle infrastructure for automated installs
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
+
+    nixos-facter.url = "github:nix-community/nixos-facter";
+    nixos-facter.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -341,10 +348,15 @@
           inherit system;
           overlays = [(import ./overlays)];
         };
-      in {
-        inherit (pkgs) rtk;
-        installer = pkgs.callPackage ./packages/installer {};
-      }
+      in
+        {
+          inherit (pkgs) rtk;
+          installer = pkgs.callPackage ./packages/installer {};
+        }
+        // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+          # ISO installer only for x86_64-linux
+          iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
+        }
     );
 
     apps = forAllSystems (
@@ -360,6 +372,23 @@
         };
       }
     );
+
+    # ISO installer image (x86_64-linux only)
+    nixosConfigurations.installer-iso = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./targets/installer-iso/default.nix
+        {
+          # Bundle the flake into the ISO for offline fallback
+          isoImage.contents = [
+            {
+              source = ./.;
+              target = "nix-flake";
+            }
+          ];
+        }
+      ];
+    };
 
     darwinConfigurations = {
       "wweaver" = mkDarwinHost {
@@ -522,20 +551,6 @@
         ];
       };
 
-      "drlight" = mkNixosHost {
-        target = ./targets/drlight;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = ["bootstrap"];
-        extraConfig = {
-          llmEndpoints = {
-            MegamanX = {
-              host = "MegamanX.local";
-              port = "4000";
-            };
-          };
-        };
-      };
-
       "zero" = mkNixosHost {
         target = ./targets/zero;
         user = mkUser "monkey" "me@willweaver.dev";
@@ -558,6 +573,68 @@
             };
           };
         };
+      };
+
+      # CATTLE CONFIGURATIONS - Generic machine types
+      # These require no hardware-configuration.nix!
+      # Use with: ./scripts/install-machine.sh <type> <host> <disk>
+
+      "type-desktop" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          # Disk layout
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+
+          # Hardware detection - uses facter module from nixpkgs
+          # hardware.facter.reportPath will be set by nixos-anywhere
+
+          # Machine type configuration
+          ./machine-types/desktop.nix
+
+          # Your common options
+          ./modules/common/options.nix
+
+          # SSH key for initial access (replace with your key)
+          {
+            users.users.root.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+        ];
+      };
+
+      "type-server" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          # Disk layout
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+
+          # Hardware detection - uses facter module from nixpkgs
+
+          # Machine type configuration
+          ./machine-types/server.nix
+
+          # Your common options
+          ./modules/common/options.nix
+
+          # SSH key for initial access
+          {
+            users.users.root.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+            users.users.monkey = {
+              isNormalUser = true;
+              extraGroups = ["wheel"];
+              openssh.authorizedKeys.keys = [
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+              ];
+            };
+          }
+        ];
       };
     };
 

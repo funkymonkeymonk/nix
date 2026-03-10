@@ -84,3 +84,9 @@ jobs:
         run: nix profile add --accept-flake-config nixpkgs#devenv
       - name: Run Linux build (dry-run)
         run: devenv tasks run build:nixos
+      - name: Run Cattle build (dry-run)
+        run: devenv tasks run build:cattle
+      - name: Validate Disko configurations
+        run: devenv tasks run validate:disko
+      - name: Validate installation script
+        run: devenv tasks run validate:install-script
