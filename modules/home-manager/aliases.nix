@@ -16,6 +16,7 @@ in {
     jjs = "jj show";
     jja = "jj absorb";
     jjst = "jj status";
+    jjbl = "jj bookmark list";
     jjco = "jj comment";
 
     dtr = "devenv tasks run";
