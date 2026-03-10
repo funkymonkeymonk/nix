@@ -71,7 +71,6 @@ Targets define *where* configurations apply. Each target represents a specific m
 targets/
 ├── wweaver/          # Work laptop
 ├── MegamanX/         # Personal desktop
-├── drlight/          # NixOS server
 └── zero/             # NixOS gaming PC
 ```
 

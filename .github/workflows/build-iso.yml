@@ -1,0 +1,144 @@
+---
+name: Build Installer ISO
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'targets/installer-iso/**'
+      - 'disk-configs/**'
+      - 'flake.nix'
+      - 'flake.lock'
+  # TEMPORARY: Run on this PR for testing
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'targets/installer-iso/**'
+      - '.github/workflows/build-iso.yml'
+  workflow_dispatch:
+  schedule:
+    # Rebuild weekly to pick up security updates
+    - cron: '0 0 * * 0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-iso:
+    name: Build NixOS Installer ISO
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history for proper flake evaluation
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            # Allow building for x86_64-linux
+            extra-platforms = x86_64-linux
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Free up disk space
+        run: |
+          echo "Freeing up disk space..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+          df -h
+
+      - name: Build ISO
+        run: |
+          echo "Building NixOS installer ISO..."
+          nix build .#iso --out-link result
+          echo "Build complete!"
+          ls -lh result/iso/
+
+      - name: Get ISO info
+        id: iso-info
+        run: |
+          ISO_PATH=$(ls result/iso/*.iso | head -1)
+          ISO_NAME=$(basename "$ISO_PATH")
+          ISO_SIZE=$(du -h "$ISO_PATH" | cut -f1)
+          ISO_SHA256=$(sha256sum "$ISO_PATH" | cut -d' ' -f1)
+
+          echo "iso_path=$ISO_PATH" >> "$GITHUB_OUTPUT"
+          echo "iso_name=$ISO_NAME" >> "$GITHUB_OUTPUT"
+          echo "iso_size=$ISO_SIZE" >> "$GITHUB_OUTPUT"
+          echo "iso_sha256=$ISO_SHA256" >> "$GITHUB_OUTPUT"
+
+          echo "ISO: $ISO_NAME"
+          echo "Size: $ISO_SIZE"
+          echo "SHA256: $ISO_SHA256"
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nixos-installer-iso
+          path: result/iso/*.iso
+          retention-days: 30
+          compression-level: 0  # ISOs are already compressed
+
+      - name: Create release
+        # yamllint disable-line rule:line-length
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release-iso]')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: iso-${{ github.run_number }}
+          name: NixOS Installer ISO ${{ github.run_number }}
+          body: |
+            NixOS Installer ISO built from commit ${{ github.sha }}
+
+            **ISO Details:**
+            - Filename: ${{ steps.iso-info.outputs.iso_name }}
+            - Size: ${{ steps.iso-info.outputs.iso_size }}
+            - SHA256: `${{ steps.iso-info.outputs.iso_sha256 }}`
+
+            **Features:**
+            - Guided TUI installation using `gum`
+            - Automatic disk partitioning with `disko`
+            - Support for cattle (type-*) and pet (named) hosts
+            - Offline fallback with bundled flake
+            - SSH access with pre-configured keys
+
+            **Usage:**
+            1. Flash to USB:
+               - Linux: `sudo dd if=*.iso of=/dev/sdX bs=4M status=progress`
+               - macOS: `sudo dd if=*.iso of=/dev/rdiskX bs=4M` (note: use 'rdisk' for speed)
+            2. Boot from USB
+            3. Follow the guided installer
+
+            # yamllint disable-line rule:line-length
+            See [documentation](https://github.com/${{ github.repository }}/blob/main/docs/how-to/create-installer-usb.md) for details.
+          files: result/iso/*.iso
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update ISO info in wiki
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "ISO build completed successfully"
+          echo "Artifact uploaded: ${{ steps.iso-info.outputs.iso_name }}"
+          echo "Size: ${{ steps.iso-info.outputs.iso_size }}"

@@ -59,7 +59,7 @@ nix flake show | grep darwinConfigurations
 nix flake show | grep nixosConfigurations
 ```
 
-You'll see configurations like `wweaver`, `MegamanX`, `drlight`, and `zero`.
+You'll see configurations like `wweaver`, `MegamanX`, and `zero`.
 
 ## Step 5: Create Your Configuration
 
