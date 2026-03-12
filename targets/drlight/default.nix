@@ -43,7 +43,7 @@
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = lib.mkDefault "prohibit-password";
+      PermitRootLogin = "no"; # Disable root SSH access entirely
       PubkeyAuthentication = true;
       PasswordAuthentication = lib.mkDefault false;
     };
@@ -85,12 +85,12 @@
     wget
   ];
 
-  # User setup
-  users.users.root.openssh.authorizedKeys.keys = [
+  # SSH authorized keys for monkey user (user is defined in base.nix from myConfig)
+  users.users.monkey.openssh.authorizedKeys.keys = [
     # MegamanX
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8"
   ];
 
-  # Ensure zsh is available
-  programs.zsh.enable = true;
+  # Disable root SSH access - must login as monkey and sudo
+  users.users.root.openssh.authorizedKeys.keys = lib.mkForce [];
 }
