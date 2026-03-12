@@ -4,6 +4,10 @@
   pkgs,
   ...
 }: {
+  # Import ghostty terminfo support for SSH clients
+  imports = [
+    ../nixos/ghostty-terminfo.nix
+  ];
   # Import microvm.nix NixOS module (provided by flake)
   # The actual import happens in flake.nix via microvm.nixosModules.microvm
 

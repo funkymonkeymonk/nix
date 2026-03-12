@@ -8,6 +8,10 @@
   ...
 }:
 with lib; {
+  imports = [
+    ./ghostty-terminfo.nix
+  ];
+
   config = mkIf (!config.myConfig.isDarwin) {
     # Configure NixOS-specific user properties from myConfig.users
     users.users = listToAttrs (map (user: {
