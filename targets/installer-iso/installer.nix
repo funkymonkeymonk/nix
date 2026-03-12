@@ -309,7 +309,7 @@ pkgs.writeScriptBin "nixos-installer-iso" ''
 
       # Create hardware config override
       local hw_config="$temp_dir/hardware.nix"
-      cat > "$hw_config" << EOF
+      cat > "$hw_config" <<-EOF
     {
       # Hardware configuration for $HOSTNAME
       disko.devices.disk.main.device = "$DISK";
@@ -382,7 +382,7 @@ pkgs.writeScriptBin "nixos-installer-iso" ''
 
       # Get the disko config from the flake
       # Always create a wrapper config that sets the device
-      cat > /tmp/disko-device.nix << DISKOEOF
+      cat > /tmp/disko-device.nix <<-DISKOEOF
   {
     disko.devices.disk.main.device = "$DISK";
   }
@@ -395,7 +395,7 @@ pkgs.writeScriptBin "nixos-installer-iso" ''
         disko_config="$LOCAL_FLAKE/targets/bootstrap/disk-config.nix"
         if [ ! -f "$disko_config" ]; then
           # Create minimal disko config inline
-          cat > /tmp/disko-config.nix << 'DISKOEOF'
+          cat > /tmp/disko-config.nix <<-'DISKOEOF'
   {
     disko.devices = {
       disk.main = {
