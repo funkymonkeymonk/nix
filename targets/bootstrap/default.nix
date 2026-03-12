@@ -12,6 +12,7 @@
     # Use hardware stub for evaluation during install
     # Real hardware config will be generated during install
     (modulesPath + "/installer/scan/not-detected.nix")
+    ../../modules/nixos/ghostty-terminfo.nix
   ];
 
   boot = {

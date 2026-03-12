@@ -11,6 +11,7 @@
   imports = [
     # Hardware config will be generated during installation
     ./hardware-configuration.nix
+    ../../modules/nixos/ghostty-terminfo.nix
   ];
 
   # Boot configuration
