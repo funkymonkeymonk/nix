@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "hardware": {
+    "system": {
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "sku": "",
+      "version": ""
+    },
+    "cpu": {
+      "architecture": "x86_64",
+      "vendor": "GenuineIntel",
+      "model": "",
+      "cores": 4,
+      "threads": 8
+    },
+    "memory": {
+      "total_bytes": 8589934592
+    },
+    "disks": [
+      {
+        "path": "/dev/sda",
+        "size_bytes": 53687091200,
+        "type": "disk",
+        "model": "Virtual Disk",
+        "serial": ""
+      }
+    ],
+    "network_interfaces": [
+      {
+        "name": "eth0",
+        "type": "ethernet",
+        "mac": "00:00:00:00:00:00",
+        "path": ""
+      }
+    ],
+    "graphics": {
+      "cards": []
+    }
+  },
+  "boot": {
+    "efi_available": true,
+    "efi_mount_point": "/boot",
+    "efi_partition": "/dev/sda1"
+  },
+  "filesystems": [
+    {
+      "mountpoint": "/",
+      "device": "/dev/sda2",
+      "fs_type": "ext4",
+      "options": []
+    },
+    {
+      "mountpoint": "/boot",
+      "device": "/dev/sda1",
+      "fs_type": "vfat",
+      "options": []
+    }
+  ]
+}
