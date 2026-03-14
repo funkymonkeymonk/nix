@@ -99,6 +99,35 @@ jobs:
             drv-${{ github.ref }}-
             drv-main-
 
+      - name: Create stub facter.json
+        run: |
+          # Create stub facter.json for NixOS configs that use nixos-facter
+          # Format: https://github.com/nix-community/nixos-facter
+          sudo mkdir -p /etc/nixos
+          sudo tee /etc/nixos/facter.json > /dev/null << 'FACTER_EOF'
+          {
+            "version": 1,
+            "hardware": {
+              "system": { "uuid": "00000000-0000-0000-0000-000000000000" },
+              "cpu": [
+                {
+                  "architecture": "x86_64",
+                  "vendor_name": "GenuineIntel",
+                  "features": ["vmx"]
+                }
+              ],
+              "memory": { "total_bytes": 8589934592 },
+              "disks": [{ "path": "/dev/sda", "size_bytes": 53687091200 }],
+              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }],
+              "pci": [],
+              "scsi": []
+            },
+            "boot": { "efi_available": true },
+            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }],
+            "virtualisation": "none"
+          }
+          FACTER_EOF
+
       - name: Discover configurations
         id: discover
         run: |
@@ -126,6 +155,9 @@ jobs:
         run: |
           echo "Checking which configurations need rebuilds..."
 
+          # Create staging directory at the start
+          mkdir -p .drv-cache-staging
+
           # Function to compute derivation hash for a config
           compute_drv_hash() {
             local config=$1
@@ -136,7 +168,7 @@ jobs:
               drv_path=$(nix-instantiate \
                 .#darwinConfigurations.${config}.system 2>/dev/null || echo "")
             else
-              drv_path=$(nix-instantiate \
+              drv_path=$(nix-instantiate --impure \
                 .#nixosConfigurations.${config}.config.system.build.toplevel \
                 2>/dev/null || echo "")
             fi
@@ -164,8 +196,8 @@ jobs:
                 echo "Darwin config '$config' unchanged"
               fi
 
-              # Save new hash for next run
-              echo "$NEW_HASH" > .drv-cache/darwin-${config}.hash
+              # Write new hash to a staging directory (not the cache yet)
+              echo "$NEW_HASH" > .drv-cache-staging/darwin-${config}.hash
             done
 
             if [ ${#DARWIN_CHANGED_CONFIGS[@]} -gt 0 ]; then
@@ -195,8 +227,8 @@ jobs:
                 echo "NixOS config '$config' unchanged"
               fi
 
-              # Save new hash for next run
-              echo "$NEW_HASH" > .drv-cache/nixos-${config}.hash
+              # Write new hash to a staging directory (not the cache yet)
+              echo "$NEW_HASH" > .drv-cache-staging/nixos-${config}.hash
             done
 
             if [ ${#NIXOS_CHANGED_CONFIGS[@]} -gt 0 ]; then
@@ -211,16 +243,17 @@ jobs:
           echo "nixos-changed=$NIXOS_CHANGED" >> $GITHUB_OUTPUT
           echo "NixOS configs needing rebuild: $NIXOS_CHANGED"
 
-          # Save current config lists
-          echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache/darwin-configs
-          echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache/nixos-configs
+          # Save current config lists to staging
+          echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
+          echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache-staging/nixos-configs
 
-      # Save derivation cache for future runs
-      - name: Save derivation cache
-        uses: actions/cache@v4
+      # Upload staging cache as artifact (will be committed to cache after successful builds)
+      - name: Upload staging cache
+        uses: actions/upload-artifact@v4
         with:
-          path: .drv-cache
-          key: drv-${{ github.ref }}-${{ github.sha }}
+          name: drv-cache-staging
+          path: .drv-cache-staging/
+          retention-days: 1
 
   # Build all Darwin configurations that changed
   build-darwin:
@@ -287,19 +320,29 @@ jobs:
       - name: Create stub facter.json
         run: |
           # Create stub facter.json for CI builds
+          # Format: https://github.com/nix-community/nixos-facter
           sudo mkdir -p /etc/nixos
           sudo tee /etc/nixos/facter.json > /dev/null << 'FACTER_EOF'
           {
             "version": 1,
             "hardware": {
               "system": { "uuid": "00000000-0000-0000-0000-000000000000" },
-              "cpu": { "architecture": "x86_64", "vendor": "GenuineIntel", "cores": 4 },
+              "cpu": [
+                {
+                  "architecture": "x86_64",
+                  "vendor_name": "GenuineIntel",
+                  "features": ["vmx"]
+                }
+              ],
               "memory": { "total_bytes": 8589934592 },
               "disks": [{ "path": "/dev/sda", "size_bytes": 53687091200 }],
-              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }]
+              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }],
+              "pci": [],
+              "scsi": []
             },
             "boot": { "efi_available": true },
-            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }]
+            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }],
+            "virtualisation": "none"
           }
           FACTER_EOF
       - name: Build ${{ matrix.config }}
@@ -324,6 +367,42 @@ jobs:
     needs: [build-darwin, build-nixos, discover-targets]
     if: always()
     steps:
+      - name: Download staging cache
+        uses: actions/download-artifact@v4
+        with:
+          name: drv-cache-staging
+          path: .drv-cache-new
+        continue-on-error: true
+
+      - name: Commit cache on success
+        if: >
+          ${{
+            (needs.build-darwin.result == 'success' ||
+             needs.build-darwin.result == 'skipped') &&
+            (needs.build-nixos.result == 'success' ||
+             needs.build-nixos.result == 'skipped')
+          }}
+        run: |
+          echo "Builds succeeded - committing new derivation hashes to cache"
+          mkdir -p .drv-cache
+          if [ -d .drv-cache-new ]; then
+            cp -r .drv-cache-new/* .drv-cache/
+            echo "Cache updated with new derivation hashes"
+          fi
+
+      - name: Save derivation cache
+        if: >
+          ${{
+            (needs.build-darwin.result == 'success' ||
+             needs.build-darwin.result == 'skipped') &&
+            (needs.build-nixos.result == 'success' ||
+             needs.build-nixos.result == 'skipped')
+          }}
+        uses: actions/cache@v4
+        with:
+          path: .drv-cache
+          key: drv-${{ github.ref }}-${{ github.sha }}
+
       - name: Report build results
         run: |
           echo "## Build Report" >> $GITHUB_STEP_SUMMARY
