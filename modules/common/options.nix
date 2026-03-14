@@ -314,6 +314,29 @@ with lib; {
       };
     };
 
+    fjj = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable fjj (Fast Jujutsu Workflow) for multi-agent repository management with GitHub mirrors and isolated workspaces";
+      };
+
+      mirrorRoot = mkOption {
+        type = types.str;
+        default =
+          if config.myConfig.isDarwin
+          then "~/src"
+          else "/srv/github";
+        description = "Root directory for GitHub repository mirrors (always on main branch). Default is ~/src on Darwin, /srv/github on Linux. Mirrors stored as <mirrorRoot>/github/<owner>/<repo>";
+      };
+
+      workspaceRoot = mkOption {
+        type = types.str;
+        default = "~/workspaces";
+        description = "Root directory for per-agent workspaces";
+      };
+    };
+
     ollama = {
       enable = mkOption {
         type = types.bool;

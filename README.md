@@ -91,6 +91,17 @@ After entering devenv shell:
 
 See [AGENTS.md](AGENTS.md) for AI-specific guidance on working with this repository.
 
+## TODO
+
+- [x] **Multi-Agent Repository Workflow Module**: Fast Jujutsu Workflow (`fjj`)
+  - ✅ Disko configuration for `/srv` volume (in module)
+  - ✅ Local GitHub mirrors in `/srv/github/` per configured project
+  - ✅ Automatic sync (5min during agent sessions, 1hr idle)
+  - ✅ Per-agent jj workspaces in `~/workspaces/`
+  - ✅ Stacked PR support with conventional branch naming
+  - ✅ Auto-cleanup after merge
+  - ✅ `fjj` command with fzf integration for universal entry
+
 ## License
 
 MIT
