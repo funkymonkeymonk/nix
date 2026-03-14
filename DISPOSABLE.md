@@ -1,13 +1,13 @@
-# Cattle Infrastructure - Automated NixOS Installation
+# Disposable Infrastructure - Automated NixOS Installation
 
-This directory contains the "cattle" approach to NixOS management: generic machine types with automatic hardware detection. No more per-machine `hardware-configuration.nix` files!
+This directory contains the "takeout container" approach to NixOS management: generic machine types with automatic hardware detection. No more per-machine `hardware-configuration.nix` files!
 
-## Philosophy: Pets vs Cattle
+## Philosophy: Heirloom Dishes vs Takeout Containers
 
-- **Pets**: Each machine is unique, hand-configured, named, and cared for individually
-- **Cattle**: Machines are identical, interchangeable, and managed as a group
+- **Heirloom Dishes**: Each machine is unique, hand-crafted, named, and cared for individually. If it breaks, you repair it. You know its history.
+- **Takeout Containers**: Machines are standardized, disposable, and interchangeable. If one has a problem, you throw it away and grab another. You don't care which specific one you get.
 
-Your existing `zero` config is a pet. The `type-*` configs here are cattle.
+Your existing `zero` config is an heirloom dish. The `type-*` configs here are takeout containers.
 
 ## Quick Start
 
@@ -54,10 +54,13 @@ For automation or scripting, you can still use the traditional command-line appr
 - SSH enabled
 
 ### `type-server`
-- Headless server
-- Minimal packages
-- SSH only
-- No desktop
+- Headless server (takeout pattern - no hardcoded hostname)
+- MicroVM host support (qemu, virtiofsd, KVM)
+- Hardened SSH (keys only, no root login)
+- Auto-upgrade from GitHub daily at 02:00
+- Firewall with SSH access
+- Hostname assigned via DHCP
+- No desktop environment
 
 ## How It Works
 
@@ -126,29 +129,31 @@ disko.devices = {
 
 ## Migration Path
 
-### Option 1: Keep Pets + Add Cattle (Recommended)
+### Option 1: Keep Heirlooms + Add Takeout Containers (Recommended)
 
-Keep `zero` as-is. Use cattle for new machines:
+Keep `zero` as-is. Use takeout containers for new machines:
 
 ```nix
 nixosConfigurations = {
-  # Existing (pets) - keep working
+  # Existing (heirlooms) - keep working
   zero = mkNixosHost { ... };
   
-  # New machines (cattle)
+  # New machines (takeout) - pure, no per-machine config needed
   type-desktop = nixpkgs.lib.nixosSystem { ... };
-  type-server = nixpkgs.lib.nixosSystem { ... };
+  type-server = nixpkgs.lib.nixosSystem { ... };  # Hostname from DHCP
 };
 ```
 
+**Key difference**: Takeout container machines don't need `targets/<hostname>/` directories. The hostname comes from DHCP, not the flake.
+
 ### Option 2: Full Migration
 
-Convert everything to cattle:
+Convert everything to takeout containers:
 
 1. Backup data from zero
-2. Reinstall using cattle
+2. Reinstall using takeout container approach
 3. Restore data
-4. Delete old pet configs
+4. Delete old heirloom configs
 
 ## Installation Details
 
@@ -184,7 +189,20 @@ The TUI installer provides:
 
 ### Post-Install
 
-After installation, you'll have a minimal system. To apply your full configuration:
+#### For Takeout Container Machines (type-desktop, type-server)
+
+These are ready to use immediately! The configuration is pure and self-contained:
+
+```bash
+# SSH into new machine
+ssh monkey@<hostname>  # Hostname assigned via DHCP
+
+# System is already fully configured and auto-updating from GitHub
+```
+
+#### For Heirloom Machines (bootstrap → named host)
+
+If you used bootstrap to create an heirloom machine:
 
 ```bash
 # SSH into new machine
@@ -193,9 +211,23 @@ ssh root@192.168.1.100
 # Copy the generated facter.json
 nixos-facter > /etc/nixos/facter.json
 
-# Or apply from your flake
-nixos-rebuild switch --flake github:youruser/nix#your-host
+# Create a proper target in your flake (see add-machine.md)
+nixos-rebuild switch --flake github:youruser/nix#<hostname>
 ```
+
+## Hostnames and DHCP
+
+Takeout container machines don't have hardcoded hostnames in the flake. Instead, hostnames come from:
+
+1. **DHCP server** (recommended) - Configure your router/dhcpd to assign hostnames by MAC address
+2. **Local override** - Create `/etc/nixos/local.nix` on the machine (outside flake)
+
+Example DHCP configuration (dnsmasq):
+```
+dhcp-host=aa:bb:cc:dd:ee:ff,drlight,192.168.1.50,infinite
+```
+
+This keeps all "heirloom" metadata (names, IPs) out of the flake.
 
 ## Customization
 
@@ -249,10 +281,13 @@ nixos-facter requires kexec or installer image. If on existing Linux:
 
 ## Benefits
 
-| Before (Pets) | After (Cattle) |
-|---------------|----------------|
+| Before (Heirlooms) | After (Takeout Containers) |
+|---------------------|---------------------------|
 | `hardware-configuration.nix` per machine | ❌ None - auto-detected |
 | Manual partitioning | ❌ Automated |
+| Per-machine target directories | ❌ Just use type-* |
+| Hostname in flake | ❌ From DHCP |
+| Impure builds (local paths) | ✅ Pure GitHub builds |
 | 30+ minute install | ✅ 5 minute install |
 | Per-machine SSH keys | ✅ Auto-generated |
 | Can't build remotely | ✅ Pure flake - build anywhere |

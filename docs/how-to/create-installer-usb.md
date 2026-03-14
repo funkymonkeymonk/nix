@@ -169,7 +169,14 @@ Useful for:
    sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#<hostname>
    ```
 
-### If using existing target (e.g., "zero", "type-desktop"):
+### If using type-server or type-desktop (takeout containers):
+
+System boots fully configured with auto-updates from GitHub. Just:
+1. SSH in: `ssh monkey@<hostname>` (hostname assigned via DHCP)
+2. Verify everything works
+3. Done! The system auto-updates daily at 02:00
+
+### If using existing heirloom target (e.g., "zero"):
 
 System boots fully configured. Just:
 1. Set passwords

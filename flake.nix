@@ -621,15 +621,14 @@
           # Your common options
           ./modules/common/options.nix
 
-          # SSH key for initial access
+          # SSH access - monkey user only, keys from 1Password
           {
-            users.users.root.openssh.authorizedKeys.keys = [
-              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-            ];
+            users.users.root.openssh.authorizedKeys.keys = []; # Root SSH disabled
             users.users.monkey = {
               isNormalUser = true;
               extraGroups = ["wheel"];
               openssh.authorizedKeys.keys = [
+                # MegamanX deploy key
                 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
               ];
             };

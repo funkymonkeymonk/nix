@@ -1,16 +1,16 @@
-# Cattle Quick Reference
+# Takeout Containers Quick Reference
 
 ## Status: ✅ Ready to Test
 
-Your flake now has both old (pets) and new (cattle) configurations side-by-side.
+Your flake now has both heirloom and takeout container configurations side-by-side.
 
 ## Available Configurations
 
 ```bash
-# Old configs (pets - impure)
+# Heirloom configs (impure - unique per machine)
 nix build .#nixosConfigurations.zero.config.system.build.toplevel
 
-# New configs (cattle - pure)
+# Takeout container configs (pure - disposable)
 nix build .#nixosConfigurations.type-desktop.config.system.build.toplevel
 nix build .#nixosConfigurations.type-server.config.system.build.toplevel
 ```
@@ -63,7 +63,7 @@ The installer features a beautiful ncurses-style TUI powered by [gum](https://gi
 - [ ] Restore data from backup
 - [ ] Test all hardware (graphics, audio, network)
 - [ ] Update DNS/known_hosts (SSH key changed)
-- [ ] Delete old pet config (optional)
+- [ ] Delete old heirloom config (optional)
 
 ## Troubleshooting
 
@@ -96,7 +96,7 @@ nix run github:nix-community/nixos-facter -- -o facter.json
 | `scripts/install-machine.sh` | One-command installer |
 | `machine-types/*.nix` | Generic system configs |
 | `disk-configs/*.nix` | Disk layouts |
-| `CATTLE.md` | Full documentation |
+| `DISPOSABLE.md` | Full documentation |
 | `MIGRATION_SUMMARY.md` | Migration guide |
 
 ## Support

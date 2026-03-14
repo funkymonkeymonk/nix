@@ -2,6 +2,39 @@
 
 This guide shows you how to add a new machine configuration to the flake.
 
+## Quick Decision: Heirloom vs Takeout Container
+
+**Use Takeout Containers (type-*) for:**
+- Servers that should be identical
+- Machines where hostname doesn't matter in config
+- Headless servers, MicroVM hosts
+- Any machine using DHCP for hostname
+
+**Use Heirloom Dishes (named targets) for:**
+- Workstations with unique configurations
+- Gaming machines with specific GPU setups
+- Laptops with user-specific settings
+- When you need `networking.hostName` in the flake
+
+## For Takeout Containers (Recommended for Servers)
+
+Just use the existing `type-server` or `type-desktop` configurations:
+
+```bash
+# Install using takeout container pattern
+nixos-install --flake github:funkymonkeymonk/nix#type-server
+
+# Hostname comes from DHCP - no per-machine config needed!
+```
+
+The `type-server` configuration includes:
+- MicroVM host support (qemu, virtiofsd)
+- Auto-upgrade from GitHub daily
+- Hardened SSH (keys only, no root)
+- Firewall with SSH access
+
+See [DISPOSABLE.md](../../DISPOSABLE.md) for full details.
+
 ## For macOS (Darwin)
 
 ### Step 1: Create Target Directory
@@ -43,13 +76,31 @@ nix build .#darwinConfigurations.my-machine.system
 
 ## For NixOS
 
-### Step 1: Create Target Directory
+### Option A: Takeout Container Pattern (Servers)
+
+For headless servers or MicroVM hosts, use `type-server`:
+
+```bash
+# Install directly - no per-machine configuration needed
+nixos-install --flake github:funkymonkeymonk/nix#type-server
+
+# Or if installing from local flake:
+nixos-install --flake .#type-server
+```
+
+The hostname is assigned via DHCP. No `targets/` directory needed!
+
+### Option B: Heirloom Pattern (Workstations)
+
+For gaming rigs, workstations, or machines needing unique config:
+
+#### Step 1: Create Target Directory
 
 ```bash
 mkdir -p targets/my-nixos
 ```
 
-### Step 2: Generate Hardware Configuration
+#### Step 2: Generate Hardware Configuration
 
 On the NixOS machine:
 
@@ -59,7 +110,7 @@ nixos-generate-config --show-hardware-config > hardware-configuration.nix
 
 Copy this file to `targets/my-nixos/hardware-configuration.nix`.
 
-### Step 3: Create Target Configuration
+#### Step 3: Create Target Configuration
 
 Create `targets/my-nixos/default.nix`:
 
@@ -79,7 +130,7 @@ Create `targets/my-nixos/default.nix`:
 }
 ```
 
-### Step 4: Add to flake.nix
+#### Step 4: Add to flake.nix
 
 Add your machine to `nixosConfigurations`:
 
@@ -91,7 +142,7 @@ Add your machine to `nixosConfigurations`:
 };
 ```
 
-### Step 5: Build and Apply
+#### Step 5: Build and Apply
 
 ```bash
 sudo nixos-rebuild switch --flake .#my-nixos

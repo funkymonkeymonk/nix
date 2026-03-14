@@ -406,14 +406,14 @@
 
         for config in single-disk-ext4; do
           echo "Checking disk-configs/$config.nix..."
-          if nix eval --json .#nixosConfigurations.type-desktop.config.disko.devices \
+          if nix eval .#nixosConfigurations.type-desktop.config.disko.devices \
               --quiet >/dev/null 2>&1; then
             echo "  disk-configs/$config.nix: valid"
           else
             echo "  disk-configs/$config.nix: INVALID"
             echo ""
             echo "Running eval with verbose output:"
-            nix eval --json .#nixosConfigurations.type-desktop.config.disko.devices --show-trace
+            nix eval .#nixosConfigurations.type-desktop.config.disko.devices --show-trace
             exit 1
           fi
         done
