@@ -67,10 +67,15 @@ jobs:
       - name: Build Linux configurations (push to Cachix)
         run: |
           echo "Building NixOS configurations and pushing to Cachix..."
-          echo "Building drlight configuration..."
-          nix build .#nixosConfigurations.drlight.config.system.build.toplevel --no-link
-          echo "drlight build complete"
           echo "Building zero configuration..."
           nix build .#nixosConfigurations.zero.config.system.build.toplevel --no-link
           echo "zero build complete"
+          echo ""
+          echo "Building Cattle configurations..."
+          echo "Building type-desktop configuration..."
+          nix build .#nixosConfigurations.type-desktop.config.system.build.toplevel --no-link
+          echo "type-desktop build complete"
+          echo "Building type-server configuration..."
+          nix build .#nixosConfigurations.type-server.config.system.build.toplevel --no-link
+          echo "type-server build complete"
           echo "All NixOS configurations built and pushed to Cachix"

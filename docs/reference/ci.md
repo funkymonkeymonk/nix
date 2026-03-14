@@ -53,7 +53,6 @@ Push to main:
 - `MegamanX` - Personal desktop
 
 ### NixOS (Linux)
-- `drlight` - Server (Jellyfin, Mealie)
 - `zero` - Gaming/desktop (NVIDIA)
 
 ### Microvm

@@ -26,3 +26,11 @@ ci/internal/
 ci/go.sum
 ci/dagger.gen.go
 formatted/
+
+# Generated hardware reports (machine-specific)
+facter.json
+hardware-configuration.nix
+
+# Temporary install files
+/tmp/secret.key
+/tmp/disk-password.key

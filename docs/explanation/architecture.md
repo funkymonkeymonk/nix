@@ -63,19 +63,20 @@ Roles can be combined: a machine with `["developer" "creative"]` gets packages f
 
 ### Targets (Machine-Specific Settings)
 
-Targets define *where* configurations apply. Each target represents a specific machine.
+Targets define *where* configurations apply for **heirloom** machines. Each target represents a specific machine.
 
 **Location:** `targets/`
 
 ```
 targets/
-├── wweaver/          # Work laptop
-├── MegamanX/         # Personal desktop
-├── drlight/          # NixOS server
-└── zero/             # NixOS gaming PC
+├── wweaver/          # Work laptop (heirloom)
+├── MegamanX/         # Personal desktop (heirloom)
+└── zero/             # NixOS gaming PC (heirloom)
 ```
 
 Targets contain only machine-specific settings like hostname, hardware config, and GPU drivers.
+
+**Takeout container machines** (type-server, type-desktop) don't need targets - they use generic configurations from `machine-types/`.
 
 ## Configuration Flow
 
@@ -152,6 +153,48 @@ config = mkIf cfg.gaming.enable {
 ```
 
 Options are defined in `modules/common/options.nix` and implemented by various modules.
+
+## Heirloom Dishes vs Takeout Containers
+
+The flake supports two approaches to machine management:
+
+### Heirloom Dishes (Traditional)
+
+Each machine is unique, hand-crafted, named, and cared for individually:
+- Hostname defined in the flake (`networking.hostName`)
+- Per-machine `targets/<hostname>/` directory
+- Hardware-specific settings
+- Impure builds (references local paths like `/etc/nixos/`)
+- If it breaks, you repair it
+
+**Examples**: `wweaver`, `MegamanX`, `zero`
+
+### Takeout Containers (Disposable)
+
+Machines are standardized, disposable, and interchangeable:
+- Hostname from DHCP (not in flake)
+- No per-machine directories
+- Generic machine types (`type-server`, `type-desktop`)
+- Pure builds (everything from GitHub)
+- Auto-upgrading from flake
+- If one has a problem, throw it away and grab another
+
+**Benefits**:
+- ✅ Build anywhere (CI, different machines)
+- ✅ No `hardware-configuration.nix` per machine
+- ✅ Faster deployment (5 min vs 30 min)
+- ✅ True infrastructure-as-code
+- ✅ You don't care which specific one you get
+
+### When to Use Which
+
+| Use Case | Pattern | Example |
+|----------|---------|---------|
+| Headless servers | Takeout Container | `type-server` |
+| MicroVM hosts | Takeout Container | `type-server` |
+| Gaming workstation | Heirloom | `zero` |
+| Work laptop | Heirloom | `wweaver` |
+| Desktop with unique GPU | Heirloom | Custom target |
 
 ## Platform Handling
 
