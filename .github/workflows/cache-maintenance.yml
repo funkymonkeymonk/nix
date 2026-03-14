@@ -1,0 +1,123 @@
+---
+name: Cache Maintenance
+# yamllint disable-line rule:truthy
+on:
+  workflow_dispatch:
+    inputs:
+      clear-cache:
+        description: 'Clear derivation cache and rebuild all configurations'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Run weekly on Sundays at 3 AM UTC to prune stale cache entries
+    - cron: '0 3 * * 0'
+
+concurrency:
+  group: cache-maintenance
+  cancel-in-progress: false
+
+jobs:
+  # Clear cache when manually requested
+  clear-cache:
+    name: Clear Derivation Cache
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.clear-cache == true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clear derivation cache
+        run: |
+          echo "Cache clear requested - creating empty cache"
+          mkdir -p .drv-cache
+          # Create empty config lists to force full rebuilds
+          echo '[]' > .drv-cache/darwin-configs
+          echo '[]' > .drv-cache/nixos-configs
+          echo "Cache cleared. Next PR will rebuild all configurations."
+
+      - name: Save cleared cache
+        uses: actions/cache@v4
+        with:
+          path: .drv-cache
+          key: drv-main-${{ github.run_id }}
+
+  # Prune stale cache entries weekly
+  prune-cache:
+    name: Prune Derivation Cache
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Restore derivation cache
+        uses: actions/cache@v4
+        id: drv-cache
+        with:
+          path: .drv-cache
+          key: drv-main-prune
+          restore-keys: |
+            drv-main-
+
+      - name: Prune stale cache entries
+        run: |
+          echo "Pruning derivation cache..."
+
+          if [ ! -d .drv-cache ]; then
+            echo "No cache to prune"
+            exit 0
+          fi
+
+          # Get current configurations
+          DARWIN_CONFIGS=$(nix eval .#darwinConfigurations \
+            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          NIXOS_CONFIGS=$(nix eval .#nixosConfigurations \
+            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+
+          echo "Current Darwin configs: $DARWIN_CONFIGS"
+          echo "Current NixOS configs: $NIXOS_CONFIGS"
+
+          # Remove hash files for configs that no longer exist
+          for hashfile in .drv-cache/darwin-*.hash; do
+            if [ -f "$hashfile" ]; then
+              config=$(basename "$hashfile" .hash | sed 's/^darwin-//')
+              if ! echo "$DARWIN_CONFIGS" | jq -e "contains([\"$config\"])" \
+                > /dev/null; then
+                echo "Removing stale Darwin cache: $config"
+                rm "$hashfile"
+              fi
+            fi
+          done
+
+          for hashfile in .drv-cache/nixos-*.hash; do
+            if [ -f "$hashfile" ]; then
+              config=$(basename "$hashfile" .hash | sed 's/^nixos-//')
+              if ! echo "$NIXOS_CONFIGS" | jq -e "contains([\"$config\"])" \
+                > /dev/null; then
+                echo "Removing stale NixOS cache: $config"
+                rm "$hashfile"
+              fi
+            fi
+          done
+
+          # Update config lists to match current configs
+          echo "$DARWIN_CONFIGS" > .drv-cache/darwin-configs
+          echo "$NIXOS_CONFIGS" > .drv-cache/nixos-configs
+
+          echo "Cache pruning complete"
+          echo "Remaining cache entries:"
+          ls -la .drv-cache/
+
+      - name: Save pruned cache
+        uses: actions/cache@v4
+        with:
+          path: .drv-cache
+          key: drv-main-${{ github.run_id }}
