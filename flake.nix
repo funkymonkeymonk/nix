@@ -613,7 +613,12 @@
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
 
-          # Hardware detection - uses facter module from nixpkgs
+          # Hardware detection via nixos-facter
+          inputs.nixos-facter.nixosModules.facter
+          {
+            # Look for facter.json at runtime
+            hardware.facter.reportPath = "/etc/nixos/facter.json";
+          }
 
           # Machine type configuration
           ./machine-types/server.nix
