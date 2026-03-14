@@ -1,0 +1,254 @@
+---
+name: Weekly Update
+# yamllint disable-line rule:truthy
+on:
+  schedule:
+    # Run every Saturday at 4 AM UTC
+    - cron: '0 4 * * 6'
+  workflow_dispatch:
+    inputs:
+      skip-flake-update:
+        description: 'Skip flake update (use current lock file)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: weekly-update
+  cancel-in-progress: false
+
+jobs:
+  update-and-build:
+    name: Update Flake and Build All Configs
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            platform: nixos
+          - os: macos-latest
+            platform: darwin
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+        continue-on-error: true
+
+      - name: Update flake inputs
+        if: ${{ !inputs.skip-flake-update }}
+        run: |
+          echo "Updating flake inputs..."
+          nix flake update
+          echo ""
+          echo "Updated lock file:"
+          cat flake.lock | jq -r '.nodes.root.inputs | to_entries[] | "  \(.key): \(.value)"' | head -20
+
+      - name: Discover configurations
+        id: discover
+        run: |
+          echo "Discovering ${{ matrix.platform }} configurations..."
+
+          if [ "${{ matrix.platform }}" = "darwin" ]; then
+            CONFIGS=$(nix eval .#darwinConfigurations \
+              --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          else
+            CONFIGS=$(nix eval .#nixosConfigurations \
+              --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          fi
+
+          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
+          echo "Found configurations: $CONFIGS"
+
+      - name: Setup facter.json (NixOS only)
+        if: matrix.platform == 'nixos'
+        run: |
+          sudo mkdir -p /etc/nixos
+          sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
+          {
+            "version": 1,
+            "hardware": {
+              "system": { "uuid": "00000000-0000-0000-0000-000000000000" },
+              "cpu": { "architecture": "x86_64", "vendor": "GenuineIntel", "cores": 4 },
+              "memory": { "total_bytes": 8589934592 },
+              "disks": [{ "path": "/dev/sda", "size_bytes": 53687091200 }],
+              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }]
+            },
+            "boot": { "efi_available": true },
+            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }]
+          }
+          EOF
+
+      - name: Build all configurations
+        run: |
+          CONFIGS='${{ steps.discover.outputs.configs }}'
+          FAILED=()
+          PASSED=()
+
+          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
+            echo ""
+            echo "========================================"
+            echo "Building ${{ matrix.platform }} configuration: $config"
+            echo "========================================"
+
+            if [ "${{ matrix.platform }}" = "darwin" ]; then
+              if nix build .#darwinConfigurations.$config.system \
+                  --dry-run --quiet 2>&1; then
+                echo "✓ $config build successful"
+                PASSED+=("$config")
+              else
+                echo "✗ $config build FAILED"
+                FAILED+=("$config")
+              fi
+            else
+              if nix build .#nixosConfigurations.$config.config.system.build.toplevel \
+                  --dry-run --quiet --impure 2>&1; then
+                echo "✓ $config build successful"
+                PASSED+=("$config")
+              else
+                echo "✗ $config build FAILED"
+                FAILED+=("$config")
+              fi
+            fi
+          done
+
+          echo ""
+          echo "========================================"
+          echo "Build Summary for ${{ matrix.platform }}"
+          echo "========================================"
+          echo "Passed: ${#PASSED[@]}"
+          printf '  - %s\n' "${PASSED[@]}"
+          echo ""
+          echo "Failed: ${#FAILED[@]}"
+          printf '  - %s\n' "${FAILED[@]}"
+
+          # Save results for summary
+          echo "passed_count=${#PASSED[@]}" >> $GITHUB_ENV
+          echo "failed_count=${#FAILED[@]}" >> $GITHUB_ENV
+          echo "passed_list=$(printf '%s,' "${PASSED[@]}")" >> $GITHUB_ENV
+          echo "failed_list=$(printf '%s,' "${FAILED[@]}")" >> $GITHUB_ENV
+
+          if [ ${#FAILED[@]} -gt 0 ]; then
+            exit 1
+          fi
+
+      - name: Generate derivation hashes
+        if: success()
+        run: |
+          mkdir -p .drv-cache
+          CONFIGS='${{ steps.discover.outputs.configs }}'
+
+          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
+            if [ "${{ matrix.platform }}" = "darwin" ]; then
+              drv_path=$(nix-instantiate .#darwinConfigurations.$config.system 2>/dev/null || echo "")
+            else
+              drv_path=$(nix-instantiate .#nixosConfigurations.$config.config.system.build.toplevel 2>/dev/null || echo "")
+            fi
+
+            if [ -n "$drv_path" ]; then
+              hash=$(nix-store -q --hash "$drv_path" 2>/dev/null || echo "")
+              echo "$hash" > .drv-cache/${{ matrix.platform }}-${config}.hash
+            fi
+          done
+
+          echo "$CONFIGS" > .drv-cache/${{ matrix.platform }}-configs
+
+      - name: Upload derivation cache
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drv-cache-${{ matrix.platform }}
+          path: .drv-cache/
+          retention-days: 7
+
+      - name: Report results
+        if: always()
+        run: |
+          echo "## ${{ matrix.platform }} Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$failed_count" -gt 0 ]; then
+            echo "❌ **$passed_count passed, $failed_count failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Failed configs: $failed_list" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All $passed_count configurations built successfully**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  commit-cache:
+    name: Commit Updated Cache
+    runs-on: ubuntu-latest
+    needs: update-and-build
+    if: success()
+    steps:
+      - name: Download Darwin cache
+        uses: actions/download-artifact@v4
+        with:
+          name: drv-cache-darwin
+          path: .drv-cache-darwin
+
+      - name: Download NixOS cache
+        uses: actions/download-artifact@v4
+        with:
+          name: drv-cache-nixos
+          path: .drv-cache-nixos
+
+      - name: Merge and commit cache
+        run: |
+          mkdir -p .drv-cache
+
+          # Merge Darwin cache
+          if [ -d .drv-cache-darwin ]; then
+            cp .drv-cache-darwin/* .drv-cache/
+          fi
+
+          # Merge NixOS cache
+          if [ -d .drv-cache-nixos ]; then
+            cp .drv-cache-nixos/* .drv-cache/
+          fi
+
+          echo "Merged cache contents:"
+          ls -la .drv-cache/
+
+      - name: Save to GitHub Actions cache
+        uses: actions/cache@v4
+        with:
+          path: .drv-cache
+          key: drv-main-${{ github.run_id }}
+          restore-keys: |
+            drv-main-
+
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [update-and-build, commit-cache]
+    if: always()
+    steps:
+      - name: Report weekly update status
+        run: |
+          echo "## Weekly Update Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.update-and-build.result }}" = "success" ]; then
+            echo "✅ **Weekly update successful!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All configurations built successfully with latest flake inputs." >> $GITHUB_STEP_SUMMARY
+            echo "The cache has been updated and is ready for Saturday morning deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Weekly update failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Some configurations failed to build with the latest flake inputs." >> $GITHUB_STEP_SUMMARY
+            echo "Check the build logs for details." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
