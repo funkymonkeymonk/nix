@@ -30,12 +30,9 @@
 
     devenv.url = "github:cachix/devenv";
 
-    # NEW: Cattle infrastructure for automated installs
+    # NEW: Takeout container infrastructure for automated installs
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
-
-    nixos-facter.url = "github:nix-community/nixos-facter";
-    nixos-facter.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = {
@@ -596,6 +593,10 @@
           # Your common options
           ./modules/common/options.nix
 
+          # Ghostty terminfo for SSH support
+          # https://github.com/ghostty-org/ghostty/discussions/5753
+          ./modules/nixos/ghostty-terminfo.nix
+
           # SSH key for initial access (replace with your key)
           {
             users.users.root.openssh.authorizedKeys.keys = [
@@ -613,10 +614,10 @@
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
 
-          # Hardware detection via nixos-facter
-          inputs.nixos-facter.nixosModules.facter
+          # Hardware detection via nixos-facter (module is in nixpkgs)
+          # The facter.json file should be generated on the target machine
+          # CI builds use --impure with a stub file
           {
-            # Look for facter.json at runtime
             hardware.facter.reportPath = "/etc/nixos/facter.json";
           }
 
@@ -625,6 +626,10 @@
 
           # Your common options
           ./modules/common/options.nix
+
+          # Ghostty terminfo for SSH support
+          # https://github.com/ghostty-org/ghostty/discussions/5753
+          ./modules/nixos/ghostty-terminfo.nix
 
           # SSH access - monkey user only, keys from 1Password
           {

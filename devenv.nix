@@ -349,13 +349,13 @@
       '';
     };
 
-    "build:cattle" = {
-      description = "Build cattle machine type configurations (dry-run)";
+    "build:takeout" = {
+      description = "Build takeout container machine type configurations (dry-run)";
       exec = ''
-        echo "Building Cattle configurations"
+        echo "Building Takeout Container configurations"
         echo "================================="
         echo ""
-        echo "Cattle configurations use nixos-facter for hardware detection"
+        echo "Takeout container configurations use nixos-facter for hardware detection"
         echo "and disko for declarative partitioning."
         echo ""
 
@@ -379,7 +379,7 @@
           fi
         done
         echo ""
-        echo "All Cattle configurations validated successfully"
+        echo "All Takeout Container configurations validated successfully"
       '';
     };
 
@@ -393,8 +393,8 @@
         echo "Building flake configurations..."
         devenv tasks run build:darwin
         devenv tasks run build:nixos
-        devenv tasks run build:cattle
-        echo "All configurations (NixOS, Darwin, and Cattle) validated successfully"
+        devenv tasks run build:takeout
+        echo "All configurations (NixOS, Darwin, and Takeout) validated successfully"
       '';
     };
 
