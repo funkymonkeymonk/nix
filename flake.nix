@@ -216,7 +216,9 @@
 
     # NixOS-specific modules
     nixosModules = [
+      ./modules/nixos/base.nix
       ./modules/services/ollama/nixos.nix
+      ./modules/services/openclaw
     ];
 
     # Package overlays for each system
@@ -229,10 +231,12 @@
     mkMicrovm = name: roles:
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
+        specialArgs = inputs;
         modules =
           [
             microvm.nixosModules.microvm
             home-manager.nixosModules.home-manager
+            opnix.nixosModules.default
             configuration
           ]
           ++ commonModules
@@ -649,6 +653,8 @@
 
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
+      openclaw = mkMicrovm "openclaw" ["base"];
+      matrix = mkMicrovm "matrix" ["base"];
     };
   };
 }
