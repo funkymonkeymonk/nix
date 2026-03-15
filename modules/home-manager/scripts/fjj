@@ -138,7 +138,7 @@ create_workspace() {
 # Interactive repo selection with fzf
 select_repo_fzf() {
     local header="Select repository (Tab:multi, Enter:confirm):"
-    
+
     # Build list of available mirrors
     local mirrors=()
     if [ -d "$MIRROR_ROOT" ]; then
@@ -146,18 +146,18 @@ select_repo_fzf() {
             local repo_name=$(basename "$mirror")
             local owner=$(basename "$(dirname "$mirror")")
             local full_name="${owner}/${repo_name}"
-            
+
             # Get last update time
             local last_update=$(cd "$mirror" && git log -1 --format=%cd --date=relative 2>/dev/null || echo "unknown")
             mirrors+=("${full_name}|${last_update}")
         done < <(find "$MIRROR_ROOT" -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null)
     fi
-    
+
     if [ ${#mirrors[@]} -eq 0 ]; then
         log_error "No mirrors found. Run 'fjj --add' first."
         return 1
     fi
-    
+
     # Format for fzf
     printf '%s\n' "${mirrors[@]}" | \
         column -t -s '|' | \
@@ -364,12 +364,13 @@ cmd_status() {
 cmd_workspace() {
     local branch="${1:-}"
     local explicit_repo="${2:-}"
-    
+
     # Detect current context
     local current_repo=""
     local current_workspace=""
-    
-    if [ -d "$PWD/.jj" ] || [ -d "$PWD/.git" ]; then
+
+    # Check for actual repo (.git directory or .jj workspace with repo subdir)
+    if [ -d "$PWD/.git" ] || [ -d "$PWD/.jj/repo" ] || [ -d "$PWD/.jj/working_copy" ]; then
         current_repo=$(detect_current_repo)
         if [[ "$PWD" == "$WORKSPACE_ROOT"* ]]; then
             current_workspace="$PWD"
@@ -418,14 +419,22 @@ cmd_workspace() {
     if [ -n "$existing" ]; then
         log_success "Using existing workspace: $(basename "$existing")"
         echo "$existing"  # Output path for parent shell to cd
+        # Write to file for wrapper if set
+        if [ -n "${FJJ_WORKSPACE_PATH_FILE:-}" ]; then
+            echo "$existing" > "$FJJ_WORKSPACE_PATH_FILE"
+        fi
         return 0
     fi
-    
+
     # Create new workspace
     local workspace_path
     workspace_path=$(create_workspace "$target_repo" "$target_branch" "$mirror_path")
     if [ $? -eq 0 ] && [ -n "$workspace_path" ]; then
         echo "$workspace_path"  # Output path for parent shell to cd
+        # Write to file for wrapper if set
+        if [ -n "${FJJ_WORKSPACE_PATH_FILE:-}" ]; then
+            echo "$workspace_path" > "$FJJ_WORKSPACE_PATH_FILE"
+        fi
     else
         return 1
     fi
@@ -447,9 +456,9 @@ Commands:
   fjj --help              Show this help
 
 Workflow:
-  1. fjj --add            # Add your repos to /srv/github/
+  1. fjj --add            # Add your repos to $HOME/src/
   2. fjj                  # Interactive: select repo → select/create branch
-  3. work...              # Do work in workspace
+  3. <do your work>       # Edit files, make commits with jj
   4. fjj --clean          # Clean up merged workspaces
 
 Examples:
@@ -459,8 +468,8 @@ Examples:
   fjj --add nixos/nixpkgs      # Quick add public repo
 
 Environment:
-  MIRROR_ROOT=/srv/github      # Where mirrors are stored
-  WORKSPACE_ROOT=~/workspaces  # Where workspaces are created
+  MIRROR_ROOT=$HOME/src        # Where mirrors are stored (macOS)
+  WORKSPACE_ROOT=$HOME/workspaces  # Where workspaces are created
 
 EOF
 }
