@@ -381,6 +381,94 @@ with lib; {
       };
     };
 
+    vane = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Vane (AI-powered answering engine with web search, formerly Perplexica)";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 3000;
+        description = "Port for Vane web UI";
+      };
+
+      dataDir = mkOption {
+        type = types.str;
+        default = "$HOME/.local/share/vane";
+        description = "Directory for Vane data and configuration";
+      };
+
+      ollamaUrl = mkOption {
+        type = types.nullOr types.str;
+        default = "http://host.docker.internal:11434";
+        description = "URL for Ollama API. For Docker on macOS, use host.docker.internal";
+      };
+
+      embeddedSearxng = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Run embedded SearxNG instance for web search. Disable if using external SearxNG";
+      };
+
+      searxngUrl = mkOption {
+        type = types.str;
+        default = "http://searxng:8080";
+        description = "URL for SearxNG API. Use 'http://searxng:8080' for embedded, or external URL";
+      };
+
+      searxngPort = mkOption {
+        type = types.port;
+        default = 8080;
+        description = "Port for embedded SearxNG (only used if embeddedSearxng is true)";
+      };
+
+      openaiApiKey = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "OpenAI API key for using OpenAI models (optional)";
+      };
+
+      anthropicApiKey = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Anthropic API key for using Claude models (optional)";
+      };
+
+      extraEnvironment = mkOption {
+        type = types.attrsOf types.str;
+        default = {};
+        description = "Additional environment variables for Vane containers";
+      };
+
+      autoStart = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Automatically start Vane service on login (recommended: false to avoid boot slowdown)";
+      };
+
+      colima = {
+        cpu = mkOption {
+          type = types.int;
+          default = 4;
+          description = "Number of CPU cores for Vane's dedicated Colima VM";
+        };
+
+        memory = mkOption {
+          type = types.int;
+          default = 8;
+          description = "Memory in GB for Vane's dedicated Colima VM";
+        };
+
+        disk = mkOption {
+          type = types.int;
+          default = 60;
+          description = "Disk space in GB for Vane's dedicated Colima VM";
+        };
+      };
+    };
+
     sharedModels = mkOption {
       type = types.listOf types.str;
       default = ["qwen3:4b" "gemma3:4b" "qwen3.5"];

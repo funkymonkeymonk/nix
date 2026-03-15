@@ -212,6 +212,7 @@
     # Darwin-specific modules
     darwinModules = [
       ./modules/services/ollama/darwin.nix
+      ./modules/services/vane/darwin.nix
     ];
 
     # NixOS-specific modules
@@ -509,6 +510,14 @@
           "llm-claude"
         ];
         extraModules = [mac-app-util.darwinModules.default];
+        extraConfig = {
+          vane = {
+            enable = true;
+            # Uses default Ollama URL (host.docker.internal:11434)
+            # Enable embedded SearxNG for web search
+            embeddedSearxng = true;
+          };
+        };
       };
 
       # Core configuration - minimal bootstrap for any system
