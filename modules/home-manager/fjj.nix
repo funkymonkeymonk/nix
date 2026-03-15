@@ -13,6 +13,9 @@
     [''MIRROR_ROOT="${mirrorRoot}"'']
     (builtins.readFile ./scripts/fjj)
   );
+
+  # Get the path to the binary for use in zsh wrapper
+  fjjBinaryPath = "${fjjScript}/bin/fjj";
 in {
   home = {
     packages = [fjjScript];
@@ -37,34 +40,31 @@ in {
 
     # Smart cd wrapper for fjj
     fjj() {
-      local stdout_file
-      local last_line
+      local workspace_path_file
       local workspace_path
 
-      # Create temp file for stdout capture
-      stdout_file=$(mktemp)
+      # Create temp file to receive workspace path from fjj
+      workspace_path_file=$(mktemp)
 
-      # Run fjj, capture stdout to file, stderr goes directly to terminal
-      command fjj "$@" > "$stdout_file" 2> >(cat >&2)
+      # Run fjj binary, passing temp file path via environment
+      # Fjj will write the workspace path to this file if one is created/used
+      FJJ_WORKSPACE_PATH_FILE="$workspace_path_file" ${fjjBinaryPath} "$@"
+      local exit_code=$?
 
-      # Get the last line of stdout (workspace path)
-      last_line=$(tail -1 "$stdout_file")
-
-      # Output stdout to terminal
-      cat "$stdout_file"
-
-      # Cleanup
-      rm -f "$stdout_file"
-
-      # Check if last line is a valid workspace path
-      if [[ "$last_line" == */workspaces/* ]] && [ -d "$last_line" ]; then
-        workspace_path="$last_line"
-        if [ -d "$workspace_path" ]; then
+      # Check if workspace path was written
+      if [ -s "$workspace_path_file" ]; then
+        workspace_path=$(cat "$workspace_path_file")
+        if [ -n "$workspace_path" ] && [ -d "$workspace_path" ]; then
           echo ""
           echo "📂 Entering workspace: $(basename "$workspace_path")"
           cd "$workspace_path"
         fi
       fi
+
+      # Cleanup
+      rm -f "$workspace_path_file"
+
+      return $exit_code
     }
 
     # FZF-powered repo picker for fjj --add
