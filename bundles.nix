@@ -92,7 +92,9 @@ with pkgs.lib; {
         # opencode is provided by llm-client role
       ];
 
-      config = {};
+      config = {
+        myConfig.fjj.enable = true;
+      };
     };
 
     creative = {
