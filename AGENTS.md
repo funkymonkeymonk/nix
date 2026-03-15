@@ -137,6 +137,20 @@ Tests are platform-specific:
 
 CI runs both on separate runners.
 
+## NixOS Rebuild Commands
+
+When deploying to NixOS systems:
+
+```bash
+# Standard rebuild (always use --impure for non-CI environments)
+sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#<hostname> --impure
+
+# Example for type-server
+sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impure
+```
+
+**Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
+
 ## Code Style
 
 - Use alejandra formatter (`quality:check`)
