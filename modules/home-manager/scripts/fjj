@@ -283,29 +283,58 @@ cmd_list() {
 # Clean merged workspaces
 cmd_clean() {
     log_info "Checking for merged workspaces..."
-    
+
     local cleaned=0
     while IFS= read -r -d '' ws; do
         local name=$(basename "$ws")
-        
+
         # Check if workspace has merged PR
         (cd "$ws" && {
-            local current_branch=$(jj bookmark list -r @ 2>/dev/null | grep '^@' | awk '{print $2}' || true)
+            # Get the bookmark at @ - jj bookmark list -r @ outputs "bookmarkname: ..."
+            # The first line contains the active bookmark
+            local current_branch
+            current_branch=$(jj bookmark list -r @ 2>/dev/null | head -1 | awk '{print $1}' | tr -d ':' || true)
+
             if [ -n "$current_branch" ]; then
-                # Check if PR is merged via gh
-                local repo=$(detect_current_repo 2>/dev/null || true)
+                # Get repo from mirror since workspaces don't have .git directories
+                # The workspace's .jj/repo/repo file contains the path to the parent repo
+                local repo=""
+                local parent_path=""
+
+                # Try to get the parent repo path from jj config
+                if [ -f .jj/repo/repo ]; then
+                    parent_path=$(grep '^path=' .jj/repo/repo 2>/dev/null | cut -d'=' -f2 || true)
+                fi
+
+                # If we found a parent path, get the repo from it
+                if [ -n "$parent_path" ] && [ -d "$parent_path/.git" ]; then
+                    repo=$(cd "$parent_path" && git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]\([^/]*\/[^/]*\)\.git$/\1/' || true)
+                fi
+
                 if [ -n "$repo" ]; then
-                    local state=$(gh pr view "$current_branch" --json state --jq '.state' 2>/dev/null || echo "")
+                    local state
+                    state=$(gh pr view "$current_branch" --json state --jq '.state' 2>/dev/null || echo "")
                     if [ "$state" == "MERGED" ]; then
-                        log_info "Removing merged workspace: $name"
+                        log_info "Removing merged workspace: $name (branch: $current_branch)"
+                        # Remove the workspace from jj first, then delete the directory
+                        jj workspace forget "$ws" 2>/dev/null || true
+                        rm -rf "$ws"
+                        ((cleaned++))
+                    elif [ "$state" == "CLOSED" ]; then
+                        log_info "Removing closed workspace: $name (branch: $current_branch)"
+                        jj workspace forget "$ws" 2>/dev/null || true
                         rm -rf "$ws"
                         ((cleaned++))
                     fi
+                else
+                    log_warn "Could not detect repo for workspace: $name"
                 fi
+            else
+                log_warn "No bookmark found at @ for workspace: $name"
             fi
         }) || true
     done < <(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
-    
+
     log_success "Cleaned $cleaned workspaces"
 }
 
