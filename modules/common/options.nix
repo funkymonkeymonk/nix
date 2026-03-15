@@ -469,6 +469,14 @@ with lib; {
       };
     };
 
+    autoUpgrade = {
+      flakeUrl = mkOption {
+        type = types.str;
+        default = "";
+        description = "GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines.";
+      };
+    };
+
     sharedModels = mkOption {
       type = types.listOf types.str;
       default = ["qwen3:4b" "gemma3:4b" "qwen3.5"];

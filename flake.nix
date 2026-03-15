@@ -628,6 +628,7 @@
           # CI builds use --impure with a stub file
           {
             hardware.facter.reportPath = "/etc/nixos/facter.json";
+            myConfig.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
           }
 
           # Machine type configuration
@@ -636,9 +637,7 @@
           # Your common options
           ./modules/common/options.nix
 
-          # Ghostty terminfo for SSH support
-          # https://github.com/ghostty-org/ghostty/discussions/5753
-          ./modules/nixos/ghostty-terminfo.nix
+          ./modules/nixos/base.nix
 
           # SSH access - monkey user only, keys from 1Password
           {
