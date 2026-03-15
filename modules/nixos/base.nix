@@ -4,7 +4,6 @@
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }:
 with lib; {
@@ -34,8 +33,8 @@ with lib; {
     # Auto-upgrade configuration
     system.autoUpgrade = {
       enable = true;
-      flake = inputs.self.outPath;
-      flags = ["-L"];
+      flake = "github:funkymonkeymonk/nix";
+      flags = ["-L" "--refresh"];
       dates = "02:00";
       randomizedDelaySec = "45min";
     };
