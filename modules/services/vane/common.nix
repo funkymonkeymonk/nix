@@ -24,12 +24,17 @@ with lib; let
     // optionalAttrs (cfg.openaiApiKey != null) {
       OPENAI_API_KEY = cfg.openaiApiKey;
     }
+    // optionalAttrs (cfg.openaiBaseUrl != null) {
+      OPENAI_BASE_URL = cfg.openaiBaseUrl;
+    }
     // optionalAttrs (cfg.anthropicApiKey != null) {
       ANTHROPIC_API_KEY = cfg.anthropicApiKey;
     }
     // cfg.extraEnvironment;
 
   # Vane configuration file with Ollama pre-configured
+  # Note: API keys and base URLs are configured via environment variables
+  # or through Vane's web UI at first startup
   vaneConfigToml = pkgs.writeText "vane-config.toml" ''
     [GENERAL]
     PORT = 3001
@@ -45,6 +50,7 @@ with lib; let
     [API_ENDPOINTS]
     SEARXNG = "${cfg.searxngUrl}"
     OLLAMA = "${cfg.ollamaUrl}"
+    ${optionalString (cfg.openaiBaseUrl != null) ''OPENAI = "${cfg.openaiBaseUrl}"''}
   '';
 
   # Docker compose configuration for Vane + SearxNG

@@ -430,6 +430,12 @@ with lib; {
         description = "OpenAI API key for using OpenAI models (optional)";
       };
 
+      openaiBaseUrl = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Custom OpenAI-compatible API base URL (e.g., LiteLLM endpoint). Leave null for official OpenAI API.";
+      };
+
       anthropicApiKey = mkOption {
         type = types.nullOr types.str;
         default = null;
@@ -440,6 +446,18 @@ with lib; {
         type = types.attrsOf types.str;
         default = {};
         description = "Additional environment variables for Vane containers";
+      };
+
+      defaultModel = mkOption {
+        type = types.nullOr types.str;
+        default = "deepseek-r1:14b";
+        description = "Default Ollama chat model for Vane. Set to null to skip auto-configuration and configure manually via web UI.";
+      };
+
+      embeddingModel = mkOption {
+        type = types.nullOr types.str;
+        default = "nomic-embed-text";
+        description = "Ollama embedding model for Vane vector search. Set to null to skip.";
       };
 
       autoStart = mkOption {

@@ -96,11 +96,11 @@ with lib; let
     esac
   '';
 
-  # Default model for Vane
-  defaultModel = "deepseek-r1:14b";
+  # Default model for Vane (configurable via options)
+  inherit (cfg) defaultModel embeddingModel;
 
-  # Script to pull DeepSeek-R1:14B model
-  pullDeepseekScript = pkgs.writeShellScript "vane-pull-deepseek" ''
+  # Script to pull required models
+  pullModelsScript = pkgs.writeShellScript "vane-pull-models" ''
     set -euo pipefail
 
     export HOME="${darwinHomeDir}"
@@ -114,18 +114,31 @@ with lib; let
       exit 0
     fi
 
-    # Check if the model already exists
-    if ollama list | grep -q "${defaultModel}"; then
-      echo "[vane] Model ${defaultModel} is already installed"
-      exit 0
-    fi
+    ${lib.optionalString (defaultModel != null) ''
+      # Pull chat model
+      if ollama list | grep -q "${defaultModel}"; then
+        echo "[vane] Chat model ${defaultModel} is already installed"
+      else
+        echo "[vane] Pulling ${defaultModel} chat model for Vane (this may take several minutes)..."
+        ollama pull ${defaultModel}
+        echo "[vane] Successfully pulled ${defaultModel}"
+      fi
+    ''}
 
-    echo "[vane] Pulling ${defaultModel} model for Vane (this may take several minutes)..."
-    ollama pull ${defaultModel}
-    echo "[vane] Successfully pulled ${defaultModel}"
+    ${lib.optionalString (embeddingModel != null) ''
+      # Pull embedding model
+      if ollama list | grep -q "${embeddingModel}"; then
+        echo "[vane] Embedding model ${embeddingModel} is already installed"
+      else
+        echo "[vane] Pulling ${embeddingModel} embedding model for Vane..."
+        ollama pull ${embeddingModel}
+        echo "[vane] Successfully pulled ${embeddingModel}"
+      fi
+    ''}
   '';
 
-  # Script to create Vane config with DeepSeek as default
+  # Script to create Vane config with configured models
+  # Only creates config if it doesn't exist (respects user changes)
   createVaneConfigScript = pkgs.writeShellScript "vane-create-config" ''
     set -euo pipefail
 
@@ -135,40 +148,59 @@ with lib; let
     # Create the config directory if it doesn't exist
     mkdir -p "$DATA_DIR/vane"
 
-    # Create the config.json with DeepSeek as default
-    cat > "$CONFIG_FILE" << 'VANECONFIG'
-    {
-      "version": 1,
-      "setupComplete": true,
-      "preferences": {
-        "theme": "dark"
-      },
-      "personalization": {},
-      "modelProviders": [
-        {
-          "id": "deepseek-r1-default",
-          "name": "Ollama",
-          "type": "ollama",
-          "chatModels": [
-            {
-              "name": "deepseek-r1:14b",
-              "key": "deepseek-r1:14b"
-            }
-          ],
-          "embeddingModels": [],
-          "config": {
-            "baseURL": "http://host.docker.internal:11434"
-          },
-          "hash": "deepseek-r1-14b-default"
-        }
-      ],
-      "search": {
-        "searxngURL": "http://searxng:8080"
-      }
-    }
-    VANECONFIG
+    # Only create config if it doesn't exist (don't overwrite user changes)
+    if [ -f "$CONFIG_FILE" ]; then
+      echo "[vane] Config already exists, skipping auto-configuration"
+      echo "[vane] Delete $CONFIG_FILE to regenerate with new settings"
+      exit 0
+    fi
 
-    echo "[vane] Created config.json with DeepSeek-R1:14B as default model"
+    ${lib.optionalString (defaultModel != null) ''
+      # Create the config.json with configured models
+      cat > "$CONFIG_FILE" << 'VANECONFIG'
+      {
+        "version": 1,
+        "setupComplete": true,
+        "preferences": {
+          "theme": "dark"
+        },
+        "personalization": {},
+        "modelProviders": [
+          {
+            "id": "ollama-local",
+            "name": "Ollama Local",
+            "type": "ollama",
+            "chatModels": [
+              {
+                "name": "${defaultModel}",
+                "key": "${defaultModel}"
+              }
+            ],
+            "embeddingModels": [
+              ${lib.optionalString (embeddingModel != null) ''        {
+                      "name": "${embeddingModel}",
+                      "key": "${embeddingModel}"
+                    }''}
+            ],
+            "config": {
+              "baseURL": "${cfg.ollamaUrl}"
+            },
+            "hash": "ollama-local-nix"
+          }
+        ],
+        "search": {
+          "searxngURL": "${cfg.searxngUrl}"
+        }
+      }
+      VANECONFIG
+
+      echo "[vane] Created config.json with chat model: ${defaultModel}"
+      ${lib.optionalString (embeddingModel != null) ''echo "[vane] Embedding model: ${embeddingModel}"''}
+    ''}
+
+    ${lib.optionalString (defaultModel == null) ''
+      echo "[vane] No default model configured, Vane will prompt for setup on first access"
+    ''}
   '';
 
   # Launchd service script
@@ -179,11 +211,11 @@ with lib; let
     export USER="${primaryUser}"
     export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
 
-    # Pull DeepSeek-R1:14B model first
-    echo "[vane] Checking/installing default model..."
-    ${pullDeepseekScript}
+    # Pull configured models first
+    echo "[vane] Checking/installing configured models..."
+    ${pullModelsScript}
 
-    # Create Vane config with DeepSeek as default
+    # Create Vane config with configured models
     ${createVaneConfigScript}
 
     # Start Colima VM for Vane
