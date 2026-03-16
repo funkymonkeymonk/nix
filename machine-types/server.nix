@@ -56,15 +56,6 @@
     virtiofsd
   ];
 
-  # Auto-upgrade from GitHub (takeout container pattern)
-  system.autoUpgrade = {
-    enable = true;
-    flake = "github:funkymonkeymonk/nix#type-server";
-    flags = ["--refresh"];
-    dates = "02:00";
-    randomizedDelaySec = "45min";
-  };
-
   # Locale
   time.timeZone = "America/New_York";
 
