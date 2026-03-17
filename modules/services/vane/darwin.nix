@@ -138,20 +138,22 @@ with lib; let
   '';
 
   # Script to create Vane config with configured models
-  # Only creates config if it doesn't exist (respects user changes)
+  # Uses marker file pattern: only configures once, but can be reset
   createVaneConfigScript = pkgs.writeShellScript "vane-create-config" ''
     set -euo pipefail
 
     DATA_DIR="${cfg.dataDir}"
     CONFIG_FILE="$DATA_DIR/vane/config.json"
+    NIX_MARKER="$DATA_DIR/vane/.nix-configured"
 
     # Create the config directory if it doesn't exist
     mkdir -p "$DATA_DIR/vane"
 
-    # Only create config if it doesn't exist (don't overwrite user changes)
-    if [ -f "$CONFIG_FILE" ]; then
-      echo "[vane] Config already exists, skipping auto-configuration"
-      echo "[vane] Delete $CONFIG_FILE to regenerate with new settings"
+    # Only create config if Nix hasn't configured it yet
+    # Remove $NIX_MARKER to force re-configuration
+    if [ -f "$NIX_MARKER" ]; then
+      echo "[vane] Already configured by Nix, skipping auto-configuration"
+      echo "[vane] Remove $NIX_MARKER to force re-configuration"
       exit 0
     fi
 
@@ -196,10 +198,16 @@ with lib; let
 
       echo "[vane] Created config.json with chat model: ${defaultModel}"
       ${lib.optionalString (embeddingModel != null) ''echo "[vane] Embedding model: ${embeddingModel}"''}
+
+      # Mark as configured by Nix
+      touch "$NIX_MARKER"
+      echo "[vane] Configuration complete. Remove $NIX_MARKER to re-configure."
     ''}
 
     ${lib.optionalString (defaultModel == null) ''
       echo "[vane] No default model configured, Vane will prompt for setup on first access"
+      # Still mark as configured so we don't keep checking
+      touch "$NIX_MARKER"
     ''}
   '';
 
@@ -269,6 +277,9 @@ in {
       # Logs (launchd user agents log to /tmp)
       "vane.logs" = "tail -f /tmp/vane.log 2>/dev/null || echo 'No logs yet'";
       "vane.errors" = "tail -f /tmp/vane.error.log 2>/dev/null || echo 'No error logs'";
+
+      # Reset config to Nix defaults
+      "vane.reset-config" = "rm -f ${cfg.dataDir}/vane/.nix-configured && rm -f ${cfg.dataDir}/vane/config.json && echo 'Config reset. Run vane.restart to apply.'";
 
       # Docker commands (use Vane's Colima context)
       "vane.docker" = "DOCKER_HOST=unix://${colimaSocket} docker";
