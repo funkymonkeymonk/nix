@@ -124,6 +124,11 @@
       path = ./external/jj;
     };
     deps = [];
+    # OpenCode slash commands bundled with this skill
+    commands = {
+      path = ./external/jj/commands;
+      list = ["finish" "pr" "update" "sync" "stack" "workspace"];
+    };
   };
 
   # Ralph Loop specification skills
