@@ -401,6 +401,26 @@
           "llm-claude"
         ];
         extraConfig = {
+          vane = {
+            enable = true;
+            autoStart = true;
+            # Local Ollama for fast local models
+            ollamaUrl = "http://host.docker.internal:11434";
+            # LiteLLM for external/cloud models - configure via web UI
+            openaiBaseUrl = "https://litellm.justworksai.net";
+            # Embedded SearxNG for web search
+            embeddedSearxng = true;
+            # Chat model (balanced speed/quality)
+            defaultModel = "qwen3.5";
+            # Embedding model for vector search
+            embeddingModel = "nomic-embed-text";
+            # Good resources for M4 Pro (14 cores, 48GB RAM)
+            colima = {
+              cpu = 6;
+              memory = 12;
+              disk = 60;
+            };
+          };
           opencode = {
             enable = true;
             disabledProviders = ["opencode"];
@@ -516,6 +536,10 @@
             # Uses default Ollama URL (host.docker.internal:11434)
             # Enable embedded SearxNG for web search
             embeddedSearxng = true;
+            # Chat model - deepseek for reasoning tasks
+            defaultModel = "deepseek-r1:14b";
+            # Embedding model for vector search
+            embeddingModel = "nomic-embed-text";
           };
         };
       };
