@@ -89,6 +89,7 @@ with pkgs.lib; {
         k9s
         gh-dash
         gomuks
+        slidev-cli
         # opencode is provided by llm-client role
       ];
 
