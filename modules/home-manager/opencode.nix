@@ -1,6 +1,7 @@
 {
   osConfig,
   lib,
+  pkgs,
   ...
 }:
 with lib; let
@@ -9,6 +10,10 @@ with lib; let
 
   # Filter providers that have 1Password items configured
   providersWithSecrets = lib.filterAttrs (_name: provider: provider.onePasswordItem != "") cfg.providers;
+
+  # Filter providers with dynamic models enabled
+  providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
+  hasDynamicModels = providersWithDynamicModels != {};
 
   # Build opnix secrets configuration using shared helper
   opnixSecrets = hmLib.mkOpnixSecrets "opencode" (
@@ -35,6 +40,7 @@ with lib; let
               then optionsWithKey
               else baseOptions;
           }
+          # Always include static models if defined (dynamic models are added at runtime)
           // (optionalAttrs hasModels {inherit (provider) models;});
       in
         baseConfig // (optionalAttrs (provider.npm != null) {inherit (provider) npm;})
@@ -106,6 +112,102 @@ with lib; let
     }))
   cfg.agents;
 
+  # Build the dynamic model config for providers that use it
+  # This is a JSON structure mapping provider name -> {baseURL, apiKeyFile}
+  dynamicProvidersConfig =
+    lib.mapAttrs (name: provider: {
+      inherit (provider) baseURL;
+      apiKeyFile =
+        if (provider.onePasswordItem or "") != ""
+        then "~/.config/opencode/secrets/${name}-apikey"
+        else null;
+    })
+    providersWithDynamicModels;
+
+  dynamicProvidersJson = builtins.toJSON dynamicProvidersConfig;
+
+  # Script to fetch models from LiteLLM-compatible endpoints and merge into config
+  fetchModelsScript = pkgs.writeShellScript "opencode-fetch-models" ''
+    set -euo pipefail
+
+    DYNAMIC_PROVIDERS='${dynamicProvidersJson}'
+    BASE_CONFIG="$HOME/.config/opencode/opencode.json"
+    DYNAMIC_CONFIG="$HOME/.config/opencode/opencode-dynamic.json"
+
+    # Start with the base config
+    if [[ -L "$BASE_CONFIG" ]]; then
+      # It's a symlink (from nix store), read it
+      cp "$(readlink -f "$BASE_CONFIG")" "$DYNAMIC_CONFIG"
+    elif [[ -f "$BASE_CONFIG" ]]; then
+      cp "$BASE_CONFIG" "$DYNAMIC_CONFIG"
+    else
+      echo "{}" > "$DYNAMIC_CONFIG"
+    fi
+
+    # Function to fetch models from a provider
+    fetch_provider_models() {
+      local provider_name="$1"
+      local base_url="$2"
+      local api_key_file="$3"
+
+      local auth_header=""
+      if [[ -n "$api_key_file" ]] && [[ -f "''${api_key_file/#\~/$HOME}" ]]; then
+        local api_key
+        api_key=$(cat "''${api_key_file/#\~/$HOME}")
+        auth_header="Authorization: Bearer $api_key"
+      fi
+
+      # Try to fetch models from /v1/models endpoint
+      local models_response
+      if [[ -n "$auth_header" ]]; then
+        models_response=$(${pkgs.curl}/bin/curl -s --connect-timeout 5 --max-time 10 \
+          -H "$auth_header" \
+          "''${base_url}/v1/models" 2>/dev/null || echo '{"data":[]}')
+      else
+        models_response=$(${pkgs.curl}/bin/curl -s --connect-timeout 5 --max-time 10 \
+          "''${base_url}/v1/models" 2>/dev/null || echo '{"data":[]}')
+      fi
+
+      # Parse the response and extract model IDs
+      echo "$models_response" | ${pkgs.jq}/bin/jq -r '.data[]?.id // empty' 2>/dev/null || true
+    }
+
+    # Process each dynamic provider
+    echo "$DYNAMIC_PROVIDERS" | ${pkgs.jq}/bin/jq -r 'to_entries[] | "\(.key)|\(.value.baseURL)|\(.value.apiKeyFile // "")"' | while IFS='|' read -r provider_name base_url api_key_file; do
+      if [[ -z "$base_url" ]]; then
+        continue
+      fi
+
+      echo "Fetching models from $provider_name ($base_url)..." >&2
+
+      # Fetch models
+      models=$(fetch_provider_models "$provider_name" "$base_url" "$api_key_file")
+
+      if [[ -n "$models" ]]; then
+        # Build a models object for this provider
+        models_obj=$(echo "$models" | ${pkgs.jq}/bin/jq -Rs 'split("\n") | map(select(length > 0)) | map({(.): {name: .}}) | add // {}')
+
+        # Merge into the dynamic config
+        ${pkgs.jq}/bin/jq --arg provider "$provider_name" --argjson models "$models_obj" '
+          .provider[$provider].models = ((.provider[$provider].models // {}) + $models)
+        ' "$DYNAMIC_CONFIG" > "$DYNAMIC_CONFIG.tmp" && mv "$DYNAMIC_CONFIG.tmp" "$DYNAMIC_CONFIG"
+
+        echo "  Found $(echo "$models" | wc -l | tr -d ' ') models" >&2
+      else
+        echo "  No models found or fetch failed" >&2
+      fi
+    done
+
+    echo "$DYNAMIC_CONFIG"
+  '';
+
+  # Wrapped opencode binary that fetches dynamic models before launching
+  opencodeWrapped = pkgs.writeShellScriptBin "opencode" ''
+    OPENCODE_CONFIG=$(${fetchModelsScript})
+    export OPENCODE_CONFIG
+    exec ${pkgs.opencode}/bin/opencode "$@"
+  '';
+
   # Build complete settings
   settings =
     {
@@ -144,6 +246,11 @@ with lib; let
     });
 in {
   config = mkIf cfg.enable {
+    # Replace the opencode binary with a wrapper that fetches dynamic models
+    home.packages = mkIf hasDynamicModels [
+      (lib.hiPrio opencodeWrapped)
+    ];
+
     # RTK instructions file for OpenCode + command files
     home.file =
       {
@@ -174,20 +281,22 @@ in {
       }
       // commandFiles;
 
-    # Use home-manager's native programs.opencode
-    programs.opencode = {
-      enable = true;
-      settings =
-        settings
-        // {
-          instructions = ["RTK.md"];
-        };
-    };
+    programs = {
+      # Use home-manager's native programs.opencode
+      opencode = {
+        enable = true;
+        settings =
+          settings
+          // {
+            instructions = ["RTK.md"];
+          };
+      };
 
-    # Configure opnix secrets for providers with 1Password items
-    programs.onepassword-secrets = mkIf (providersWithSecrets != {} && osConfig.myConfig.onepassword.enable) {
-      enable = true;
-      secrets = opnixSecrets;
+      # Configure opnix secrets for providers with 1Password items
+      onepassword-secrets = mkIf (providersWithSecrets != {} && osConfig.myConfig.onepassword.enable) {
+        enable = true;
+        secrets = opnixSecrets;
+      };
     };
   };
 }
