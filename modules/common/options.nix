@@ -175,6 +175,12 @@ with lib; {
               description = "Available models for this provider";
             };
 
+            dynamicModels = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Fetch available models from the provider's /v1/models endpoint at runtime (useful for LiteLLM proxies)";
+            };
+
             onePasswordItem = mkOption {
               type = types.str;
               default = "";

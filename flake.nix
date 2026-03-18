@@ -423,6 +423,7 @@
           };
           opencode = {
             enable = true;
+            model = "just-llms/claude-sonnet-4-6";
             disabledProviders = ["opencode"];
             extraMcpServers = {
               github = {
@@ -485,10 +486,21 @@
                 name = "Just LLMs";
                 baseURL = "https://litellm.justworksai.net";
                 onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                dynamicModels = true; # Also fetch additional models from LiteLLM at runtime
                 models = {
+                  # Fallback model if dynamic fetch fails
                   "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
-                    name = "justworks-dev";
+                    name = "Claude Opus 4.5 (Bedrock)";
                   };
+                };
+              };
+              ollama = {
+                npm = "@ai-sdk/openai-compatible";
+                name = "Ollama (local)";
+                baseURL = "http://localhost:11434/v1";
+                models = {
+                  "qwen3.5:latest" = {name = "Qwen 3.5 (7B)";};
+                  "qwen3.5:2b" = {name = "Qwen 3.5 (2B)";};
                 };
               };
             };
