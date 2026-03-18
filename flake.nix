@@ -33,6 +33,8 @@
     # NEW: Takeout container infrastructure for automated installs
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
+
+    zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
   };
 
   outputs = {
@@ -71,6 +73,10 @@
           # Use devenv 2.x from the cachix/devenv flake
           (final: _prev: {
             inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+          })
+          # zellij-pane-tracker WASM plugin from its own flake
+          (final: _prev: {
+            zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
           })
           (import ./overlays)
         ];

@@ -2,6 +2,7 @@
 {
   osConfig,
   lib,
+  pkgs,
   ...
 }:
 with lib; let
@@ -15,5 +16,7 @@ in {
         assumeUTF-8 = true;
       };
     };
+
+    home.file.".config/zellij/plugins/zellij-pane-tracker.wasm".source = "${pkgs.zellij-pane-tracker}/share/zellij/plugins/zellij-pane-tracker.wasm";
   };
 }
