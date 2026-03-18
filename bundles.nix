@@ -90,11 +90,13 @@ with pkgs.lib; {
         gh-dash
         gomuks
         slidev-cli
+        zellij
         # opencode is provided by llm-client role
       ];
 
       config = {
         myConfig.fjj.enable = true;
+        myConfig.zellij.enable = true;
       };
     };
 
