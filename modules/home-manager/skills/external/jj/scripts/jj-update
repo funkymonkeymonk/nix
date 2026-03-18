@@ -5,17 +5,16 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/jj-workspace-lib"
 
 usage() {
     cat <<EOF
 Usage: jj-update [commit-message]
 
 Update an existing PR by squashing current changes into parent commit.
+Works in jj workspaces (including child workspaces separate from the parent repo).
 
 This script:
 1. Checks that you have changes to squash
@@ -39,39 +38,45 @@ fi
 
 MESSAGE="${1:-}"
 
-echo -e "${YELLOW}Updating PR...${NC}"
+# Check we're in a jj repo
+if ! jj_in_repo; then
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    exit 1
+fi
+
+echo -e "${JJ_YELLOW}Updating PR...${JJ_NC}"
 
 # Check current state
-echo -e "\n${GREEN}1. Checking status...${NC}"
+echo -e "\n${JJ_GREEN}1. Checking status...${JJ_NC}"
 jj status
 
 # Check if we have changes
 if ! jj diff --stat | grep -q .; then
-    echo -e "${RED}Error: No changes in working copy to squash${NC}"
+    echo -e "${JJ_RED}Error: No changes in working copy to squash${JJ_NC}"
     echo "Make some changes first, then run jj-update"
     exit 1
 fi
 
 # Show what will be squashed
-echo -e "\n${GREEN}2. Changes to squash:${NC}"
+echo -e "\n${JJ_GREEN}2. Changes to squash:${JJ_NC}"
 jj diff --stat
 
 # Squash into parent
-echo -e "\n${GREEN}3. Squashing into parent commit...${NC}"
+echo -e "\n${JJ_GREEN}3. Squashing into parent commit...${JJ_NC}"
 jj squash
 
 # Update message if provided
 if [[ -n "$MESSAGE" ]]; then
-    echo -e "\n${GREEN}4. Updating commit message...${NC}"
+    echo -e "\n${JJ_GREEN}4. Updating commit message...${JJ_NC}"
     jj describe -m "$MESSAGE"
 fi
 
 # Push to remote
-echo -e "\n${GREEN}5. Pushing to remote...${NC}"
+echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
 jj git push
 
-echo -e "\n${GREEN}Done! PR updated.${NC}"
+echo -e "\n${JJ_GREEN}Done! PR updated.${JJ_NC}"
 
 # Show final state
-echo -e "\n${YELLOW}Current state:${NC}"
+echo -e "\n${JJ_YELLOW}Current state:${JJ_NC}"
 jj log -r '@-::@' --no-graph

@@ -5,17 +5,16 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/jj-workspace-lib"
 
 usage() {
     cat <<EOF
 Usage: jj-pr <type> <description> [commit-message]
 
 Create a new PR with conventional branch naming.
+Works in jj workspaces (including child workspaces separate from the parent repo).
 
 Types:
   feat, feature  - New features
@@ -45,7 +44,7 @@ validate_type() {
             return 0
             ;;
         *)
-            echo -e "${RED}Error: Invalid type '$type'${NC}"
+            echo -e "${JJ_RED}Error: Invalid type '$type'${JJ_NC}"
             echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore"
             exit 1
             ;;
@@ -66,7 +65,7 @@ normalize_type() {
 validate_description() {
     local desc="$1"
     if [[ ! "$desc" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-        echo -e "${RED}Error: Description must be kebab-case (lowercase, hyphens only)${NC}"
+        echo -e "${JJ_RED}Error: Description must be kebab-case (lowercase, hyphens only)${JJ_NC}"
         echo "Got: $desc"
         echo "Example: user-auth, fix-null-pointer, gh-123-add-feature"
         exit 1
@@ -88,17 +87,27 @@ validate_description "$DESC"
 TYPE=$(normalize_type "$TYPE")
 BRANCH="${TYPE}/${DESC}"
 
-echo -e "${YELLOW}Creating PR with branch: ${BRANCH}${NC}"
+# Check we're in a jj repo
+if ! jj_in_repo; then
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    exit 1
+fi
+
+# Get GitHub repo
+GH_REPO=$(jj_get_gh_repo)
+
+echo -e "${JJ_YELLOW}Creating PR with branch: ${BRANCH}${JJ_NC}"
+echo -e "GitHub repo: ${JJ_BLUE}${GH_REPO}${JJ_NC}"
 
 # Check current state
-echo -e "\n${GREEN}1. Checking status...${NC}"
+echo -e "\n${JJ_GREEN}1. Checking status...${JJ_NC}"
 jj status
 
 # Check if we have changes
 if jj diff --stat | grep -q .; then
-    echo -e "\n${GREEN}2. Changes detected in working copy${NC}"
+    echo -e "\n${JJ_GREEN}2. Changes detected in working copy${JJ_NC}"
 else
-    echo -e "\n${YELLOW}Warning: No changes in working copy${NC}"
+    echo -e "\n${JJ_YELLOW}Warning: No changes in working copy${JJ_NC}"
     read -p "Continue anyway? [y/N] " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -107,19 +116,20 @@ else
 fi
 
 # Describe the commit
-echo -e "\n${GREEN}3. Setting commit message...${NC}"
+echo -e "\n${JJ_GREEN}3. Setting commit message...${JJ_NC}"
 jj describe -m "$MESSAGE"
 
 # Create bookmark
-echo -e "\n${GREEN}4. Creating bookmark: ${BRANCH}${NC}"
+echo -e "\n${JJ_GREEN}4. Creating bookmark: ${BRANCH}${JJ_NC}"
 jj bookmark set "$BRANCH" -r @
 
 # Push to remote
-echo -e "\n${GREEN}5. Pushing to remote...${NC}"
-jj git push --bookmark "$BRANCH" --allow-new
+echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
+jj_push_bookmark "$BRANCH" true
 
 # Create PR
-echo -e "\n${GREEN}6. Creating PR...${NC}"
-gh pr create --head "$BRANCH" --fill
+echo -e "\n${JJ_GREEN}6. Creating PR...${JJ_NC}"
+jj_create_pr "$GH_REPO" "$BRANCH"
 
-echo -e "\n${GREEN}Done! PR created with branch: ${BRANCH}${NC}"
+PR_URL=$(jj_get_pr_url "$GH_REPO" "$BRANCH")
+echo -e "\n${JJ_GREEN}Done! PR created: ${JJ_BLUE}${PR_URL}${JJ_NC}"

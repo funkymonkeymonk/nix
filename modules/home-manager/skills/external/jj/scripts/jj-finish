@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# jj-finish: Push changes, create/update PR, watch tests, optionally merge
+# Usage: jj-finish [--merge] [--max-retries N]
+# Example: jj-finish --merge
+
+set -euo pipefail
+
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/jj-workspace-lib"
+
+# Configuration
+MAX_RETRIES="${JJ_FINISH_MAX_RETRIES:-5}"
+CHECK_INTERVAL="${JJ_FINISH_CHECK_INTERVAL:-10}"
+
+# Parse arguments
+MERGE_ON_SUCCESS=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --merge)
+            MERGE_ON_SUCCESS=true
+            shift
+            ;;
+        --max-retries)
+            MAX_RETRIES="$2"
+            shift 2
+            ;;
+        -h|--help)
+            cat <<EOF
+Usage: jj-finish [--merge] [--max-retries N]
+
+Push all changes to origin, create a PR if needed, and watch for CI to complete.
+Works in jj workspaces (including child workspaces separate from the parent repo).
+
+Workflow:
+1. Push all changes to origin
+2. Create PR if one doesn't exist
+3. Watch for all CI checks to complete
+4. If checks fail: ask user to fix, then retry (up to N times)
+5. If checks pass: ask user if they want to merge
+
+Options:
+  --merge           Auto-prompt to merge on success
+  --max-retries N   Maximum retry attempts (default: 5)
+  -h, --help        Show this help
+
+Environment:
+  JJ_FINISH_MAX_RETRIES    Default max retries (default: 5)
+  JJ_FINISH_CHECK_INTERVAL Check interval in seconds (default: 10)
+
+Examples:
+  jj-finish                 # Push, create PR, watch tests
+  jj-finish --merge         # Same, but prompt to merge on success
+  jj-finish --max-retries 3 # Limit to 3 retry attempts
+EOF
+            exit 0
+            ;;
+        *)
+            echo -e "${JJ_RED}Unknown option: $1${JJ_NC}"
+            exit 1
+            ;;
+    esac
+done
+
+# Check we're in a jj repo
+if ! jj_in_repo; then
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    exit 1
+fi
+
+# Main workflow
+echo -e "${JJ_BLUE}=== jj-finish ===${JJ_NC}"
+
+# Get GitHub repo identifier
+GH_REPO=$(jj_get_gh_repo)
+echo -e "GitHub repo: ${JJ_YELLOW}${GH_REPO}${JJ_NC}"
+
+# Step 1: Check status and get bookmark
+echo -e "\n${JJ_GREEN}1. Checking repository status...${JJ_NC}"
+jj status
+
+BOOKMARK=$(jj_get_current_bookmark)
+if [[ -z "$BOOKMARK" ]]; then
+    echo -e "${JJ_RED}Error: No bookmark found on current commit${JJ_NC}"
+    echo "Create a bookmark first with: jj bookmark set <name> -r @"
+    exit 1
+fi
+echo -e "Current bookmark: ${JJ_YELLOW}${BOOKMARK}${JJ_NC}"
+
+# Step 2: Push to origin
+echo -e "\n${JJ_GREEN}2. Pushing to origin...${JJ_NC}"
+if jj_push_bookmark "$BOOKMARK" false 2>&1; then
+    echo -e "${JJ_GREEN}Push successful${JJ_NC}"
+else
+    # Try with --allow-new if first push
+    echo -e "${JJ_YELLOW}Trying with --allow-new...${JJ_NC}"
+    jj_push_bookmark "$BOOKMARK" true
+fi
+
+# Step 3: Create PR if needed
+echo -e "\n${JJ_GREEN}3. Checking for existing PR...${JJ_NC}"
+if jj_pr_exists "$GH_REPO" "$BOOKMARK"; then
+    PR_NUMBER=$(jj_get_pr_number "$GH_REPO" "$BOOKMARK")
+    echo -e "PR #${PR_NUMBER} already exists"
+    PR_URL=$(jj_get_pr_url "$GH_REPO" "$BOOKMARK")
+    echo -e "URL: ${JJ_BLUE}${PR_URL}${JJ_NC}"
+else
+    echo -e "${JJ_YELLOW}Creating new PR...${JJ_NC}"
+    jj_create_pr "$GH_REPO" "$BOOKMARK"
+    PR_NUMBER=$(jj_get_pr_number "$GH_REPO" "$BOOKMARK")
+    PR_URL=$(jj_get_pr_url "$GH_REPO" "$BOOKMARK")
+    echo -e "Created PR #${PR_NUMBER}: ${JJ_BLUE}${PR_URL}${JJ_NC}"
+fi
+
+# Step 4: Watch checks with retry loop
+ATTEMPT=0
+while [[ $ATTEMPT -lt $MAX_RETRIES ]]; do
+    ATTEMPT=$((ATTEMPT + 1))
+    echo -e "\n${JJ_GREEN}4. Watching CI checks (attempt ${ATTEMPT}/${MAX_RETRIES})...${JJ_NC}"
+    
+    if jj_watch_pr_checks "$GH_REPO" "$BOOKMARK" "$CHECK_INTERVAL"; then
+        echo -e "\n${JJ_GREEN}All checks passed!${JJ_NC}"
+        jj_notify "CI Passed" "All checks passed for $BOOKMARK"
+        
+        # Step 5: Ask about merge
+        echo -e "\n${JJ_YELLOW}Would you like to merge this PR?${JJ_NC}"
+        read -p "Merge PR #${PR_NUMBER}? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "\n${JJ_GREEN}5. Merging PR...${JJ_NC}"
+            jj_merge_pr "$GH_REPO" "$BOOKMARK" squash
+            echo -e "${JJ_GREEN}PR merged and branch deleted!${JJ_NC}"
+            
+            # Sync local state
+            echo -e "\n${JJ_GREEN}6. Syncing local repository...${JJ_NC}"
+            jj git fetch
+            echo -e "${JJ_GREEN}Done!${JJ_NC}"
+        else
+            echo -e "${JJ_YELLOW}Skipping merge. PR is ready at: ${PR_URL}${JJ_NC}"
+        fi
+        exit 0
+    else
+        echo -e "\n${JJ_RED}CI checks failed!${JJ_NC}"
+        jj_notify "CI Failed" "Checks failed for $BOOKMARK (attempt $ATTEMPT/$MAX_RETRIES)" "critical"
+        
+        # Show failed checks
+        echo -e "\n${JJ_YELLOW}Failed checks:${JJ_NC}"
+        jj_show_failed_checks "$GH_REPO" "$BOOKMARK"
+        
+        if [[ $ATTEMPT -lt $MAX_RETRIES ]]; then
+            echo -e "\n${JJ_YELLOW}Please fix the failing tests.${JJ_NC}"
+            echo -e "Attempts remaining: $((MAX_RETRIES - ATTEMPT))"
+            echo ""
+            read -p "Press Enter when ready to push fixes and retry (or Ctrl+C to abort)... "
+            
+            # Push any new changes
+            echo -e "\n${JJ_GREEN}Pushing fixes...${JJ_NC}"
+            jj_push_bookmark "$BOOKMARK" false
+        fi
+    fi
+done
+
+echo -e "\n${JJ_RED}Max retries ($MAX_RETRIES) exceeded. CI still failing.${JJ_NC}"
+echo -e "PR URL: ${JJ_BLUE}${PR_URL}${JJ_NC}"
+exit 1

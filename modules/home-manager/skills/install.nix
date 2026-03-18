@@ -1,5 +1,6 @@
 # Skills installation module
 # Filters skills by enabled roles and installs them to ~/.config/opencode/skills/
+# Also installs bundled commands to ~/.config/opencode/commands/
 {
   osConfig,
   lib,
@@ -17,6 +18,7 @@
 
   # Use default path if not specified (relative to home directory for home.file)
   skillsPath = cfg.skillsPath or ".config/opencode/skills";
+  commandsPath = cfg.commandsPath or ".config/opencode/commands";
 
   # Filter skills that match any enabled role
   skillsForRoles = roles:
@@ -81,6 +83,26 @@
     )
     allSkills;
 
+  # Generate home.file entries for commands bundled with skills
+  commandFiles = let
+    # Get all skills that have commands defined
+    skillsWithCommands = lib.filterAttrs (_name: skill: skill ? commands) allSkills;
+
+    # Generate file entries for each command in each skill
+    commandEntries = lib.concatLists (lib.mapAttrsToList (
+        _skillName: skill:
+          map (cmdName: {
+            name = "${commandsPath}/${cmdName}.md";
+            value = {
+              source = "${skill.commands.path}/${cmdName}.md";
+            };
+          })
+          skill.commands.list
+      )
+      skillsWithCommands);
+  in
+    lib.listToAttrs commandEntries;
+
   # Generate README with installed skills info
   readmeFile = {
     "${skillsPath}/README.md" = {
@@ -99,6 +121,22 @@
             name: skill: "- **${name}**: ${skill.description} (roles: ${lib.concatStringsSep ", " skill.roles})"
           )
           allSkills)}
+
+        ## Installed Commands
+
+        ${
+          let
+            skillsWithCommands = lib.filterAttrs (_name: skill: skill ? commands) allSkills;
+            commandList = lib.concatLists (lib.mapAttrsToList (
+                skillName: skill:
+                  map (cmd: "- **/${cmd}** (from ${skillName})") skill.commands.list
+              )
+              skillsWithCommands);
+          in
+            if commandList == []
+            then "_No commands installed_"
+            else lib.concatStringsSep "\n" commandList
+        }
 
         ## Adding Skills
 
@@ -120,6 +158,6 @@
   };
 in {
   config = lib.mkIf (enabledRoles != []) {
-    home.file = skillFiles // readmeFile;
+    home.file = skillFiles // commandFiles // readmeFile;
   };
 }

@@ -62,20 +62,12 @@ jj_ensure_workspaces_dir() {
 
 # Check if we're in a jj repository
 jj_in_repo() {
-    [[ -d ".jj" ]]
+    jj root &>/dev/null
 }
 
 # Find the jj repo root from current directory
 jj_find_repo_root() {
-    local dir="$PWD"
-    while [[ "$dir" != "/" ]]; do
-        if [[ -d "$dir/.jj" ]]; then
-            echo "$dir"
-            return 0
-        fi
-        dir=$(dirname "$dir")
-    done
-    return 1
+    jj root 2>/dev/null
 }
 
 # Parse a simple key=value config file
@@ -126,4 +118,123 @@ jj_notify() {
     
     # No notification system available - silent
     :
+}
+
+# ============================================================================
+# GitHub/PR Functions (work with jj workspaces, including child workspaces)
+# ============================================================================
+
+# Get GitHub repo (owner/repo) from jj git remote
+# Works in child workspaces separate from parent repo
+jj_get_gh_repo() {
+    local remote_url
+    remote_url=$(jj git remote list 2>/dev/null | grep -E '^origin\s' | awk '{print $2}')
+    
+    if [[ -z "$remote_url" ]]; then
+        echo -e "${JJ_RED}Error: No 'origin' remote found${JJ_NC}" >&2
+        return 1
+    fi
+    
+    # Extract owner/repo from various URL formats:
+    # git@github.com:owner/repo.git
+    # https://github.com/owner/repo.git
+    # https://github.com/owner/repo
+    local repo
+    repo=$(echo "$remote_url" | sed -E 's#^(git@github\.com:|https://github\.com/)##' | sed -E 's#\.git$##')
+    
+    if [[ -z "$repo" || ! "$repo" =~ ^[^/]+/[^/]+$ ]]; then
+        echo -e "${JJ_RED}Error: Could not parse GitHub repo from remote URL: $remote_url${JJ_NC}" >&2
+        return 1
+    fi
+    
+    echo "$repo"
+}
+
+# Get current bookmark on @ commit
+jj_get_current_bookmark() {
+    jj log -r @ --no-graph -T 'bookmarks' 2>/dev/null | head -1 || true
+}
+
+# Check if PR exists for a branch
+# Usage: jj_pr_exists <gh_repo> <branch>
+jj_pr_exists() {
+    local repo="$1"
+    local branch="$2"
+    gh pr view --repo "$repo" "$branch" &>/dev/null
+}
+
+# Get PR number for a branch
+# Usage: jj_get_pr_number <gh_repo> <branch>
+jj_get_pr_number() {
+    local repo="$1"
+    local branch="$2"
+    gh pr view --repo "$repo" "$branch" --json number --jq '.number' 2>/dev/null || echo ""
+}
+
+# Get PR URL for a branch
+# Usage: jj_get_pr_url <gh_repo> <branch>
+jj_get_pr_url() {
+    local repo="$1"
+    local branch="$2"
+    gh pr view --repo "$repo" "$branch" --json url --jq '.url' 2>/dev/null || echo ""
+}
+
+# Create a new PR
+# Usage: jj_create_pr <gh_repo> <branch>
+jj_create_pr() {
+    local repo="$1"
+    local branch="$2"
+    gh pr create --repo "$repo" --head "$branch" --fill
+}
+
+# Watch PR checks until complete
+# Returns: 0 = pass, 1 = fail
+# Usage: jj_watch_pr_checks <gh_repo> <branch> [interval]
+jj_watch_pr_checks() {
+    local repo="$1"
+    local branch="$2"
+    local interval="${3:-10}"
+    
+    if gh pr checks --repo "$repo" "$branch" --watch --interval "$interval"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Show failed PR checks
+# Usage: jj_show_failed_checks <gh_repo> <branch>
+jj_show_failed_checks() {
+    local repo="$1"
+    local branch="$2"
+    gh pr checks --repo "$repo" "$branch" --json name,state,bucket --jq '.[] | select(.bucket == "fail") | "\(.name): \(.state)"' 2>/dev/null || true
+}
+
+# Merge a PR
+# Usage: jj_merge_pr <gh_repo> <branch> [merge_method]
+# merge_method: squash (default), merge, rebase
+jj_merge_pr() {
+    local repo="$1"
+    local branch="$2"
+    local method="${3:-squash}"
+    
+    case "$method" in
+        squash) gh pr merge --repo "$repo" "$branch" --squash --delete-branch ;;
+        merge)  gh pr merge --repo "$repo" "$branch" --merge --delete-branch ;;
+        rebase) gh pr merge --repo "$repo" "$branch" --rebase --delete-branch ;;
+        *)      gh pr merge --repo "$repo" "$branch" --squash --delete-branch ;;
+    esac
+}
+
+# Push bookmark to origin
+# Usage: jj_push_bookmark <bookmark> [allow_new]
+jj_push_bookmark() {
+    local bookmark="$1"
+    local allow_new="${2:-false}"
+    
+    if [[ "$allow_new" == "true" ]]; then
+        jj git push --bookmark "$bookmark" --allow-new
+    else
+        jj git push --bookmark "$bookmark"
+    fi
 }
