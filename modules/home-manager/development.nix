@@ -42,11 +42,6 @@
         };
       };
     };
-
-    kitty = {
-      enable = true;
-      shellIntegration.enableZshIntegration = true;
-    };
   };
 
   services.syncthing = {
