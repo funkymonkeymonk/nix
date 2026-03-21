@@ -283,7 +283,7 @@ with lib; {
     onepassword = {
       enable = mkOption {
         type = types.bool;
-        default = false;
+        default = true;
         description = "Enable 1Password integration";
       };
 
