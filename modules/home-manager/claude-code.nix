@@ -6,6 +6,7 @@
 }:
 with lib; let
   cfg = osConfig.myConfig.claude-code;
+  rtkCfg = osConfig.myConfig.llmClient.rtk;
   hmLib = import ./lib.nix {inherit lib;};
 
   # Filter MCP servers that have 1Password items configured for API keys
@@ -47,17 +48,14 @@ with lib; let
     });
 in {
   config = mkIf cfg.enable {
-    # RTK hook script - fetched from upstream when RTK is enabled
-    home.file.".claude/hooks/rtk-rewrite.sh" = mkIf cfg.rtk.enable {
-      source = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/rtk-ai/rtk/master/hooks/rtk-rewrite.sh";
-        sha256 = "0zw6x6zfc9rbmdd151zhhpgil1b7mxf6bzrw07mxmvcb1zmgfybr";
-      };
+    # RTK hook script - installed from rtk package when RTK is enabled
+    home.file.".claude/hooks/rtk-rewrite.sh" = mkIf rtkCfg.enable {
+      source = "${pkgs.rtk}/share/rtk/hooks/rtk-rewrite.sh";
       executable = true;
     };
 
     # Claude Code settings.json - managed manually to support hooks
-    home.file.".claude/settings.json" = mkIf cfg.rtk.enable {
+    home.file.".claude/settings.json" = mkIf rtkCfg.enable {
       text = let
         fullSettings =
           settings

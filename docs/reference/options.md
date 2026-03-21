@@ -146,11 +146,27 @@ myConfig.opencode.extraMcpServers = {
 | `agents` | attrs | `{}` | Custom agents |
 | `commands` | attrs | `{}` | Custom commands |
 | `hooks` | attrs | `{}` | Custom hooks |
-| `rtk.enable` | bool | `false` | Enable RTK token optimization |
 
 ### myConfig.claude-code.mcpServers
 
 MCP servers for Claude Code (same structure as OpenCode).
+
+## LLM Client Configuration
+
+Shared configuration for LLM client tools (OpenCode, Claude Code).
+
+### myConfig.llmClient
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `serverHost` | string | `"127.0.0.1"` | Default LLM server host |
+| `serverPort` | string | `"11434"` | Default LLM server port |
+
+### myConfig.llmClient.rtk
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | bool | `false` | Enable RTK token optimization (integrates with OpenCode and Claude Code) |
 
 ## Skills Configuration
 

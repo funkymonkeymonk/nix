@@ -106,8 +106,8 @@
       };
       claude-code = {
         enable = true;
-        rtk.enable = true;
       };
+      llmClient.rtk.enable = true;
     };
 
     # Simplified bundle module - all roles are now flat
@@ -517,7 +517,6 @@
           };
           claude-code = {
             enable = true;
-            rtk.enable = true;
             mcpServers = {
               github = {
                 type = "remote";
@@ -536,6 +535,7 @@
               };
             };
           };
+          llmClient.rtk.enable = true;
         };
       };
 

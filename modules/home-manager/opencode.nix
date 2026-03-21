@@ -6,6 +6,7 @@
 }:
 with lib; let
   cfg = osConfig.myConfig.opencode;
+  rtkCfg = osConfig.myConfig.llmClient.rtk;
   hmLib = import ./lib.nix {inherit lib;};
 
   # Filter providers that have 1Password items configured
@@ -251,9 +252,18 @@ in {
       (lib.hiPrio opencodeWrapped)
     ];
 
-    # RTK instructions file for OpenCode + command files
+    # RTK instructions file for OpenCode (only when RTK is enabled) + command files
     home.file =
       {
+        # TUI configuration - must be kept in sync with main config theme
+        ".config/opencode/tui.json" = {
+          text = builtins.toJSON {
+            "$schema" = "https://opencode.ai/tui.json";
+            inherit (cfg) theme;
+          };
+        };
+      }
+      // (optionalAttrs rtkCfg.enable {
         ".config/opencode/RTK.md" = {
           text = ''
             # RTK Token Optimization
@@ -278,15 +288,7 @@ in {
             Check savings: \`rtk gain\` or \`rtk gain --graph\`
           '';
         };
-
-        # TUI configuration - must be kept in sync with main config theme
-        ".config/opencode/tui.json" = {
-          text = builtins.toJSON {
-            "$schema" = "https://opencode.ai/tui.json";
-            inherit (cfg) theme;
-          };
-        };
-      }
+      })
       // commandFiles;
 
     programs = {
@@ -295,9 +297,9 @@ in {
         enable = true;
         settings =
           settings
-          // {
+          // (optionalAttrs rtkCfg.enable {
             instructions = ["RTK.md"];
-          };
+          });
       };
 
       # Configure opnix secrets for providers with 1Password items

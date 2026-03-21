@@ -21,6 +21,13 @@ rustPlatform.buildRustPackage rec {
   # Skip tests if they require network or specific environment
   doCheck = false;
 
+  # Install hooks alongside the binary for Nix integration
+  postInstall = ''
+    mkdir -p $out/share/rtk/hooks
+    cp $src/hooks/*.sh $out/share/rtk/hooks/
+    chmod +x $out/share/rtk/hooks/*.sh
+  '';
+
   meta = with lib; {
     description = "CLI proxy that reduces LLM token consumption by 60-90% on common dev commands";
     homepage = "https://github.com/rtk-ai/rtk";
