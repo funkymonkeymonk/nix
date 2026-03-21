@@ -8,17 +8,17 @@
 }:
 with lib; let
   cfg = config.services.openclaw;
-  
+
   # Wrapper script for openclaw command
   openclawCli = pkgs.writeShellScriptBin "openclaw" ''
     export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:$HOME/.npm-global/bin:$PATH"
     export HOME="${cfg.dataDir}"
-    
+
     # Ensure npm global bin is in PATH
     if [ -d "$HOME/.npm-global/bin" ]; then
       export PATH="$HOME/.npm-global/bin:$PATH"
     fi
-    
+
     exec ${cfg.nodePackage}/bin/npx openclaw@latest "$@"
   '';
 in {
@@ -90,7 +90,7 @@ in {
     # Create user and group if needed
     users.users.${cfg.user} = lib.mkIf (cfg.user != "dev") {
       isSystemUser = true;
-      group = cfg.group;
+      inherit (cfg) group;
       home = cfg.dataDir;
       createHome = true;
       description = "OpenClaw AI Assistant service user";
@@ -113,8 +113,7 @@ in {
     environment.etc."openclaw/config.json" = mkIf (cfg.extraConfig != {}) {
       text = builtins.toJSON cfg.extraConfig;
       mode = "0640";
-      user = cfg.user;
-      group = cfg.group;
+      inherit (cfg) user group;
     };
 
     # OpenClaw Gateway service
@@ -135,25 +134,25 @@ in {
             export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${pkgs.npm}/bin:$PATH"
             export HOME="${cfg.dataDir}"
             export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
-            
+
             # Create npm global directory if it doesn't exist
             mkdir -p "${cfg.dataDir}/.npm-global"
-            
+
             # Configure npm to use local prefix
             ${pkgs.npm}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
-            
+
             # Check if we need to install openclaw
             if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
               echo "Installing OpenClaw..."
               ${pkgs.npm}/bin/npm install -g openclaw@latest
             fi
-            
+
             # Link config if provided
             if [ -f /etc/openclaw/config.json ]; then
               cp /etc/openclaw/config.json "${cfg.dataDir}/.openclaw/openclaw.json"
               chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/.openclaw/openclaw.json"
             fi
-            
+
             echo "OpenClaw setup complete"
           ''
           + lib.optionalString (cfg.environmentFile != null) ''
@@ -169,12 +168,12 @@ in {
           export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${cfg.dataDir}/.npm-global/bin:$PATH"
           export HOME="${cfg.dataDir}"
           export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
-          
+
           # Set Node memory limit (helpful for microvms)
           export NODE_OPTIONS="--max-old-space-size=3072"
-          
+
           cd ${cfg.dataDir}
-          
+
           # Start the gateway
           exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --verbose
         '';

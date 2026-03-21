@@ -4,7 +4,6 @@
 # Environment files are generated from individual secrets at runtime
 # https://github.com/element-hq/synapse
 {
-  config,
   lib,
   pkgs,
   ...
@@ -22,18 +21,18 @@ in {
   # Matrix Synapse service using official nixpkgs module
   services.matrix-synapse = {
     enable = true;
-    
+
     # Server configuration
     settings = {
       server_name = serverName;
       public_baseurl = baseUrl;
-      
+
       # Database - use SQLite for simple microvm setup
       database = {
         name = "sqlite3";
         args.database = "/var/lib/matrix-synapse/homeserver.db";
       };
-      
+
       # Listeners
       listeners = [
         {
@@ -50,36 +49,36 @@ in {
           ];
         }
       ];
-      
+
       # Registration - disabled for private server
       enable_registration = false;
-      
+
       # URLs
       web_client_location = "https://${serverName}/element/";
-      
+
       # Admin contact
       admin_contact = "mailto:admin@${serverName}";
-      
+
       # Rate limiting - relaxed for local use
       rc_message = {
         per_second = 10;
         burst_count = 50;
       };
-      
+
       # Media storage
       max_upload_size = "100M";
       max_image_pixels = "32M";
-      
+
       # Federation - enabled for OpenClaw integration
       federation_domain_whitelist = [];
-      
+
       # App service for OpenClaw bot (will be configured via env file)
       app_service_config_files = [];
     };
-    
+
     # Data directory
     dataDir = "/var/lib/matrix-synapse";
-    
+
     # Extra config files (for secrets)
     extraConfigFiles = [];
   };
@@ -105,20 +104,20 @@ in {
     after = ["matrix-synapse.service" "onepassword-secrets.service"];
     requires = ["matrix-synapse.service"];
     wantedBy = ["multi-user.target"];
-    
+
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       User = "matrix-synapse";
       Group = "matrix-synapse";
     };
-    
+
     # Generate environment file from secrets and create users
     script = ''
       # Generate admin-env from individual secrets
       ADMIN_PASS=$(cat /run/secrets/matrix-admin-password)
       BOT_PASS=$(cat /run/secrets/matrix-openclaw-password)
-      
+
       # Check if admin user exists, create if not
       if ! ${pkgs.matrix-synapse}/bin/synapse_admin -c /var/lib/matrix-synapse/homeserver.yaml list_users 2>/dev/null | grep -q "@admin:matrix.local"; then
         echo "Creating admin user..."
@@ -129,7 +128,7 @@ in {
           --admin \
           2>/dev/null || echo "Admin user may already exist"
       fi
-      
+
       # Create OpenClaw bot user
       if ! ${pkgs.matrix-synapse}/bin/synapse_admin -c /var/lib/matrix-synapse/homeserver.yaml list_users 2>/dev/null | grep -q "@openclaw:matrix.local"; then
         echo "Creating OpenClaw bot user..."
@@ -150,26 +149,26 @@ in {
     recommendedOptimisation = true;
     recommendedProxySettings = true;
     recommendedTlsSettings = false; # No TLS in microvm
-    
+
     virtualHosts.${serverName} = {
-      locations."/" = {
-        root = pkgs.element-web;
-        index = "index.html";
-        tryFiles = "$uri $uri/ /index.html";
-      };
-      
-      locations."/_matrix" = {
-        proxyPass = "http://127.0.0.1:${toString matrixPort}";
-        proxyWebsockets = true;
-        extraConfig = ''
-          proxy_read_timeout 600;
-          client_max_body_size 100M;
-        '';
-      };
-      
-      locations."/_synapse/client" = {
-        proxyPass = "http://127.0.0.1:${toString matrixPort}";
-        proxyWebsockets = true;
+      locations = {
+        "/" = {
+          root = pkgs.element-web;
+          index = "index.html";
+          tryFiles = "$uri $uri/ /index.html";
+        };
+        "/_matrix" = {
+          proxyPass = "http://127.0.0.1:${toString matrixPort}";
+          proxyWebsockets = true;
+          extraConfig = ''
+            proxy_read_timeout 600;
+            client_max_body_size 100M;
+          '';
+        };
+        "/_synapse/client" = {
+          proxyPass = "http://127.0.0.1:${toString matrixPort}";
+          proxyWebsockets = true;
+        };
       };
     };
   };
@@ -210,18 +209,20 @@ in {
     features = {};
     setting_defaults = {
       breadcrumbs = true;
-      UIFeature.shareSocial = false;
-      UIFeature.shareQrCode = false;
-      UIFeature.registration = false;
+      UIFeature = {
+        shareSocial = false;
+        shareQrCode = false;
+        registration = false;
+      };
     };
   };
 
   # Firewall
   networking.firewall = {
     allowedTCPPorts = [
-      80      # HTTP (nginx)
-      matrixPort      # Matrix client API
-      8448    # Matrix federation
+      80 # HTTP (nginx)
+      matrixPort # Matrix client API
+      8448 # Matrix federation
     ];
   };
 
@@ -229,7 +230,7 @@ in {
   services.onepassword-secrets = {
     enable = true;
     tokenFile = "/etc/opnix-token";
-    
+
     secrets = {
       # Matrix Synapse signing key
       matrixSynapseSigningKey = {
@@ -240,7 +241,7 @@ in {
         mode = "0600";
         services = ["matrix-synapse"];
       };
-      
+
       # Matrix Synapse registration shared secret
       matrixSynapseRegistrationSecret = {
         reference = "op://Homelab/Matrix Synapse/registration-shared-secret";
@@ -250,7 +251,7 @@ in {
         mode = "0600";
         services = ["matrix-synapse"];
       };
-      
+
       # Admin password (individual secret - composed into env at runtime)
       matrixAdminPassword = {
         reference = "op://Homelab/Matrix Synapse/admin-password";
@@ -258,7 +259,7 @@ in {
         mode = "0600";
         services = ["matrix-synapse-create-admin"];
       };
-      
+
       # OpenClaw bot password (individual secret - composed into env at runtime)
       matrixOpenclawPassword = {
         reference = "op://Homelab/Matrix Synapse/openclaw-password";

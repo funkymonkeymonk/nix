@@ -4,7 +4,6 @@
 # Environment files are generated from individual secrets at runtime
 # https://github.com/openclaw/openclaw
 {
-  config,
   lib,
   pkgs,
   ...
@@ -39,34 +38,34 @@
     enable = true;
     port = 18789;
     openFirewall = true;
-    
+
     # Use the existing 'dev' user from mkMicrovm helper
     user = "dev";
     group = "users";
     dataDir = "/home/dev";
-    
+
     # Generate environment file at service start
     environmentFile = "/run/openclaw/generated-env";
-    
+
     # OpenClaw configuration with Matrix channel
     extraConfig = {
       # Default agent configuration
       agent = {
         model = "zen/default";
       };
-      
+
       # Gateway configuration
       gateway = {
         bind = "0.0.0.0";
         verbose = true;
       };
-      
+
       # Matrix channel configuration
       # Credentials loaded from generated environment file
       channels = {
         matrix = {
           enabled = true;
-          homeserver = "http://matrix:8008";  # Internal DNS to Matrix microvm
+          homeserver = "http://matrix:8008"; # Internal DNS to Matrix microvm
           userId = "@openclaw:matrix.local";
           # Access token loaded from OPENCLAW_MATRIX_ACCESS_TOKEN env var
           # Room allowlist configured in env file
@@ -81,27 +80,27 @@
     after = ["onepassword-secrets.service"];
     before = ["openclaw-gateway.service"];
     wantedBy = ["multi-user.target"];
-    
+
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       User = "dev";
       Group = "users";
     };
-    
+
     script = ''
       # Ensure directory exists
       mkdir -p /run/openclaw
-      
+
       # Generate environment file from individual secrets
       MATRIX_TOKEN=$(cat /run/secrets/openclaw-matrix-access-token 2>/dev/null || echo "placeholder_token")
       ZEN_KEY=$(cat /run/secrets/openclaw-zen-api-key 2>/dev/null || echo "zen_placeholder")
-      
+
       echo "OPENCLAW_MATRIX_ACCESS_TOKEN=$MATRIX_TOKEN" > /run/openclaw/generated-env
       echo "ZEN_API_KEY=$ZEN_KEY" >> /run/openclaw/generated-env
-      
+
       chmod 600 /run/openclaw/generated-env
-      
+
       echo "Generated environment file with:"
       echo "  - Matrix access token: ''${MATRIX_TOKEN:0:20}..."
       echo "  - Zen API key: ''${ZEN_KEY:0:20}..."
