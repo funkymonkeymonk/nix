@@ -278,6 +278,14 @@ in {
             Check savings: \`rtk gain\` or \`rtk gain --graph\`
           '';
         };
+
+        # TUI configuration - must be kept in sync with main config theme
+        ".config/opencode/tui.json" = {
+          text = builtins.toJSON {
+            "$schema" = "https://opencode.ai/tui.json";
+            inherit (cfg) theme;
+          };
+        };
       }
       // commandFiles;
 

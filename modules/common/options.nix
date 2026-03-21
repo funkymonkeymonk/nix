@@ -96,7 +96,7 @@ with lib; {
 
       theme = mkOption {
         type = types.str;
-        default = "opencode";
+        default = "system";
         description = "UI theme for opencode";
       };
 
