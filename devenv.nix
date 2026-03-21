@@ -851,6 +851,59 @@
         echo "Formatting complete"
       '';
     };
+
+    # ============================================
+    # FOUNDATION TEST TASKS
+    # ============================================
+
+    "test:core" = {
+      description = "Test core packages are available";
+      exec = ''
+        echo "Testing core packages..."
+        nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).core-packages --no-link
+        echo "✓ Core packages test passed"
+      '';
+    };
+
+    "test:foundation" = {
+      description = "Test foundation packages and config";
+      exec = ''
+        echo "Testing foundation..."
+        nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).foundation-packages --no-link
+        echo "✓ Foundation packages test passed"
+      '';
+    };
+
+    "test:options" = {
+      description = "Test foundation options are defined";
+      exec = ''
+        echo "Testing foundation options..."
+        nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).foundation-options --no-link
+        echo "✓ Foundation options test passed"
+      '';
+    };
+
+    "test:config" = {
+      description = "Test configuration validation";
+      exec = ''
+        echo "Testing configuration validation..."
+        nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).config-validation --no-link
+        echo "✓ Configuration validation test passed"
+      '';
+    };
+
+    "test:all" = {
+      description = "Run all foundation tests";
+      exec = ''
+        echo "=== Running All Tests ==="
+        devenv tasks run test:core
+        devenv tasks run test:foundation
+        devenv tasks run test:options
+        devenv tasks run test:config
+        echo ""
+        echo "=== All Tests Complete ==="
+      '';
+    };
   };
 
   # See full reference at https://devenv.sh/reference/options/

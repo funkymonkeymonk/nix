@@ -45,13 +45,7 @@
     };
   };
 
-  # Essential packages for headless server
   environment.systemPackages = with pkgs; [
-    vim
-    git
-    htop
-    tmux
-    # MicroVM support
     qemu
     virtiofsd
   ];

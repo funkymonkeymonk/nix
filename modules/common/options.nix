@@ -310,6 +310,20 @@ with lib; {
         default = "";
         description = "SSH key name for git signing in 1Password";
       };
+
+      enableSudo = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable 1Password for sudo authentication (NixOS only)";
+      };
+    };
+
+    syncthing = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Syncthing file synchronization";
+      };
     };
 
     zellij = {
