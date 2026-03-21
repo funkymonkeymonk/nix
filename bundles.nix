@@ -9,6 +9,7 @@ with pkgs.lib; {
         gh
         devenv
         direnv
+        jujutsu
 
         rclone
         bat
