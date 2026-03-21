@@ -96,6 +96,7 @@ with pkgs.lib; {
       ];
 
       config = {
+        myConfig.development.enable = true;
         myConfig.fjj.enable = true;
         myConfig.zellij.enable = true;
       };
