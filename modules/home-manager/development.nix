@@ -1,11 +1,8 @@
 {
   pkgs,
-  osConfig,
   userConfig,
   ...
-}: let
-  inherit (osConfig.myConfig) isDarwin;
-in {
+}: {
   home.packages = with pkgs; [
     docker
   ];
@@ -45,66 +42,11 @@ in {
         };
       };
     };
-
-    alacritty = {
-      enable = true;
-      settings = {
-        font.size = 14;
-        window = {
-          decorations = "Buttonless";
-          padding = {
-            x = 10;
-            y = 6;
-          };
-          opacity = 0.95;
-          class = {
-            instance = "Alacritty";
-            general = "Alacritty";
-          };
-        };
-        mouse.hide_when_typing = true;
-        keyboard.bindings = [
-          {
-            key = "Escape";
-            mods = "Control|Shift";
-            action = "Quit";
-          }
-        ];
-      };
-    };
-
-    kitty = {
-      enable = true;
-      shellIntegration.enableZshIntegration = true;
-    };
-
-    emacs = {
-      enable = true;
-      package =
-        if isDarwin
-        then pkgs.emacs-macport
-        else pkgs.emacs;
-      extraConfig = ''
-        (setq standard-indent 2)
-      '';
-    };
   };
 
   services.syncthing = {
     enable = true;
     overrideDevices = false;
     overrideFolders = false;
-  };
-
-  # Launch agent to keep ghostty running (Darwin only)
-  launchd.agents.ghostty = {
-    enable = isDarwin;
-    config = {
-      ProgramArguments = ["/Applications/Ghostty.app/Contents/MacOS/ghostty"];
-      RunAtLoad = true;
-      KeepAlive = true;
-      StandardOutPath = "/tmp/ghostty-launchd.log";
-      StandardErrorPath = "/tmp/ghostty-launchd.err";
-    };
   };
 }
