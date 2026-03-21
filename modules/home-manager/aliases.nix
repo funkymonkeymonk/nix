@@ -17,7 +17,11 @@ in {
     jja = "jj absorb";
     jjst = "jj status";
     jjbl = "jj bookmark list";
-    jjco = "jj comment";
+    jjci = "jj commit";
+    jjr = "jj rebase -o";
+    jjwa = "jj workspace add";
+    jjwl = "jj workspace list";
+    jjwf = "jj workspace list --no-pager 2>/dev/null | tail -n +3 | awk '{print $2}' | while read -r path; do [ -d \"$path\" ] || echo \"$path\"; done | xargs -r jj workspace forget";
 
     dtr = "devenv tasks run";
     dtl = "devenv tasks list";
