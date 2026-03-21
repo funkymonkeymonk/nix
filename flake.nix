@@ -358,7 +358,7 @@
         };
       in
         {
-          inherit (pkgs) rtk;
+          inherit (pkgs) rtk yaks;
           installer = pkgs.callPackage ./packages/installer {};
         }
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {

@@ -34,3 +34,6 @@ hardware-configuration.nix
 # Temporary install files
 /tmp/secret.key
 /tmp/disk-password.key
+
+# Yaks working directory (stored in parent git repo's refs/notes/yaks)
+.yaks/

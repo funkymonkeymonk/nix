@@ -92,6 +92,7 @@ with pkgs.lib; {
         gomuks
         slidev-cli
         zellij
+        yaks
         # opencode is provided by llm-client role
       ];
 
@@ -99,6 +100,15 @@ with pkgs.lib; {
         myConfig.development.enable = true;
         myConfig.fjj.enable = true;
         myConfig.zellij.enable = true;
+
+        environment.shellAliases = {
+          # Yaks shortcuts
+          yl = "yx ls";
+          yla = "yx ls --all";
+          ya = "yx add";
+          yd = "yx done";
+          ys = "yx sync";
+        };
       };
     };
 
