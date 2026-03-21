@@ -549,6 +549,10 @@
         ];
         extraModules = [mac-app-util.darwinModules.default];
         extraConfig = {
+          ollama = {
+            # Bind to all interfaces so Docker containers can access Ollama
+            host = "0.0.0.0";
+          };
           vane = {
             enable = true;
             # Uses default Ollama URL (host.docker.internal:11434)
