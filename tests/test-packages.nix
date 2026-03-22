@@ -1,6 +1,7 @@
 # Package availability tests
 {
   pkgs,
+  lib,
   self,
 }: {
   # Test that core packages are available
