@@ -774,7 +774,6 @@
         };
         tests = import ./tests {
           inherit pkgs self;
-          inherit (nixpkgs) lib;
         };
       in {
         inherit
