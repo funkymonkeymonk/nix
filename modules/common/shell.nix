@@ -1,19 +1,9 @@
 {pkgs, ...}: {
   # System-level shell configuration
   # This module handles global shell setup that applies to all users
-  # Note: zsh is enabled in core.nix, this adds integrations for foundation tools
 
-  # Enable foundation tool shell integrations
-  # Note: These tools are in foundation role, core provides git/curl/vim
-  programs.zoxide = {
-    enable = true;
-    enableZshIntegration = true;
-  };
-
-  programs.fzf = {
-    enable = true;
-    enableZshIntegration = true;
-  };
+  # Enable zsh system-wide
+  programs.zsh.enable = true;
 
   # Provide a system-wide /etc/zshrc managed by Nix
   # This sets SHELL to the Nix-provided zsh, initializes completion safely,

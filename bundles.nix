@@ -211,9 +211,16 @@ with pkgs.lib; {
       packages = [];
 
       config = {
-        environment.sessionVariables = {
-          AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
-          SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+        # Use sessionVariables on NixOS, variables on Darwin
+        environment = {
+          sessionVariables = {
+            AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+            SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+          };
+          variables = {
+            AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+            SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+          };
         };
 
         environment.shellAliases = {

@@ -764,5 +764,27 @@
       openclaw = mkMicrovm "openclaw" ["foundation"];
       matrix = mkMicrovm "matrix" ["foundation"];
     };
+
+    # Flake checks for CI - only run on Linux where NixOS configs exist
+    checks = nixpkgs.lib.genAttrs ["x86_64-linux"] (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [(import ./overlays)];
+        };
+        tests = import ./tests {
+          inherit pkgs self;
+          inherit (nixpkgs) lib;
+        };
+      in {
+        inherit
+          (tests)
+          foundation-options
+          core-packages
+          foundation-packages
+          config-validation
+          ;
+      }
+    );
   };
 }
