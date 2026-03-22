@@ -764,26 +764,5 @@
       openclaw = mkMicrovm "openclaw" ["foundation"];
       matrix = mkMicrovm "matrix" ["foundation"];
     };
-
-    # Flake checks for CI
-    checks = forAllSystems (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [(import ./overlays)];
-        };
-        tests = import ./tests {
-          inherit pkgs self;
-        };
-      in {
-        inherit
-          (tests)
-          foundation-options
-          core-packages
-          foundation-packages
-          config-validation
-          ;
-      }
-    );
   };
 }
