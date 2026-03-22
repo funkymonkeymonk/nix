@@ -120,12 +120,22 @@ with pkgs.lib; {
         gh-dash
         gomuks
         slidev-cli
+        yaks
       ];
 
       config = {
         myConfig.development.enable = true;
         myConfig.fjj.enable = true;
         myConfig.zellij.enable = true;
+
+        environment.shellAliases = {
+          # Yaks shortcuts
+          yl = "yx ls";
+          yla = "yx ls --all";
+          ya = "yx add";
+          yd = "yx done";
+          ys = "yx sync";
+        };
       };
     };
 

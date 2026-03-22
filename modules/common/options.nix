@@ -550,6 +550,14 @@ with lib; {
         default = "11434";
         description = "Default LLM server port for client tools";
       };
+
+      rtk = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable RTK (Rust Token Killer) for token-optimized LLM tool output. Automatically integrates with OpenCode and Claude Code when their respective roles are enabled.";
+        };
+      };
     };
 
     jj-autosync = {
@@ -669,14 +677,6 @@ with lib; {
         type = types.attrsOf types.str;
         default = {};
         description = "Custom hooks for Claude Code";
-      };
-
-      rtk = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Enable RTK (Rust Token Killer) hook for Claude Code";
-        };
       };
     };
   };
