@@ -257,6 +257,7 @@ in {
       {
         # TUI configuration - must be kept in sync with main config theme
         ".config/opencode/tui.json" = {
+          force = true;
           text = builtins.toJSON {
             "$schema" = "https://opencode.ai/tui.json";
             inherit (cfg) theme;
