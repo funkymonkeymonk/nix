@@ -58,14 +58,71 @@ devenv tasks run <task>        # Run a task
 
 ## Working with This Repository
 
+### Testing Best Practices (CRITICAL)
+
+**Always test locally before pushing to CI.** This catches errors early and saves time:
+
+#### Required Local Tests (Run These Before Every Push)
+
+```bash
+# 1. Fast lint check (catches formatting and syntax errors)
+devenv tasks run check:lint
+
+# 2. Test Darwin configs can be evaluated (catches module errors)
+# Run this on macOS - it validates all Darwin configurations without building
+devenv tasks run test:darwin-eval
+
+# 3. Test NixOS configs can be evaluated (catches module errors)
+# Run this on any platform - validates module structure without full builds
+devenv tasks run test:nixos-eval
+
+# 4. Run all foundation tests
+devenv tasks run test:all
+```
+
+#### What These Tests Catch
+
+| Test | Catches |
+|------|---------|
+| `check:lint` | Formatting errors, dead code, syntax issues |
+| `test:darwin-eval` | Missing options on Darwin (e.g., `programs.zoxide`), module import errors |
+| `test:nixos-eval` | Missing options on NixOS (e.g., `home-manager.users`), module import errors |
+| `test:all` | Package availability, option definitions |
+
+#### Common Module Errors to Avoid
+
+1. **Platform-Specific Options**: Options like `programs.zoxide` or `environment.sessionVariables` don't exist on all platforms. Check if options exist before using them:
+   ```nix
+   # Good: Check if option exists
+   config = lib.optionalAttrs (builtins.hasAttr "zoxide" options.programs) {
+     programs.zoxide.enable = true;
+   };
+   
+   # Bad: Assumes option exists everywhere
+   programs.zoxide.enable = true;
+   ```
+
+2. **home-manager References**: Don't reference `home-manager` options when home-manager module isn't imported:
+   ```nix
+   # Good: Guard home-manager config
+   homeManagerAvailable = builtins.hasAttr "home-manager" options;
+   config = lib.mkIf homeManagerAvailable {
+     home-manager.users = ...;
+   };
+   ```
+
+3. **Using pkgs in let bindings**: This can cause infinite recursion. Use `config.myConfig.isDarwin` instead of checking `pkgs.stdenv.hostPlatform`.
+
 ### Before Changes
 1. Run `devenv tasks run check:lint` for fast feedback
-2. Use `devenv shell` for proper tooling
+2. Run platform-specific eval tests (`test:darwin-eval` or `test:nixos-eval`)
+3. Use `devenv shell` for proper tooling
 
 ### Making Changes
 1. Modify files as needed
-2. Run `devenv tasks run check:all` for validation
-3. Commit with conventional commit messages
+2. Run local tests (lint + platform eval tests)
+3. Run `devenv tasks run check:all` for validation
+4. Commit with conventional commit messages
 
 ### Adding Features
 

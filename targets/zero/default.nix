@@ -22,10 +22,7 @@
 
   time.timeZone = "America/New_York";
 
-  # Machine-specific packages
   environment.systemPackages = with pkgs; [
-    vim
-    wget
     discord
     tailscale
   ];

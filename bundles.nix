@@ -2,37 +2,66 @@
 {pkgs}:
 with pkgs.lib; {
   roles = {
-    base = {
+    # Foundation - Development environment built on top of core
+    # Provides productive development tools on all systems
+    # Note: Core (git, vim, curl, wget, coreutils) is always included separately
+    # Required configuration: none (works out of the box)
+    # Optional configuration: SSH authorized keys for remote access
+    foundation = {
       packages = with pkgs; [
-        vim
-        git
-        gh
-        devenv
-        direnv
-        jujutsu
+        # Note: Core provides git, vim, curl, wget, coreutils
 
-        rclone
-        bat
-        delta
+        # Editors and terminals
+        helix
+        htop
+        zellij
+
+        # Data processing
         jq
+
+        # Security
+        _1password-cli
+
+        # Git and version control
+        gh
+        jujutsu
+        delta
+
+        # Navigation and search
         tree
-        watchman
-        jnv
-        zinit
+        zoxide
         fzf
-        zsh
         ripgrep
         fd
-        coreutils
-        htop
+
+        # Development tools
+        devenv
+        direnv
+        rclone
+        bat
+        watchman
+        jnv
+        docker
+        # Colima provides Docker runtime on macOS (Linux uses native Docker)
+        colima
+
+        # Shell ecosystem
+        zinit
+        zsh
         glow
         antigen
       ];
 
       config = {
-        programs = {
-          zsh.enable = true;
-        };
+        # Enable 1Password on all platforms
+        # On NixOS: uses programs._1password
+        # On Darwin: comes with 1password cask (see platforms.darwin)
+        myConfig.onepassword.enable = true;
+
+        # Enable syncthing for file sync on all systems
+        myConfig.syncthing.enable = true;
+
+        programs.zsh.enable = true;
 
         environment.variables = {
           EDITOR = "helix";
@@ -40,6 +69,9 @@ with pkgs.lib; {
         };
 
         environment.shellAliases = {
+          # Quick system info
+          sysinfo = "uname -a";
+
           # Git aliases
           g = "git";
           gst = "git status";
@@ -64,7 +96,7 @@ with pkgs.lib; {
           grh = "git reset --hard";
           ghv = "gh repo view --web";
           gclean = "git clean -fd";
-          gkkb = "git checkout -b $(date +\"%Y%m%d%H%M%S\")";
+          gkkb = ''git checkout -b $(date +"%Y%m%d%H%M%S")'';
 
           # Nix tools
           try = "nix-shell -p";
@@ -77,13 +109,10 @@ with pkgs.lib; {
 
     developer = {
       packages = with pkgs; [
-        emacs
-        helix
         clang
         python3
         nodejs
         yarn
-        docker
         k3d
         kubectl
         kubernetes-helm
@@ -91,9 +120,7 @@ with pkgs.lib; {
         gh-dash
         gomuks
         slidev-cli
-        zellij
         yaks
-        # opencode is provided by llm-client role
       ];
 
       config = {
@@ -180,13 +207,20 @@ with pkgs.lib; {
     };
 
     agent-skills = {
-      # Note: git and jq are already in base role
+      # Note: git and jq are already in foundation
       packages = [];
 
       config = {
-        environment.sessionVariables = {
-          AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
-          SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+        # Use sessionVariables on NixOS, variables on Darwin
+        environment = {
+          sessionVariables = {
+            AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+            SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+          };
+          variables = {
+            AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+            SUPERPOWERS_SKILLS_PATH = "$HOME/.config/opencode/superpowers/skills";
+          };
         };
 
         environment.shellAliases = {
@@ -247,7 +281,6 @@ with pkgs.lib; {
         goose-cli
         claude-code
         alacritty-theme
-        colima
         home-manager
       ];
 

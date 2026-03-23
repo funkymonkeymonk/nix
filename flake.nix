@@ -111,19 +111,23 @@
     };
 
     # Simplified bundle module - all roles are now flat
+    # Foundation is always included as the base for all systems
     mkBundleModule = system: enabledRoles: {pkgs, ...}: let
       bundles = import ./bundles.nix {inherit pkgs;};
+
+      # Foundation is always included - provides universal tools like 1Password CLI
+      allRoles = ["foundation"] ++ enabledRoles;
 
       # Auto-enable agent-skills if any role requests it
       hasAgentSkills =
         builtins.any (
           role: (bundles.roles.${role} or {}).enableAgentSkills or false
         )
-        enabledRoles;
+        allRoles;
       finalRoles =
         if hasAgentSkills
-        then nixpkgs.lib.unique (enabledRoles ++ ["agent-skills"])
-        else enabledRoles;
+        then nixpkgs.lib.unique (allRoles ++ ["agent-skills"])
+        else allRoles;
 
       # Default LLM endpoint to local Ollama
       # Additional endpoints can be configured via myConfig.llmEndpoints
@@ -166,10 +170,10 @@
 
           environment = {
             systemPackages =
-              bundles.roles.base.packages ++ rolePackages ++ bundles.platforms.${system}.packages;
+              rolePackages ++ bundles.platforms.${system}.packages;
 
             shellAliases =
-              bundles.roles.base.config.environment.shellAliases or {}
+              bundles.roles.foundation.config.environment.shellAliases or {}
               // (
                 if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
                 then {
@@ -179,7 +183,7 @@
               );
 
             variables =
-              bundles.roles.base.config.environment.variables or {}
+              bundles.roles.foundation.config.environment.variables or {}
               // bundles.platforms.${system}.config.environment.variables or {}
               // (
                 if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
@@ -194,7 +198,7 @@
           };
 
           programs =
-            bundles.roles.base.config.programs or {} // bundles.platforms.${system}.config.programs or {};
+            bundles.roles.foundation.config.programs or {} // bundles.platforms.${system}.config.programs or {};
         }
         // nixpkgs.lib.optionalAttrs (system == "darwin") {
           homebrew = nixpkgs.lib.mkMerge (
@@ -207,7 +211,9 @@
     };
 
     # Common module imports
+    # Order matters: core → options → others
     commonModules = [
+      ./modules/common/core.nix # Absolute minimum (git, curl, vim)
       ./modules/common/options.nix
       ./modules/common/users.nix
       ./modules/common/shell.nix
@@ -570,10 +576,12 @@
         };
       };
 
-      # Core configuration - minimal bootstrap for any system
+      # Core configuration - absolute minimum for bootstrap/recovery
+      # Uses only core.nix (git, curl, vim) - no foundation, no user config
       "core" = nix-darwin.lib.darwinSystem {
         modules = [
           configuration
+          ./modules/common/core.nix
           ./modules/common/options.nix
           ./targets/core
           (_: {
@@ -594,10 +602,11 @@
 
     nixosConfigurations = {
       # Bootstrap configuration - minimal setup for initial install
-      # Used by the installer for all fresh NixOS installations
+      # Uses core.nix for absolute minimum, no foundation
       "bootstrap" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
+          ./modules/common/core.nix
           ./targets/bootstrap
           ./modules/common/options.nix
           {
@@ -665,10 +674,20 @@
         ];
       };
 
+      # Foundation-based server configuration
+      # Minimal required fields: system architecture, SSH authorized keys
       "type-server" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          configuration
+          # Foundation requires these common modules
+          ./modules/common/options.nix
+          ./modules/common/onepassword.nix
+          ./modules/common/users.nix
+          ./modules/common/shell.nix
+          ./modules/common/cachix.nix
+
           # Disk layout
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
@@ -684,12 +703,10 @@
           # Machine type configuration
           ./machine-types/server.nix
 
-          # Your common options
-          ./modules/common/options.nix
+          # Foundation bundle - provides 1Password CLI, git, and universal tools
+          (mkBundleModule "linux" [])
 
-          ./modules/nixos/base.nix
-
-          # SSH access - monkey user only, keys from 1Password
+          # REQUIRED: Configure at least one user with SSH access
           {
             users.users.root.openssh.authorizedKeys.keys = []; # Root SSH disabled
             users.users.monkey = {
@@ -703,12 +720,71 @@
           }
         ];
       };
+
+      # ARM64 server variant using same foundation
+      "type-server-arm" = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = inputs;
+        modules = [
+          configuration
+          ./modules/common/options.nix
+          ./modules/common/onepassword.nix
+          ./modules/common/users.nix
+          ./modules/common/shell.nix
+          ./modules/common/cachix.nix
+
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+
+          {
+            hardware.facter.reportPath = "/etc/nixos/facter.json";
+            myConfig.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+          }
+
+          ./machine-types/server.nix
+          (mkBundleModule "linux" [])
+
+          # REQUIRED: Configure at least one user with SSH access
+          {
+            users.users.root.openssh.authorizedKeys.keys = [];
+            users.users.monkey = {
+              isNormalUser = true;
+              extraGroups = ["wheel"];
+              openssh.authorizedKeys.keys = [
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+              ];
+            };
+          }
+        ];
+      };
     };
 
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" ["llm-client"];
-      openclaw = mkMicrovm "openclaw" ["base"];
-      matrix = mkMicrovm "matrix" ["base"];
+      openclaw = mkMicrovm "openclaw" ["foundation"];
+      matrix = mkMicrovm "matrix" ["foundation"];
     };
+
+    # Flake checks for CI - only run on Linux where NixOS configs exist
+    checks = nixpkgs.lib.genAttrs ["x86_64-linux"] (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [(import ./overlays)];
+        };
+        tests = import ./tests {
+          inherit pkgs self;
+          inherit (nixpkgs) lib;
+        };
+      in {
+        inherit
+          (tests)
+          foundation-options
+          core-packages
+          foundation-packages
+          config-validation
+          ;
+      }
+    );
   };
 }

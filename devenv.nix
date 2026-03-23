@@ -76,13 +76,61 @@
       yamllint = {
         enable = true;
       };
+
+      # Quick syntax check for pre-commit (fast - < 2 seconds)
+      quick-nix-check = {
+        enable = true;
+        name = "quick-nix-syntax";
+        entry = ''
+          ${pkgs.bash}/bin/bash -c '
+            for file in "$@"; do
+              if ! ${pkgs.nix}/bin/nix-instantiate --parse "$file" > /dev/null 2>&1; then
+                echo "❌ Syntax error in: $file"
+                exit 1
+              fi
+            done
+            echo "✓ Nix syntax OK"
+          ' bash
+        '';
+        types = ["file"];
+        files = "\\.nix$";
+        stages = ["pre-commit"];
+      };
+
+      # Full flake evaluation check for pre-push (~20 seconds)
+      flake-check = {
+        enable = true;
+        name = "flake-check-no-build";
+        entry = ''
+          ${pkgs.bash}/bin/bash -c '
+            echo "→ Running nix flake check --no-build (this takes ~20s)..."
+            if ${pkgs.nix}/bin/nix flake check --no-build --all-systems 2>&1; then
+              echo "✓ Flake check passed"
+            else
+              echo ""
+              echo "❌ Flake check failed!"
+              echo ""
+              echo "Common fixes:"
+              echo "  - Run: nix flake check --no-build --all-systems to see full error"
+              echo "  - Check for invalid NixOS/home-manager options"
+              echo "  - Verify all module imports are correct"
+              exit 1
+            fi
+          '
+        '';
+        types = ["file"];
+        files = "\\.nix$";
+        pass_filenames = false;
+        stages = ["pre-push"];
+      };
+
       # Pre-push hook for documentation updates
       docs-update = {
         enable = true;
         name = "docs-update";
         entry = "${./scripts/docs-update.sh}";
         types = ["file"];
-        files = "(\.nix|\.md)$";
+        files = "(\\.nix|\\.md)$";
         pass_filenames = false;
         stages = ["pre-push"];
       };
@@ -850,6 +898,248 @@
         alejandra .
         echo "Formatting complete"
       '';
+    };
+
+    # ============================================
+    # FOUNDATION TEST TASKS
+    # ============================================
+
+    "test:core" = {
+      description = "Test core packages are available (Linux only)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
+          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
+          exit 0
+        fi
+        echo "Testing core packages..."
+        nix build .#checks.x86_64-linux.core-packages --no-link
+        echo "✓ Core packages test passed"
+      '';
+    };
+
+    "test:foundation" = {
+      description = "Test foundation packages and config (Linux only)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
+          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
+          exit 0
+        fi
+        echo "Testing foundation..."
+        nix build .#checks.x86_64-linux.foundation-packages --no-link
+        echo "✓ Foundation packages test passed"
+      '';
+    };
+
+    "test:options" = {
+      description = "Test foundation options are defined (Linux only)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
+          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
+          exit 0
+        fi
+        echo "Testing foundation options..."
+        nix build .#checks.x86_64-linux.foundation-options --no-link
+        echo "✓ Foundation options test passed"
+      '';
+    };
+
+    "test:config" = {
+      description = "Test configuration validation (Linux only)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
+          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
+          exit 0
+        fi
+        echo "Testing configuration validation..."
+        nix build .#checks.x86_64-linux.config-validation --no-link
+        echo "✓ Configuration validation test passed"
+      '';
+    };
+
+    "test:all" = {
+      description = "Run all tests (platform-agnostic eval tests)";
+      exec = ''
+        echo "=== Running All Tests ==="
+        devenv tasks run test:core
+        devenv tasks run test:foundation
+        devenv tasks run test:options
+        devenv tasks run test:config
+        echo ""
+        echo "=== Running Configuration Evaluation Tests ==="
+        echo "These tests validate configs can be evaluated without building"
+        devenv tasks run test:nixos-eval
+        devenv tasks run test:darwin-eval
+        echo ""
+        echo "=== All Tests Complete ==="
+      '';
+    };
+
+    "test:nixos-eval" = {
+      description = "Validate NixOS configs can be evaluated (catches module errors)";
+      exec = ''
+        echo "=== Testing NixOS Configuration Evaluation ==="
+        echo ""
+        echo "This test validates that all NixOS configurations can be evaluated"
+        echo "without errors. It catches issues like:"
+        echo "  - Missing home-manager references in modules"
+        echo "  - Invalid option definitions"
+        echo "  - Import errors"
+        echo ""
+
+        echo "Testing NixOS configurations..."
+        FAILED=0
+
+        # Get list of all NixOS configurations
+        CONFIGS=$(nix eval --json .#nixosConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+
+        if [ -z "$CONFIGS" ]; then
+          echo "⚠ No NixOS configurations found"
+          exit 0
+        fi
+
+        echo "Found configurations:"
+        echo "$CONFIGS" | sed 's/^/  - /'
+        echo ""
+
+        # Create a minimal facter.json for testing (required by some NixOS configs)
+        # This is the same approach used in CI builds
+        if [ ! -f /etc/nixos/facter.json ]; then
+          echo "Creating stub facter.json for testing..."
+          sudo mkdir -p /etc/nixos
+          sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
+        {
+          "version": 1,
+          "hardware": {
+            "cpu": {"vendor": "GenuineIntel", "brand": "Intel"},
+            "memory": {"size": 16384}
+          },
+          "networking": {
+            "defaultGateway": {"interface": "eth0"}
+          }
+        }
+        EOF
+          echo "✓ Created /etc/nixos/facter.json"
+          echo ""
+        fi
+
+        # Test each configuration can be evaluated (using nix eval to avoid building)
+        for CONFIG in $CONFIGS; do
+          echo -n "Testing $CONFIG... "
+
+          # Use nix eval to check if the config can be evaluated without building
+          # This works on any platform, not just Linux
+          if nix eval --impure --expr "
+            let
+              flake = builtins.getFlake (toString ./.);
+              config = flake.nixosConfigurations.\"$CONFIG\";
+            in
+              # Just check that we can access the config structure
+              config.config.system.build.toplevel != null
+          " 2>/dev/null | grep -q "true"; then
+            echo "✓"
+          else
+            echo "✗ FAILED"
+            echo ""
+            echo "Error output:"
+            nix eval --impure --expr "
+              let
+                flake = builtins.getFlake (toString ./.);
+                config = flake.nixosConfigurations.\"$CONFIG\";
+              in
+                config.config.system.build.toplevel
+            " 2>&1 | head -40
+            FAILED=$((FAILED + 1))
+          fi
+        done
+
+        echo ""
+        if [ $FAILED -eq 0 ]; then
+          echo "✓ All NixOS configurations evaluated successfully"
+          exit 0
+        else
+          echo "✗ $FAILED configuration(s) failed evaluation"
+          exit 1
+        fi
+      '';
+    };
+
+    "test:darwin-eval" = {
+      description = "Validate Darwin configs can be evaluated (catches module errors)";
+      exec = ''
+        echo "=== Testing Darwin Configuration Evaluation ==="
+        echo ""
+        echo "This test validates that all Darwin configurations can be evaluated"
+        echo "without errors. It catches issues like:"
+        echo "  - Missing home-manager references in modules"
+        echo "  - Invalid option definitions"
+        echo "  - Import errors"
+        echo ""
+
+        echo "Testing Darwin configurations..."
+        FAILED=0
+
+        # Get list of all Darwin configurations
+        CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+
+        if [ -z "$CONFIGS" ]; then
+          echo "⚠ No Darwin configurations found"
+          exit 0
+        fi
+
+        echo "Found configurations:"
+        echo "$CONFIGS" | sed 's/^/  - /'
+        echo ""
+
+        # Test each configuration can be evaluated (using nix eval to avoid building)
+        for CONFIG in $CONFIGS; do
+          echo -n "Testing $CONFIG... "
+
+          # Use nix eval to check if the config can be evaluated without building
+          if nix eval --impure --expr "
+            let
+              flake = builtins.getFlake (toString ./.);
+              config = flake.darwinConfigurations.\"$CONFIG\";
+            in
+              config.config.system.build.toplevel != null
+          " 2>/dev/null | grep -q "true"; then
+            echo "✓"
+          else
+            echo "✗ FAILED"
+            echo ""
+            echo "Error output:"
+            nix eval --impure --expr "
+              let
+                flake = builtins.getFlake (toString ./.);
+                config = flake.darwinConfigurations.\"$CONFIG\";
+              in
+                config.config.system.build.toplevel
+            " 2>&1 | head -40
+            FAILED=$((FAILED + 1))
+          fi
+        done
+
+        echo ""
+        if [ $FAILED -eq 0 ]; then
+          echo "✓ All Darwin configurations evaluated successfully"
+          exit 0
+        else
+          echo "✗ $FAILED configuration(s) failed evaluation"
+          exit 1
+        fi
+      '';
+    };
+
+    # ============================================
+    # CI WATCH TASK (Agent-Optimized)
+    # ============================================
+
+    "ci:watch" = {
+      description = "Poll CI until completion [usage: ci:watch <run-id>]";
+      exec = builtins.readFile ./scripts/ci-watch.sh;
     };
   };
 
