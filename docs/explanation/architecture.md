@@ -15,7 +15,7 @@ This repository manages system configurations for multiple machines using Nix Fl
         ┌─────────────┼─────────────┐
         ▼             ▼             ▼
 ┌───────────┐  ┌───────────┐  ┌───────────┐
-│  Modules  │  │  Bundles  │  │  Targets  │
+│  Modules  │  │   Roles   │  │  Targets  │
 │  (how)    │  │  (what)   │  │  (where)  │
 └───────────┘  └───────────┘  └───────────┘
 ```
@@ -44,22 +44,26 @@ modules/
     └── gaming.nix    # Gaming support
 ```
 
-### Bundles (What Gets Installed)
+### Roles (What Gets Installed)
 
-Bundles define *package collections* grouped by purpose. They're called "roles" in the configuration.
+Roles are standard NixOS modules that define *package collections* grouped by purpose. Each role lives in its own file under `modules/roles/` and is gated by a `myConfig.roles.<name>.enable` option.
 
-**Location:** `bundles.nix`
+**Location:** `modules/roles/`
 
-A role is a named collection:
+A role is a NixOS module that activates when its enable option is set:
 
 ```nix
-developer = {
-  packages = [emacs docker kubectl];
-  agentSkills = ["debugging" "tdd"];
+# modules/roles/developer.nix
+{ config, lib, pkgs, ... }:
+let cfg = config.myConfig.roles.developer;
+in {
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = with pkgs; [emacs docker kubectl];
+  };
 };
 ```
 
-Roles can be combined: a machine with `["developer" "creative"]` gets packages from both.
+Roles can be combined: a machine with `developer` and `creative` enabled gets packages from both.
 
 ### Targets (Machine-Specific Settings)
 
@@ -84,36 +88,19 @@ Targets contain only machine-specific settings like hostname, hardware config, a
 
 2. **Modules** implement those options - when `myConfig.gaming.enable = true`, the gaming module activates
 
-3. **Bundles** select which packages and skills to include based on roles
+3. **Roles** select which packages and skills to include based on enabled role options
 
 4. **Flake** composes everything for each target machine
 
 ```nix
-# In flake.nix
-"my-machine" = mkDarwinHost {
-  target = ./targets/my-machine;    # Machine-specific
-  roles = ["developer" "desktop"];  # Bundles to include
-  user = mkUser "name" "email";     # User configuration
-};
+# In flake.nix - roles are enabled via myConfig options
+myConfig.roles.developer.enable = true;
+myConfig.roles.desktop.enable = true;
 ```
 
 ## Helper Functions
 
 The flake defines helpers to reduce boilerplate:
-
-### mkDarwinHost / mkNixosHost
-
-Creates a complete machine configuration from minimal inputs:
-
-```nix
-mkDarwinHost {
-  target = ./targets/my-machine;
-  user = mkUser "username" "email@example.com";
-  roles = ["developer" "desktop"];
-  extraConfig = { gaming.enable = true; };
-  extraModules = [];
-}
-```
 
 ### mkUser
 
@@ -130,13 +117,9 @@ mkUser "username" "email@example.com"
 # }
 ```
 
-### mkBundleModule
+### mkMicrovm
 
-Transforms a list of roles into a complete module with packages and configuration:
-
-```nix
-mkBundleModule "darwin" ["developer" "desktop"]
-```
+Creates a microvm configuration for disposable NixOS virtual machines.
 
 ## Option System
 
@@ -210,7 +193,7 @@ config = mkIf (!config.myConfig.isDarwin) {
 };
 ```
 
-Bundles can also specify platform-specific packages via the `platforms` attribute.
+Roles can also specify platform-specific packages using conditional logic within the module.
 
 ## Agent Skills System
 
@@ -228,14 +211,14 @@ This ensures consistent skill availability across all your machines.
 ### Separation of Concerns
 
 - **Modules** can be modified without changing machine configs
-- **Bundles** can add packages without touching module logic
+- **Roles** can add packages without touching module logic
 - **Targets** isolate machine-specific details
 
 ### DRY Principle
 
 - Common configuration lives in modules, not repeated per-machine
 - Helpers reduce boilerplate in flake.nix
-- Roles bundle related packages once
+- Roles group related packages once
 
 ### Type Safety
 

@@ -214,21 +214,36 @@
         echo "Hostname: $HOSTNAME"
 
         if [[ "$PLATFORM" == "Darwin" ]]; then
-          # Map hostname to configuration name for Darwin
-          case "$HOSTNAME" in
-            "wweaver"|"Will-Stride-MBP")
-              CONFIG_NAME="wweaver"
-              ;;
-            "MegamanX")
-              CONFIG_NAME="MegamanX"
-              ;;
-            *)
-              echo ""
-              echo "ERROR: Unknown Darwin host: $HOSTNAME"
-              echo "Add a mapping for this host in devenv.nix system:switch task"
-              exit 1
-              ;;
-          esac
+          # Try hostname directly, then scan Darwin configs for a match
+          DARWIN_CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+          CONFIG_NAME=""
+          for cfg in $DARWIN_CONFIGS; do
+            if [[ "$cfg" == "$HOSTNAME" ]]; then
+              CONFIG_NAME="$cfg"
+              break
+            fi
+          done
+
+          # If no direct match, check if any config's primaryUser matches hostname prefix
+          if [[ -z "$CONFIG_NAME" ]]; then
+            # Fallback: check known hostname aliases
+            for cfg in $DARWIN_CONFIGS; do
+              # Try to evaluate primaryUser and match against hostname
+              PRIMARY_USER=$(nix eval --raw ".#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
+              if [[ -n "$PRIMARY_USER" && "$HOSTNAME" == *"$PRIMARY_USER"* ]]; then
+                CONFIG_NAME="$cfg"
+                break
+              fi
+            done
+          fi
+
+          if [[ -z "$CONFIG_NAME" ]]; then
+            echo ""
+            echo "ERROR: No Darwin configuration found for host: $HOSTNAME"
+            echo "Available configurations: $DARWIN_CONFIGS"
+            echo "Either rename a configuration to match this hostname or add a mapping"
+            exit 1
+          fi
           echo "Configuration: $CONFIG_NAME"
           echo ""
 
@@ -348,7 +363,12 @@
       exec = ''
         echo "Building Darwin configurations"
         echo "=================================="
-        for config in wweaver MegamanX; do
+        CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+        if [[ -z "$CONFIGS" ]]; then
+          echo "No Darwin configurations found"
+          exit 0
+        fi
+        for config in $CONFIGS; do
           echo "Building $config configuration..."
           if nix build .#darwinConfigurations.$config.system --dry-run >/dev/null 2>&1; then
             echo "$config build plan validated"
@@ -359,7 +379,7 @@
             nix build .#darwinConfigurations.$config.system --dry-run --show-trace
             echo ""
             echo "Common issues to check:"
-            echo "  - Missing or incompatible packages in bundles"
+            echo "  - Missing or incompatible packages in role modules"
             echo "  - Incorrect paths in configurations"
             echo "  - Platform-specific incompatibilities"
             exit 1
@@ -374,7 +394,20 @@
       exec = ''
         echo "Building NixOS configurations"
         echo "================================="
-          for config in zero; do
+        # Discover NixOS configs, excluding cattle/takeout types and installer
+        ALL_CONFIGS=$(nix eval --json .#nixosConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+        CONFIGS=""
+        for config in $ALL_CONFIGS; do
+          case "$config" in
+            type-*|installer-*|bootstrap) ;; # Skip cattle, installer, and bootstrap
+            *) CONFIGS="$CONFIGS $config" ;;
+          esac
+        done
+        if [[ -z "$CONFIGS" ]]; then
+          echo "No NixOS configurations found (excluding cattle/takeout types)"
+          exit 0
+        fi
+        for config in $CONFIGS; do
           echo "Building $config configuration..."
           if nix build .#nixosConfigurations.$config.config.system.build.toplevel \
               --dry-run --quiet >/dev/null 2>&1; then
@@ -387,7 +420,7 @@
               --dry-run --show-trace
             echo ""
             echo "Common issues to check:"
-            echo "  - Missing or incompatible packages in bundles"
+            echo "  - Missing or incompatible packages in role modules"
             echo "  - Incorrect hardware configuration paths"
             echo "  - Platform-specific module incompatibilities"
             exit 1
@@ -407,7 +440,19 @@
         echo "and disko for declarative partitioning."
         echo ""
 
-        for config in type-desktop type-server; do
+        # Discover type-* configs dynamically
+        ALL_CONFIGS=$(nix eval --json .#nixosConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+        CONFIGS=""
+        for config in $ALL_CONFIGS; do
+          case "$config" in
+            type-*) CONFIGS="$CONFIGS $config" ;;
+          esac
+        done
+        if [[ -z "$CONFIGS" ]]; then
+          echo "No takeout configurations found (expected type-* prefix)"
+          exit 0
+        fi
+        for config in $CONFIGS; do
           echo "Building $config configuration..."
           if nix build .#nixosConfigurations.$config.config.system.build.toplevel \
               --dry-run --quiet >/dev/null 2>&1; then
@@ -693,20 +738,30 @@
         HOSTNAME=$(hostname -s)
         if [[ "$(uname)" == "Darwin" ]]; then
           PLATFORM="darwin"
-          # Map hostname to configuration name
-          case "$HOSTNAME" in
-            "wweaver"|"Will-Stride-MBP")
-              CONFIG_NAME="wweaver"
-              ;;
-            "MegamanX")
-              CONFIG_NAME="MegamanX"
-              ;;
-            *)
-              echo "Unknown Darwin host: $HOSTNAME"
-              echo "Add mapping for this host in devenv.nix"
-              exit 1
-              ;;
-          esac
+          # Discover config name dynamically
+          DARWIN_CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+          CONFIG_NAME=""
+          for cfg in $DARWIN_CONFIGS; do
+            if [[ "$cfg" == "$HOSTNAME" ]]; then
+              CONFIG_NAME="$cfg"
+              break
+            fi
+          done
+          if [[ -z "$CONFIG_NAME" ]]; then
+            # Fallback: check primaryUser match
+            for cfg in $DARWIN_CONFIGS; do
+              PRIMARY_USER=$(nix eval --raw ".#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
+              if [[ -n "$PRIMARY_USER" && "$HOSTNAME" == *"$PRIMARY_USER"* ]]; then
+                CONFIG_NAME="$cfg"
+                break
+              fi
+            done
+          fi
+          if [[ -z "$CONFIG_NAME" ]]; then
+            echo "No Darwin configuration found for host: $HOSTNAME"
+            echo "Available: $DARWIN_CONFIGS"
+            exit 1
+          fi
           BUILD_TARGET=".#darwinConfigurations.''${CONFIG_NAME}.system"
         else
           PLATFORM="linux"
@@ -752,7 +807,8 @@
 
         if [[ "$(uname)" == "Darwin" ]]; then
           echo "Building all Darwin configurations..."
-          for config in wweaver MegamanX; do
+          CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+          for config in $CONFIGS; do
             echo "Building $config..."
             nix build ".#darwinConfigurations.''${config}.system" \
               --no-link --print-out-paths | cachix push funkymonkeymonk
@@ -760,15 +816,11 @@
           done
         else
           echo "Building all NixOS configurations..."
-        for config in zero; do
-            echo "Building $config..."
-            nix build ".#nixosConfigurations.''${config}.config.system.build.toplevel" \
-              --no-link --print-out-paths | cachix push funkymonkeymonk
-            echo "$config pushed"
-          done
-          echo ""
-          echo "Building all Cattle configurations..."
-        for config in type-desktop type-server; do
+          ALL_CONFIGS=$(nix eval --json .#nixosConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+          for config in $ALL_CONFIGS; do
+            case "$config" in
+              installer-*|bootstrap) echo "Skipping $config"; continue ;;
+            esac
             echo "Building $config..."
             nix build ".#nixosConfigurations.''${config}.config.system.build.toplevel" \
               --no-link --print-out-paths | cachix push funkymonkeymonk
