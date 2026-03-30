@@ -137,7 +137,10 @@ jobs:
           DARWIN_CONFIGS=$(nix eval .#darwinConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
           DARWIN_COUNT=$(echo $DARWIN_CONFIGS | jq 'length')
-          echo "darwin-configs=$DARWIN_CONFIGS" >> $GITHUB_OUTPUT
+          # Use multi-line syntax for JSON output
+          echo "darwin-configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$DARWIN_CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "darwin-count=$DARWIN_COUNT" >> $GITHUB_OUTPUT
           echo "Darwin configurations ($DARWIN_COUNT): $DARWIN_CONFIGS"
 
@@ -145,7 +148,10 @@ jobs:
           NIXOS_CONFIGS=$(nix eval .#nixosConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
           NIXOS_COUNT=$(echo $NIXOS_CONFIGS | jq 'length')
-          echo "nixos-configs=$NIXOS_CONFIGS" >> $GITHUB_OUTPUT
+          # Use multi-line syntax for JSON output
+          echo "nixos-configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$NIXOS_CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "nixos-count=$NIXOS_COUNT" >> $GITHUB_OUTPUT
           echo "NixOS configurations ($NIXOS_COUNT): $NIXOS_CONFIGS"
 
