@@ -32,15 +32,27 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Discover Darwin configurations
+        id: discover
+        run: |
+          echo "Discovering Darwin configurations..."
+          CONFIGS=$(nix eval .#darwinConfigurations \
+            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
+          echo "Found Darwin configurations: $CONFIGS"
       - name: Build Darwin configurations (push to Cachix)
         run: |
           echo "Building Darwin configurations and pushing to Cachix..."
-          echo "Building wweaver configuration..."
-          nix build .#darwinConfigurations.wweaver.system --no-link
-          echo "wweaver build complete"
-          echo "Building MegamanX configuration..."
-          nix build .#darwinConfigurations.MegamanX.system --no-link
-          echo "MegamanX build complete"
+          CONFIGS='${{ steps.discover.outputs.configs }}'
+          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
+            echo ""
+            echo "========================================"
+            echo "Building $config configuration..."
+            echo "========================================"
+            nix build ".#darwinConfigurations.$config.system" --no-link
+            echo "$config build complete"
+          done
+          echo ""
           echo "All Darwin configurations built and pushed to Cachix"
   build-linux:
     name: Build Linux Configurations
@@ -64,18 +76,57 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Create stub facter.json
+        run: |
+          # Create stub facter.json for CI builds
+          sudo mkdir -p /etc/nixos
+          sudo tee /etc/nixos/facter.json > /dev/null << 'FACTER_EOF'
+          {
+            "version": 1,
+            "hardware": {
+              "system": { "uuid": "00000000-0000-0000-0000-000000000000" },
+              "cpu": [
+                {
+                  "architecture": "x86_64",
+                  "vendor_name": "GenuineIntel",
+                  "features": ["vmx"]
+                }
+              ],
+              "memory": { "total_bytes": 8589934592 },
+              "disks": [{ "path": "/dev/sda", "size_bytes": 53687091200 }],
+              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }],
+              "pci": [],
+              "scsi": []
+            },
+            "boot": { "efi_available": true },
+            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }],
+            "virtualisation": "none"
+          }
+          FACTER_EOF
+      - name: Discover NixOS configurations
+        id: discover
+        run: |
+          echo "Discovering NixOS configurations..."
+          # Get all configs except installer and bootstrap (not for Cachix)
+          ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
+            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          # Filter out installer and bootstrap configs
+          CONFIGS=$(echo "$ALL_CONFIGS" | jq '[.[] | select(. | test("^(installer-|bootstrap)$") | not)]')
+          echo "configs=$CONFIGS" >> $GITHUB_OUTPUT
+          echo "Found NixOS configurations (excluding installer/bootstrap): $CONFIGS"
       - name: Build Linux configurations (push to Cachix)
         run: |
           echo "Building NixOS configurations and pushing to Cachix..."
-          echo "Building zero configuration..."
-          nix build .#nixosConfigurations.zero.config.system.build.toplevel --no-link
-          echo "zero build complete"
+          CONFIGS='${{ steps.discover.outputs.configs }}'
+          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
+            echo ""
+            echo "========================================"
+            echo "Building $config configuration..."
+            echo "========================================"
+            # Use --impure to allow reading /etc/nixos/facter.json
+            nix build ".#nixosConfigurations.$config.config.system.build.toplevel" \
+              --no-link --impure
+            echo "$config build complete"
+          done
           echo ""
-          echo "Building Cattle configurations..."
-          echo "Building type-desktop configuration..."
-          nix build .#nixosConfigurations.type-desktop.config.system.build.toplevel --no-link
-          echo "type-desktop build complete"
-          echo "Building type-server configuration..."
-          nix build .#nixosConfigurations.type-server.config.system.build.toplevel --no-link
-          echo "type-server build complete"
           echo "All NixOS configurations built and pushed to Cachix"
