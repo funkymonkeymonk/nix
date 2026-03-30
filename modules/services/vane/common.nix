@@ -53,7 +53,7 @@ with lib; let
     ${optionalString (cfg.openaiBaseUrl != null) ''OPENAI = "${cfg.openaiBaseUrl}"''}
   '';
 
-  # Docker compose configuration for Vane + SearxNG
+  # Docker compose configuration for Vane + SearxNG + optional Ollama
   dockerComposeYaml = pkgs.writeText "vane-docker-compose.yaml" (builtins.toJSON {
     services =
       {
@@ -68,7 +68,9 @@ with lib; let
           ];
           restart = "unless-stopped";
           networks = ["vane-network"];
-          depends_on = optional cfg.embeddedSearxng "searxng";
+          depends_on =
+            optional cfg.embeddedSearxng "searxng"
+            ++ optional cfg.embeddedOllama "ollama";
         };
       }
       // optionalAttrs cfg.embeddedSearxng {
@@ -85,6 +87,27 @@ with lib; let
             SEARXNG_SETTINGS_PATH = "/etc/searxng/settings.yml";
           };
         };
+      }
+      // optionalAttrs cfg.embeddedOllama {
+        ollama = {
+          image = "ollama/ollama:latest";
+          container_name = "vane-ollama";
+          ports = ["${toString cfg.ollamaContainerPort}:11434"];
+          volumes = [
+            "ollama-data:/root/.ollama"
+          ];
+          restart = "unless-stopped";
+          networks = ["vane-network"];
+          # Health check using ollama's built-in list command instead of curl
+          # This avoids the issue where curl is not available in the ollama image
+          healthcheck = {
+            test = ["CMD" "ollama" "list"];
+            interval = "30s";
+            timeout = "10s";
+            retries = 3;
+            start_period = "60s";
+          };
+        };
       };
     networks = {
       vane-network = {
@@ -99,6 +122,11 @@ with lib; let
       }
       // optionalAttrs cfg.embeddedSearxng {
         searxng-data = {
+          driver = "local";
+        };
+      }
+      // optionalAttrs cfg.embeddedOllama {
+        ollama-data = {
           driver = "local";
         };
       };

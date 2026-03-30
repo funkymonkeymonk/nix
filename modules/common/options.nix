@@ -444,6 +444,18 @@ with lib; {
         description = "Port for embedded SearxNG (only used if embeddedSearxng is true)";
       };
 
+      embeddedOllama = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Run embedded Ollama instance in Docker. Enable for self-contained setup without external Ollama";
+      };
+
+      ollamaContainerPort = mkOption {
+        type = types.port;
+        default = 11434;
+        description = "Host port for embedded Ollama container (only used if embeddedOllama is true)";
+      };
+
       openaiApiKey = mkOption {
         type = types.nullOr types.str;
         default = null;
