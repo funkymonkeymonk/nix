@@ -1,122 +1,217 @@
-# Package availability tests
-{pkgs}: let
-  # Get core packages list from bundles
-  bundles = import ../bundles.nix {inherit pkgs;};
-  foundationPackages = bundles.roles.foundation.packages or [];
-in {
-  # Test that core packages are available
+# Package availability and configuration tests
+# Tests verify packages are instantiable and modules evaluate correctly.
+{pkgs, ...}: {
+  # Test that core packages are actually instantiable
+  # If any package fails to evaluate, this derivation fails
   corePackagesTest =
     pkgs.runCommand "test-core-packages"
     {
-      nativeBuildInputs = [];
+      nativeBuildInputs = with pkgs; [git curl wget coreutils vim];
     }
     ''
       echo "=== Testing Core Packages ==="
 
-      # Core packages to check (these should exist in pkgs)
-      # We verify they exist by checking the nixpkgs set passed to this test
-      echo "Checking git... ✓"
-      echo "Checking curl... ✓"
-      echo "Checking wget... ✓"
-      echo "Checking vim... ✓"
-      echo "Checking coreutils... ✓"
+      # Verify each core package is on PATH (proving it was instantiated)
+      for cmd in git curl wget vim; do
+        if command -v "$cmd" > /dev/null 2>&1; then
+          echo "  $cmd: found at $(command -v $cmd)"
+        else
+          echo "  $cmd: NOT FOUND"
+          exit 1
+        fi
+      done
 
+      echo "All core packages verified"
       touch $out
-      echo "=== Core Packages Test Complete ==="
     '';
 
-  # Test foundation packages
+  # Test that foundation packages are instantiable
+  # Including them in nativeBuildInputs forces Nix to evaluate each one
   foundationPackagesTest =
     pkgs.runCommand "test-foundation-packages"
     {
-      nativeBuildInputs = [];
+      nativeBuildInputs = with pkgs; [
+        helix
+        htop
+        zellij
+        jq
+        _1password-cli
+        gh
+        jujutsu
+        delta
+        tree
+        zoxide
+        fzf
+        ripgrep
+        fd
+        devenv
+        direnv
+        rclone
+        bat
+        watchman
+        jnv
+        docker
+        colima
+        zinit
+        zsh
+        glow
+        antigen
+      ];
     }
     ''
       echo "=== Testing Foundation Packages ==="
 
-      # Test that foundation packages are defined by importing bundles
-      FOUNDATION_PKGS_COUNT=${toString (builtins.length foundationPackages)}
+      # Spot-check key foundation tools are on PATH
+      for cmd in hx jq gh jj delta rg fd fzf zoxide bat devenv direnv zellij; do
+        if command -v "$cmd" > /dev/null 2>&1; then
+          echo "  $cmd: found"
+        else
+          echo "  $cmd: NOT FOUND"
+          exit 1
+        fi
+      done
 
-      if [ "$FOUNDATION_PKGS_COUNT" = "0" ] || [ -z "$FOUNDATION_PKGS_COUNT" ]; then
-        echo "✗ Could not retrieve foundation packages"
-        exit 1
-      fi
-
-      echo "Found $FOUNDATION_PKGS_COUNT foundation packages"
-      echo "✓ Foundation packages defined"
-
+      echo "All foundation packages verified"
       touch $out
-      echo "=== Foundation Packages Test Complete ==="
     '';
 
-  # Test configuration validation
-  configValidationTest =
+  # Test configuration structure by evaluating modules
+  configValidationTest = let
+    # Evaluate modules to verify they compose without errors
+    testEval = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        ../modules/roles/default.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {system = "x86_64-linux";};
+          };
+          # Stub options that role modules may set
+          options.environment = {
+            systemPackages = pkgs.lib.mkOption {
+              type = pkgs.lib.types.listOf pkgs.lib.types.package;
+              default = [];
+            };
+            variables = pkgs.lib.mkOption {
+              type = pkgs.lib.types.attrsOf pkgs.lib.types.str;
+              default = {};
+            };
+            sessionVariables = pkgs.lib.mkOption {
+              type = pkgs.lib.types.attrsOf pkgs.lib.types.str;
+              default = {};
+            };
+            shellAliases = pkgs.lib.mkOption {
+              type = pkgs.lib.types.attrsOf pkgs.lib.types.str;
+              default = {};
+            };
+          };
+          options.programs = pkgs.lib.mkOption {
+            type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
+            default = {};
+          };
+          options.homebrew = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+      ];
+    };
+    inherit (testEval.config.myConfig) roles;
+    roleNames = builtins.attrNames roles;
+  in
     pkgs.runCommand "test-config-validation"
-    {
-      nativeBuildInputs = [];
-    }
+    {}
     ''
       echo "=== Testing Configuration Validation ==="
 
-      # Test that options are defined (checked at build time via nix eval)
-      echo "✓ Configuration structure valid"
+      # Verify all expected roles exist (evaluated at Nix level)
+      ${pkgs.lib.concatMapStringsSep "\n" (name: ''echo "  Role '${name}': defined"'') roleNames}
 
+      # Verify expected roles are present
+      EXPECTED_ROLES="foundation developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host"
+      ACTUAL_ROLES="${builtins.concatStringsSep " " roleNames}"
+
+      for role in $EXPECTED_ROLES; do
+        if echo "$ACTUAL_ROLES" | grep -qw "$role"; then
+          echo "  Required role '$role': present"
+        else
+          echo "  Required role '$role': MISSING"
+          exit 1
+        fi
+      done
+
+      # Verify foundation defaults to enabled
+      echo "  foundation.enable default: ${builtins.toJSON roles.foundation.enable}"
+      ${
+        if roles.foundation.enable
+        then ''echo "  foundation defaults to enabled: OK"''
+        else ''echo "  foundation should default to enabled!"; exit 1''
+      }
+
+      echo "Configuration structure valid"
       touch $out
-      echo "=== Configuration Validation Complete ==="
     '';
 
-  # Test foundation options
-  foundationOptionsTest =
+  # Test foundation options by evaluating their types and defaults
+  foundationOptionsTest = let
+    testEval = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {system = "x86_64-linux";};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+        {
+          config.myConfig = {
+            users = [
+              {
+                name = "testuser";
+                email = "test@example.com";
+                fullName = "Test User";
+                isAdmin = true;
+                sshIncludes = [];
+              }
+            ];
+            development.enable = true;
+            agent-skills.enable = false;
+            onepassword.enable = false;
+            opencode.enable = false;
+          };
+        }
+      ];
+    };
+    evaluatedConfig = testEval.config.myConfig;
+  in
     pkgs.runCommand "test-foundation-options"
-    {
-      nativeBuildInputs = [];
-    }
+    {}
     ''
       echo "=== Testing Foundation Options ==="
 
-      # Check foundation role exists
-      if [ "${toString (builtins.length foundationPackages)}" != "0" ]; then
-        echo "✓ Foundation role exists"
-      else
-        echo "✗ Foundation role not found"
-        exit 1
-      fi
+      # These strings are computed at Nix eval time from the actual module system.
+      # If any option type is wrong, this derivation will fail to instantiate.
+      echo "  users count: ${toString (builtins.length evaluatedConfig.users)}"
+      echo "  first user name: ${(builtins.head evaluatedConfig.users).name}"
+      echo "  development.enable: ${builtins.toJSON evaluatedConfig.development.enable}"
+      echo "  isDarwin: ${builtins.toJSON evaluatedConfig.isDarwin}"
+      echo "  ollama.enable: ${builtins.toJSON evaluatedConfig.ollama.enable}"
+      echo "  ollama.port: ${toString evaluatedConfig.ollama.port}"
+      echo "  opencode.enable: ${builtins.toJSON evaluatedConfig.opencode.enable}"
+      echo "  zellij.enable: ${builtins.toJSON evaluatedConfig.zellij.enable}"
 
-      # Check foundation has packages
-      echo "✓ Foundation has packages defined"
+      # Verify role options exist
+      echo "  roles.foundation.enable: ${builtins.toJSON evaluatedConfig.roles.foundation.enable}"
+      echo "  roles.developer.enable: ${builtins.toJSON evaluatedConfig.roles.developer.enable}"
 
+      echo "All foundation options verified"
       touch $out
-      echo "=== Foundation Options Test Complete ==="
-    '';
-
-  # Test NixOS configurations can be evaluated (catches module import issues)
-  nixosConfigsTest =
-    pkgs.runCommand "test-nixos-configs"
-    {
-      nativeBuildInputs = [pkgs.nix pkgs.git];
-    }
-    ''
-      echo "=== Testing NixOS Configurations ==="
-
-      # Create a minimal facter.json for testing
-      mkdir -p /tmp/nixos-test
-      echo '{"version": 1, "hardware": {}, "networking": {}}' > /tmp/nixos-test/facter.json
-
-      # Test that we can at least evaluate the flake structure
-      # Note: Full build requires Linux, but evaluation catches import errors
-      cd ${../.}
-
-      # List all NixOS configurations
-      NIXOS_CONFIGS=$(nix eval --json .#nixosConfigurations --apply 'builtins.attrNames' 2>/dev/null || echo "[]")
-      echo "Found NixOS configs: $NIXOS_CONFIGS"
-
-      if [ "$NIXOS_CONFIGS" = "[]" ] || [ -z "$NIXOS_CONFIGS" ]; then
-        echo "ℹ No NixOS configurations to test"
-      else
-        echo "✓ NixOS configurations are evaluable"
-      fi
-
-      touch $out
-      echo "=== NixOS Configs Test Complete ==="
     '';
 }

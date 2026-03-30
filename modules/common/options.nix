@@ -1,14 +1,16 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 with lib; {
   options.myConfig = {
     # Computed helper for platform detection (read-only)
+    # Uses _module.args.pkgs which is always available during module evaluation
     isDarwin = mkOption {
       type = types.bool;
-      default = builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"];
+      default = builtins.elem pkgs.system ["aarch64-darwin" "x86_64-darwin"];
       readOnly = true;
       description = "Whether the current system is Darwin (macOS)";
     };
@@ -43,6 +45,87 @@ with lib; {
       });
       default = [];
       description = "List of users to configure on the system";
+    };
+
+    # Role toggles — each corresponds to a module in modules/roles/
+    roles = {
+      foundation = {
+        enable = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Foundation role — always-on base tools (1Password CLI, git, helix, zsh, etc.)";
+        };
+      };
+      developer = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Development tools (clang, python, node, k8s, gh-dash)";
+        };
+      };
+      creative = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Media tools (ffmpeg, imagemagick, pandoc)";
+        };
+      };
+      gaming = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Gaming tools (moonlight-qt)";
+        };
+      };
+      desktop = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Desktop applications (logseq, super-productivity, element)";
+        };
+      };
+      workstation = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Work tools (slack, trippy, unar)";
+        };
+      };
+      entertainment = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Entertainment apps — macOS homebrew casks (steam, obs, discord)";
+        };
+      };
+      agent-skills = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "AI agent skills management (auto-enabled by llm-client/llm-claude)";
+        };
+      };
+      llm-client = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "LLM client tools (opencode, rtk)";
+        };
+      };
+      llm-claude = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Claude Code";
+        };
+      };
+      llm-host = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Local LLM hosting (ollama)";
+        };
+      };
     };
 
     development = {
@@ -516,6 +599,14 @@ with lib; {
           default = 60;
           description = "Disk space in GB for Vane's dedicated Colima VM";
         };
+      };
+    };
+
+    cachix = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable Cachix binary cache";
       };
     };
 

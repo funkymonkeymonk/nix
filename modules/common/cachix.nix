@@ -12,14 +12,6 @@
 }: let
   cfg = config.myConfig;
 in {
-  options.myConfig.cachix = {
-    enable = lib.mkOption {
-      type = lib.types.bool;
-      default = true;
-      description = "Enable Cachix binary cache";
-    };
-  };
-
   config = lib.mkIf cfg.cachix.enable {
     nix.settings = {
       substituters = [

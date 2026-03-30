@@ -94,7 +94,6 @@
         }
       ];
       development.enable = true;
-      agent-skills.enable = true;
       onepassword.enable = true;
       jj-autosync = {
         enable = true;
@@ -110,130 +109,6 @@
       llmClient.rtk.enable = true;
     };
 
-    # Simplified bundle module - all roles are now flat
-    # Foundation is always included as the base for all systems
-    mkBundleModule = system: enabledRoles: {pkgs, ...}: let
-      bundles = import ./bundles.nix {inherit pkgs;};
-
-      # Foundation is always included - provides universal tools like 1Password CLI
-      allRoles = ["foundation"] ++ enabledRoles;
-
-      # Auto-enable agent-skills if any role requests it
-      hasAgentSkills =
-        builtins.any (
-          role: (bundles.roles.${role} or {}).enableAgentSkills or false
-        )
-        allRoles;
-      finalRoles =
-        if hasAgentSkills
-        then nixpkgs.lib.unique (allRoles ++ ["agent-skills"])
-        else allRoles;
-
-      # Default LLM endpoint to local Ollama
-      # Additional endpoints can be configured via myConfig.llmEndpoints
-      defaultLlmHost = "127.0.0.1";
-      defaultLlmPort = "11434";
-
-      # Collect all packages from enabled roles
-      rolePackages = nixpkgs.lib.concatMap (role: bundles.roles.${role}.packages or []) finalRoles;
-
-      # Collect all homebrew configs from enabled roles
-      roleHomebrewConfigs = map (role: bundles.roles.${role}.config.homebrew or {}) finalRoles;
-
-      # Collect all myConfig settings from enabled roles
-      roleMyConfigs = map (role: bundles.roles.${role}.config.myConfig or {}) finalRoles;
-    in {
-      config =
-        {
-          # Pass enabled roles and superpowers path to skills configuration
-          # Merge with myConfig from all enabled roles
-          myConfig = nixpkgs.lib.mkMerge (
-            roleMyConfigs
-            ++ [
-              {
-                skills.enabledRoles = finalRoles;
-                skills.superpowersPath = inputs.superpowers;
-              }
-              # Configure LLM endpoints when llm-client or llm-claude roles are enabled
-              (
-                nixpkgs.lib.optionalAttrs
-                (builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles)
-                {
-                  llmClient = {
-                    serverHost = defaultLlmHost;
-                    serverPort = defaultLlmPort;
-                  };
-                }
-              )
-            ]
-          );
-
-          environment = {
-            systemPackages =
-              rolePackages ++ bundles.platforms.${system}.packages;
-
-            shellAliases =
-              bundles.roles.foundation.config.environment.shellAliases or {}
-              // (
-                if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
-                then {
-                  llm-status = "curl http://${defaultLlmHost}:${defaultLlmPort}/status";
-                }
-                else {}
-              );
-
-            variables =
-              bundles.roles.foundation.config.environment.variables or {}
-              // bundles.platforms.${system}.config.environment.variables or {}
-              // (
-                if builtins.elem "llm-client" enabledRoles || builtins.elem "llm-claude" enabledRoles
-                then {
-                  LLM_SERVER_HOST = defaultLlmHost;
-                  LLM_SERVER_PORT = defaultLlmPort;
-                  OPENCODE_ENDPOINT = "http://${defaultLlmHost}:${defaultLlmPort}";
-                  CLAUDE_API_BASE = "http://${defaultLlmHost}:${defaultLlmPort}";
-                }
-                else {}
-              );
-          };
-
-          programs =
-            bundles.roles.foundation.config.programs or {} // bundles.platforms.${system}.config.programs or {};
-        }
-        // nixpkgs.lib.optionalAttrs (system == "darwin") {
-          homebrew = nixpkgs.lib.mkMerge (
-            [
-              (bundles.platforms.darwin.config.homebrew or {})
-            ]
-            ++ roleHomebrewConfigs
-          );
-        };
-    };
-
-    # Common module imports
-    # Order matters: core → options → others
-    commonModules = [
-      ./modules/common/core.nix # Absolute minimum (git, curl, vim)
-      ./modules/common/options.nix
-      ./modules/common/users.nix
-      ./modules/common/shell.nix
-      ./modules/common/onepassword.nix
-      ./modules/common/cachix.nix
-    ];
-
-    # Darwin-specific modules
-    darwinModules = [
-      ./modules/services/ollama/darwin.nix
-      ./modules/services/vane/darwin.nix
-    ];
-
-    # NixOS-specific modules
-    nixosModules = [
-      ./modules/nixos/base.nix
-      ./modules/services/ollama/nixos.nix
-      ./modules/services/openclaw
-    ];
-
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs [
       "aarch64-darwin"
@@ -241,27 +116,28 @@
     ];
 
     # Helper to create microvm configuration
-    mkMicrovm = name: roles:
+    mkMicrovm = name: roleEnables:
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = inputs;
-        modules =
-          [
-            microvm.nixosModules.microvm
-            home-manager.nixosModules.home-manager
-            opnix.nixosModules.default
-            configuration
-          ]
-          ++ commonModules
-          ++ nixosModules
-          ++ [
-            ./os/microvm.nix
-            ./modules/microvm
-            ./targets/microvms/${name}.nix
-            (mkBundleModule "linux" roles)
-            {
-              nixpkgs.hostPlatform = "x86_64-linux";
-              myConfig = {
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nixosModules.home-manager
+          opnix.nixosModules.default
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/${name}.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            myConfig =
+              {
+                skills.superpowersPath = inputs.superpowers;
                 users = [
                   {
                     name = "dev";
@@ -272,88 +148,11 @@
                   }
                 ];
                 development.enable = true;
-                agent-skills.enable = false;
                 onepassword.enable = false;
-              };
-            }
-          ];
-      };
-
-    # Helper to create Darwin host configuration
-    mkDarwinHost = {
-      target,
-      user,
-      roles,
-      extraModules ? [],
-      extraConfig ? {},
-    }:
-      nix-darwin.lib.darwinSystem {
-        modules =
-          [
-            configuration
-            nix-homebrew.darwinModules.nix-homebrew
-          ]
-          ++ commonModules
-          ++ darwinModules
-          ++ [
-            ./modules/home-manager
-            ./os/darwin.nix
-            ./modules/home-manager/aerospace.nix
-            target
-            (mkBundleModule "darwin" roles)
-            {
-              nixpkgs.hostPlatform = "aarch64-darwin";
-              system.stateVersion = 4;
-              system.primaryUser = (builtins.head user.users).name;
-              # Use sharedModels for Ollama models, overridden by extraConfig
-              # if llm-host/llm-claude roles define ollama in bundles.nix
-              myConfig = user // extraConfig;
-            }
-            home-manager.darwinModules.home-manager
-            {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
-            }
-          ]
-          ++ extraModules;
-      };
-
-    # Helper to create NixOS host configuration
-    mkNixosHost = {
-      target,
-      user,
-      roles,
-      extraModules ? [],
-      extraConfig ? {},
-    }:
-      nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = {inherit inputs;};
-        modules =
-          [
-            configuration
-          ]
-          ++ commonModules
-          ++ nixosModules
-          ++ [
-            ./modules/home-manager
-            ./modules/nixos/base.nix
-            ./modules/nixos/desktop.nix
-            ./modules/nixos/gaming.nix
-            ./modules/nixos/streaming.nix
-            ./os/nixos.nix
-            target
-            (mkBundleModule "linux" roles)
-            {
-              nixpkgs.hostPlatform = "x86_64-linux";
-              system.stateVersion = "25.05";
-              myConfig = user // extraConfig;
-            }
-            home-manager.nixosModules.home-manager
-            {
-              home-manager.sharedModules = [opnix.homeManagerModules.default];
-            }
-          ]
-          ++ extraModules;
+              }
+              // roleEnables;
+          }
+        ];
       };
   in {
     packages = forAllSystems (
@@ -405,175 +204,211 @@
     };
 
     darwinConfigurations = {
-      "wweaver" = mkDarwinHost {
-        target = ./targets/wweaver;
-        user = mkUser "wweaver" "wweaver@justworks.com";
-        roles = [
-          "developer"
-          "desktop"
-          "workstation"
-          "llm-host"
-          "llm-client"
-          "llm-claude"
-        ];
-        extraConfig = {
-          vane = {
-            enable = true;
-            autoStart = true;
-            # Local Ollama for fast local models
-            ollamaUrl = "http://host.docker.internal:11434";
-            # LiteLLM for external/cloud models - configure via web UI
-            openaiBaseUrl = "https://litellm.justworksai.net";
-            # Embedded SearxNG for web search
-            embeddedSearxng = true;
-            # Chat model (balanced speed/quality)
-            defaultModel = "qwen3.5";
-            # Embedding model for vector search
-            embeddingModel = "nomic-embed-text";
-            # Good resources for M4 Pro (14 cores, 48GB RAM)
-            colima = {
-              cpu = 6;
-              memory = 12;
-              disk = 60;
-            };
-          };
-          opencode = {
-            enable = true;
-            model = "just-llms/claude-sonnet-4-6";
-            disabledProviders = ["opencode"];
-            extraMcpServers = {
-              github = {
-                type = "remote";
-                url = "https://api.githubcopilot.com/mcp/";
-                enabled = false;
-              };
-              jira = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-              confluence = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-            };
-            commands = {
-              diataxis = {
-                description = "Audit and rewrite documentation using the Diataxis framework";
-                template = ''
-                  Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
-
-                  Follow the Diataxis framework to organize content into:
-                  - Tutorials (learning-oriented)
-                  - How-to guides (goal-oriented)
-                  - Reference (information-oriented)
-                  - Explanation (understanding-oriented)
-
-                  $ARGUMENTS
-                '';
-              };
-              workspace = {
-                description = "Create a jj workspace for isolated work with fast sync enabled";
-                template = ''
-                  Create a jj workspace session for isolated development work.
-
-                  Run this command:
-                  ```bash
-                  jj-workspace-session start $ARGUMENTS
-                  ```
-
-                  Then report the workspace name and path to the user, and cd into the workspace directory.
-
-                  If no arguments provided, this starts session tracking in the current workspace.
-                  If a name is provided (e.g., "feat/auth" or "fix/bug"), it creates a new workspace.
-                  A second argument can specify the base branch (defaults to main).
-
-                  Examples:
-                  - /workspace feat/user-auth      -> Creates feat/user-auth-<date>-<id> from main
-                  - /workspace fix/bug develop     -> Creates fix/bug-<date>-<id> from develop
-                  - /workspace                     -> Starts session in current workspace
-                '';
-              };
-            };
-            providers = {
-              just-llms = {
-                npm = "@ai-sdk/openai-compatible";
-                name = "Just LLMs";
-                baseURL = "https://litellm.justworksai.net";
-                onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
-                dynamicModels = true; # Also fetch additional models from LiteLLM at runtime
-                models = {
-                  # Fallback model if dynamic fetch fails
-                  "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
-                    name = "Claude Opus 4.5 (Bedrock)";
+      "wweaver" = nix-darwin.lib.darwinSystem {
+        modules = [
+          configuration
+          nix-homebrew.darwinModules.nix-homebrew
+          ./modules
+          ./modules/services/ollama/darwin.nix
+          ./modules/services/vane/darwin.nix
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          ./targets/wweaver
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            system.primaryUser = "wweaver";
+            myConfig =
+              mkUser "wweaver" "wweaver@justworks.com"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  workstation.enable = true;
+                  llm-host.enable = true;
+                  llm-client.enable = true;
+                  llm-claude.enable = true;
+                };
+                vane = {
+                  enable = true;
+                  autoStart = true;
+                  # Local Ollama for fast local models
+                  ollamaUrl = "http://host.docker.internal:11434";
+                  # LiteLLM for external/cloud models - configure via web UI
+                  openaiBaseUrl = "https://litellm.justworksai.net";
+                  # Embedded SearxNG for web search
+                  embeddedSearxng = true;
+                  # Chat model (balanced speed/quality)
+                  defaultModel = "qwen3.5";
+                  # Embedding model for vector search
+                  embeddingModel = "nomic-embed-text";
+                  # Good resources for M4 Pro (14 cores, 48GB RAM)
+                  colima = {
+                    cpu = 6;
+                    memory = 12;
+                    disk = 60;
                   };
                 };
-              };
-              ollama = {
-                npm = "@ai-sdk/openai-compatible";
-                name = "Ollama (local)";
-                baseURL = "http://localhost:11434/v1";
-                models = {
-                  "qwen3.5:latest" = {name = "Qwen 3.5 (7B)";};
-                  "qwen3.5:2b" = {name = "Qwen 3.5 (2B)";};
+                opencode = {
+                  enable = true;
+                  model = "just-llms/claude-sonnet-4-6";
+                  disabledProviders = ["opencode"];
+                  extraMcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = false;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                  commands = {
+                    diataxis = {
+                      description = "Audit and rewrite documentation using the Diataxis framework";
+                      template = ''
+                        Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
+
+                        Follow the Diataxis framework to organize content into:
+                        - Tutorials (learning-oriented)
+                        - How-to guides (goal-oriented)
+                        - Reference (information-oriented)
+                        - Explanation (understanding-oriented)
+
+                        $ARGUMENTS
+                      '';
+                    };
+                    workspace = {
+                      description = "Create a jj workspace for isolated work with fast sync enabled";
+                      template = ''
+                        Create a jj workspace session for isolated development work.
+
+                        Run this command:
+                        ```bash
+                        jj-workspace-session start $ARGUMENTS
+                        ```
+
+                        Then report the workspace name and path to the user, and cd into the workspace directory.
+
+                        If no arguments provided, this starts session tracking in the current workspace.
+                        If a name is provided (e.g., "feat/auth" or "fix/bug"), it creates a new workspace.
+                        A second argument can specify the base branch (defaults to main).
+
+                        Examples:
+                        - /workspace feat/user-auth      -> Creates feat/user-auth-<date>-<id> from main
+                        - /workspace fix/bug develop     -> Creates fix/bug-<date>-<id> from develop
+                        - /workspace                     -> Starts session in current workspace
+                      '';
+                    };
+                  };
+                  providers = {
+                    just-llms = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Just LLMs";
+                      baseURL = "https://litellm.justworksai.net";
+                      onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                      dynamicModels = true; # Also fetch additional models from LiteLLM at runtime
+                      models = {
+                        # Fallback model if dynamic fetch fails
+                        "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                          name = "Claude Opus 4.5 (Bedrock)";
+                        };
+                      };
+                    };
+                    ollama = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Ollama (local)";
+                      baseURL = "http://localhost:11434/v1";
+                      models = {
+                        "qwen3.5:latest" = {name = "Qwen 3.5 (7B)";};
+                        "qwen3.5:2b" = {name = "Qwen 3.5 (2B)";};
+                      };
+                    };
+                  };
                 };
+                claude-code = {
+                  enable = true;
+                  mcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = true;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                };
+                llmClient.rtk.enable = true;
               };
-            };
-          };
-          claude-code = {
-            enable = true;
-            mcpServers = {
-              github = {
-                type = "remote";
-                url = "https://api.githubcopilot.com/mcp/";
-                enabled = true;
-              };
-              jira = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-              confluence = {
-                type = "remote";
-                url = "https://mcp.atlassian.com/v1/mcp";
-                enabled = false;
-              };
-            };
-          };
-          llmClient.rtk.enable = true;
-        };
+          }
+        ];
       };
 
-      "MegamanX" = mkDarwinHost {
-        target = ./targets/MegamanX;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = [
-          "developer"
-          "desktop"
-          "workstation"
-          "entertainment"
-          "llm-host"
-          "llm-client"
-          "llm-claude"
+      "MegamanX" = nix-darwin.lib.darwinSystem {
+        modules = [
+          configuration
+          nix-homebrew.darwinModules.nix-homebrew
+          ./modules
+          ./modules/services/ollama/darwin.nix
+          ./modules/services/vane/darwin.nix
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          ./targets/MegamanX
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          mac-app-util.darwinModules.default
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            system.primaryUser = "monkey";
+            myConfig =
+              mkUser "monkey" "me@willweaver.dev"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  workstation.enable = true;
+                  entertainment.enable = true;
+                  llm-host.enable = true;
+                  llm-client.enable = true;
+                  llm-claude.enable = true;
+                };
+                ollama = {
+                  # Bind to all interfaces so Docker containers can access Ollama
+                  host = "0.0.0.0";
+                };
+                vane = {
+                  enable = true;
+                  # Uses default Ollama URL (host.docker.internal:11434)
+                  # Enable embedded SearxNG for web search
+                  embeddedSearxng = true;
+                  # Chat model - deepseek for reasoning tasks
+                  defaultModel = "deepseek-r1:14b";
+                  # Embedding model for vector search
+                  embeddingModel = "nomic-embed-text";
+                };
+              };
+          }
         ];
-        extraModules = [mac-app-util.darwinModules.default];
-        extraConfig = {
-          ollama = {
-            # Bind to all interfaces so Docker containers can access Ollama
-            host = "0.0.0.0";
-          };
-          vane = {
-            enable = true;
-            # Uses default Ollama URL (host.docker.internal:11434)
-            # Enable embedded SearxNG for web search
-            embeddedSearxng = true;
-            # Chat model - deepseek for reasoning tasks
-            defaultModel = "deepseek-r1:14b";
-            # Embedding model for vector search
-            embeddingModel = "nomic-embed-text";
-          };
-        };
       };
 
       # Core configuration - absolute minimum for bootstrap/recovery
@@ -616,28 +451,49 @@
         ];
       };
 
-      "zero" = mkNixosHost {
-        target = ./targets/zero;
-        user = mkUser "monkey" "me@willweaver.dev";
-        roles = [
-          "developer"
-          "desktop"
-          "llm-client"
+      "zero" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs;};
+        modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          ./modules/nixos/desktop.nix
+          ./modules/nixos/gaming.nix
+          ./modules/nixos/streaming.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          ./os/nixos.nix
+          ./targets/zero
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+            myConfig =
+              mkUser "monkey" "me@willweaver.dev"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  llm-client.enable = true;
+                };
+                desktop = {
+                  enable = true;
+                  autoLoginUser = "monkey";
+                };
+                gaming.enable = true;
+                streaming.enable = true;
+                llmEndpoints = {
+                  MegamanX = {
+                    host = "MegamanX.local";
+                    port = "4000";
+                  };
+                };
+              };
+          }
         ];
-        extraConfig = {
-          desktop = {
-            enable = true;
-            autoLoginUser = "monkey";
-          };
-          gaming.enable = true;
-          streaming.enable = true;
-          llmEndpoints = {
-            MegamanX = {
-              host = "MegamanX.local";
-              port = "4000";
-            };
-          };
-        };
       };
 
       # CATTLE CONFIGURATIONS - Generic machine types
@@ -651,9 +507,6 @@
           # Disk layout
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
-
-          # Hardware detection - uses facter module from nixpkgs
-          # hardware.facter.reportPath will be set by nixos-anywhere
 
           # Machine type configuration
           ./machine-types/desktop.nix
@@ -681,12 +534,9 @@
         specialArgs = inputs;
         modules = [
           configuration
-          # Foundation requires these common modules
-          ./modules/common/options.nix
-          ./modules/common/onepassword.nix
-          ./modules/common/users.nix
-          ./modules/common/shell.nix
-          ./modules/common/cachix.nix
+          ./modules
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
           # Disk layout
           inputs.disko.nixosModules.disko
@@ -697,14 +547,14 @@
           # CI builds use --impure with a stub file
           {
             hardware.facter.reportPath = "/etc/nixos/facter.json";
-            myConfig.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+            myConfig = {
+              skills.superpowersPath = inputs.superpowers;
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+            };
           }
 
           # Machine type configuration
           ./machine-types/server.nix
-
-          # Foundation bundle - provides 1Password CLI, git, and universal tools
-          (mkBundleModule "linux" [])
 
           # REQUIRED: Configure at least one user with SSH access
           {
@@ -721,28 +571,28 @@
         ];
       };
 
-      # ARM64 server variant using same foundation
+      # ARM64 server variant
       "type-server-arm" = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
         specialArgs = inputs;
         modules = [
           configuration
-          ./modules/common/options.nix
-          ./modules/common/onepassword.nix
-          ./modules/common/users.nix
-          ./modules/common/shell.nix
-          ./modules/common/cachix.nix
+          ./modules
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
 
           {
             hardware.facter.reportPath = "/etc/nixos/facter.json";
-            myConfig.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+            myConfig = {
+              skills.superpowersPath = inputs.superpowers;
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+            };
           }
 
           ./machine-types/server.nix
-          (mkBundleModule "linux" [])
 
           # REQUIRED: Configure at least one user with SSH access
           {
@@ -760,9 +610,11 @@
     };
 
     microvm.nixosConfigurations = {
-      dev-vm = mkMicrovm "dev-vm" ["llm-client"];
-      openclaw = mkMicrovm "openclaw" ["foundation"];
-      matrix = mkMicrovm "matrix" ["foundation"];
+      dev-vm = mkMicrovm "dev-vm" {
+        roles.llm-client.enable = true;
+      };
+      openclaw = mkMicrovm "openclaw" {};
+      matrix = mkMicrovm "matrix" {};
     };
 
     # Flake checks for CI - only run on Linux where NixOS configs exist
@@ -770,6 +622,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
+          config.allowUnfree = true;
           overlays = [(import ./overlays)];
         };
         tests = import ./tests {

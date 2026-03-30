@@ -1,6 +1,6 @@
 # Roles Reference
 
-Roles are defined in `bundles.nix` and group packages and configurations by purpose.
+Roles are defined as NixOS modules in `modules/roles/`. Each role is gated by `myConfig.roles.<name>.enable`.
 
 ## Available Roles
 

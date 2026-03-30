@@ -13,7 +13,4 @@ in {
 
   # Option validation tests
   foundation-options = testPackages.foundationOptionsTest;
-
-  # NixOS configuration tests (validates modules can be imported)
-  nixos-configs = testPackages.nixosConfigsTest;
 }

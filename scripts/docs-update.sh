@@ -111,31 +111,36 @@ validate_all_docs() {
 # ============================================
 
 generate_roles_reference() {
-    log_info "Generating roles reference from bundles.nix..."
+    log_info "Generating roles reference from modules/roles/..."
     
     local output_file="$DOCS_DIR/reference/roles.md"
-    local bundles_file="$PROJECT_ROOT/bundles.nix"
+    local roles_dir="$PROJECT_ROOT/modules/roles"
     
-    if [[ ! -f "$bundles_file" ]]; then
-        log_error "bundles.nix not found"
+    if [[ ! -d "$roles_dir" ]]; then
+        log_error "modules/roles/ directory not found"
         return 1
     fi
     
-    # Extract role information using nix eval
+    # Extract role names from module files (excluding default.nix)
     cat > "$output_file" << 'EOF'
 # Roles Reference
 
-Roles are defined in `bundles.nix` and group packages and configurations by purpose.
+Roles are defined as NixOS modules in `modules/roles/`. Each role is gated by `myConfig.roles.<name>.enable`.
 
 ## Available Roles
 
 EOF
 
-    # Parse roles from bundles.nix
+    # Get role names from filenames
     local roles
-    roles=$(nix eval --raw --file "$PROJECT_ROOT" --apply 'bundles: builtins.concatStringsSep "\n" (builtins.attrNames (bundles {pkgs = import <nixpkgs> {};}).roles)' 2>/dev/null || echo "base developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host llm-server")
+    roles=$(ls "$roles_dir"/*.nix 2>/dev/null | xargs -I{} basename {} .nix | grep -v default | sort)
     
-    # Generate documentation for each role by reading bundles.nix
+    if [[ -z "$roles" ]]; then
+        log_warn "No role modules found in modules/roles/"
+        roles="base developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host llm-server"
+    fi
+    
+    # Generate documentation for each role from module filenames
     for role in $roles; do
         echo "### $role" >> "$output_file"
         echo "" >> "$output_file"

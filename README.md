@@ -5,7 +5,7 @@ A modular Nix Flakes configuration for managing macOS and NixOS systems.
 ## Features
 
 - **Multi-platform**: macOS (nix-darwin) and NixOS with unified configuration
-- **Modular architecture**: Role-based bundles for different use cases
+- **Modular architecture**: Role-based modules for different use cases
 - **AI agent skills**: Automatic management of OpenCode and Claude Code skills
 - **1Password integration**: SSH authentication and commit signing
 - **CI/CD pipeline**: Automated validation and caching
@@ -49,9 +49,9 @@ darwin-rebuild switch --flake .#<hostname>
 ├── modules/          # Reusable Nix configurations
 │   ├── common/       # Shared options, users, shell
 │   ├── home-manager/ # User environment, skills
+│   ├── roles/        # Role modules (packages, skills per role)
 │   └── nixos/        # NixOS-specific modules
 ├── targets/          # Machine-specific configurations
-├── bundles.nix       # Role definitions (packages, skills)
 ├── flake.nix         # Main flake with helper functions
 └── docs/             # Documentation (Diataxis)
 ```

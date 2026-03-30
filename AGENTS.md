@@ -9,7 +9,7 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 ## Architecture
 
 - **Modules**: Reusable configuration logic (`modules/`)
-- **Bundles**: Package collections by role (`bundles.nix`)
+- **Roles**: Modular role configurations (`modules/roles/`)
 - **Targets**: Machine-specific configurations (`targets/`)
 - **Options**: Type-safe configuration (`modules/common/options.nix`)
 
@@ -22,10 +22,10 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 │   ├── common/                 # Shared: options, users, shell, onepassword
 │   ├── home-manager/           # User environment
 │   │   └── skills/             # Agent skills management
+│   ├── roles/                  # Role modules (one per role)
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine configurations
 ├── os/                         # Platform OS configurations
-├── bundles.nix                 # Role definitions
 ├── flake.nix                   # Main flake with helpers
 └── devenv.nix                  # Tasks and dev environment
 ```
@@ -128,12 +128,12 @@ devenv tasks run test:all
 
 | Feature | Steps |
 |---------|-------|
-| New Machine | Create `targets/<name>/`, add to `flake.nix` using `mkDarwinHost` or `mkNixosHost` |
-| New Role | Add to `bundles.nix` under `roles` |
+| New Machine | Create `targets/<name>/`, add to `flake.nix` |
+| New Role | Create `modules/roles/<name>.nix`, add enable option to `modules/common/options.nix` |
 | New Module | Create in `modules/` subdirectory |
 | New Option | Add to `modules/common/options.nix` |
 
-## Roles (bundles.nix)
+## Roles (modules/roles/)
 
 | Role | Description |
 |------|-------------|
@@ -155,9 +155,6 @@ devenv tasks run test:all
 |--------|---------|
 | `mkUser` | Create user configuration with defaults |
 | `mkNixHomebrew` | Create homebrew config for Darwin |
-| `mkBundleModule` | Create bundle from role list |
-| `mkDarwinHost` | Create complete Darwin host |
-| `mkNixosHost` | Create complete NixOS host |
 | `mkMicrovm` | Create microvm configuration |
 
 ## Agent Skills
