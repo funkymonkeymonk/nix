@@ -10,13 +10,6 @@ on:
       - 'disk-configs/**'
       - 'flake.nix'
       - 'flake.lock'
-  # TEMPORARY: Run on this PR for testing
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'targets/installer-iso/**'
-      - '.github/workflows/build-iso.yml'
   workflow_dispatch:
   schedule:
     # Rebuild weekly to pick up security updates
