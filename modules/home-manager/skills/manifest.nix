@@ -127,7 +127,7 @@
     # OpenCode slash commands bundled with this skill
     commands = {
       path = ./external/jj/commands;
-      list = ["finish" "pr" "update" "sync" "stack" "workspace"];
+      list = ["finish" "pr" "pr-merge" "push" "update" "sync" "stack" "workspace"];
     };
   };
 
@@ -158,6 +158,16 @@
     source = {
       type = "internal";
       path = ./internal/refining-specs;
+    };
+    deps = [];
+  };
+
+  "watch-ci-jobs" = {
+    description = "Monitor GitHub Actions CI jobs with intelligent polling that adapts to historical run times";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./internal/watch-ci-jobs;
     };
     deps = [];
   };

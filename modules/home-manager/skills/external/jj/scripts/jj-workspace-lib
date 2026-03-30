@@ -195,6 +195,17 @@ jj_watch_pr_checks() {
     local branch="$2"
     local interval="${3:-10}"
     
+    # Prefer watch-ci-jobs if available for intelligent adaptive polling
+    if command -v watch-ci-jobs &>/dev/null; then
+        local pr_number
+        pr_number=$(jj_get_pr_number "$repo" "$branch")
+        if [[ -n "$pr_number" ]]; then
+            watch-ci-jobs "$pr_number"
+            return $?
+        fi
+    fi
+    
+    # Fallback to basic gh pr checks --watch
     if gh pr checks --repo "$repo" "$branch" --watch --interval "$interval"; then
         return 0
     else

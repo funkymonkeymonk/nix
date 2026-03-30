@@ -164,6 +164,7 @@
       in
         {
           inherit (pkgs) rtk yaks;
+          inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {

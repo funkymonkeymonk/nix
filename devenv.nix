@@ -1190,5 +1190,9 @@
     };
   };
 
+  # Disable devenv's built-in cachix integration to avoid conflicts
+  # We use pkgs.cachix directly in packages instead
+  cachix.enable = false;
+
   # See full reference at https://devenv.sh/reference/options/
 }

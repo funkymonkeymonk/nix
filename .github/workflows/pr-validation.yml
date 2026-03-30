@@ -4,11 +4,9 @@ name: PR Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   # Quick validation runs first - blocks builds if it fails
   lint:
@@ -29,10 +27,9 @@ jobs:
           use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        run: nix profile add --accept-flake-config nixpkgs#devenv
+        run: nix profile add --accept-flake-config .#devenv
       - name: Run lint checks
         run: devenv tasks run check:lint
-
   # Check if Nix files changed (skip builds if only docs changed)
   changes:
     name: Detect Changes
@@ -54,7 +51,6 @@ jobs:
               - 'flake.lock'
             workflows:
               - '.github/workflows/**'
-
   # Discover what configurations exist and check if they need rebuilds
   discover-targets:
     name: Discover Build Targets
@@ -86,7 +82,6 @@ jobs:
         with:
           use-flakehub: false
         continue-on-error: true
-
       # Restore cached derivation hashes
       - name: Restore derivation cache
         uses: actions/cache@v4
@@ -97,7 +92,6 @@ jobs:
           restore-keys: |
             drv-${{ github.ref }}-
             drv-main-
-
       - name: Create stub facter.json
         run: |
           # Create stub facter.json for NixOS configs that use nixos-facter
@@ -126,13 +120,11 @@ jobs:
             "virtualisation": "none"
           }
           FACTER_EOF
-
       - name: Discover configurations
         id: discover
         run: |
           echo "Discovering flake configurations..."
           mkdir -p .drv-cache
-
           # Get Darwin configurations
           DARWIN_CONFIGS=$(nix eval .#darwinConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
@@ -143,7 +135,6 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           echo "darwin-count=$DARWIN_COUNT" >> $GITHUB_OUTPUT
           echo "Darwin configurations ($DARWIN_COUNT): $DARWIN_CONFIGS"
-
           # Get NixOS configurations
           NIXOS_CONFIGS=$(nix eval .#nixosConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
@@ -154,21 +145,17 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           echo "nixos-count=$NIXOS_COUNT" >> $GITHUB_OUTPUT
           echo "NixOS configurations ($NIXOS_COUNT): $NIXOS_CONFIGS"
-
       - name: Check which configs changed
         id: check-changes
         run: |
           echo "Checking which configurations need rebuilds..."
-
           # Create staging directory at the start
           mkdir -p .drv-cache-staging
-
           # Function to compute derivation hash for a config
           compute_drv_hash() {
             local config=$1
             local type=$2
             local drv_path
-
             if [ "$type" = "darwin" ]; then
               drv_path=$(nix-instantiate \
                 .#darwinConfigurations.${config}.system 2>/dev/null || echo "")
@@ -177,7 +164,6 @@ jobs:
                 .#nixosConfigurations.${config}.config.system.build.toplevel \
                 2>/dev/null || echo "")
             fi
-
             if [ -n "$drv_path" ]; then
               # Get the hash of the derivation
               nix-store -q --hash "$drv_path" 2>/dev/null || echo ""
@@ -185,7 +171,6 @@ jobs:
               echo ""
             fi
           }
-
           # Check Darwin configs
           DARWIN_CHANGED="[]"
           if [ -f .drv-cache/darwin-configs ]; then
@@ -193,18 +178,15 @@ jobs:
             for config in $(cat .drv-cache/darwin-configs | jq -r '.[]'); do
               OLD_HASH=$(cat .drv-cache/darwin-${config}.hash 2>/dev/null || echo "")
               NEW_HASH=$(compute_drv_hash "$config" "darwin")
-
               if [ "$OLD_HASH" != "$NEW_HASH" ]; then
                 echo "Darwin config '$config' changed ($OLD_HASH -> $NEW_HASH)"
                 DARWIN_CHANGED_CONFIGS+=("$config")
               else
                 echo "Darwin config '$config' unchanged"
               fi
-
               # Write new hash to a staging directory (not the cache yet)
               echo "$NEW_HASH" > .drv-cache-staging/darwin-${config}.hash
             done
-
             if [ ${#DARWIN_CHANGED_CONFIGS[@]} -gt 0 ]; then
               DARWIN_CHANGED=$(printf '%s\n' "${DARWIN_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
@@ -213,10 +195,8 @@ jobs:
             echo "No cache found, will build all Darwin configs"
             DARWIN_CHANGED='["core","MegamanX","wweaver"]'
           fi
-
           echo "darwin-changed=$DARWIN_CHANGED" >> $GITHUB_OUTPUT
           echo "Darwin configs needing rebuild: $DARWIN_CHANGED"
-
           # Check NixOS configs
           NIXOS_CHANGED="[]"
           if [ -f .drv-cache/nixos-configs ]; then
@@ -224,18 +204,15 @@ jobs:
             for config in $(cat .drv-cache/nixos-configs | jq -r '.[]'); do
               OLD_HASH=$(cat .drv-cache/nixos-${config}.hash 2>/dev/null || echo "")
               NEW_HASH=$(compute_drv_hash "$config" "nixos")
-
               if [ "$OLD_HASH" != "$NEW_HASH" ]; then
                 echo "NixOS config '$config' changed ($OLD_HASH -> $NEW_HASH)"
                 NIXOS_CHANGED_CONFIGS+=("$config")
               else
                 echo "NixOS config '$config' unchanged"
               fi
-
               # Write new hash to a staging directory (not the cache yet)
               echo "$NEW_HASH" > .drv-cache-staging/nixos-${config}.hash
             done
-
             if [ ${#NIXOS_CHANGED_CONFIGS[@]} -gt 0 ]; then
               NIXOS_CHANGED=$(printf '%s\n' "${NIXOS_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
@@ -244,14 +221,11 @@ jobs:
             echo "No cache found, will build all NixOS configs"
             NIXOS_CHANGED='["bootstrap","installer-iso","type-desktop","type-server","zero"]'
           fi
-
           echo "nixos-changed=$NIXOS_CHANGED" >> $GITHUB_OUTPUT
           echo "NixOS configs needing rebuild: $NIXOS_CHANGED"
-
           # Save current config lists to staging
           echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
           echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache-staging/nixos-configs
-
       # Upload staging cache as artifact (will be committed to cache after successful builds)
       - name: Upload staging cache
         uses: actions/upload-artifact@v4
@@ -259,7 +233,6 @@ jobs:
           name: drv-cache-staging
           path: .drv-cache-staging/
           retention-days: 1
-
   # Build all Darwin configurations that changed
   build-darwin:
     name: Build Darwin - ${{ matrix.config }}
@@ -297,7 +270,6 @@ jobs:
             echo "✗ Build failed"
             exit 1
           fi
-
   # Build all NixOS configurations that changed
   build-nixos:
     name: Build NixOS - ${{ matrix.config }}
@@ -364,7 +336,6 @@ jobs:
             echo "✗ Build failed"
             exit 1
           fi
-
   # Collect all build results and report
   build-report:
     name: Build Report
@@ -378,7 +349,6 @@ jobs:
           name: drv-cache-staging
           path: .drv-cache-new
         continue-on-error: true
-
       - name: Commit cache on success
         if: >
           ${{
@@ -398,7 +368,6 @@ jobs:
             cp -r .drv-cache-new/* .drv-cache/
             echo "Cache updated with new derivation hashes"
           fi
-
       - name: Save derivation cache
         if: >
           ${{
@@ -415,19 +384,16 @@ jobs:
         with:
           path: .drv-cache
           key: drv-${{ github.ref }}-${{ github.sha }}
-
       - name: Report build results
         run: |
           echo "## Build Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
           DARWIN_RESULT="${{ needs.build-darwin.result }}"
           NIXOS_RESULT="${{ needs.build-nixos.result }}"
           TEST_FOUNDATION_RESULT="${{ needs.test-foundation.result }}"
           VALIDATE_AUX_RESULT="${{ needs.validate-auxiliary.result }}"
           DARWIN_CHANGED='${{ needs.discover-targets.outputs.darwin-changed }}'
           NIXOS_CHANGED='${{ needs.discover-targets.outputs.nixos-changed }}'
-
           # Count configs
           DARWIN_TOTAL=$(echo '${{ needs.discover-targets.outputs.darwin-configs }}' \
             | jq 'length')
@@ -435,11 +401,9 @@ jobs:
             | jq 'length')
           DARWIN_CHANGED_COUNT=$(echo "$DARWIN_CHANGED" | jq 'length')
           NIXOS_CHANGED_COUNT=$(echo "$NIXOS_CHANGED" | jq 'length')
-
           echo "**Darwin:** $DARWIN_CHANGED_COUNT of $DARWIN_TOTAL configs changed" >> $GITHUB_STEP_SUMMARY
           echo "**NixOS:** $NIXOS_CHANGED_COUNT of $NIXOS_TOTAL configs changed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
           # Report validation results
           echo "### Validation" >> $GITHUB_STEP_SUMMARY
           if [ "$VALIDATE_AUX_RESULT" = "success" ]; then
@@ -450,7 +414,6 @@ jobs:
             echo "❌ Auxiliary validation failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-
           # Report test results
           echo "### Tests" >> $GITHUB_STEP_SUMMARY
           if [ "$TEST_FOUNDATION_RESULT" = "success" ]; then
@@ -461,41 +424,33 @@ jobs:
             echo "❌ Foundation tests failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-
           if [ "$DARWIN_CHANGED" = "[]" ] && [ "$NIXOS_CHANGED" = "[]" ]; then
             echo "✅ No configuration changes detected - all builds skipped" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
-
           # Check all results
           ALL_SUCCESS=true
-
           if [ "$DARWIN_RESULT" != "success" ] && [ "$DARWIN_RESULT" != "skipped" ]; then
             echo "❌ Darwin builds failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-
           if [ "$NIXOS_RESULT" != "success" ] && [ "$NIXOS_RESULT" != "skipped" ]; then
             echo "❌ NixOS builds failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-
           if [ "$TEST_FOUNDATION_RESULT" != "success" ] && [ "$TEST_FOUNDATION_RESULT" != "skipped" ]; then
             echo "❌ Foundation tests failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-
           if [ "$VALIDATE_AUX_RESULT" != "success" ] && [ "$VALIDATE_AUX_RESULT" != "skipped" ]; then
             echo "❌ Auxiliary validation failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-
           if [ "$ALL_SUCCESS" = "true" ]; then
             echo "✅ All builds and tests passed!" >> $GITHUB_STEP_SUMMARY
           else
             exit 1
           fi
-
   # Validate auxiliary components (always run)
   validate-auxiliary:
     name: Validate Shared Components
@@ -516,12 +471,11 @@ jobs:
           use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        run: nix profile add --accept-flake-config nixpkgs#devenv
+        run: nix profile add --accept-flake-config .#devenv
       - name: Validate Disko configurations
         run: devenv tasks run validate:disko
       - name: Validate installation script
         run: devenv tasks run validate:install-script
-
   # Run foundation tests (always run on Linux)
   test-foundation:
     name: Foundation Tests
@@ -542,10 +496,9 @@ jobs:
           use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        run: nix profile add --accept-flake-config nixpkgs#devenv
+        run: nix profile add --accept-flake-config .#devenv
       - name: Run foundation tests
         run: |
           echo "Running foundation test suite..."
           devenv tasks run test:all
-
 
