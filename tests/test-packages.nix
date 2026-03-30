@@ -132,7 +132,7 @@
       ${pkgs.lib.concatMapStringsSep "\n" (name: ''echo "  Role '${name}': defined"'') roleNames}
 
       # Verify expected roles are present
-      EXPECTED_ROLES="foundation developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host llm-server"
+      EXPECTED_ROLES="foundation developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host"
       ACTUAL_ROLES="${builtins.concatStringsSep " " roleNames}"
 
       for role in $EXPECTED_ROLES; do
@@ -166,6 +166,9 @@
             type = pkgs.lib.types.anything;
             default = {system = "x86_64-linux";};
           };
+        }
+        {
+          config._module.args = {inherit pkgs;};
         }
         {
           config.myConfig = {
