@@ -1,9 +1,5 @@
 # Role modules — import all roles and compute enabledRoles for skills
-{
-  config,
-  lib,
-  ...
-}: let
+{config, ...}: let
   roleNames = builtins.attrNames config.myConfig.roles;
   enabledRoles =
     builtins.filter (

@@ -120,7 +120,7 @@
         }
       ];
     };
-    roles = testEval.config.myConfig.roles;
+    inherit (testEval.config.myConfig) roles;
     roleNames = builtins.attrNames roles;
   in
     pkgs.runCommand "test-config-validation"

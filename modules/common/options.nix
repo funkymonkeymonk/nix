@@ -1,14 +1,16 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 with lib; {
   options.myConfig = {
     # Computed helper for platform detection (read-only)
+    # Uses _module.args.pkgs which is always available during module evaluation
     isDarwin = mkOption {
       type = types.bool;
-      default = builtins.elem config.nixpkgs.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"];
+      default = builtins.elem pkgs.system ["aarch64-darwin" "x86_64-darwin"];
       readOnly = true;
       description = "Whether the current system is Darwin (macOS)";
     };

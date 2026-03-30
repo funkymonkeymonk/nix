@@ -6,7 +6,7 @@
   ...
 }: let
   cfg = config.myConfig.roles.creative;
-  isDarwin = config.myConfig.isDarwin;
+  inherit (config.myConfig) isDarwin;
   hasHomebrew = options ? homebrew;
 in {
   config = lib.mkIf cfg.enable (
