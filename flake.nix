@@ -392,6 +392,7 @@
                   llm-host.enable = true;
                   llm-client.enable = true;
                   llm-claude.enable = true;
+                  llm-pi.enable = true;
                 };
                 ollama = {
                   # Bind to all interfaces so Docker containers can access Ollama
@@ -618,8 +619,8 @@
       matrix = mkMicrovm "matrix" {};
     };
 
-    # Flake checks for CI - only run on Linux where NixOS configs exist
-    checks = nixpkgs.lib.genAttrs ["x86_64-linux"] (
+    # Flake checks for CI - run on Linux and Darwin
+    checks = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-darwin"] (
       system: let
         pkgs = import nixpkgs {
           inherit system;

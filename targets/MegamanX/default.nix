@@ -57,4 +57,62 @@
       };
     };
   };
+
+  # Pi (pi-coding-agent) configuration
+  myConfig.pi = {
+    # Example settings
+    settings = {
+      theme = "dark";
+      editor = {
+        vimMode = true;
+      };
+    };
+
+    # Global AGENTS.md context
+    agentsMd = ''
+      # Global Agent Instructions
+
+      This is a Nix-managed system. When working with Nix configurations:
+      - Always run `devenv tasks run check:lint` before committing
+      - Use the existing module patterns in modules/
+      - Follow the conventional commit style
+    '';
+
+    # Example custom model pointing to local Ollama
+    models.local-ollama = {
+      name = "Local Ollama (Qwen 3.5)";
+      provider = "openai";
+      modelId = "qwen3.5";
+      baseUrl = "http://localhost:11434/v1";
+    };
+
+    # Example prompt template
+    prompts.review = ''
+      Review this code for:
+      1. Bugs and logic errors
+      2. Security issues
+      3. Performance problems
+      4. Nix best practices (if applicable)
+
+      Provide specific suggestions with line numbers.
+    '';
+
+    # Example skill
+    skills.nix = ''
+      # Nix Development Skill
+
+      Use this skill when working with Nix flakes, modules, or configurations.
+
+      ## Conventions
+      - Use `mkOption` for all configurable values
+      - Place modules in appropriate directories: common/, nixos/, darwin/
+      - Test with `devenv tasks run check:lint` before finishing
+      - Follow existing patterns in the codebase
+
+      ## Tools
+      - Read existing modules in modules/ for examples
+      - Use lib.optionalAttrs for platform-specific config
+      - Check bundles.nix for role definitions
+    '';
+  };
 }

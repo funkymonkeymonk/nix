@@ -37,3 +37,6 @@ hardware-configuration.nix
 
 # Yaks working directory (stored in parent git repo's refs/notes/yaks)
 .yaks/
+
+# Local tmp directory for testing
+/tmp/

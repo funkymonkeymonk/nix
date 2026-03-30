@@ -85,7 +85,7 @@
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
             type = pkgs.lib.types.anything;
-            default = {system = "x86_64-linux";};
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
           };
           # Stub options that role modules may set
           options.environment = {
@@ -132,7 +132,7 @@
       ${pkgs.lib.concatMapStringsSep "\n" (name: ''echo "  Role '${name}': defined"'') roleNames}
 
       # Verify expected roles are present
-      EXPECTED_ROLES="foundation developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host"
+      EXPECTED_ROLES="foundation developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-pi llm-host"
       ACTUAL_ROLES="${builtins.concatStringsSep " " roleNames}"
 
       for role in $EXPECTED_ROLES; do
@@ -164,7 +164,7 @@
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
             type = pkgs.lib.types.anything;
-            default = {system = "x86_64-linux";};
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
           };
         }
         {
