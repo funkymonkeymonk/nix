@@ -211,6 +211,57 @@ with lib; let
     ''}
   '';
 
+  # Script to fix SSH port forwarding for Colima VM
+  # This addresses a known issue where vz (Apple Virtualization) SSH port forwarding fails during startup
+  vanePortForwardScript = pkgs.writeShellScriptBin "vane-fix-port-forwarding" ''
+    set -euo pipefail
+
+    export PATH="${pkgs.openssh}/bin:$PATH"
+
+    LIMA_HOME="${darwinHomeDir}/.colima/_lima"
+    SSH_SOCK="''${LIMA_HOME}/colima-${colimaProfile}/ssh.sock"
+    COLIMA_SSH_PORT=49643  # Default SSH port for colima-vane
+
+    # Function to add port forwarding via SSH control master
+    add_port_forward() {
+      local port=$1
+      if ! lsof -i :"$port" > /dev/null 2>&1; then
+        echo "[vane] Adding port forwarding for port $port..."
+        ssh -F /dev/null \
+          -o IdentityFile="''${LIMA_HOME}/_config/user" \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -o NoHostAuthenticationForLocalhost=yes \
+          -o PreferredAuthentications=publickey \
+          -o Compression=no \
+          -o BatchMode=yes \
+          -o IdentitiesOnly=yes \
+          -o GSSAPIAuthentication=no \
+          -o "Ciphers=^aes128-gcm@openssh.com,aes256-gcm@openssh.com" \
+          -o ControlMaster=auto \
+          -o "ControlPath=''${SSH_SOCK}" \
+          -o ControlPersist=yes \
+          -T -O forward -L "0.0.0.0:$port:[::]:$port" \
+          -N -f -p $COLIMA_SSH_PORT 127.0.0.1 2>/dev/null || true
+      fi
+    }
+
+    # Check if Colima VM is running
+    if [ ! -S "''${SSH_SOCK}" ]; then
+      echo "[vane] Colima VM SSH socket not found, skipping port forwarding fix"
+      exit 0
+    fi
+
+    # Add port forwarding for Vane (3000) and other common ports
+    add_port_forward 3000
+    add_port_forward 8080
+    add_port_forward 11434  # Ollama
+    add_port_forward 9000   # MinIO
+    add_port_forward 9001   # MinIO console
+
+    echo "[vane] Port forwarding check complete"
+  '';
+
   # Launchd service script
   vaneServiceScript = pkgs.writeShellScript "vane-launchd-service" ''
     set -euo pipefail
@@ -246,7 +297,12 @@ with lib; let
     export DOCKER_HOST="unix://${colimaSocket}"
 
     echo "[vane] Starting Vane containers..."
-    exec ${vaneStartScript}
+    ${vaneStartScript}
+
+    # Fix SSH port forwarding (workaround for vz issue)
+    echo "[vane] Ensuring port forwarding is working..."
+    sleep 5  # Give containers time to start
+    ${vanePortForwardScript}/bin/vane-fix-port-forwarding || true
   '';
 in {
   imports = [./common.nix];
@@ -255,10 +311,13 @@ in {
     # Install helper scripts and dependencies (including Caddy for reverse proxy)
     environment.systemPackages = [
       vaneColimaScript
+      vanePortForwardScript
       pkgs.colima
       pkgs.docker
       pkgs.docker-compose
       pkgs.caddy
+      pkgs.openssh
+      pkgs.lsof
     ];
 
     # Shell aliases for service management
@@ -284,6 +343,9 @@ in {
       # Docker commands (use Vane's Colima context)
       "vane.docker" = "DOCKER_HOST=unix://${colimaSocket} docker";
       "vane.ps" = "DOCKER_HOST=unix://${colimaSocket} docker-compose -f ${dockerComposeYaml} ps";
+
+      # Port forwarding fix (workaround for vz SSH port forwarding issues)
+      "vane.fix-ports" = "vane-fix-port-forwarding";
     };
 
     # Create launchd user agent for Vane
