@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# jj-finish: Complete PR workflow by composing individual tools
+# Usage: jj-finish [--merge] [--max-retries N] [--dry-run]
+#
+# Orchestrator that calls: jj-push, jj-pr, watch-ci-jobs, jj-pr-merge
+# Each can be used standalone - see their --help
+
+set -euo pipefail
+
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/jj-workspace-lib"
+
+MAX_RETRIES="${JJ_FINISH_MAX_RETRIES:-5}"
+MERGE_ON_SUCCESS=false
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --merge) MERGE_ON_SUCCESS=true; shift ;;
+        --max-retries) MAX_RETRIES="$2"; shift 2 ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        -h|--help)
+            cat <<'EOF'
+Usage: jj-finish [--merge] [--max-retries N] [--dry-run]
+
+Complete PR workflow: push, create PR, watch CI, optionally merge.
+
+Orchestrates: jj-push -> jj-pr -> watch-ci-jobs -> jj-pr-merge
+
+Options:
+  --merge           Prompt to merge on CI success
+  --max-retries N   Maximum retry attempts (default: 5)
+  --dry-run         Show what would be done without executing
+  -h, --help        Show this help
+
+Individual commands:
+  jj-push --help, jj-pr --help, watch-ci-jobs --help, jj-pr-merge --help
+
+Examples:
+  jj-finish              # Push, create PR, watch CI
+  jj-finish --merge      # Also prompt to merge
+  jj-finish --dry-run    # Preview without executing
+EOF
+            exit 0
+            ;;
+        *) echo -e "${JJ_RED}Unknown option: $1${JJ_NC}"; exit 1 ;;
+    esac
+done
+
+# Check prerequisites
+for cmd in jj-push jj-pr watch-ci-jobs jj-pr-merge; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo -e "${JJ_RED}Error: Required command '$cmd' not found${JJ_NC}"
+        exit 1
+    fi
+done
+
+if ! jj_in_repo; then
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    exit 1
+fi
+
+echo -e "${JJ_BLUE}=== jj-finish ===${JJ_NC}"
+GH_REPO=$(jj_get_gh_repo)
+BOOKMARK=$(jj_get_current_bookmark)
+if [[ -z "$BOOKMARK" ]]; then
+    echo -e "${JJ_RED}Error: No bookmark found${JJ_NC}"
+    exit 1
+fi
+echo -e "Repository: ${JJ_YELLOW}${GH_REPO}${JJ_NC}"
+echo -e "Bookmark: ${JJ_YELLOW}${BOOKMARK}${JJ_NC}"
+
+if [[ "$DRY_RUN" == true ]]; then
+    echo -e "${JJ_YELLOW}[DRY RUN MODE]${JJ_NC}"
+fi
+
+# Step 1: Push
+echo ""
+echo -e "${JJ_GREEN}Step 1: Push changes${JJ_NC}"
+if [[ "$DRY_RUN" == true ]]; then
+    jj-push --dry-run "$BOOKMARK"
+else
+    jj-push "$BOOKMARK"
+fi
+
+# Step 2: Create PR
+echo ""
+echo -e "${JJ_GREEN}Step 2: Check/create PR${JJ_NC}"
+if jj_pr_exists "$GH_REPO" "$BOOKMARK"; then
+    PR_NUMBER=$(jj_get_pr_number "$GH_REPO" "$BOOKMARK")
+    echo -e "PR #${PR_NUMBER} already exists"
+else
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${JJ_YELLOW}[DRY RUN] Would create PR${JJ_NC}"
+        PR_NUMBER="DRY-RUN-123"
+    else
+        jj-pr "$BOOKMARK"
+        PR_NUMBER=$(jj_get_pr_number "$GH_REPO" "$BOOKMARK")
+    fi
+fi
+
+# Step 3: Watch CI
+echo ""
+echo -e "${JJ_GREEN}Step 3: Monitor CI${JJ_NC}"
+
+if [[ "$DRY_RUN" == true ]]; then
+    echo -e "${JJ_YELLOW}[DRY RUN] Would watch CI for PR #${PR_NUMBER}${JJ_NC}"
+    CI_SUCCESS=true
+else
+    ATTEMPT=0
+    CI_SUCCESS=false
+    while [[ $ATTEMPT -lt $MAX_RETRIES ]]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        [[ $MAX_RETRIES -gt 1 ]] && echo -e "${JJ_BLUE}Attempt ${ATTEMPT}/${MAX_RETRIES}${JJ_NC}"
+        
+        if watch-ci-jobs "$PR_NUMBER"; then
+            CI_SUCCESS=true
+            jj_notify "CI Passed" "All checks passed for $BOOKMARK"
+            break
+        else
+            echo -e "${JJ_RED}CI checks failed!${JJ_NC}"
+            jj_show_failed_checks "$GH_REPO" "$BOOKMARK"
+            
+            if [[ $ATTEMPT -lt $MAX_RETRIES ]]; then
+                echo -e "${JJ_YELLOW}Fix issues and press Enter to retry...${JJ_NC}"
+                read -p "Attempts remaining: $((MAX_RETRIES - ATTEMPT))"
+                jj-push "$BOOKMARK"
+            fi
+        fi
+    done
+fi
+
+# Step 4: Merge (optional)
+if [[ "$CI_SUCCESS" == true && "$MERGE_ON_SUCCESS" == true ]]; then
+    echo ""
+    echo -e "${JJ_GREEN}Step 4: Merge PR${JJ_NC}"
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        echo -e "${JJ_YELLOW}[DRY RUN] Would merge PR #${PR_NUMBER}${JJ_NC}"
+    else
+        echo -e "${JJ_YELLOW}Merge PR #${PR_NUMBER}? [y/N]${JJ_NC}"
+        read -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            jj-pr-merge --method squash "$BOOKMARK"
+            jj git fetch
+            echo -e "${JJ_GREEN}Workflow complete!${JJ_NC}"
+        else
+            echo -e "${JJ_YELLOW}Skipped merge${JJ_NC}"
+        fi
+    fi
+fi
+
+echo ""
+echo -e "${JJ_GREEN}jj-finish complete${JJ_NC}"

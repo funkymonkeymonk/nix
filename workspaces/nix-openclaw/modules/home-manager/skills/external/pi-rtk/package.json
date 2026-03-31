@@ -1,0 +1,37 @@
+{
+  "name": "pi-rtk",
+  "version": "1.0.0",
+  "description": "RTK (Rust Token Killer) integration for Pi coding agent - reduces LLM token consumption by 60-90%",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "rtk",
+    "token-optimization",
+    "ai-coding",
+    "cli-proxy"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/pi-rtk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/pi-rtk/issues"
+  },
+  "homepage": "https://github.com/yourusername/pi-rtk#readme",
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": ">=0.1.0"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.1.0",
+    "@sinclair/typebox": "^0.34.0",
+    "typescript": "^5.0.0"
+  }
+}

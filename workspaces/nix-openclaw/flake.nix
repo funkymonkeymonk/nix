@@ -1,0 +1,647 @@
+{
+  description = "Will Weaver system setup flake";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-25.05";
+
+    nix-darwin.url = "github:nix-darwin/nix-darwin/master";
+    nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
+
+    home-manager.url = "github:nix-community/home-manager";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs";
+
+    nix-homebrew.url = "github:zhaofengli/nix-homebrew";
+    homebrew-core.url = "github:homebrew/homebrew-core";
+    homebrew-core.flake = false;
+    homebrew-cask.url = "github:homebrew/homebrew-cask";
+    homebrew-cask.flake = false;
+
+    mac-app-util.url = "github:hraban/mac-app-util";
+
+    microvm.url = "github:astro/microvm.nix";
+    microvm.inputs.nixpkgs.follows = "nixpkgs";
+
+    superpowers.url = "github:obra/superpowers";
+    superpowers.flake = false;
+
+    opnix.url = "github:brizzbuzz/opnix";
+    opnix.inputs.nixpkgs.follows = "nixpkgs";
+
+    devenv.url = "github:cachix/devenv";
+
+    # NEW: Takeout container infrastructure for automated installs
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
+
+    zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
+  };
+
+  outputs = {
+    self,
+    nix-darwin,
+    nixpkgs,
+    nixpkgs-stable,
+    home-manager,
+    mac-app-util,
+    nix-homebrew,
+    opnix,
+    microvm,
+    ...
+  } @ inputs: let
+    # Base configuration shared by all systems
+    configuration = _: {
+      system.configurationRevision = self.rev or self.dirtyRev or null;
+      nixpkgs = {
+        config = {
+          allowUnfree = true;
+          allowUnfreePredicate = pkg:
+            builtins.elem (nixpkgs.lib.getName pkg) [
+              "claude-code"
+            ];
+          permittedInsecurePackages = [
+            "google-chrome-144.0.7559.97"
+            "olm-3.2.16"
+          ];
+        };
+        overlays = [
+          (final: _prev: {
+            stable = import nixpkgs-stable {
+              inherit (final) system config;
+            };
+          })
+          # Use devenv 2.x from the cachix/devenv flake
+          (final: _prev: {
+            inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+          })
+          # zellij-pane-tracker WASM plugin from its own flake
+          (final: _prev: {
+            zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
+          })
+          (import ./overlays)
+        ];
+      };
+    };
+
+    # Helper to create user config
+    mkUser = name: email: {
+      users = [
+        {
+          inherit name email;
+          fullName = "Will Weaver";
+          isAdmin = true;
+          sshIncludes = [];
+        }
+      ];
+      development.enable = true;
+      onepassword.enable = true;
+      jj-autosync = {
+        enable = true;
+        username = name;
+      };
+      opencode = {
+        enable = true;
+        model = "opencode/big-pickle";
+      };
+      claude-code = {
+        enable = true;
+      };
+      llmClient.rtk.enable = true;
+    };
+
+    # Package overlays for each system
+    forAllSystems = nixpkgs.lib.genAttrs [
+      "aarch64-darwin"
+      "x86_64-linux"
+    ];
+
+    # Helper to create microvm configuration
+    mkMicrovm = name: roleEnables:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nixosModules.home-manager
+          opnix.nixosModules.default
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/${name}.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            myConfig =
+              {
+                skills.superpowersPath = inputs.superpowers;
+                users = [
+                  {
+                    name = "dev";
+                    email = "dev@localhost";
+                    fullName = "Development User";
+                    isAdmin = true;
+                    sshIncludes = [];
+                  }
+                ];
+                development.enable = true;
+                onepassword.enable = false;
+              }
+              // roleEnables;
+          }
+        ];
+      };
+  in {
+    packages = forAllSystems (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [(import ./overlays)];
+        };
+      in
+        {
+          inherit (pkgs) rtk yaks;
+          inherit (inputs.devenv.packages.${system}) devenv;
+          installer = pkgs.callPackage ./packages/installer {};
+        }
+        // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+          # ISO installer only for x86_64-linux
+          iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
+        }
+    );
+
+    apps = forAllSystems (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [(import ./overlays)];
+        };
+      in {
+        installer = {
+          type = "app";
+          program = "${pkgs.callPackage ./packages/installer {}}/bin/nixos-flake-installer";
+        };
+      }
+    );
+
+    # ISO installer image (x86_64-linux only)
+    nixosConfigurations.installer-iso = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./targets/installer-iso/default.nix
+        {
+          # Bundle the flake into the ISO for offline fallback
+          isoImage.contents = [
+            {
+              source = ./.;
+              target = "nix-flake";
+            }
+          ];
+        }
+      ];
+    };
+
+    darwinConfigurations = {
+      "wweaver" = nix-darwin.lib.darwinSystem {
+        modules = [
+          configuration
+          nix-homebrew.darwinModules.nix-homebrew
+          ./modules
+          ./modules/services/ollama/darwin.nix
+          ./modules/services/vane/darwin.nix
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          ./targets/wweaver
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            system.primaryUser = "wweaver";
+            myConfig =
+              mkUser "wweaver" "wweaver@justworks.com"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  workstation.enable = true;
+                  llm-host.enable = true;
+                  opencode.enable = true;
+                  claude.enable = true;
+                };
+                vane = {
+                  enable = true;
+                  autoStart = true;
+                  # Local Ollama for fast local models
+                  ollamaUrl = "http://host.docker.internal:11434";
+                  # LiteLLM for external/cloud models - configure via web UI
+                  openaiBaseUrl = "https://litellm.justworksai.net";
+                  # Embedded SearxNG for web search
+                  embeddedSearxng = true;
+                  # Chat model (balanced speed/quality)
+                  defaultModel = "qwen3.5";
+                  # Embedding model for vector search
+                  embeddingModel = "nomic-embed-text";
+                  # Good resources for M4 Pro (14 cores, 48GB RAM)
+                  colima = {
+                    cpu = 6;
+                    memory = 12;
+                    disk = 60;
+                  };
+                };
+                opencode = {
+                  enable = true;
+                  model = "just-llms/claude-sonnet-4-6";
+                  disabledProviders = ["opencode"];
+                  extraMcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = false;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                  commands = {
+                    diataxis = {
+                      description = "Audit and rewrite documentation using the Diataxis framework";
+                      template = ''
+                        Load the diataxis-docs skill and use it to audit and restructure the documentation in this project.
+
+                        Follow the Diataxis framework to organize content into:
+                        - Tutorials (learning-oriented)
+                        - How-to guides (goal-oriented)
+                        - Reference (information-oriented)
+                        - Explanation (understanding-oriented)
+
+                        $ARGUMENTS
+                      '';
+                    };
+                    workspace = {
+                      description = "Create a jj workspace for isolated work with fast sync enabled";
+                      template = ''
+                        Create a jj workspace session for isolated development work.
+
+                        Run this command:
+                        ```bash
+                        jj-workspace-session start $ARGUMENTS
+                        ```
+
+                        Then report the workspace name and path to the user, and cd into the workspace directory.
+
+                        If no arguments provided, this starts session tracking in the current workspace.
+                        If a name is provided (e.g., "feat/auth" or "fix/bug"), it creates a new workspace.
+                        A second argument can specify the base branch (defaults to main).
+
+                        Examples:
+                        - /workspace feat/user-auth      -> Creates feat/user-auth-<date>-<id> from main
+                        - /workspace fix/bug develop     -> Creates fix/bug-<date>-<id> from develop
+                        - /workspace                     -> Starts session in current workspace
+                      '';
+                    };
+                  };
+                  providers = {
+                    just-llms = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Just LLMs";
+                      baseURL = "https://litellm.justworksai.net";
+                      onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
+                      dynamicModels = true; # Also fetch additional models from LiteLLM at runtime
+                      models = {
+                        # Fallback model if dynamic fetch fails
+                        "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
+                          name = "Claude Opus 4.5 (Bedrock)";
+                        };
+                      };
+                    };
+                    ollama = {
+                      npm = "@ai-sdk/openai-compatible";
+                      name = "Ollama (local)";
+                      baseURL = "http://localhost:11434/v1";
+                      models = {
+                        "qwen3.5:latest" = {name = "Qwen 3.5 (7B)";};
+                        "qwen3.5:2b" = {name = "Qwen 3.5 (2B)";};
+                      };
+                    };
+                  };
+                };
+                claude-code = {
+                  enable = true;
+                  mcpServers = {
+                    github = {
+                      type = "remote";
+                      url = "https://api.githubcopilot.com/mcp/";
+                      enabled = true;
+                    };
+                    jira = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                    confluence = {
+                      type = "remote";
+                      url = "https://mcp.atlassian.com/v1/mcp";
+                      enabled = false;
+                    };
+                  };
+                };
+                llmClient.rtk.enable = true;
+              };
+          }
+        ];
+      };
+
+      "MegamanX" = nix-darwin.lib.darwinSystem {
+        modules = [
+          configuration
+          nix-homebrew.darwinModules.nix-homebrew
+          ./modules
+          ./modules/services/ollama/darwin.nix
+          ./modules/services/vane/darwin.nix
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          ./targets/MegamanX
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          mac-app-util.darwinModules.default
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            system.primaryUser = "monkey";
+            myConfig =
+              mkUser "monkey" "me@willweaver.dev"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  workstation.enable = true;
+                  entertainment.enable = true;
+                  llm-host.enable = true;
+                  opencode.enable = true;
+                  claude.enable = true;
+                  pi.enable = true;
+                };
+                ollama = {
+                  # Bind to all interfaces so Docker containers can access Ollama
+                  host = "0.0.0.0";
+                };
+                vane = {
+                  enable = true;
+                  # Uses default Ollama URL (host.docker.internal:11434)
+                  # Enable embedded SearxNG for web search
+                  embeddedSearxng = true;
+                  # Chat model - deepseek for reasoning tasks
+                  defaultModel = "deepseek-r1:14b";
+                  # Embedding model for vector search
+                  embeddingModel = "nomic-embed-text";
+                };
+              };
+          }
+        ];
+      };
+
+      # Core configuration - absolute minimum for bootstrap/recovery
+      # Uses only core.nix (git, curl, vim) - no foundation, no user config
+      "core" = nix-darwin.lib.darwinSystem {
+        modules = [
+          configuration
+          ./modules/common/core.nix
+          ./modules/common/options.nix
+          ./targets/core
+          (_: {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            nix.enable = false;
+            myConfig = {
+              users = [];
+              development.enable = false;
+              agent-skills.enable = false;
+              onepassword.enable = false;
+              opencode.enable = false;
+            };
+          })
+        ];
+      };
+    };
+
+    nixosConfigurations = {
+      # Bootstrap configuration - minimal setup for initial install
+      # Uses core.nix for absolute minimum, no foundation
+      "bootstrap" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./modules/common/core.nix
+          ./targets/bootstrap
+          ./modules/common/options.nix
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+          }
+        ];
+      };
+
+      "zero" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {inherit inputs;};
+        modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          ./modules/nixos/desktop.nix
+          ./modules/nixos/gaming.nix
+          ./modules/nixos/streaming.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          ./os/nixos.nix
+          ./targets/zero
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
+            myConfig =
+              mkUser "monkey" "me@willweaver.dev"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  llm-client.enable = true;
+                };
+                desktop = {
+                  enable = true;
+                  autoLoginUser = "monkey";
+                };
+                gaming.enable = true;
+                streaming.enable = true;
+                llmEndpoints = {
+                  MegamanX = {
+                    host = "MegamanX.local";
+                    port = "4000";
+                  };
+                };
+              };
+          }
+        ];
+      };
+
+      # CATTLE CONFIGURATIONS - Generic machine types
+      # These require no hardware-configuration.nix!
+      # Use with: ./scripts/install-machine.sh <type> <host> <disk>
+
+      "type-desktop" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          # Disk layout
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+
+          # Machine type configuration
+          ./machine-types/desktop.nix
+
+          # Your common options
+          ./modules/common/options.nix
+
+          # Ghostty terminfo for SSH support
+          # https://github.com/ghostty-org/ghostty/discussions/5753
+          ./modules/nixos/ghostty-terminfo.nix
+
+          # SSH key for initial access (replace with your key)
+          {
+            users.users.root.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+        ];
+      };
+
+      # Foundation-based server configuration
+      # Minimal required fields: system architecture, SSH authorized keys
+      "type-server" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+
+          # Disk layout
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+
+          # Hardware detection via nixos-facter (module is in nixpkgs)
+          # The facter.json file should be generated on the target machine
+          # CI builds use --impure with a stub file
+          {
+            hardware.facter.reportPath = "/etc/nixos/facter.json";
+            myConfig = {
+              skills.superpowersPath = inputs.superpowers;
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+            };
+          }
+
+          # Machine type configuration
+          ./machine-types/server.nix
+
+          # REQUIRED: Configure at least one user with SSH access
+          {
+            users.users.root.openssh.authorizedKeys.keys = []; # Root SSH disabled
+            users.users.monkey = {
+              isNormalUser = true;
+              extraGroups = ["wheel"];
+              openssh.authorizedKeys.keys = [
+                # MegamanX deploy key
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+              ];
+            };
+          }
+        ];
+      };
+
+      # ARM64 server variant
+      "type-server-arm" = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = inputs;
+        modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+
+          {
+            hardware.facter.reportPath = "/etc/nixos/facter.json";
+            myConfig = {
+              skills.superpowersPath = inputs.superpowers;
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+            };
+          }
+
+          ./machine-types/server.nix
+
+          # REQUIRED: Configure at least one user with SSH access
+          {
+            users.users.root.openssh.authorizedKeys.keys = [];
+            users.users.monkey = {
+              isNormalUser = true;
+              extraGroups = ["wheel"];
+              openssh.authorizedKeys.keys = [
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+              ];
+            };
+          }
+        ];
+      };
+    };
+
+    microvm.nixosConfigurations = {
+      dev-vm = mkMicrovm "dev-vm" {
+        roles.opencode.enable = true;
+      };
+      openclaw = mkMicrovm "openclaw" {};
+      matrix = mkMicrovm "matrix" {};
+    };
+
+    # Flake checks for CI - run on Linux and Darwin
+    checks = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-darwin"] (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [(import ./overlays)];
+        };
+        tests = import ./tests {
+          inherit pkgs self;
+          inherit (nixpkgs) lib;
+        };
+      in {
+        inherit
+          (tests)
+          foundation-options
+          core-packages
+          foundation-packages
+          config-validation
+          ;
+      }
+    );
+  };
+}

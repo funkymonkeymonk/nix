@@ -1,0 +1,131 @@
+{
+  "project": "TaskApp",
+  "branchName": "ralph/task-priority-system",
+  "description": "Add priority levels to tasks with filtering and visual indicators",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add priority column to tasks database",
+      "description": "As a developer, I need to store task priority so it persists across sessions.",
+      "acceptanceCriteria": [
+        "Migration file exists at db/migrations/NNNN_add_priority.sql",
+        "Priority column added with type VARCHAR(10)",
+        "Column has CHECK constraint for values: 'high', 'medium', 'low'",
+        "Default value is 'medium'",
+        "Migration runs without errors",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Add TaskPriority type definition",
+      "description": "As a developer, I want a shared type for priority so the codebase has consistent typing.",
+      "acceptanceCriteria": [
+        "TaskPriority type exported from src/types/task.ts",
+        "Type is union: 'high' | 'medium' | 'low'",
+        "Task interface updated to include optional priority field",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Update createTask API for priority",
+      "description": "As a developer, I want the API to accept priority so tasks can be created with different levels.",
+      "acceptanceCriteria": [
+        "POST /api/tasks accepts optional 'priority' field",
+        "Priority validated against allowed values",
+        "Default 'medium' used when not specified",
+        "Invalid priority returns 400 with descriptive error",
+        "Typecheck passes",
+        "API tests pass"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Update getTask API to return priority",
+      "description": "As a developer, I want task responses to include priority for display.",
+      "acceptanceCriteria": [
+        "GET /api/tasks returns priority field on each task",
+        "GET /api/tasks/:id returns priority field",
+        "Typecheck passes",
+        "API tests pass"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Create PriorityBadge component",
+      "description": "As a user, I want to see task priority at a glance via colored badges.",
+      "acceptanceCriteria": [
+        "PriorityBadge component exists at src/components/PriorityBadge.tsx",
+        "Accepts 'priority' prop of type TaskPriority",
+        "Renders: red badge for high, yellow for medium, gray for low",
+        "Includes accessible aria-label",
+        "Typecheck passes",
+        "Component tests pass"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add priority badge to task cards",
+      "description": "As a user, I want to see priority on task cards without clicking.",
+      "acceptanceCriteria": [
+        "TaskCard component displays PriorityBadge",
+        "Badge visible in top-right corner of card",
+        "Badge shown for all priority levels",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Add priority selector to task edit form",
+      "description": "As a user, I want to change priority when editing a task.",
+      "acceptanceCriteria": [
+        "Priority dropdown in TaskEditModal component",
+        "Shows current priority as selected value",
+        "Options: High, Medium, Low",
+        "Selection updates task via API",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Add priority filter to task list",
+      "description": "As a user, I want to filter tasks by priority to focus on important items.",
+      "acceptanceCriteria": [
+        "Filter dropdown with options: All, High, Medium, Low",
+        "Filter added to TaskListHeader component",
+        "Selecting filter updates displayed tasks",
+        "Filter state persisted in URL query param",
+        "Empty state shown when no tasks match",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

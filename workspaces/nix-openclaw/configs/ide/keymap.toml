@@ -1,0 +1,9 @@
+# Yazi keymap for zellij IDE integration
+# Opens files in a new zellij pane instead of blocking yazi
+
+[mgr]
+prepend_keymap = [
+  { on = ["<Enter>"], run = '''
+    shell 'zellij action move-focus right && zellij run --direction up --close-on-exit -- ${EDITOR:-hx} "$0"'
+  ''', desc = "Open file in editor area (splits agent pane)" },
+]

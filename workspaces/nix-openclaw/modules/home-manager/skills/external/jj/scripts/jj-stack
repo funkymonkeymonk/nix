@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# jj-stack: Add another PR to the current stack
+# Usage: jj-stack <type> <description> [commit-message]
+# Example: jj-stack feat login-ui "Add login UI components"
+
+set -euo pipefail
+
+# Source shared library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/jj-workspace-lib"
+
+usage() {
+    cat <<EOF
+Usage: jj-stack <type> <description> [commit-message]
+
+Add another PR to the current stack (stacked PRs workflow).
+Works in jj workspaces (including child workspaces separate from the parent repo).
+
+This script:
+1. Creates a new commit on top of current
+2. Sets commit message
+3. Creates conventional branch bookmark
+4. Pushes to remote
+5. Creates PR with proper base branch
+
+Types:
+  feat, feature  - New features
+  fix, bugfix    - Bug fixes
+  hotfix         - Urgent fixes
+  release        - Release preparation
+  chore          - Non-code tasks (deps, docs)
+
+Arguments:
+  type           - Branch type prefix
+  description    - Branch description (kebab-case)
+  commit-message - Optional commit message (uses description if not provided)
+
+Examples:
+  jj-stack feat login-ui "Add login UI components"
+  jj-stack fix validation-error
+EOF
+    exit 1
+}
+
+# Validate type
+validate_type() {
+    local type="$1"
+    case "$type" in
+        feat|feature|fix|bugfix|hotfix|release|chore)
+            return 0
+            ;;
+        *)
+            echo -e "${JJ_RED}Error: Invalid type '$type'${JJ_NC}"
+            echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore"
+            exit 1
+            ;;
+    esac
+}
+
+# Normalize type (feature -> feat, bugfix -> fix)
+normalize_type() {
+    local type="$1"
+    case "$type" in
+        feature) echo "feat" ;;
+        bugfix) echo "fix" ;;
+        *) echo "$type" ;;
+    esac
+}
+
+# Validate description (kebab-case, no special chars)
+validate_description() {
+    local desc="$1"
+    if [[ ! "$desc" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo -e "${JJ_RED}Error: Description must be kebab-case (lowercase, hyphens only)${JJ_NC}"
+        echo "Got: $desc"
+        echo "Example: user-auth, fix-null-pointer, gh-123-add-feature"
+        exit 1
+    fi
+}
+
+# Get bookmark name for a revision
+get_bookmark() {
+    local rev="$1"
+    jj log -r "$rev" --no-graph -T 'bookmarks' 2>/dev/null | head -1 | sed 's/\*.*//' | tr -d ' '
+}
+
+# Main
+if [[ $# -lt 2 ]]; then
+    usage
+fi
+
+TYPE="$1"
+DESC="$2"
+MESSAGE="${3:-$DESC}"
+
+validate_type "$TYPE"
+validate_description "$DESC"
+
+TYPE=$(normalize_type "$TYPE")
+BRANCH="${TYPE}/${DESC}"
+
+# Check we're in a jj repo
+if ! jj_in_repo; then
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    exit 1
+fi
+
+# Get GitHub repo
+GH_REPO=$(jj_get_gh_repo)
+
+# Get parent bookmark for PR base
+PARENT_BOOKMARK=$(get_bookmark '@-')
+if [[ -z "$PARENT_BOOKMARK" ]]; then
+    echo -e "${JJ_RED}Error: Parent commit has no bookmark${JJ_NC}"
+    echo "The parent commit needs a bookmark for stacked PRs to work."
+    echo "Create one with: jj bookmark set <name> -r @-"
+    exit 1
+fi
+
+echo -e "${JJ_YELLOW}Adding to stack: ${BRANCH} (based on ${PARENT_BOOKMARK})${JJ_NC}"
+echo -e "GitHub repo: ${JJ_BLUE}${GH_REPO}${JJ_NC}"
+
+# Check current state
+echo -e "\n${JJ_GREEN}1. Current stack:${JJ_NC}"
+jj log -r 'ancestors(@, 5)' --no-graph
+
+# Check if we have changes
+if jj diff --stat | grep -q .; then
+    echo -e "\n${JJ_GREEN}2. Changes detected in working copy${JJ_NC}"
+else
+    echo -e "\n${JJ_YELLOW}Warning: No changes in working copy${JJ_NC}"
+    read -p "Continue anyway? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Describe the commit
+echo -e "\n${JJ_GREEN}3. Setting commit message...${JJ_NC}"
+jj describe -m "$MESSAGE"
+
+# Create bookmark
+echo -e "\n${JJ_GREEN}4. Creating bookmark: ${BRANCH}${JJ_NC}"
+jj bookmark set "$BRANCH" -r @
+
+# Push to remote
+echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
+jj_push_bookmark "$BRANCH" true
+
+# Create PR with correct base
+echo -e "\n${JJ_GREEN}6. Creating PR (base: ${PARENT_BOOKMARK})...${JJ_NC}"
+gh pr create --repo "$GH_REPO" --head "$BRANCH" --base "$PARENT_BOOKMARK" --fill
+
+# Create new empty commit for next work
+echo -e "\n${JJ_GREEN}7. Creating new commit for next work...${JJ_NC}"
+jj new
+
+PR_URL=$(jj_get_pr_url "$GH_REPO" "$BRANCH")
+echo -e "\n${JJ_GREEN}Done! Stacked PR created: ${JJ_BLUE}${PR_URL}${JJ_NC}"
+echo -e "Stack: ${PARENT_BOOKMARK} -> ${BRANCH}"
