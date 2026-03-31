@@ -537,6 +537,7 @@
         modules = [
           configuration
           ./modules
+          ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
@@ -580,6 +581,7 @@
         modules = [
           configuration
           ./modules
+          ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
