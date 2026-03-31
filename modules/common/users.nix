@@ -80,8 +80,8 @@ with lib; let
           ++ optional config.myConfig.jj-autosync.enable ../../modules/home-manager/jj-autosync.nix
           ++ optional config.myConfig.fjj.enable ../../modules/home-manager/fjj.nix
           ++ optional (
-            elem "developer" (config.myConfig.roles or [])
-            || elem "workstation" (config.myConfig.roles or [])
+            config.myConfig.roles.developer.enable
+            || config.myConfig.roles.workstation.enable
           )
           ../../modules/home-manager/watch-ci-jobs.nix;
 

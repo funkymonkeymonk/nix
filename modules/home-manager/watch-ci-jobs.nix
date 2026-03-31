@@ -12,7 +12,7 @@
   );
 in {
   # Install watch-ci-jobs for developer and workstation roles
-  config = lib.mkIf (lib.elem "developer" (cfg.roles or []) || lib.elem "workstation" (cfg.roles or [])) {
+  config = lib.mkIf ((cfg.roles.developer.enable or false) || (cfg.roles.workstation.enable or false)) {
     home.packages = [watchCiJobsScript];
   };
 }

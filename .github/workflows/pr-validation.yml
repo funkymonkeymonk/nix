@@ -27,7 +27,7 @@ jobs:
           use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        run: nix profile add --accept-flake-config .#devenv
+        run: nix profile add --accept-flake-config nixpkgs#devenv
       - name: Run lint checks
         run: devenv tasks run check:lint
   # Check if Nix files changed (skip builds if only docs changed)
@@ -471,7 +471,7 @@ jobs:
           use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        run: nix profile add --accept-flake-config .#devenv
+        run: nix profile add --accept-flake-config nixpkgs#devenv
       - name: Validate Disko configurations
         run: devenv tasks run validate:disko
       - name: Validate installation script
@@ -496,7 +496,7 @@ jobs:
           use-flakehub: false
         continue-on-error: true
       - name: Install devenv.sh
-        run: nix profile add --accept-flake-config .#devenv
+        run: nix profile add --accept-flake-config nixpkgs#devenv
       - name: Run foundation tests
         run: |
           echo "Running foundation test suite..."
