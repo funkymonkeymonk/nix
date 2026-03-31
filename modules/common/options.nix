@@ -10,7 +10,7 @@ with lib; {
     # Uses _module.args.pkgs which is always available during module evaluation
     isDarwin = mkOption {
       type = types.bool;
-      default = builtins.elem pkgs.system ["aarch64-darwin" "x86_64-darwin"];
+      default = builtins.elem pkgs.stdenv.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"];
       readOnly = true;
       description = "Whether the current system is Darwin (macOS)";
     };
@@ -117,6 +117,13 @@ with lib; {
           type = types.bool;
           default = false;
           description = "Claude Code";
+        };
+      };
+      llm-pi = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Pi coding agent (pi-coding-agent)";
         };
       };
       llm-host = {
@@ -780,6 +787,131 @@ with lib; {
         type = types.attrsOf types.str;
         default = {};
         description = "Custom hooks for Claude Code";
+      };
+    };
+
+    pi = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable pi coding agent configuration management";
+      };
+
+      settings = mkOption {
+        type = types.attrs;
+        default = {};
+        description = ''
+          Pi settings.json configuration.
+          See https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/settings.md
+          for available options.
+        '';
+      };
+
+      agentsMd = mkOption {
+        type = types.lines;
+        default = "";
+        description = ''
+          Global AGENTS.md content. This is loaded at startup from ~/.pi/agent/AGENTS.md
+          and provides project-agnostic instructions to pi.
+        '';
+      };
+
+      systemMd = mkOption {
+        type = types.lines;
+        default = "";
+        description = ''
+          Custom system prompt content. Written to ~/.pi/agent/SYSTEM.md.
+          Replaces the default system prompt. Use APPEND_SYSTEM.md to append instead.
+        '';
+      };
+
+      keybindings = mkOption {
+        type = types.attrsOf types.str;
+        default = {};
+        description = ''
+          Custom keybindings configuration.
+          Keys are action names, values are key combinations.
+          See https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/keybindings.md
+        '';
+      };
+
+      models = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Display name for the model";
+            };
+            provider = mkOption {
+              type = types.str;
+              description = "Provider ID (e.g., 'anthropic', 'openai', 'ollama')";
+            };
+            modelId = mkOption {
+              type = types.str;
+              description = "Model identifier (e.g., 'claude-sonnet-4-6', 'gpt-4o')";
+            };
+            apiKey = mkOption {
+              type = types.str;
+              default = "";
+              description = "API key for the model (use onePasswordItem for secrets)";
+            };
+            onePasswordItem = mkOption {
+              type = types.str;
+              default = "";
+              description = "1Password item reference (e.g., 'op://vault/item/field')";
+            };
+            baseUrl = mkOption {
+              type = types.str;
+              default = "";
+              description = "Base URL for the API (for custom endpoints)";
+            };
+          };
+        });
+        default = {};
+        description = ''
+          Custom models configuration for ~/.pi/agent/models.json.
+          Allows adding custom providers and models.
+        '';
+      };
+
+      prompts = mkOption {
+        type = types.attrsOf types.lines;
+        default = {};
+        description = ''
+          Prompt templates as attribute set.
+          Each key is the prompt name, value is the template content.
+          Written to ~/.pi/agent/prompts/<name>.md
+        '';
+      };
+
+      skills = mkOption {
+        type = types.attrsOf types.lines;
+        default = {};
+        description = ''
+          Skills as attribute set.
+          Each key is the skill name, value is the SKILL.md content.
+          Written to ~/.pi/agent/skills/<name>/SKILL.md
+        '';
+      };
+
+      extensions = mkOption {
+        type = types.attrsOf types.lines;
+        default = {};
+        description = ''
+          Extensions as attribute set.
+          Each key is the extension name, value is the TypeScript source.
+          Written to ~/.pi/agent/extensions/<name>.ts
+        '';
+      };
+
+      themes = mkOption {
+        type = types.attrsOf types.attrs;
+        default = {};
+        description = ''
+          Custom themes as attribute set.
+          Each key is the theme name, value is a theme attribute set.
+          Written to ~/.pi/agent/themes/<name>.json
+        '';
       };
     };
   };

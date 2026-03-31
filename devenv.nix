@@ -55,6 +55,11 @@
     alias i="devenv tasks run dev:ide"
   '';
 
+  # Disable devenv's built-in cachix module — we manage cachix manually via pkgs.cachix.
+  # The module's default package evaluation fails in CI with incomplete Nix stores
+  # ("Failed to convert config.cachix to JSON: path '...unpack-bootstrap-tools.sh' is not valid").
+  cachix.enable = false;
+
   # https://devenv.sh/git-hooks/
   git-hooks = {
     hooks = {
@@ -111,6 +116,77 @@
               echo "  - Verify all module imports are correct"
               exit 1
             fi
+          '
+        '';
+        types = ["file"];
+        files = "\\.nix$";
+        pass_filenames = false;
+        stages = ["pre-push"];
+      };
+
+      # Cross-platform configuration evaluation check for pre-push
+      # Catches module errors, missing options, and platform mismatches before CI
+      config-eval-check = {
+        enable = true;
+        name = "config-eval-check";
+        entry = ''
+          ${pkgs.bash}/bin/bash -c '
+            echo "→ Evaluating all configurations (catches module errors before CI)..."
+            FAILED=0
+            SKIPPED=0
+
+            # Eval Darwin configs (only on macOS — Linux cannot evaluate Darwin derivations)
+            if [[ "$(uname)" == "Darwin" ]]; then
+              DARWIN_CONFIGS=$(${pkgs.nix}/bin/nix eval --json .#darwinConfigurations --apply "builtins.attrNames" 2>/dev/null || echo "[]")
+              for cfg in $(echo "$DARWIN_CONFIGS" | ${pkgs.jq}/bin/jq -r ".[]"); do
+                if ${pkgs.nix}/bin/nix eval --impure --expr "
+                  let flake = builtins.getFlake (toString ./.);
+                  in flake.darwinConfigurations.\"$cfg\".config.system.build.toplevel != null
+                " 2>/dev/null | grep -q "true"; then
+                  echo "  ✓ Darwin: $cfg"
+                else
+                  echo "  ✗ Darwin: $cfg FAILED"
+                  FAILED=$((FAILED + 1))
+                fi
+              done
+            else
+              echo "  ⊘ Darwin configs: skipped (not on macOS)"
+            fi
+
+            # Eval NixOS configs (works cross-platform via nix eval --impure)
+            NIXOS_CONFIGS=$(${pkgs.nix}/bin/nix eval --json .#nixosConfigurations --apply "builtins.attrNames" 2>/dev/null || echo "[]")
+            for cfg in $(echo "$NIXOS_CONFIGS" | ${pkgs.jq}/bin/jq -r ".[]"); do
+              if ${pkgs.nix}/bin/nix eval --impure --expr "
+                let flake = builtins.getFlake (toString ./.);
+                in flake.nixosConfigurations.\"$cfg\".config.system.build.toplevel != null
+              " 2>/dev/null | grep -q "true"; then
+                echo "  ✓ NixOS: $cfg"
+              else
+                # Soft-fail for configs that need /etc/nixos/facter.json
+                case "$cfg" in
+                  type-*|installer-*|bootstrap)
+                    echo "  ⊘ NixOS: $cfg skipped (requires facter.json or special environment)"
+                    SKIPPED=$((SKIPPED + 1))
+                    ;;
+                  *)
+                    echo "  ✗ NixOS: $cfg FAILED"
+                    FAILED=$((FAILED + 1))
+                    ;;
+                esac
+              fi
+            done
+
+            if [ $SKIPPED -gt 0 ]; then
+              echo ""
+              echo "  $SKIPPED config(s) skipped (need facter.json — tested in CI)"
+            fi
+
+            if [ $FAILED -gt 0 ]; then
+              echo ""
+              echo "✗ $FAILED configuration(s) failed evaluation"
+              exit 1
+            fi
+            echo "✓ All configuration evaluations passed"
           '
         '';
         types = ["file"];
@@ -952,58 +1028,42 @@
     # ============================================
 
     "test:core" = {
-      description = "Test core packages are available (Linux only)";
+      description = "Test core packages are available";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
-          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
-          exit 0
-        fi
-        echo "Testing core packages..."
-        nix build .#checks.x86_64-linux.core-packages --no-link
-        echo "✓ Core packages test passed"
+        echo "Testing core packages ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.core-packages" --no-link
+        echo "Core packages test passed"
       '';
     };
 
     "test:foundation" = {
-      description = "Test foundation packages and config (Linux only)";
+      description = "Test foundation packages and config";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
-          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
-          exit 0
-        fi
-        echo "Testing foundation..."
-        nix build .#checks.x86_64-linux.foundation-packages --no-link
-        echo "✓ Foundation packages test passed"
+        echo "Testing foundation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.foundation-packages" --no-link
+        echo "Foundation packages test passed"
       '';
     };
 
     "test:options" = {
-      description = "Test foundation options are defined (Linux only)";
+      description = "Test foundation options are defined";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
-          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
-          exit 0
-        fi
-        echo "Testing foundation options..."
-        nix build .#checks.x86_64-linux.foundation-options --no-link
-        echo "✓ Foundation options test passed"
+        echo "Testing foundation options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.foundation-options" --no-link
+        echo "Foundation options test passed"
       '';
     };
 
     "test:config" = {
-      description = "Test configuration validation (Linux only)";
+      description = "Test configuration validation";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        if [[ "$CURRENT_SYSTEM" != "x86_64-linux" ]]; then
-          echo "ℹ Skipping: tests only run on x86_64-linux (current: $CURRENT_SYSTEM)"
-          exit 0
-        fi
-        echo "Testing configuration validation..."
-        nix build .#checks.x86_64-linux.config-validation --no-link
-        echo "✓ Configuration validation test passed"
+        echo "Testing configuration validation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.config-validation" --no-link
+        echo "Configuration validation test passed"
       '';
     };
 
@@ -1054,7 +1114,11 @@
 
         # Create a minimal facter.json for testing (required by some NixOS configs)
         # This is the same approach used in CI builds
-        if [ ! -f /etc/nixos/facter.json ]; then
+        # On macOS, skip this step (sudo not available) — configs needing facter will soft-fail
+        HAS_FACTER=false
+        if [ -f /etc/nixos/facter.json ]; then
+          HAS_FACTER=true
+        elif [[ "$(uname)" != "Darwin" ]]; then
           echo "Creating stub facter.json for testing..."
           sudo mkdir -p /etc/nixos
           sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
@@ -1069,8 +1133,9 @@
           }
         }
         EOF
-          echo "✓ Created /etc/nixos/facter.json"
+          echo "Created /etc/nixos/facter.json"
           echo ""
+          HAS_FACTER=true
         fi
 
         # Test each configuration can be evaluated (using nix eval to avoid building)
@@ -1089,6 +1154,15 @@
           " 2>/dev/null | grep -q "true"; then
             echo "✓"
           else
+            # Soft-fail for configs that require facter.json when it's not available
+            if [[ "$HAS_FACTER" != "true" ]]; then
+              case "$CONFIG" in
+                type-*|installer-*|bootstrap)
+                  echo "⊘ skipped (requires facter.json)"
+                  continue
+                  ;;
+              esac
+            fi
             echo "✗ FAILED"
             echo ""
             echo "Error output:"

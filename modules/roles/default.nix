@@ -18,6 +18,7 @@ in {
     ./agent-skills.nix
     ./llm-client.nix
     ./llm-claude.nix
+    ./llm-pi.nix
     ./llm-host.nix
   ];
 
