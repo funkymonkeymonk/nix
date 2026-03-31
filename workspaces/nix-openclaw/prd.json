@@ -1,0 +1,359 @@
+{
+  "project": "nix-config-improvements",
+  "branchName": "ralph/improvements-spec",
+  "description": "Clean up dead code, fix inconsistencies, improve documentation, and enhance developer experience in the Nix configuration repository",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Remove dead llm-server role",
+      "description": "As a maintainer, I want to remove the unused llm-server role from bundles.nix so the codebase is cleaner",
+      "acceptanceCriteria": [
+        "llm-server entry removed from bundles.nix roles",
+        "devenv tasks run ci:lint passes",
+        "nix flake check --no-build passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Uncomment zero NixOS config in build task",
+      "description": "As a maintainer, I want the zero NixOS configuration to be tested in CI so all configs are validated",
+      "acceptanceCriteria": [
+        "Line removing zero from nix:build:nixos task removed in devenv.nix",
+        "devenv tasks run nix:build:nixos succeeds",
+        "nix build .#nixosConfigurations.zero.config.system.build.toplevel --dry-run succeeds"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Fix stateVersion type consistency",
+      "description": "As a maintainer, I want all stateVersion values to use consistent string types across Darwin and NixOS",
+      "acceptanceCriteria": [
+        "flake.nix uses string type for system.stateVersion in mkDarwinHost (change 4 to \"4\")",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Externalize myConfig from mkDarwinHost",
+      "description": "As a maintainer, I want to move large myConfig blocks out of flake.nix into separate files for better maintainability",
+      "acceptanceCriteria": [
+        "New file targets/wweaver/myconfig.nix created with extraConfig content",
+        "New file targets/MegamanX/myconfig.nix created with extraConfig content",
+        "flake.nix imports these files instead of inline config",
+        "nix flake check --no-build passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Fix nixpkgs-stable version typo",
+      "description": "As a maintainer, I want to correct the nixpkgs-stable channel from '25.05' to '24.11' (or appropriate stable)",
+      "acceptanceCriteria": [
+        "flake.nix line 6 uses correct stable channel version",
+        "nix flake update && nix flake check --no-build passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Consolidate overlays into flake.nix",
+      "description": "As a maintainer, I want to move the minimal overlay from overlays/default.nix directly into flake.nix to reduce file count",
+      "acceptanceCriteria": [
+        "overlays/default.nix content moved inline to flake.nix overlays section",
+        "overlays/default.nix removed or deleted",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Document llm-server role",
+      "description": "As a user, I want documentation for the llm-server role to understand its purpose",
+      "acceptanceCriteria": [
+        "If llm-server is kept, docs/reference/roles.md includes it",
+        "If removed, bundles.nix no longer references it",
+        "devenv tasks run docs:generate succeeds"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Document jj-autosync in how-to guide",
+      "description": "As a user, I want documentation explaining how to use jj-autosync for repository synchronization",
+      "acceptanceCriteria": [
+        "New file docs/how-to/jj-autosync.md created",
+        "Includes configuration options from options.nix",
+        "Includes usage examples",
+        "docs/how-to/add-machine.md references it"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Document custom MCP server setup",
+      "description": "As a user, I want documentation on how to add custom MCP servers for OpenCode and Claude Code",
+      "acceptanceCriteria": [
+        "New file docs/how-to/add-mcp-server.md created",
+        "Documents opencode.extraMcpServers option",
+        "Documents claude-code.mcpServers option",
+        "Includes working examples"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Document microvm configuration",
+      "description": "As a user, I want documentation on how to set up and use microvms",
+      "acceptanceCriteria": [
+        "New file docs/how-to/add-microvm.md created",
+        "Documents existing targets/microvms structure",
+        "References devenv tasks for microvm:build and microvm:run",
+        "docs/how-to/add-machine.md references it"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Refactor system:switch task deduplication",
+      "description": "As a maintainer, I want to extract duplicated hostname-to-config mapping into a shared function",
+      "acceptanceCriteria": [
+        "devenv.nix uses a shared variable/function for hostname mappings",
+        "system:switch and cachix:push tasks use shared mapping",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Refactor cachix:push tasks deduplication",
+      "description": "As a maintainer, I want to extract duplicated cachix authentication logic into a helper",
+      "acceptanceCriteria": [
+        "cachix:push and cachix:push:all use shared authentication helper",
+        "Both tasks still function correctly",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Remove redundant devenv aliases",
+      "description": "As a user, I want fewer redundant shell aliases for clarity",
+      "acceptanceCriteria": [
+        "Removed duplicate aliases: dt, dtr (keep one), t (keep)",
+        "Kept: switch, q, b, i, tf",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Add ci:local alias for devenv",
+      "description": "As a user, I want a quick alias to run platform-appropriate CI checks",
+      "acceptanceCriteria": [
+        "devenv.nix enterShell includes alias for ci:local",
+        "devenv tasks run ci:local succeeds"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Add hostname-to-config reference",
+      "description": "As a user, I want a quick reference for which hostnames map to which configurations",
+      "acceptanceCriteria": [
+        "README.md or AGENTS.md includes hostname mapping table",
+        "Table includes: wweaver, MegamanX, drlight, zero, core"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "Fix bundles.nix package pattern consistency",
+      "description": "As a maintainer, I want consistent package declaration patterns in bundles.nix",
+      "acceptanceCriteria": [
+        "Removed inconsistent optional stdenv.isLinux pattern",
+        "All packages use pkgs. prefix consistently",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Add permittedInsecurePackages audit task",
+      "description": "As a maintainer, I want a task to audit and clean up insecure packages",
+      "acceptanceCriteria": [
+        "New devenv task agent-skills:audit-insecure created",
+        "Task checks for outdated versions in permittedInsecurePackages",
+        "Task provides guidance on updating/removing entries"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Migrate jj skill to internal source",
+      "description": "As a maintainer, I want the jj skill to use internal path for better maintainability",
+      "acceptanceCriteria": [
+        "jj skill source changed from external/ to internal/",
+        "File moved from skills/external/jj to modules/home-manager/skills/internal/jj",
+        "manifest.nix updated with new path",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Add health check task for Ollama",
+      "description": "As a user, I want a task to check if Ollama service is running",
+      "acceptanceCriteria": [
+        "New devenv task ollama:health created",
+        "Task checks localhost:11434/status endpoint",
+        "Task provides clear output on service status"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Improve docs-update.sh error handling",
+      "description": "As a maintainer, I want the docs-update script to handle nix eval failures gracefully",
+      "acceptanceCriteria": [
+        "scripts/docs-update.sh has better error handling for nix eval",
+        "Script exits with clear error message on failure",
+        "Script works when nix is not available in PATH"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Remove go-task migration comment",
+      "description": "As a maintainer, I want to remove outdated migration comments from devenv.nix",
+      "acceptanceCriteria": [
+        "Comment about go-task removal cleaned up in devenv.nix line 25",
+        "Comment about dagger removal cleaned up in devenv.nix",
+        "devenv tasks run ci:lint passes"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Add scheduled flake lock update workflow",
+      "description": "As a maintainer, I want automated flake.lock updates on a schedule",
+      "acceptanceCriteria": [
+        ".github/workflows/flake-update.yml runs on schedule (weekly)",
+        "Workflow creates PR automatically on changes",
+        "CI passes on workflow file"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Add secret scanning to CI",
+      "description": "As a maintainer, I want to add secret scanning to prevent accidental credential commits",
+      "acceptanceCriteria": [
+        "gitleaks or similar tool added to pr-validation.yml",
+        "CI fails on detected secrets",
+        "Workflow file is valid YAML"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Fix superpowersPath type in options",
+      "description": "As a maintainer, I want to fix the type signature for superpowersPath to accept flake inputs properly",
+      "acceptanceCriteria": [
+        "options.nix superpowersPath uses correct type for flake input",
+        "nix flake check --no-build passes"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Add integration test for agent skills",
+      "description": "As a maintainer, I want an integration test to verify agent skills install correctly",
+      "acceptanceCriteria": [
+        "devenv task agent-skills:validate actually validates skills",
+        "Task checks SKILL.md files exist for installed skills",
+        "Task provides clear pass/fail output"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Simplify mkBundleModule merging logic",
+      "description": "As a maintainer, I want to simplify the complex bundle merging logic in flake.nix for easier debugging",
+      "acceptanceCriteria": [
+        "mkBundleModule logic extracted to helper function or let block",
+        "Code is more readable with comments",
+        "Functionality remains identical"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Run final validation",
+      "description": "As a maintainer, I want to run the full CI pipeline to verify all changes work together",
+      "acceptanceCriteria": [
+        "devenv tasks run ci:pr passes",
+        "devenv tasks run quality:check passes",
+        "All NixOS configs evaluate successfully",
+        "All Darwin configs evaluate successfully"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

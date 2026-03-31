@@ -1,0 +1,23 @@
+name: "Publish every Git push to main to FlakeHub"
+on:
+  push:
+    branches:
+      - "main"
+jobs:
+  flakehub-publish:
+    if: false  # DISABLED: Authentication issues with FlakeHub
+    runs-on: "ubuntu-latest"
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          persist-credentials: false
+      - uses: "DeterminateSystems/determinate-nix-action@v3"
+      - uses: "DeterminateSystems/flakehub-push@v6"
+        with:
+          name: "funkymonkeymonk/nix"
+          rolling: true
+          visibility: "unlisted"
+          include-output-paths: true

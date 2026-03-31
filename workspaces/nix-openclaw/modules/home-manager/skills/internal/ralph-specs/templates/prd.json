@@ -1,0 +1,19 @@
+{
+  "project": "",
+  "branchName": "ralph/",
+  "description": "",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "",
+      "description": "As a [role], I want [goal] so that [benefit]",
+      "acceptanceCriteria": [
+        "",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

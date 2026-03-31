@@ -1,0 +1,117 @@
+{
+  "project": "NixConfig",
+  "branchName": "ralph/add-ollama-service",
+  "description": "Add Ollama LLM service to system configuration with GPU support",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create ollama module file",
+      "description": "As an operator, I want an Ollama module so I can declaratively configure local LLM hosting.",
+      "acceptanceCriteria": [
+        "File created at modules/home-manager/ollama.nix",
+        "Module has enable option with default false",
+        "Module imports without errors",
+        "nix flake check passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Add ollama package to module",
+      "description": "As an operator, I want Ollama installed when enabled.",
+      "acceptanceCriteria": [
+        "ollama package added to home.packages when enabled",
+        "Package only installed when enable = true",
+        "nix flake check passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Add port configuration option",
+      "description": "As an operator, I want to configure which port Ollama listens on.",
+      "acceptanceCriteria": [
+        "port option added with type lib.types.port",
+        "Default value is 11434",
+        "Option documented with description",
+        "nix flake check passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Add GPU acceleration option",
+      "description": "As an operator, I want to enable GPU acceleration for better performance.",
+      "acceptanceCriteria": [
+        "acceleration option added with type enum",
+        "Values: 'none', 'cuda', 'rocm', 'metal'",
+        "Default is 'none'",
+        "nix flake check passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Add environment configuration",
+      "description": "As an operator, I want Ollama environment variables set correctly.",
+      "acceptanceCriteria": [
+        "OLLAMA_HOST set based on port option",
+        "OLLAMA_MODELS set to ~/.ollama/models",
+        "GPU-specific env vars set when acceleration enabled",
+        "nix flake check passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add models option for auto-pull",
+      "description": "As an operator, I want to specify which models to pull on activation.",
+      "acceptanceCriteria": [
+        "models option added with type list of strings",
+        "Default is empty list",
+        "Example in description: ['llama3.2', 'qwen2.5-coder']",
+        "nix flake check passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Add ollama to llm-host role bundle",
+      "description": "As an operator, I want Ollama included when llm-host role is enabled.",
+      "acceptanceCriteria": [
+        "bundles.nix llm-host role references ollama module",
+        "Module enabled when role is active",
+        "nix flake check passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Document ollama module in README",
+      "description": "As an operator, I want documentation for the new Ollama options.",
+      "acceptanceCriteria": [
+        "README.md llm-host section updated",
+        "All options listed with descriptions",
+        "Example configuration provided",
+        "nix flake check passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
