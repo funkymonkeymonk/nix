@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   # System-level shell configuration
   # This module handles global shell setup that applies to all users
 
@@ -12,8 +16,14 @@
     # /etc/zshrc - system-wide configuration managed by Nix
     export SHELL=${pkgs.zsh}/bin/zsh
 
-    # Ollama configuration
-    export OLLAMA_HOST="http://localhost:11434"
+    ${
+      if config.myConfig.ollama.enable
+      then ''
+        # Ollama configuration (set because myConfig.ollama is enabled)
+        export OLLAMA_HOST="http://${config.myConfig.ollama.host}:${toString config.myConfig.ollama.port}"
+      ''
+      else ""
+    }
 
     # Load zshenv if present (follow distribution's behavior)
     if [ -f /etc/zsh/zshenv ]; then
