@@ -1,0 +1,1 @@
+Remove duplicate claude-code from foundation.nix (belongs in llm-claude)
