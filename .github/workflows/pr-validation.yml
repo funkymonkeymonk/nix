@@ -22,7 +22,7 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: false
         continue-on-error: true
@@ -78,7 +78,7 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: false
         continue-on-error: true
@@ -253,7 +253,7 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: false
         continue-on-error: true
@@ -290,7 +290,7 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: false
         continue-on-error: true
@@ -466,7 +466,7 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: false
         continue-on-error: true
@@ -491,7 +491,7 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: false
         continue-on-error: true

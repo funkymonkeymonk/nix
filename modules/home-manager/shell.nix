@@ -1,5 +1,4 @@
 {
-  _config,
   lib,
   pkgs,
   ...
@@ -37,8 +36,8 @@
         dir=$(z -l 2>&1 | awk '{print $2}' | fzf --height 40% --reverse --prompt="Jump to: ") && cd "$dir"
       }
 
-      # Find and cd to directory with fzf
-      fd() {
+      # Find and cd to directory with fzf (named fcd to avoid shadowing fd-find binary)
+      fcd() {
         local dir
         dir=$(find ''${1:-.} -path '*/\.*' -prune -o -type d -print 2> /dev/null | fzf +m --prompt="Select directory: ") && cd "$dir"
       }

@@ -30,8 +30,8 @@ with lib; let
                 inherit (user) name email;
               };
             }
-            // lib.optionalAttrs config.myConfig.onepassword.enable {
-              gpg = lib.mkIf isDarwin {
+            // lib.optionalAttrs (config.myConfig.onepassword.enable && isDarwin) {
+              gpg = {
                 format = "ssh";
                 ssh = {
                   program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";

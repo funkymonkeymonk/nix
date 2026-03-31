@@ -1,10 +1,16 @@
 {
+  options,
+  lib,
+  ...
+}: {
   # Shared home-manager configuration
-  # This module contains common home-manager settings used across all systems
-  # All hosts that import ./modules must also import the appropriate
-  # home-manager module (darwinModules or nixosModules) from flake.nix
-  home-manager = {
-    useGlobalPkgs = true;
-    useUserPackages = true;
+  # Only applied when home-manager is available (imported in flake.nix per-host)
+  # The core/bootstrap configurations don't import home-manager, so this guard
+  # prevents errors on those systems.
+  config = lib.mkIf (builtins.hasAttr "home-manager" options) {
+    home-manager = {
+      useGlobalPkgs = true;
+      useUserPackages = true;
+    };
   };
 }
