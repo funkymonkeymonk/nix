@@ -231,8 +231,8 @@ with pkgs.lib; {
       };
     };
 
-    # Flattened LLM roles (previously nested under roles.llms.*)
-    llm-client = {
+    # AI assistant roles with rtk token optimization
+    opencode = {
       packages = with pkgs; [
         opencode
         rtk
@@ -243,9 +243,10 @@ with pkgs.lib; {
       config = {};
     };
 
-    llm-claude = {
+    claude = {
       packages = with pkgs; [
         claude-code
+        rtk
       ];
 
       enableAgentSkills = true;
@@ -253,9 +254,10 @@ with pkgs.lib; {
       config = {};
     };
 
-    llm-pi = {
+    pi = {
       packages = with pkgs; [
         pi-coding-agent
+        rtk
       ];
 
       enableAgentSkills = true;

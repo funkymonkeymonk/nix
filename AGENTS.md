@@ -145,8 +145,9 @@ devenv tasks run test:all
 | `entertainment` | Entertainment apps |
 | `gaming` | Gaming tools |
 | `agent-skills` | AI skills management |
-| `llm-client` | OpenCode + rtk |
-| `llm-claude` | Claude Code |
+| `opencode` | OpenCode + rtk |
+| `claude` | Claude Code + rtk |
+| `pi` | Pi coding agent + rtk |
 | `llm-host` | Ollama |
 
 ## Helper Functions (flake.nix)
@@ -159,7 +160,7 @@ devenv tasks run test:all
 
 ## Agent Skills
 
-Skills auto-install when roles like `developer`, `llm-client`, or `llm-claude` are active.
+Skills auto-install when roles like `developer`, `opencode`, or `claude` are active.
 
 **Location:** `~/.config/opencode/skills/`
 

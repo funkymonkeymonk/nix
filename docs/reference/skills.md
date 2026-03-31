@@ -8,17 +8,17 @@ Agent skills are defined in `modules/home-manager/skills/manifest.nix` and insta
 |-------|-------------|-------|
 | `brainstorming` | Collaborative design dialogue | developer, creative |
 | `debugging` | Systematic debugging approach | developer |
-| `diataxis-docs` | Documentation restructuring (Diataxis framework) | developer, creative, llm-client, llm-claude |
-| `jj` | Jujutsu version control | developer, llm-client, llm-claude |
-| `prd-review` | Display PRD files for review and status tracking | developer, llm-client, llm-claude |
-| `ralph-specs` | Write specs for Ralph Loop autonomous agent | developer, llm-client, llm-claude |
+| `diataxis-docs` | Documentation restructuring (Diataxis framework) | developer, creative, opencode, claude |
+| `jj` | Jujutsu version control | developer, opencode, claude |
+| `prd-review` | Display PRD files for review and status tracking | developer, opencode, claude |
+| `ralph-specs` | Write specs for Ralph Loop autonomous agent | developer, opencode, claude |
 | `receiving-code-review` | Process review feedback | developer, workstation |
 | `requesting-code-review` | Prepare and request reviews | developer, workstation |
 | `tdd` | Test-driven development workflow | developer |
-| `using-superpowers` | Access available skills | llm-client, llm-claude |
+| `using-superpowers` | Access available skills | opencode, claude |
 | `verification-before-completion` | Pre-completion verification | developer |
 | `writing-plans` | Implementation plan creation | developer |
-| `writing-skills` | Skill documentation and creation | developer, creative, llm-client, llm-claude |
+| `writing-skills` | Skill documentation and creation | developer, creative, opencode, claude |
 
 ## Skill Structure
 

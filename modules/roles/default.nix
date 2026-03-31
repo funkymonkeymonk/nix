@@ -16,9 +16,9 @@ in {
     ./workstation.nix
     ./entertainment.nix
     ./agent-skills.nix
-    ./llm-client.nix
-    ./llm-claude.nix
-    ./llm-pi.nix
+    ./opencode.nix
+    ./claude.nix
+    ./pi.nix
     ./llm-host.nix
   ];
 

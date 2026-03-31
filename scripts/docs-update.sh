@@ -137,7 +137,7 @@ EOF
     
     if [[ -z "$roles" ]]; then
         log_warn "No role modules found in modules/roles/"
-        roles="base developer creative gaming desktop workstation entertainment agent-skills llm-client llm-claude llm-host llm-server"
+        roles="base developer creative gaming desktop workstation entertainment agent-skills opencode claude pi llm-host"
     fi
     
     # Generate documentation for each role from module filenames
@@ -216,31 +216,43 @@ AI agent skills management.
 
 **Packages:** git, jq
 
-Automatically enabled by `llm-client` or `llm-claude` roles.
+Automatically enabled by `opencode` or `claude` roles.
 
 EOF
                 ;;
-            llm-client)
+            opencode)
                 cat >> "$output_file" << 'EOF'
-OpenCode with LLM server connection.
+OpenCode AI assistant with rtk token optimization.
 
-**Packages:** opencode
+**Packages:** opencode, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`
 
 EOF
                 ;;
-            llm-claude)
+            claude)
                 cat >> "$output_file" << 'EOF'
-Claude Code integration.
+Claude Code AI assistant with rtk token optimization.
 
-**Packages:** claude-code
+**Packages:** claude-code, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`
+
+EOF
+                ;;
+            pi)
+                cat >> "$output_file" << 'EOF'
+Pi coding agent with rtk token optimization.
+
+**Packages:** pi-coding-agent, rtk
+
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
+
+**Enables:** `agent-skills`, `pi` config management
 
 EOF
                 ;;
@@ -270,7 +282,7 @@ Common role combinations:
 | Use Case | Roles |
 |----------|-------|
 | Basic development | `base`, `developer` |
-| Full workstation | `base`, `developer`, `workstation`, `llm-client` |
+| Full workstation | `base`, `developer`, `workstation`, `opencode` |
 | Creative work | `base`, `creative`, `desktop` |
 | Gaming setup | `base`, `entertainment`, `gaming` |
 

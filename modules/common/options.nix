@@ -102,28 +102,28 @@ with lib; {
         enable = mkOption {
           type = types.bool;
           default = false;
-          description = "AI agent skills management (auto-enabled by llm-client/llm-claude)";
+          description = "AI agent skills management (auto-enabled by opencode/claude)";
         };
       };
-      llm-client = {
+      opencode = {
         enable = mkOption {
           type = types.bool;
           default = false;
-          description = "LLM client tools (opencode, rtk)";
+          description = "OpenCode AI assistant with rtk";
         };
       };
-      llm-claude = {
+      claude = {
         enable = mkOption {
           type = types.bool;
           default = false;
-          description = "Claude Code";
+          description = "Claude Code AI assistant with rtk";
         };
       };
-      llm-pi = {
+      pi = {
         enable = mkOption {
           type = types.bool;
           default = false;
-          description = "Pi coding agent (pi-coding-agent)";
+          description = "Pi coding agent with rtk";
         };
       };
       llm-host = {

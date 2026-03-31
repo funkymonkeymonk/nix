@@ -63,7 +63,7 @@ Add your machine to `darwinConfigurations`:
 "my-machine" = mkDarwinHost {
   target = ./targets/my-machine;
   user = mkUser "username" "email@example.com";
-  roles = ["developer" "desktop" "llm-client"];
+  roles = ["developer" "desktop" "opencode"];
 };
 ```
 
