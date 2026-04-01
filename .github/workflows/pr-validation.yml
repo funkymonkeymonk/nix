@@ -21,11 +21,11 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
         with:
-          use-flakehub: false
-        continue-on-error: true
+          name: funkymonkeymonk
+          skipPush: true
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
@@ -82,11 +82,11 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
         with:
-          use-flakehub: false
-        continue-on-error: true
+          name: funkymonkeymonk
+          skipPush: true
       # Restore cached derivation hashes
       - name: Restore derivation cache
         uses: actions/cache@v4
@@ -257,11 +257,11 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
         with:
-          use-flakehub: false
-        continue-on-error: true
+          name: funkymonkeymonk
+          skipPush: true
       - name: Build ${{ matrix.config }}
         id: build
         run: |
@@ -294,11 +294,11 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
         with:
-          use-flakehub: false
-        continue-on-error: true
+          name: funkymonkeymonk
+          skipPush: true
       - name: Create stub facter.json
         run: |
           # Create stub facter.json for CI builds
@@ -474,11 +474,11 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
         with:
-          use-flakehub: false
-        continue-on-error: true
+          name: funkymonkeymonk
+          skipPush: true
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
@@ -504,11 +504,11 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
         with:
-          use-flakehub: false
-        continue-on-error: true
+          name: funkymonkeymonk
+          skipPush: true
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
