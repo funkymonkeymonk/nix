@@ -35,11 +35,11 @@ jobs:
             "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Run lint checks
         run: devenv tasks run check:lint
-  # Check if Nix files changed (skip builds if only docs changed)
+  # Check if Nix files changed (skip builds/tests if only docs changed)
+  # Runs in parallel with lint since it only checks file paths
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
-    needs: lint
     outputs:
       nix-files: ${{ steps.filter.outputs.nix-files }}
       workflows: ${{ steps.filter.outputs.workflows }}
@@ -460,11 +460,16 @@ jobs:
           else
             exit 1
           fi
-  # Validate auxiliary components (always run)
+  # Validate auxiliary components (only when nix files changed)
   validate-auxiliary:
     name: Validate Shared Components
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, changes]
+    if: >
+      ${{
+        needs.changes.outputs.nix-files == 'true' ||
+        needs.changes.outputs.workflows == 'true'
+      }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -490,11 +495,16 @@ jobs:
         run: devenv tasks run validate:disko
       - name: Validate installation script
         run: devenv tasks run validate:install-script
-  # Run foundation tests (always run on Linux)
+  # Run foundation tests (only when nix files changed)
   test-foundation:
     name: Foundation Tests
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, changes]
+    if: >
+      ${{
+        needs.changes.outputs.nix-files == 'true' ||
+        needs.changes.outputs.workflows == 'true'
+      }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
