@@ -56,8 +56,9 @@
   '';
 
   # Disable devenv's built-in cachix module — we manage cachix manually via pkgs.cachix.
-  # The module's default package evaluation fails in CI with incomplete Nix stores
-  # ("Failed to convert config.cachix to JSON: path '...unpack-bootstrap-tools.sh' is not valid").
+  # The module's default `cachix.package` evaluation can fail in CI when the devenv binary
+  # version doesn't match the project's nixpkgs pin (e.g., different Nix store closures).
+  # CI pins devenv to flake.lock's nixpkgs rev to prevent this mismatch.
   cachix.enable = false;
 
   # https://devenv.sh/git-hooks/
