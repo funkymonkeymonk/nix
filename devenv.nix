@@ -419,13 +419,21 @@
     };
 
     "check:quick" = {
-      description = "Quick syntax and lint checks (~30s)";
+      description = "Quick lint + foundation tests (~60s)";
       exec = ''
         echo "Running quick validation checks..."
 
         # Run lint checks
         devenv tasks run check:lint
 
+        # Run foundation tests (package availability, options, config validation)
+        echo ""
+        echo "--- Foundation Tests ---"
+        devenv tasks run test:core
+        devenv tasks run test:options
+        devenv tasks run test:config
+
+        echo ""
         echo "All quick validation checks passed"
       '';
     };
