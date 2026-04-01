@@ -1,0 +1,297 @@
+---
+name: Weekly Release
+on:
+  schedule:
+    # Every Friday at 4:00 AM UTC — kicks off the weekly release cycle
+    - cron: "0 4 * * 5"
+  workflow_dispatch:
+    inputs:
+      skip-flake-update:
+        description: 'Skip flake update and release from current main'
+        required: false
+        default: false
+        type: boolean
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+concurrency:
+  group: weekly-release
+  cancel-in-progress: false
+jobs:
+  # Step 1: Update flake.lock and create auto-merge PR
+  flake-update:
+    name: Update Flake Inputs
+    runs-on: ubuntu-latest
+    if: >
+      ${{ !inputs.skip-flake-update }}
+    outputs:
+      changes-detected: ${{ steps.check-updates.outputs.changes_detected }}
+      pr-number: ${{ steps.create-pr.outputs.pr_number }}
+      pr-url: ${{ steps.create-pr.outputs.pr_url }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+        with:
+          upstream-cache: false
+      - name: Close existing flake update PRs
+        id: close-existing
+        run: |
+          existing_prs=$(gh pr list \
+            --repo ${{ github.repository }} \
+            --label "flake-update" \
+            --state open \
+            --json number,title \
+            --jq '.[].number')
+          for pr_number in $existing_prs; do
+            echo "Closing superseded PR #$pr_number"
+            gh pr close "$pr_number" \
+              --comment "Superseded by new weekly release run" \
+              --repo ${{ github.repository }}
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update flake.lock
+        id: check-updates
+        run: |
+          cp flake.lock flake.lock.before
+          if nix flake update; then
+            if ! diff -q flake.lock.before flake.lock > /dev/null 2>&1; then
+              echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+              changed_inputs=$(diff -u flake.lock.before flake.lock \
+                | grep -c "^-[[:space:]]*\"rev\"" 2>/dev/null || echo "0")
+              changed_inputs="${changed_inputs//[^0-9]/}"
+              [ -z "$changed_inputs" ] && changed_inputs="0"
+              echo "changed_inputs=$changed_inputs" >> "$GITHUB_OUTPUT"
+              git config user.name "github-actions[bot]"
+              git config user.email \
+                "github-actions[bot]@users.noreply.github.com"
+              git add flake.lock
+              git commit -m \
+                "chore: update flake.lock ($changed_inputs inputs updated)"
+            else
+              echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+              git checkout -- flake.lock
+            fi
+          else
+            echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+            git checkout -- flake.lock
+          fi
+          rm -f flake.lock.before
+      - name: Validate flake
+        if: steps.check-updates.outputs.changes_detected == 'true'
+        run: |
+          if nix flake check --no-build; then
+            echo "validation_status=passed" >> "$GITHUB_ENV"
+          else
+            echo "validation_status=failed" >> "$GITHUB_ENV"
+          fi
+      - name: Create PR with auto-merge
+        if: steps.check-updates.outputs.changes_detected == 'true'
+        id: create-pr
+        run: |
+          branch_name="weekly-release-$(date +%Y-%m-%d)"
+          git push origin --delete "$branch_name" 2>/dev/null || true
+          git checkout -b "$branch_name"
+          git push origin "$branch_name"
+
+          gh label create "flake-update" \
+            --description "Weekly flake dependency updates" \
+            --color "0e8a16" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+          gh label create "weekly-release" \
+            --description "Weekly release cycle" \
+            --color "6f42c1" \
+            --repo ${{ github.repository }} 2>/dev/null || true
+
+          pr_url=$(gh pr create \
+            --title "Weekly Release - $(date +%Y-%m-%d)" \
+            --body "$(cat <<'BODY'
+          ## Weekly Release
+
+          **Validation**: ${{ env.validation_status }}
+          **Inputs updated**: ${{ steps.check-updates.outputs.changed_inputs }}
+
+          This PR updates flake.lock with the latest dependency versions.
+          It will auto-merge once CI passes, triggering cache rebuilds
+          and an ISO release.
+
+          ---
+          Created automatically by the weekly release workflow.
+          BODY
+          )" \
+            --label "flake-update" \
+            --label "weekly-release" \
+            --repo ${{ github.repository }})
+
+          pr_number=$(echo "$pr_url" | sed 's/.*\/pull\/\([0-9]*\).*/\1/')
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+          # Enable auto-merge (squash) — merges automatically when CI passes
+          gh pr merge "$pr_number" --auto --squash \
+            --repo ${{ github.repository }}
+          echo "Auto-merge enabled for PR #$pr_number"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Step 2: Wait for PR to merge (polls until merged or failed)
+  wait-for-merge:
+    name: Wait for PR Merge
+    runs-on: ubuntu-latest
+    needs: flake-update
+    if: needs.flake-update.outputs.changes-detected == 'true'
+    outputs:
+      merged: ${{ steps.poll.outputs.merged }}
+    steps:
+      - name: Poll PR status
+        id: poll
+        run: |
+          PR_NUMBER="${{ needs.flake-update.outputs.pr-number }}"
+          echo "Waiting for PR #$PR_NUMBER to merge..."
+          MAX_WAIT=3600  # 1 hour max
+          ELAPSED=0
+          INTERVAL=60    # check every 60s
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            STATE=$(gh pr view "$PR_NUMBER" \
+              --repo ${{ github.repository }} \
+              --json state --jq '.state')
+            if [ "$STATE" = "MERGED" ]; then
+              echo "PR #$PR_NUMBER merged successfully"
+              echo "merged=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            elif [ "$STATE" = "CLOSED" ]; then
+              echo "PR #$PR_NUMBER was closed without merging"
+              echo "merged=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "PR state: $STATE (${ELAPSED}s elapsed, checking again in ${INTERVAL}s)"
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          echo "Timed out waiting for PR #$PR_NUMBER to merge"
+          echo "merged=false" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Step 3: Build ISO and create release (after merge lands on main)
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [flake-update, wait-for-merge]
+    if: >
+      ${{
+        needs.wait-for-merge.outputs.merged == 'true' ||
+        inputs.skip-flake-update
+      }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            extra-platforms = x86_64-linux
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY" \
+            /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+      - name: Build ISO
+        id: iso
+        run: |
+          echo "Building NixOS installer ISO..."
+          nix build .#iso --out-link result
+          ISO_PATH=$(ls result/iso/*.iso | head -1)
+          ISO_NAME=$(basename "$ISO_PATH")
+          ISO_SIZE=$(du -h "$ISO_PATH" | cut -f1)
+          ISO_SHA256=$(sha256sum "$ISO_PATH" | cut -d' ' -f1)
+          echo "iso_path=$ISO_PATH" >> "$GITHUB_OUTPUT"
+          echo "iso_name=$ISO_NAME" >> "$GITHUB_OUTPUT"
+          echo "iso_size=$ISO_SIZE" >> "$GITHUB_OUTPUT"
+          echo "iso_sha256=$ISO_SHA256" >> "$GITHUB_OUTPUT"
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nixos-installer-iso
+          path: result/iso/*.iso
+          retention-days: 30
+          compression-level: 0
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v$(date +%Y.%m.%d)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Weekly Release ${{ steps.tag.outputs.tag }}
+          # yamllint disable rule:line-length
+          body: |
+            ## Weekly Release ${{ steps.tag.outputs.tag }}
+
+            **Flake inputs updated**: ${{ needs.flake-update.outputs.pr-url || 'skipped' }}
+            **ISO**: ${{ steps.iso.outputs.iso_name }} (${{ steps.iso.outputs.iso_size }})
+            **ISO SHA256**: `${{ steps.iso.outputs.iso_sha256 }}`
+
+            ### What's included
+            - Updated flake.lock with latest nixpkgs and dependency versions
+            - Fresh installer ISO with security updates
+            - All configurations rebuilt and pushed to Cachix
+
+            ### Installer Usage
+            ```bash
+            # Flash to USB
+            sudo dd if=*.iso of=/dev/sdX bs=4M status=progress
+            # Boot and follow the guided installer
+            ```
+          # yamllint enable rule:line-length
+          files: result/iso/*.iso
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Summary
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [flake-update, wait-for-merge, release]
+    if: always()
+    steps:
+      - name: Report results
+        run: |
+          echo "## Weekly Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          FLAKE="${{ needs.flake-update.result }}"
+          MERGE="${{ needs.wait-for-merge.result }}"
+          RELEASE="${{ needs.release.result }}"
+
+          echo "| Step | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Flake Update | $FLAKE |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| PR Merge | $MERGE |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release | $RELEASE |" >> "$GITHUB_STEP_SUMMARY"

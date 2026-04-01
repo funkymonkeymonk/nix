@@ -10,10 +10,8 @@ on:
       - 'disk-configs/**'
       - 'flake.nix'
       - 'flake.lock'
+  # Weekly ISO builds are handled by weekly-release.yml
   workflow_dispatch:
-  schedule:
-    # Rebuild weekly to pick up security updates
-    - cron: '0 0 * * 0'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
