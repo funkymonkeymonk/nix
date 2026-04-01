@@ -26,8 +26,13 @@ jobs:
         with:
           use-flakehub: false
         continue-on-error: true
-      - name: Install devenv.sh
-        run: nix profile add --accept-flake-config nixpkgs#devenv
+      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          nix profile add --accept-flake-config \
+            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Run lint checks
         run: devenv tasks run check:lint
   # Check if Nix files changed (skip builds if only docs changed)
@@ -401,8 +406,10 @@ jobs:
             | jq 'length')
           DARWIN_CHANGED_COUNT=$(echo "$DARWIN_CHANGED" | jq 'length')
           NIXOS_CHANGED_COUNT=$(echo "$NIXOS_CHANGED" | jq 'length')
-          echo "**Darwin:** $DARWIN_CHANGED_COUNT of $DARWIN_TOTAL configs changed" >> $GITHUB_STEP_SUMMARY
-          echo "**NixOS:** $NIXOS_CHANGED_COUNT of $NIXOS_TOTAL configs changed" >> $GITHUB_STEP_SUMMARY
+          SUMMARY="**Darwin:** $DARWIN_CHANGED_COUNT of $DARWIN_TOTAL"
+          echo "$SUMMARY configs changed" >> $GITHUB_STEP_SUMMARY
+          SUMMARY="**NixOS:** $NIXOS_CHANGED_COUNT of $NIXOS_TOTAL"
+          echo "$SUMMARY configs changed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           # Report validation results
           echo "### Validation" >> $GITHUB_STEP_SUMMARY
@@ -438,11 +445,13 @@ jobs:
             echo "❌ NixOS builds failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-          if [ "$TEST_FOUNDATION_RESULT" != "success" ] && [ "$TEST_FOUNDATION_RESULT" != "skipped" ]; then
+          if [ "$TEST_FOUNDATION_RESULT" != "success" ] \
+            && [ "$TEST_FOUNDATION_RESULT" != "skipped" ]; then
             echo "❌ Foundation tests failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-          if [ "$VALIDATE_AUX_RESULT" != "success" ] && [ "$VALIDATE_AUX_RESULT" != "skipped" ]; then
+          if [ "$VALIDATE_AUX_RESULT" != "success" ] \
+            && [ "$VALIDATE_AUX_RESULT" != "skipped" ]; then
             echo "❌ Auxiliary validation failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
@@ -470,8 +479,13 @@ jobs:
         with:
           use-flakehub: false
         continue-on-error: true
-      - name: Install devenv.sh
-        run: nix profile add --accept-flake-config nixpkgs#devenv
+      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          nix profile add --accept-flake-config \
+            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Validate Disko configurations
         run: devenv tasks run validate:disko
       - name: Validate installation script
@@ -495,10 +509,14 @@ jobs:
         with:
           use-flakehub: false
         continue-on-error: true
-      - name: Install devenv.sh
-        run: nix profile add --accept-flake-config nixpkgs#devenv
+      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          nix profile add --accept-flake-config \
+            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Run foundation tests
         run: |
           echo "Running foundation test suite..."
           devenv tasks run test:all
-
