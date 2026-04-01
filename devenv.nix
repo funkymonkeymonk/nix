@@ -1076,6 +1076,39 @@
       '';
     };
 
+    "test:roles" = {
+      description = "Test all role evaluations, packages, and cascades";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Testing role evaluation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.role-evaluation" --no-link
+        echo "Role evaluation test passed"
+        echo ""
+        echo "Testing role composition ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.role-composition" --no-link
+        echo "Role composition test passed"
+        echo ""
+        echo "Testing role package inclusion ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.role-packages" --no-link
+        echo "Role package inclusion test passed"
+        echo ""
+        echo "Testing role cascades ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.role-cascades" --no-link
+        echo "Role cascade test passed"
+      '';
+    };
+
+    "test:coverage" = {
+      description = "Report module test coverage";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Building module coverage report ($CURRENT_SYSTEM)..."
+        RESULT=$(nix build ".#checks.''${CURRENT_SYSTEM}.module-coverage" --no-link --print-out-paths)
+        echo ""
+        cat "$RESULT/coverage.json" | jq .
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (platform-agnostic eval tests)";
       exec = ''
@@ -1085,10 +1118,16 @@
         devenv tasks run test:options
         devenv tasks run test:config
         echo ""
+        echo "=== Running Role Tests ==="
+        devenv tasks run test:roles
+        echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"
         devenv tasks run test:nixos-eval
         devenv tasks run test:darwin-eval
+        echo ""
+        echo "=== Module Coverage ==="
+        devenv tasks run test:coverage
         echo ""
         echo "=== All Tests Complete ==="
       '';
