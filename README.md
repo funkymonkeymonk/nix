@@ -69,8 +69,9 @@ darwin-rebuild switch --flake .#<hostname>
 | `workstation` | Work tools |
 | `entertainment` | Entertainment apps (macOS) |
 | `gaming` | Gaming tools |
-| `llm-client` | OpenCode + rtk + agent skills |
-| `llm-claude` | Claude Code + agent skills |
+| `opencode` | OpenCode AI assistant with rtk |
+| `claude` | Claude Code AI assistant with rtk |
+| `pi` | Pi coding agent with rtk |
 | `llm-host` | Ollama |
 
 > **Full list:** [Roles reference](docs/reference/roles.md)

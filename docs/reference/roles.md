@@ -60,13 +60,13 @@ Entertainment applications (macOS only).
 
 ### agent-skills
 
-AI agent skills management. Auto-enabled by `llm-client` or `llm-claude`.
+AI agent skills management. Auto-enabled by `opencode` or `claude`.
 
 **Config:** Session variables (`AGENT_SKILLS_PATH`, `SUPERPOWERS_SKILLS_PATH`), shell aliases (`skills-status`, `skills-update`, `skills-list`)
 
-### llm-client
+### opencode
 
-OpenCode with LLM server connection.
+OpenCode AI assistant with rtk token optimization.
 
 **Packages:** opencode, rtk
 
@@ -74,15 +74,31 @@ OpenCode with LLM server connection.
 
 **Enables:** `agent-skills`
 
-### llm-claude
+**Setup:** Automatically runs `rtk init -g --opencode` on activation
 
-Claude Code integration.
+### claude
 
-**Packages:** claude-code
+Claude Code AI assistant with rtk token optimization.
+
+**Packages:** claude-code, rtk
 
 **Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`
+
+**Setup:** Automatically runs `rtk init -g` on activation
+
+### pi
+
+Pi coding agent with rtk token optimization.
+
+**Packages:** pi-coding-agent, rtk
+
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
+
+**Enables:** `agent-skills`, `pi` config management
+
+**Note:** Pi doesn't have native rtk hooks yet. Use `rtk <command>` manually.
 
 ### llm-host
 

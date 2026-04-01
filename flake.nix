@@ -234,8 +234,8 @@
                   desktop.enable = true;
                   workstation.enable = true;
                   llm-host.enable = true;
-                  llm-client.enable = true;
-                  llm-claude.enable = true;
+                  opencode.enable = true;
+                  claude.enable = true;
                 };
                 vane = {
                   enable = true;
@@ -394,9 +394,9 @@
                   workstation.enable = true;
                   entertainment.enable = true;
                   llm-host.enable = true;
-                  llm-client.enable = true;
-                  llm-claude.enable = true;
-                  llm-pi.enable = true;
+                  opencode.enable = true;
+                  claude.enable = true;
+                  pi.enable = true;
                 };
                 ollama = {
                   # Bind to all interfaces so Docker containers can access Ollama
@@ -483,7 +483,7 @@
                 roles = {
                   developer.enable = true;
                   desktop.enable = true;
-                  llm-client.enable = true;
+                  opencode.enable = true;
                 };
                 desktop = {
                   enable = true;
@@ -629,7 +629,7 @@
 
     microvm.nixosConfigurations = {
       dev-vm = mkMicrovm "dev-vm" {
-        roles.llm-client.enable = true;
+        roles.opencode.enable = true;
       };
       openclaw = mkMicrovm "openclaw" {};
       matrix = mkMicrovm "matrix" {};

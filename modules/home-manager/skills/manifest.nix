@@ -44,7 +44,7 @@
 
   "writing-skills" = {
     description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment";
-    roles = ["developer" "creative" "llm-client" "llm-claude"];
+    roles = ["developer" "creative" "opencode" "claude"];
     source = {
       type = "superpowers";
       skillName = "writing-skills";
@@ -54,7 +54,7 @@
 
   "diataxis-docs" = {
     description = "Use when updating, rewriting, or auditing documentation to follow the Diataxis framework";
-    roles = ["developer" "creative" "llm-client" "llm-claude"];
+    roles = ["developer" "creative" "opencode" "claude"];
     source = {
       type = "internal";
       path = ./internal/diataxis-docs;
@@ -94,7 +94,7 @@
 
   "using-superpowers" = {
     description = "Access and use available skills for the current task";
-    roles = ["llm-client" "llm-claude"];
+    roles = ["opencode" "claude"];
     source = {
       type = "internal";
       path = ./internal/using-superpowers;
@@ -118,7 +118,7 @@
   # Based on @coreyja/jj from https://github.com/coreyja/dotfiles/tree/main/.claude/skills/jj
   "jj" = {
     description = "Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, stacked PRs, and workspaces for multi-project isolation";
-    roles = ["developer" "llm-client" "llm-claude"];
+    roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
       path = ./external/jj;
@@ -134,7 +134,7 @@
   # Ralph Loop specification skills
   "ralph-specs" = {
     description = "Write specifications optimized for Ralph Loop autonomous agent execution. Covers PRD structure, atomic user stories, and machine-verifiable acceptance criteria";
-    roles = ["developer" "llm-client" "llm-claude"];
+    roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
       path = ./internal/ralph-specs;
@@ -144,7 +144,7 @@
 
   "prd-review" = {
     description = "Display PRD files in human-readable format for review and status tracking. Shows progress, story details, and flags potential issues";
-    roles = ["developer" "llm-client" "llm-claude"];
+    roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
       path = ./internal/prd-review;
@@ -154,7 +154,7 @@
 
   "refining-specs" = {
     description = "Use when a specification has open questions requiring research, technical decisions, or user input to resolve";
-    roles = ["developer" "llm-client" "llm-claude"];
+    roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
       path = ./internal/refining-specs;
