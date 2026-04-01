@@ -170,6 +170,10 @@
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
           # ISO installer only for x86_64-linux
           iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
+          # MicroVM declaration runners
+          microvm-dev-vm = self.microvm.nixosConfigurations.dev-vm.config.microvm.declarationRunner;
+          microvm-openclaw = self.microvm.nixosConfigurations.openclaw.config.microvm.declarationRunner;
+          microvm-matrix = self.microvm.nixosConfigurations.matrix.config.microvm.declarationRunner;
         }
     );
 
@@ -506,6 +510,12 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+
           # Disk layout
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
@@ -513,8 +523,12 @@
           # Machine type configuration
           ./machine-types/desktop.nix
 
-          # Your common options
-          ./modules/common/options.nix
+          {
+            myConfig = {
+              skills.superpowersPath = inputs.superpowers;
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
+            };
+          }
 
           # Ghostty terminfo for SSH support
           # https://github.com/ghostty-org/ghostty/discussions/5753
@@ -537,6 +551,7 @@
         modules = [
           configuration
           ./modules
+          ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
@@ -580,6 +595,7 @@
         modules = [
           configuration
           ./modules
+          ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
