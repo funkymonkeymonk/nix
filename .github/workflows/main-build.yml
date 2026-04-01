@@ -59,7 +59,6 @@ jobs:
           echo "All Darwin configurations built and pushed to Cachix"
   build-linux:
     name: Build Linux Configurations
-    if: false  # DISABLED: Job failing due to NixOS configuration issues
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -83,6 +82,7 @@ jobs:
       - name: Create stub facter.json
         run: |
           # Create stub facter.json for CI builds
+          # Format: https://github.com/nix-community/nixos-facter
           sudo mkdir -p /etc/nixos
           sudo tee /etc/nixos/facter.json > /dev/null << 'FACTER_EOF'
           {
@@ -111,29 +111,83 @@ jobs:
         id: discover
         run: |
           echo "Discovering NixOS configurations..."
-          # Get all configs except installer and bootstrap (not for Cachix)
+          # Get all configs except installer, bootstrap, and arm configs
+          # (arm configs can't build on x86_64 runners)
           ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-          # Filter out installer and bootstrap configs
-          CONFIGS=$(echo "$ALL_CONFIGS" | jq '[.[] | select(. | test("^(installer-|bootstrap)$") | not)]')
-          # Use multi-line syntax for GitHub Actions output to handle JSON properly
+          CONFIGS=$(echo "$ALL_CONFIGS" | jq \
+            '[.[] | select(test("^(installer-|bootstrap)") | not)
+                  | select(test("-arm$") | not)]')
           echo "configs<<EOF" >> $GITHUB_OUTPUT
           echo "$CONFIGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "Found NixOS configurations (excluding installer/bootstrap): $CONFIGS"
+          echo "Found NixOS configurations: $CONFIGS"
       - name: Build Linux configurations (push to Cachix)
+        id: build
         run: |
           echo "Building NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ steps.discover.outputs.configs }}'
+          FAILED=0
+          BUILT=0
           for config in $(echo "$CONFIGS" | jq -r '.[]'); do
             echo ""
             echo "========================================"
             echo "Building $config configuration..."
             echo "========================================"
-            # Use --impure to allow reading /etc/nixos/facter.json
-            nix build ".#nixosConfigurations.$config.config.system.build.toplevel" \
-              --no-link --impure
-            echo "$config build complete"
+            if nix build \
+                ".#nixosConfigurations.$config.config.system.build.toplevel" \
+                --no-link --impure 2>&1; then
+              echo "$config build complete"
+              BUILT=$((BUILT + 1))
+            else
+              echo "WARNING: $config build failed"
+              FAILED=$((FAILED + 1))
+            fi
           done
           echo ""
+          echo "Built: $BUILT, Failed: $FAILED"
+          echo "built=$BUILT" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          if [ "$FAILED" -gt 0 ]; then
+            echo "Some NixOS configurations failed to build"
+            exit 1
+          fi
           echo "All NixOS configurations built and pushed to Cachix"
+  cache-health:
+    name: Verify Cache Population
+    runs-on: ubuntu-latest
+    needs: [build-darwin, build-linux]
+    if: always()
+    steps:
+      - name: Check build results
+        run: |
+          echo "## Cache Population Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          DARWIN="${{ needs.build-darwin.result }}"
+          LINUX="${{ needs.build-linux.result }}"
+
+          if [ "$DARWIN" = "success" ]; then
+            echo "- Darwin builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Darwin builds: **FAILED** ($DARWIN)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$LINUX" = "success" ]; then
+            echo "- NixOS builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- NixOS builds: **FAILED** ($LINUX)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DARWIN" != "success" ] || [ "$LINUX" != "success" ]; then
+            echo "**Cache is stale.** Local deploys may need to build from source." \
+              >> "$GITHUB_STEP_SUMMARY"
+            echo ""
+            echo "::warning::Cache population incomplete - some builds failed"
+            exit 1
+          else
+            echo "Cache is up-to-date for all configurations." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
