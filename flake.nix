@@ -483,7 +483,7 @@
                 roles = {
                   developer.enable = true;
                   desktop.enable = true;
-                  llm-client.enable = true;
+                  opencode.enable = true;
                 };
                 desktop = {
                   enable = true;

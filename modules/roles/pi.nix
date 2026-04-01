@@ -39,16 +39,6 @@ in {
       pi-sessions = "ls -la ~/.pi/agent/sessions 2>/dev/null || echo 'No sessions yet'";
       pi-config = "cat ~/.pi/agent/settings.json 2>/dev/null || echo 'No settings file'";
     };
-
-    # Initialize rtk for Pi on activation
-    home-manager.users.monkey = {
-      home.activation.rtkInitPi = ''
-        if command -v rtk &> /dev/null; then
-          # Pi doesn't have native rtk hook support yet
-          # rtk commands can still be used manually
-          $DRY_RUN_CMD echo "rtk installed for Pi. Use 'rtk <command>' manually." 2>/dev/null || true
-        fi
-      '';
-    };
+    # RTK integration is handled by modules/home-manager/pi-coding-agent.nix
   };
 }

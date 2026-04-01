@@ -33,14 +33,6 @@ in {
     environment.shellAliases = {
       llm-status = "curl http://${host}:${port}/status";
     };
-
-    # Initialize rtk for OpenCode on activation
-    home-manager.users.monkey = {
-      home.activation.rtkInitOpencode = ''
-        if command -v rtk &> /dev/null; then
-          $DRY_RUN_CMD rtk init -g --opencode 2>/dev/null || true
-        fi
-      '';
-    };
+    # RTK integration is handled by modules/home-manager/opencode.nix
   };
 }

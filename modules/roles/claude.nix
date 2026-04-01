@@ -34,14 +34,6 @@ in {
     environment.shellAliases = {
       llm-status = "curl http://${host}:${port}/status";
     };
-
-    # rtk is initialized automatically on first use
-    home-manager.users.monkey = {
-      home.activation.rtkInitClaude = ''
-        if command -v rtk &> /dev/null; then
-          $DRY_RUN_CMD rtk init -g 2>/dev/null || true
-        fi
-      '';
-    };
+    # RTK integration is handled by modules/home-manager/claude-code.nix
   };
 }
