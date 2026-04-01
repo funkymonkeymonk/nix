@@ -510,6 +510,12 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+
           # Disk layout
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
@@ -517,9 +523,12 @@
           # Machine type configuration
           ./machine-types/desktop.nix
 
-          # Common modules and NixOS base
-          ./modules
-          ./modules/nixos/base.nix
+          {
+            myConfig = {
+              skills.superpowersPath = inputs.superpowers;
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
+            };
+          }
 
           # Ghostty terminfo for SSH support
           # https://github.com/ghostty-org/ghostty/discussions/5753
