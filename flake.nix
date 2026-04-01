@@ -654,6 +654,11 @@
           core-packages
           foundation-packages
           config-validation
+          role-evaluation
+          role-composition
+          role-packages
+          role-cascades
+          module-coverage
           ;
       }
     );
