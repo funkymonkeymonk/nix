@@ -308,6 +308,7 @@ with pkgs.lib; {
       packages = with pkgs; [
         google-chrome
         hidden-bar
+        claude-code
         alacritty-theme
         home-manager
       ];

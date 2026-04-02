@@ -51,7 +51,6 @@ in {
             # Shell ecosystem
             zinit
             zsh
-            glow
             antigen
           ];
 
@@ -106,6 +105,7 @@ in {
           environment.systemPackages = with pkgs; [
             google-chrome
             hidden-bar
+            claude-code
             alacritty-theme
             home-manager
           ];

@@ -73,6 +73,7 @@ with lib; let
             ../../modules/home-manager/shell.nix
             ../../modules/home-manager/foundation.nix
           ]
+          ++ optional config.myConfig.charm.enable ../../modules/home-manager/charm.nix
           ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix
           ++ optional config.myConfig.claude-code.enable ../../modules/home-manager/claude-code.nix
           ++ optional config.myConfig.pi.enable ../../modules/home-manager/pi-coding-agent.nix
