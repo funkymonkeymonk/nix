@@ -1,9 +1,9 @@
 ---
 name: Weekly Flake Update
+# yamllint disable-line rule:truthy
 on:
-  schedule:
-    # Every Friday at 4:00 AM UTC
-    - cron: "0 4 * * 5"
+  # Scheduled runs are handled by weekly-release.yml
+  # Keep workflow_dispatch for manual ad-hoc updates
   workflow_dispatch:
 permissions:
   contents: write
