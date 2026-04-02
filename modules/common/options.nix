@@ -416,6 +416,73 @@ with lib; {
       };
     };
 
+    charm = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable Charm CLI tools configuration (glow markdown renderer, mods AI CLI)";
+      };
+
+      glow = {
+        style = mkOption {
+          type = types.str;
+          default = "auto";
+          description = ''
+            Glow rendering style. "auto" detects the terminal background and
+            picks "dark" or "light". Can also be a path to a custom JSON
+            stylesheet (see glamour style gallery).
+          '';
+        };
+
+        width = mkOption {
+          type = types.int;
+          default = 140;
+          description = "Word-wrap width for glow output (0 to disable wrapping)";
+        };
+
+        pager = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Display output in a pager (like less -r)";
+        };
+
+        mouse = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable mouse wheel support in TUI mode";
+        };
+
+        showLineNumbers = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Show line numbers in TUI mode";
+        };
+
+        preserveNewLines = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Preserve newlines in rendered output";
+        };
+      };
+
+      mods = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable mods (AI on the command line) from Charm";
+        };
+
+        settings = mkOption {
+          type = types.attrs;
+          default = {};
+          description = ''
+            Mods configuration written to $XDG_CONFIG_HOME/mods/mods.yml.
+            See https://github.com/charmbracelet/mods for available options.
+          '';
+        };
+      };
+    };
+
     zellij = {
       enable = mkOption {
         type = types.bool;
