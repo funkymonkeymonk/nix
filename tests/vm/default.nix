@@ -9,7 +9,7 @@
     extraModules ? [],
     roles ? {},
   }:
-    pkgs.nixosTest {
+    pkgs.testers.nixosTest {
       inherit name;
       nodes.machine = {...}: {
         imports =
