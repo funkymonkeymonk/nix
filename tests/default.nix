@@ -1,27 +1,40 @@
 # Nix-based Tests for Foundation
 # These tests use nix eval and can run in CI
-{pkgs, ...}: let
+{
+  pkgs,
+  self ? null,
+  ...
+}: let
   # Test utilities
   testPackages = import ./test-packages.nix {inherit pkgs;};
   testRoles = import ./test-roles.nix {inherit pkgs;};
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
-in {
-  # Package availability tests
-  core-packages = testPackages.corePackagesTest;
-  foundation-packages = testPackages.foundationPackagesTest;
 
-  # Configuration validation tests
-  config-validation = testPackages.configValidationTest;
+  # VM tests only available on x86_64-linux (NixOS testing framework)
+  inherit (pkgs.stdenv.hostPlatform) isLinux;
+  vmTests =
+    if isLinux && self != null
+    then import ./vm {inherit pkgs self;}
+    else {};
+in
+  {
+    # Package availability tests
+    core-packages = testPackages.corePackagesTest;
+    foundation-packages = testPackages.foundationPackagesTest;
 
-  # Option validation tests
-  foundation-options = testPackages.foundationOptionsTest;
+    # Configuration validation tests
+    config-validation = testPackages.configValidationTest;
 
-  # Per-role tests
-  role-evaluation = testRoles.roleEvaluationTest;
-  role-composition = testRoles.allRolesCompositionTest;
-  role-packages = testRoles.rolePackageInclusionTest;
-  role-cascades = testRoles.roleCascadeTest;
+    # Option validation tests
+    foundation-options = testPackages.foundationOptionsTest;
 
-  # Coverage tracking
-  module-coverage = testCoverage.moduleCoverageTest;
-}
+    # Per-role tests
+    role-evaluation = testRoles.roleEvaluationTest;
+    role-composition = testRoles.allRolesCompositionTest;
+    role-packages = testRoles.rolePackageInclusionTest;
+    role-cascades = testRoles.roleCascadeTest;
+
+    # Coverage tracking
+    module-coverage = testCoverage.moduleCoverageTest;
+  }
+  // vmTests

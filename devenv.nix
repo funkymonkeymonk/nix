@@ -1109,6 +1109,30 @@
       '';
     };
 
+    "test:vm" = {
+      description = "Run NixOS VM integration tests (Linux only)";
+      exec = ''
+        if [[ "$(uname)" == "Darwin" ]]; then
+          echo "VM tests require Linux (NixOS testing framework)"
+          echo "These tests run automatically in CI on ubuntu runners"
+          exit 0
+        fi
+
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running NixOS VM integration tests ($CURRENT_SYSTEM)..."
+        echo ""
+
+        for test in vm-users vm-ssh vm-packages; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+
+        echo "All VM tests passed"
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (platform-agnostic eval tests)";
       exec = ''
@@ -1128,6 +1152,9 @@
         echo ""
         echo "=== Module Coverage ==="
         devenv tasks run test:coverage
+        echo ""
+        echo "NOTE: VM integration tests (test:vm) are not included here."
+        echo "They require Linux + KVM and run separately in CI via nix flake check."
         echo ""
         echo "=== All Tests Complete ==="
       '';

@@ -81,6 +81,9 @@
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
+    # Tested via VM integration tests (tests/vm/)
+    "nixos/base.nix"
+    "common/users.nix"
   ];
 
   # Modules not yet covered by tests

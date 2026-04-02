@@ -647,20 +647,30 @@
           inherit pkgs self;
           inherit (nixpkgs) lib;
         };
-      in {
-        inherit
-          (tests)
-          foundation-options
-          core-packages
-          foundation-packages
-          config-validation
-          role-evaluation
-          role-composition
-          role-packages
-          role-cascades
-          module-coverage
-          ;
-      }
+        inherit (pkgs.stdenv.hostPlatform) isLinux;
+      in
+        {
+          inherit
+            (tests)
+            foundation-options
+            core-packages
+            foundation-packages
+            config-validation
+            role-evaluation
+            role-composition
+            role-packages
+            role-cascades
+            module-coverage
+            ;
+        }
+        // nixpkgs.lib.optionalAttrs isLinux {
+          inherit
+            (tests)
+            vm-users
+            vm-ssh
+            vm-packages
+            ;
+        }
     );
   };
 }
