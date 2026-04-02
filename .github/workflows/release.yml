@@ -1,0 +1,170 @@
+---
+name: Release
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force release from current main (ignore label check)'
+        required: false
+        default: false
+        type: boolean
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  # Check if this push was from a weekly-release PR
+  check-trigger:
+    name: Check Release Trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.should_release }}
+      pr-number: ${{ steps.check.outputs.pr_number }}
+    steps:
+      - name: Check for weekly-release label
+        id: check
+        run: |
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "Force release requested via workflow_dispatch"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Find the PR that was merged for this push
+          COMMIT_SHA="${{ github.sha }}"
+          PR_DATA=$(gh api \
+            "repos/${{ github.repository }}/commits/${COMMIT_SHA}/pulls" \
+            --jq '.[0] | {number, labels: [.labels[].name]}' 2>/dev/null || echo "{}")
+
+          PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number // empty')
+          HAS_LABEL=$(echo "$PR_DATA" \
+            | jq -r '.labels // [] | index("weekly-release") != null')
+
+          if [ "$HAS_LABEL" = "true" ]; then
+            echo "PR #$PR_NUMBER has weekly-release label — triggering release"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "No weekly-release label found — skipping release"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Build ISO and create GitHub release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should-release == 'true'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            extra-platforms = x86_64-linux
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY" \
+            /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+      - name: Build ISO
+        id: iso
+        run: |
+          echo "Building NixOS installer ISO..."
+          nix build .#iso --out-link result
+          ISO_PATH=$(ls result/iso/*.iso | head -1)
+          ISO_NAME=$(basename "$ISO_PATH")
+          ISO_SIZE=$(du -h "$ISO_PATH" | cut -f1)
+          ISO_SHA256=$(sha256sum "$ISO_PATH" | cut -d' ' -f1)
+          echo "iso_path=$ISO_PATH" >> "$GITHUB_OUTPUT"
+          echo "iso_name=$ISO_NAME" >> "$GITHUB_OUTPUT"
+          echo "iso_size=$ISO_SIZE" >> "$GITHUB_OUTPUT"
+          echo "iso_sha256=$ISO_SHA256" >> "$GITHUB_OUTPUT"
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nixos-installer-iso
+          path: result/iso/*.iso
+          retention-days: 30
+          compression-level: 0
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v$(date +%Y.%m.%d)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Weekly Release ${{ steps.tag.outputs.tag }}
+          # yamllint disable rule:line-length
+          body: |
+            ## Weekly Release ${{ steps.tag.outputs.tag }}
+
+            **Triggered by**: PR #${{ needs.check-trigger.outputs.pr-number || 'manual' }}
+            **ISO**: ${{ steps.iso.outputs.iso_name }} (${{ steps.iso.outputs.iso_size }})
+            **ISO SHA256**: `${{ steps.iso.outputs.iso_sha256 }}`
+
+            ### What's included
+            - Updated flake.lock with latest nixpkgs and dependency versions
+            - Fresh installer ISO with security updates
+            - All configurations rebuilt and pushed to Cachix
+
+            ### Installer Usage
+            ```bash
+            # Flash to USB
+            sudo dd if=*.iso of=/dev/sdX bs=4M status=progress
+            # Boot and follow the guided installer
+            ```
+          # yamllint enable rule:line-length
+          files: result/iso/*.iso
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Summary
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [check-trigger, release]
+    if: always()
+    steps:
+      - name: Report results
+        run: |
+          echo "## Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          TRIGGER="${{ needs.check-trigger.result }}"
+          RELEASE="${{ needs.release.result }}"
+          SHOULD="${{ needs.check-trigger.outputs.should-release }}"
+
+          echo "| Step | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Trigger Check | $TRIGGER |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release | $RELEASE |" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$SHOULD" != "true" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No weekly-release label found — release skipped." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
