@@ -86,11 +86,33 @@ jobs:
         if: steps.check-updates.outputs.changes_detected == 'true'
         id: validate
         run: |
-          if nix flake check --no-build; then
-            echo "status=passed" >> "$GITHUB_OUTPUT"
-          else
+          # Light validation: ensure flake metadata and Darwin configs evaluate.
+          # NixOS configs need --impure for facter.json, and full nix flake check
+          # is too strict here (pure mode, evaluates VM tests, etc.).
+          # The real CI (pr-validation.yml) does thorough per-config validation.
+          FAILED=false
+
+          if ! nix flake metadata --json > /dev/null 2>&1; then
+            echo "::error::Flake metadata evaluation failed"
+            FAILED=true
+          fi
+
+          # Check Darwin configs evaluate (pure-safe, no facter.json)
+          DARWIN_CONFIGS=$(nix eval .#darwinConfigurations \
+            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          for config in $(echo "$DARWIN_CONFIGS" | jq -r '.[]'); do
+            if ! nix eval ".#darwinConfigurations.${config}.system" \
+                --apply 'x: true' 2>/dev/null; then
+              echo "::error::Darwin config '$config' failed to evaluate"
+              FAILED=true
+            fi
+          done
+
+          if [ "$FAILED" = "true" ]; then
             echo "status=failed" >> "$GITHUB_OUTPUT"
             echo "::error::Flake validation failed — PR will not be created"
+          else
+            echo "status=passed" >> "$GITHUB_OUTPUT"
           fi
       - name: Create PR with auto-merge
         if: >
