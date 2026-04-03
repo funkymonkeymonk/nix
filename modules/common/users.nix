@@ -70,6 +70,7 @@ with lib; let
         # Include shared home-manager modules
         imports =
           [
+            ../../modules/home-manager/themes.nix
             ../../modules/home-manager/shell.nix
             ../../modules/home-manager/foundation.nix
           ]

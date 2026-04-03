@@ -4,6 +4,7 @@
   osConfig,
   lib,
   pkgs,
+  earthsong,
   ...
 }:
 with lib; let
@@ -11,8 +12,15 @@ with lib; let
   glowCfg = cfg.glow;
   yamlFormat = pkgs.formats.yaml {};
 
+  # Use the Earthsong glamour stylesheet unless the user has set a custom style.
+  resolvedStyle =
+    if glowCfg.style == "auto"
+    then "${earthsong.glamourStyle}"
+    else glowCfg.style;
+
   glowConfig = {
-    inherit (glowCfg) style width pager mouse showLineNumbers preserveNewLines;
+    style = resolvedStyle;
+    inherit (glowCfg) width pager mouse showLineNumbers preserveNewLines;
   };
 in {
   config = mkIf cfg.enable {

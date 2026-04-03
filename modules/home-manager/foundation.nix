@@ -4,6 +4,7 @@
   lib,
   userConfig,
   myConfig,
+  earthsong,
   ...
 }: {
   # Syncthing for file synchronization
@@ -28,6 +29,34 @@
         default-branch = "main";
       };
     };
+  };
+
+  # Git delta — use Earthsong syntax theme for diffs
+  programs.git.extraConfig = earthsong.deltaConfig;
+
+  # Helix — Earthsong custom theme
+  xdg.configFile."helix/themes/earthsong.toml".text = earthsong.helixTheme;
+  xdg.configFile."helix/config.toml".text = ''
+    theme = "earthsong"
+  '';
+
+  # bat — Earthsong TextMate theme
+  xdg.configFile."bat/themes/Earthsong.tmTheme".source = earthsong.batThemeFile;
+  programs.bat = {
+    enable = true;
+    config.theme = "Earthsong";
+  };
+
+  # fzf — Earthsong colours
+  programs.fzf = {
+    enable = true;
+    defaultOptions = ["--color=${earthsong.fzfColors}"];
+  };
+
+  # Alacritty — Earthsong colours (Darwin only, where alacritty-theme is installed)
+  programs.alacritty = lib.mkIf myConfig.isDarwin {
+    enable = true;
+    settings.colors = earthsong.alacrittyColors;
   };
 
   # Ghostty terminal configuration (Darwin only)
