@@ -104,7 +104,7 @@
         model = "opencode/big-pickle";
       };
       claude-code = {
-        enable = true;
+        enable = false;
       };
       llmClient.rtk.enable = true;
     };
@@ -235,7 +235,6 @@
                   workstation.enable = true;
                   llm-host.enable = true;
                   opencode.enable = true;
-                  claude.enable = true;
                 };
                 vane = {
                   enable = true;
@@ -342,7 +341,7 @@
                   };
                 };
                 claude-code = {
-                  enable = true;
+                  enable = false;
                   mcpServers = {
                     github = {
                       type = "remote";
@@ -395,7 +394,6 @@
                   entertainment.enable = true;
                   llm-host.enable = true;
                   opencode.enable = true;
-                  claude.enable = true;
                   pi.enable = true;
                 };
                 ollama = {
