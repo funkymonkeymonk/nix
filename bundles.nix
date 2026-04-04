@@ -308,8 +308,6 @@ with pkgs.lib; {
       packages = with pkgs; [
         google-chrome
         hidden-bar
-        goose-cli
-        claude-code
         alacritty-theme
         home-manager
       ];
@@ -328,7 +326,6 @@ with pkgs.lib; {
             "zen"
             "ghostty"
             "deezer"
-            "block-goose"
             "sensei"
             "vivaldi"
             "1password"

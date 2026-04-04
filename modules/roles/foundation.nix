@@ -104,8 +104,6 @@ in {
           environment.systemPackages = with pkgs; [
             google-chrome
             hidden-bar
-            goose-cli
-            claude-code
             alacritty-theme
             home-manager
           ];
@@ -125,7 +123,6 @@ in {
               "zen"
               "ghostty"
               "deezer"
-              "block-goose"
               "sensei"
               "vivaldi"
               "1password"
