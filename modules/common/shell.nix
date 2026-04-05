@@ -30,11 +30,6 @@
       . /etc/zsh/zshenv
     fi
 
-    # Initialize completion if available (safe/optional)
-    if command -v compinit >/dev/null 2>&1; then
-      autoload -Uz compinit && compinit || true
-    fi
-
     # Source user's ~/.zshrc to allow per-user customizations
     if [ -n "$HOME" ] && [ -f "$HOME/.zshrc" ]; then
       . "$HOME/.zshrc"

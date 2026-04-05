@@ -11,6 +11,7 @@
     ./common/shell.nix
     ./common/onepassword.nix
     ./common/cachix.nix
+    ./common/motd.nix
 
     # Home-manager shared settings
     ./home-manager

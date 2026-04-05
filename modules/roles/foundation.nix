@@ -30,6 +30,7 @@ in {
             delta
 
             # Navigation and search
+            entr
             tree
             zoxide
             fzf

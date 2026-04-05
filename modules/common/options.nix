@@ -625,6 +625,44 @@ with lib; {
       };
     };
 
+    motd = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable MOTD (Message of the Day) showing git commit info on shell login";
+      };
+
+      showGitCommit = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Show the git commit hash the system was built from";
+      };
+
+      showHostname = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Show the system hostname";
+      };
+
+      showSystem = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Show the operating system and architecture";
+      };
+
+      extraMessage = mkOption {
+        type = types.str;
+        default = "";
+        description = "Additional custom message to display in MOTD";
+      };
+
+      githubUrl = mkOption {
+        type = types.str;
+        default = "https://github.com/funkymonkeymonk/nix";
+        description = "GitHub repository URL for linking to commits in MOTD";
+      };
+    };
+
     sharedModels = mkOption {
       type = types.listOf types.str;
       default = ["qwen3:4b" "gemma3:4b" "qwen3.5"];
