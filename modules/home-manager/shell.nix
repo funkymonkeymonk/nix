@@ -11,6 +11,17 @@
   programs.zsh = {
     enable = true;
     initContent = ''
+      # Source switch-nix function (same source as system-wide install)
+      if [ -f /etc/nix-cloud-init/switch-nix ]; then
+        . /etc/nix-cloud-init/switch-nix
+      fi
+
+      # Line editor configuration
+      bindkey -e  # Enable emacs keymap
+      bindkey '^L' clear-screen  # Ensure Ctrl+L clears screen
+      setopt PROMPT_CR  # Ensure proper line wrapping
+      setopt ALWAYS_LAST_PROMPT  # Redraw prompt after background jobs
+
       # Docker functions
       drm() { docker rm $(docker ps -q -a); }
       dri() { docker rmi $(docker images -q); }

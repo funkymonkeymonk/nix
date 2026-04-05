@@ -10,6 +10,7 @@ in {
     kk = "opencode run";
 
     jjn = "jj new";
+    jjnm = "jj new main";
     jjf = "jj git fetch";
     jjl = "jj log";
     jjd = "jj diff";
