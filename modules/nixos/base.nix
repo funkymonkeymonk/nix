@@ -20,8 +20,8 @@ with lib; {
       })
       config.myConfig.users);
 
-    # Ensure zsh is available system-wide
-    environment.systemPackages = [pkgs.zsh];
+    # Ensure zsh and ghostty terminfo are available system-wide
+    environment.systemPackages = [pkgs.zsh pkgs.ghostty];
 
     # Enable SSH
     services.openssh.enable = true;
@@ -42,6 +42,28 @@ with lib; {
     # Shell alias for manual upgrade trigger
     environment.shellAliases = {
       nix-upgrade = "sudo systemctl start nixos-upgrade";
+    };
+
+    # Set hostname from /etc/cloud-init.yaml on boot/activation
+    # This allows switch-nix to control the hostname via cloud-init format
+    systemd.services.set-hostname-from-cloud-init = {
+      description = "Set hostname from /etc/cloud-init.yaml";
+      wantedBy = ["multi-user.target"];
+      after = ["network-pre.target"];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = pkgs.writeShellScript "set-hostname" ''
+          if [[ -f /etc/cloud-init.yaml ]]; then
+            # Parse hostname from cloud-init YAML
+            hostname=$(grep -E '^hostname:' /etc/cloud-init.yaml | head -1 | sed 's/^hostname:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+            if [[ -n "$hostname" ]]; then
+              ${pkgs.hostname}/bin/hostname "$hostname"
+              echo "$hostname" > /etc/hostname
+              echo "Set hostname to: $hostname"
+            fi
+          fi
+        '';
+      };
     };
   };
 }

@@ -1,0 +1,755 @@
+#!/usr/bin/env bash
+# nix-cloud-init - Manage cloud-init configuration for Nix systems
+# Usage: nix-cloud-init [command] [args]
+#
+# Commands:
+#   init                    Create initial cloud-init config interactively
+#   set hostname <name>     Update hostname
+#   set target <target>     Update nix target  
+#   show                    Display current config
+#   validate                Validate the cloud-init file
+#   edit                    Edit config interactively
+
+set -e
+
+CONFIG_FILE="/etc/cloud-init.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info() {
+  echo -e "${BLUE}INFO:${NC} $1"
+}
+
+log_success() {
+  echo -e "${GREEN}SUCCESS:${NC} $1"
+}
+
+log_error() {
+  echo -e "${RED}ERROR:${NC} $1" >&2
+}
+
+log_warn() {
+  echo -e "${YELLOW}WARN:${NC} $1"
+}
+
+# Check if running as root (needed for writing config)
+check_root() {
+  if [[ $EUID -ne 0 ]]; then
+    log_error "This command requires root privileges. Run with sudo."
+    exit 1
+  fi
+}
+
+# Read value from YAML file
+read_yaml() {
+  local file="$1"
+  local key="$2"
+  
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+  
+  # Handle nested keys like "nix.target"
+  if [[ "$key" == *.* ]]; then
+    local section="${key%%.*}"
+    local subkey="${key#*.}"
+    sed -n "/^$section:/,/^[^ ]/p" "$file" 2>/dev/null | grep "^  $subkey:" | head -1 | sed "s/^  $subkey:[[:space:]]*//" | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+  else
+    grep -E "^[[:space:]]*${key}:" "$file" | head -1 | sed "s/^[[:space:]]*${key}:[[:space:]]*//" | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+  fi
+}
+
+# Read array from YAML
+read_yaml_array() {
+  local file="$1"
+  local key="$2"
+  
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+  
+  # Simple array parsing - find key, then read indented items until next top-level key
+  awk -v k="$key:" '
+    $1 == k { in_array = 1; next }
+    in_array && /^[^ #]/ { exit }
+    in_array && /^  - / { 
+      gsub(/^  - /, ""); 
+      gsub(/"/, "");
+      gsub(/'"'"'/, "");
+      print 
+    }
+  ' "$file"
+}
+
+# Write value to YAML file
+write_yaml() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  
+  if [[ "$key" == *.* ]]; then
+    local section="${key%%.*}"
+    local subkey="${key#*.}"
+    
+    # Check if section exists
+    if grep -q "^${section}:" "$file" 2>/dev/null; then
+      # Section exists, check if key exists
+      if grep -q "^[[:space:]]*${subkey}:" "$file" 2>/dev/null; then
+        # Update existing key
+        sed -i "s/^[[:space:]]*${subkey}:.*/  ${subkey}: ${value}/" "$file"
+      else
+        # Add key to section
+        sed -i "/^${section}:/a\  ${subkey}: ${value}" "$file"
+      fi
+    else
+      # Add section and key
+      echo "" >> "$file"
+      echo "${section}:" >> "$file"
+      echo "  ${subkey}: ${value}" >> "$file"
+    fi
+  else
+    # Top-level key
+    if grep -q "^${key}:" "$file" 2>/dev/null; then
+      sed -i "s/^${key}:.*/${key}: ${value}/" "$file"
+    else
+      echo "${key}: ${value}" >> "$file"
+    fi
+  fi
+}
+
+# Detect platform
+detect_platform() {
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "darwin"
+  else
+    echo "nixos"
+  fi
+}
+
+# Interactive init command
+cmd_init() {
+  check_root
+  
+  if [[ -f "$CONFIG_FILE" ]]; then
+    log_warn "Config file already exists at $CONFIG_FILE"
+    read -p "Overwrite? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      log_info "Cancelled."
+      exit 0
+    fi
+  fi
+  
+  # Check for gum
+  if ! command -v gum &>/dev/null; then
+    log_error "gum is required for interactive setup. Install it first."
+    exit 1
+  fi
+  
+  local platform
+  platform=$(detect_platform)
+  local current_hostname
+  current_hostname=$(hostname -s)
+  
+  gum style \
+    --border normal \
+    --margin "1 2" \
+    --padding "1 2" \
+    --border-foreground 212 \
+    "Nix Cloud-Init Configuration"
+  
+  echo ""
+  
+  # ========================================
+  # SECTION 1: Basic Configuration
+  # ========================================
+  echo "=== Basic Configuration ==="
+  echo ""
+  
+  # Hostname
+  local suggested_hostname
+  if [[ "$platform" == "darwin" ]]; then
+    suggested_hostname="MegamanX"
+  else
+    suggested_hostname="$current_hostname"
+  fi
+  
+  local input_hostname
+  input_hostname=$(gum input \
+    --placeholder "$suggested_hostname" \
+    --value "$suggested_hostname" \
+    --prompt "Hostname> " \
+    --prompt.foreground 212)
+  
+  if [[ -z "$input_hostname" ]]; then
+    log_error "No hostname entered. Exiting."
+    exit 1
+  fi
+  
+  # Target selection
+  echo ""
+  local selected_target
+  if [[ "$platform" == "darwin" ]]; then
+    local darwin_targets=("MegamanX" "wweaver" "core")
+    selected_target=$(gum choose "${darwin_targets[@]}" \
+      --header "Select your Mac configuration:" \
+      --cursor.foreground 212)
+  else
+    local nixos_items=(
+      "zero (fixed NixOS host)"
+      "type-server (disposable x86_64 server)"
+      "type-server-arm (disposable ARM64 server)"
+      "type-desktop (disposable desktop)"
+    )
+    local selected_item
+    selected_item=$(gum choose "${nixos_items[@]}" \
+      --header "Select your NixOS configuration:" \
+      --cursor.foreground 212)
+    selected_target=$(echo "$selected_item" | cut -d' ' -f1)
+  fi
+  
+  if [[ -z "$selected_target" ]]; then
+    log_error "No target selected. Exiting."
+    exit 1
+  fi
+  
+  # ========================================
+  # SECTION 2: System Settings
+  # ========================================
+  echo ""
+  echo "=== System Settings ==="
+  echo ""
+  
+  # Timezone
+  local timezone="America/New_York"
+  if gum confirm "Set timezone? (default: $timezone)" --affirmative "Yes" --negative "Skip"; then
+    timezone=$(gum input --value "$timezone" --prompt "Timezone (e.g., America/New_York, Europe/London)> ")
+  fi
+  
+  # Locale
+  local locale="en_US.UTF-8"
+  if gum confirm "Set locale? (default: $locale)" --affirmative "Yes" --negative "Skip"; then
+    locale=$(gum input --value "$locale" --prompt "Locale (e.g., en_US.UTF-8)> ")
+  fi
+  
+  # ========================================
+  # SECTION 3: SSH Configuration
+  # ========================================
+  echo ""
+  echo "=== SSH Configuration ==="
+  echo ""
+  
+  local ssh_keys=""
+  local add_ssh=false
+  if gum confirm "Add SSH authorized keys?" --affirmative "Yes" --negative "Skip"; then
+    add_ssh=true
+    log_info "Paste SSH public keys (one per line), press Ctrl+D when done:"
+    ssh_keys=$(cat)
+  fi
+  
+  # ========================================
+  # SECTION 4: Nix-Specific Settings
+  # ========================================
+  echo ""
+  echo "=== Nix-Specific Settings ==="
+  echo ""
+  
+  # Build impure flag
+  local impure_default="true"
+  local impure
+  if gum confirm "Use impure builds? (required for hardware detection)" --affirmative "Yes (recommended)" --negative "No"; then
+    impure="true"
+  else
+    impure="false"
+  fi
+  
+  # Default branch
+  local branch="main"
+  if gum confirm "Set default branch? (default: main)" --affirmative "Yes" --negative "Skip"; then
+    branch=$(gum input --value "main" --prompt "Branch> ")
+  fi
+  
+  # Additional roles
+  echo ""
+  log_info "Select additional roles to enable:"
+  local roles=()
+  
+  if [[ "$platform" == "nixos" ]]; then
+    if gum confirm "Enable developer tools?" --affirmative "Yes" --negative "No"; then
+      roles+=("developer")
+    fi
+    if gum confirm "Enable LLM host (Ollama)?" --affirmative "Yes" --negative "No"; then
+      roles+=("llm-host")
+    fi
+  fi
+  
+  if gum confirm "Enable OpenCode agent?" --affirmative "Yes" --negative "No"; then
+    roles+=("opencode")
+  fi
+  
+  if gum confirm "Enable Claude Code agent?" --affirmative "Yes" --negative "No"; then
+    roles+=("claude")
+  fi
+  
+  # ========================================
+  # SECTION 5: Boot Commands
+  # ========================================
+  echo ""
+  echo "=== Boot Commands ==="
+  echo ""
+  
+  local bootcmds=""
+  if gum confirm "Add boot commands? (run early in boot)" --affirmative "Yes" --negative "Skip"; then
+    log_info "Enter boot commands (one per line), press Ctrl+D when done:"
+    bootcmds=$(cat)
+  fi
+  
+  local runcmds=""
+  if gum confirm "Add run commands? (run on first boot)" --affirmative "Yes" --negative "Skip"; then
+    log_info "Enter run commands (one per line), press Ctrl+D when done:"
+    runcmds=$(cat)
+  fi
+  
+  # ========================================
+  # SECTION 6: Summary & Confirmation
+  # ========================================
+  echo ""
+  
+  # Build summary
+  local roles_str=""
+  if [[ ${#roles[@]} -gt 0 ]]; then
+    roles_str=$(printf ", %s" "${roles[@]}")
+    roles_str=${roles_str:2}
+  fi
+  
+  gum style \
+    --border normal \
+    --margin "1 2" \
+    --padding "1 2" \
+    --border-foreground 212 \
+    "Configuration Summary
+
+Hostname: $input_hostname
+Target:   $selected_target
+Timezone: $timezone
+Locale:   $locale
+SSH keys: $([ "$add_ssh" == true ] && echo "Yes (${#ssh_keys} chars)" || echo "No")
+Impure:   $impure
+Branch:   $branch
+Roles:    $([ -n "$roles_str" ] && echo "$roles_str" || echo "(none)")
+Boot cmds: $([ -n "$bootcmds" ] && echo "Yes" || echo "No")
+Run cmds:  $([ -n "$runcmds" ] && echo "Yes" || echo "No")"
+
+  echo ""
+  local confirmed
+  confirmed=$(gum confirm "Create configuration?")
+  
+  if [[ $? -ne 0 ]]; then
+    log_info "Cancelled."
+    exit 0
+  fi
+  
+  # ========================================
+  # WRITE CONFIGURATION
+  # ========================================
+  
+  # Start with header
+  cat > "$CONFIG_FILE" << EOF
+#cloud-config
+# Generated by nix-cloud-init
+hostname: $input_hostname
+fqdn: $input_hostname.local
+preserve_hostname: true
+EOF
+
+  # Timezone and locale
+  if [[ -n "$timezone" ]]; then
+    echo "timezone: $timezone" >> "$CONFIG_FILE"
+  fi
+  if [[ -n "$locale" ]]; then
+    echo "" >> "$CONFIG_FILE"
+    echo "# Locale settings" >> "$CONFIG_FILE"
+    echo "locale: $locale" >> "$CONFIG_FILE"
+    cat >> "$CONFIG_FILE" << 'LOCALE'
+locale_config:
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+LOCALE
+  fi
+  
+  # SSH authorized keys
+  if [[ "$add_ssh" == true && -n "$ssh_keys" ]]; then
+    echo "" >> "$CONFIG_FILE"
+    echo "# SSH authorized keys" >> "$CONFIG_FILE"
+    echo "ssh_authorized_keys:" >> "$CONFIG_FILE"
+    while IFS= read -r key; do
+      if [[ -n "$key" ]]; then
+        echo "  - $key" >> "$CONFIG_FILE"
+      fi
+    done <<< "$ssh_keys"
+  fi
+  
+  # Boot commands
+  if [[ -n "$bootcmds" ]]; then
+    echo "" >> "$CONFIG_FILE"
+    echo "# Boot commands (run early in boot process)" >> "$CONFIG_FILE"
+    echo "bootcmd:" >> "$CONFIG_FILE"
+    while IFS= read -r cmd; do
+      if [[ -n "$cmd" ]]; then
+        echo "  - $cmd" >> "$CONFIG_FILE"
+      fi
+    done <<< "$bootcmds"
+  fi
+  
+  # Run commands
+  if [[ -n "$runcmds" ]]; then
+    echo "" >> "$CONFIG_FILE"
+    echo "# Run commands (run on first boot)" >> "$CONFIG_FILE"
+    echo "runcmd:" >> "$CONFIG_FILE"
+    while IFS= read -r cmd; do
+      if [[ -n "$cmd" ]]; then
+        echo "  - $cmd" >> "$CONFIG_FILE"
+      fi
+    done <<< "$runcmds"
+  fi
+  
+  # Nix configuration section
+  echo "" >> "$CONFIG_FILE"
+  echo "# Nix-specific configuration" >> "$CONFIG_FILE"
+  echo "nix:" >> "$CONFIG_FILE"
+  echo "  target: $selected_target" >> "$CONFIG_FILE"
+  echo "  flake: github:funkymonkeymonk/nix" >> "$CONFIG_FILE"
+  echo "  branch: $branch" >> "$CONFIG_FILE"
+  echo "  impure: $impure" >> "$CONFIG_FILE"
+  
+  # Roles
+  if [[ ${#roles[@]} -gt 0 ]]; then
+    echo "  roles:" >> "$CONFIG_FILE"
+    for role in "${roles[@]}"; do
+      echo "    - $role" >> "$CONFIG_FILE"
+    done
+  fi
+  
+  log_success "Configuration saved to $CONFIG_FILE"
+  echo ""
+  echo "Next steps:"
+  echo "  1. Review:    nix-cloud-init show"
+  echo "  2. Validate:  nix-cloud-init validate"
+  echo "  3. Apply:     switch-nix"
+  echo ""
+  echo "Or edit later with: nix-cloud-init edit"
+}
+
+# Set command
+cmd_set() {
+  check_root
+  
+  if [[ $# -lt 2 ]]; then
+    log_error "Usage: nix-cloud-init set <key> <value>"
+    log_info "Available keys: hostname, target, timezone, locale, nix.branch, nix.impure"
+    exit 1
+  fi
+  
+  local key="$1"
+  local value="$2"
+  
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Config file not found at $CONFIG_FILE"
+    log_info "Run 'nix-cloud-init init' to create one."
+    exit 1
+  fi
+  
+  case "$key" in
+    hostname)
+      write_yaml "$CONFIG_FILE" "hostname" "$value"
+      write_yaml "$CONFIG_FILE" "fqdn" "$value.local"
+      log_success "Hostname set to: $value"
+      ;;
+    target)
+      write_yaml "$CONFIG_FILE" "nix.target" "$value"
+      log_success "Target set to: $value"
+      ;;
+    timezone)
+      write_yaml "$CONFIG_FILE" "timezone" "$value"
+      log_success "Timezone set to: $value"
+      ;;
+    locale)
+      write_yaml "$CONFIG_FILE" "locale" "$value"
+      log_success "Locale set to: $value"
+      ;;
+    nix.branch|branch)
+      write_yaml "$CONFIG_FILE" "nix.branch" "$value"
+      log_success "Default branch set to: $value"
+      ;;
+    nix.impure|impure)
+      write_yaml "$CONFIG_FILE" "nix.impure" "$value"
+      log_success "Impure flag set to: $value"
+      ;;
+    *)
+      log_error "Unknown key: $key"
+      log_info "Available: hostname, target, timezone, locale, nix.branch, nix.impure"
+      exit 1
+      ;;
+  esac
+}
+
+# Show command
+cmd_show() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Config file not found at $CONFIG_FILE"
+    log_info "Run 'nix-cloud-init init' to create one."
+    exit 1
+  fi
+  
+  echo "=== $CONFIG_FILE ==="
+  cat "$CONFIG_FILE"
+  echo ""
+  echo "=== Parsed Configuration ==="
+  echo "Hostname:        $(read_yaml "$CONFIG_FILE" hostname)"
+  echo "FQDN:            $(read_yaml "$CONFIG_FILE" fqdn)"
+  echo "Timezone:        $(read_yaml "$CONFIG_FILE" timezone)"
+  echo "Locale:          $(read_yaml "$CONFIG_FILE" locale)"
+  echo "Target:          $(read_yaml "$CONFIG_FILE" nix.target)"
+  echo "Branch:          $(read_yaml "$CONFIG_FILE" nix.branch)"
+  echo "Impure:          $(read_yaml "$CONFIG_FILE" nix.impure)"
+  echo ""
+  
+  local roles
+  roles=$(read_yaml_array "$CONFIG_FILE" "nix.roles")
+  if [[ -n "$roles" ]]; then
+    echo "Roles:"
+    echo "$roles" | while read -r role; do
+      echo "  - $role"
+    done
+  fi
+}
+
+# Validate command
+cmd_validate() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Config file not found at $CONFIG_FILE"
+    return 1
+  fi
+  
+  # Check required fields
+  local hostname target
+  hostname=$(read_yaml "$CONFIG_FILE" hostname)
+  target=$(read_yaml "$CONFIG_FILE" nix.target)
+  
+  local valid=true
+  
+  if [[ -z "$hostname" ]]; then
+    log_error "Missing required field: hostname"
+    valid=false
+  fi
+  
+  if [[ -z "$target" ]]; then
+    log_error "Missing required field: nix.target"
+    valid=false
+  fi
+  
+  # Check if cloud-init is available and validate schema
+  if command -v cloud-init &>/dev/null; then
+    log_info "Validating with cloud-init schema..."
+    if cloud-init schema -c "$CONFIG_FILE" 2>/dev/null; then
+      log_success "Cloud-init schema validation passed"
+    else
+      log_warn "Cloud-init schema validation had warnings (this is OK for Nix-only configs)"
+    fi
+  fi
+  
+  if [[ "$valid" == true ]]; then
+    log_success "Configuration is valid"
+    return 0
+  else
+    log_error "Configuration is invalid"
+    return 1
+  fi
+}
+
+# Edit command
+cmd_edit() {
+  check_root
+  
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Config file not found at $CONFIG_FILE"
+    log_info "Run 'nix-cloud-init init' to create one."
+    exit 1
+  fi
+  
+  if ! command -v gum &>/dev/null; then
+    log_error "gum is required for interactive editing."
+    exit 1
+  fi
+  
+  while true; do
+    local current_hostname current_target current_timezone current_locale
+    current_hostname=$(read_yaml "$CONFIG_FILE" hostname)
+    current_target=$(read_yaml "$CONFIG_FILE" nix.target)
+    current_timezone=$(read_yaml "$CONFIG_FILE" timezone)
+    current_locale=$(read_yaml "$CONFIG_FILE" locale)
+    
+    echo ""
+    gum style \
+      --border normal \
+      --margin "1 2" \
+      --padding "1 2" \
+      --border-foreground 212 \
+      "Edit Configuration"
+    
+    local action
+    action=$(gum choose \
+      "Hostname: $current_hostname" \
+      "Target: $current_target" \
+      "Timezone: $current_timezone" \
+      "Locale: $current_locale" \
+      "Add SSH key" \
+      "Add boot command" \
+      "Add run command" \
+      "Done")
+    
+    case "$action" in
+      "Hostname:"*)
+        local new_hostname
+        new_hostname=$(gum input --value "$current_hostname" --prompt "New hostname> ")
+        if [[ -n "$new_hostname" ]]; then
+          cmd_set hostname "$new_hostname"
+        fi
+        ;;
+      "Target:"*)
+        local platform
+        platform=$(detect_platform)
+        local new_target
+        if [[ "$platform" == "darwin" ]]; then
+          new_target=$(gum choose "MegamanX" "wweaver" "core" --header "Select new target:")
+        else
+          new_target=$(gum choose "zero" "type-server" "type-server-arm" "type-desktop" --header "Select new target:")
+        fi
+        if [[ -n "$new_target" ]]; then
+          cmd_set target "$new_target"
+        fi
+        ;;
+      "Timezone:"*)
+        local new_tz
+        new_tz=$(gum input --value "$current_timezone" --placeholder "America/New_York" --prompt "Timezone> ")
+        if [[ -n "$new_tz" ]]; then
+          cmd_set timezone "$new_tz"
+        fi
+        ;;
+      "Locale:"*)
+        local new_locale
+        new_locale=$(gum input --value "$current_locale" --placeholder "en_US.UTF-8" --prompt "Locale> ")
+        if [[ -n "$new_locale" ]]; then
+          cmd_set locale "$new_locale"
+        fi
+        ;;
+      "Add SSH key")
+        log_info "Paste SSH public key:"
+        local new_key
+        new_key=$(cat)
+        if [[ -n "$new_key" ]]; then
+          echo "" >> "$CONFIG_FILE"
+          echo "ssh_authorized_keys:" >> "$CONFIG_FILE"
+          echo "  - $new_key" >> "$CONFIG_FILE"
+          log_success "SSH key added"
+        fi
+        ;;
+      "Add boot command")
+        local new_cmd
+        new_cmd=$(gum input --prompt "Boot command> ")
+        if [[ -n "$new_cmd" ]]; then
+          if ! grep -q "^bootcmd:" "$CONFIG_FILE"; then
+            echo "" >> "$CONFIG_FILE"
+            echo "bootcmd:" >> "$CONFIG_FILE"
+          fi
+          echo "  - $new_cmd" >> "$CONFIG_FILE"
+          log_success "Boot command added"
+        fi
+        ;;
+      "Add run command")
+        local new_cmd
+        new_cmd=$(gum input --prompt "Run command> ")
+        if [[ -n "$new_cmd" ]]; then
+          if ! grep -q "^runcmd:" "$CONFIG_FILE"; then
+            echo "" >> "$CONFIG_FILE"
+            echo "runcmd:" >> "$CONFIG_FILE"
+          fi
+          echo "  - $new_cmd" >> "$CONFIG_FILE"
+          log_success "Run command added"
+        fi
+        ;;
+      "Done"|*)
+        log_info "Done editing."
+        break
+        ;;
+    esac
+  done
+}
+
+# Help command
+cmd_help() {
+  cat << EOF
+Usage: nix-cloud-init [command] [args]
+
+Manage cloud-init configuration for Nix systems.
+
+Commands:
+  init                    Create initial config interactively
+  set <key> <value>       Update configuration value
+                          Keys: hostname, target, timezone, locale, nix.branch, nix.impure
+  show                    Display current config
+  validate                Validate the cloud-init file
+  edit                    Edit config interactively
+  help                    Show this help message
+
+Examples:
+  sudo nix-cloud-init init
+  sudo nix-cloud-init set hostname drlight
+  sudo nix-cloud-init set target type-server
+  sudo nix-cloud-init set timezone America/Los_Angeles
+  nix-cloud-init show
+  nix-cloud-init validate
+
+Config file location: $CONFIG_FILE
+
+Supported cloud-init fields:
+  - hostname, fqdn, preserve_hostname
+  - timezone, locale
+  - ssh_authorized_keys
+  - bootcmd, runcmd
+  - nix.target, nix.branch, nix.impure, nix.roles
+EOF
+}
+
+# Main dispatch
+case "${1:-help}" in
+  init)
+    cmd_init
+    ;;
+  set)
+    shift
+    cmd_set "$@"
+    ;;
+  show)
+    cmd_show
+    ;;
+  validate)
+    cmd_validate
+    ;;
+  edit)
+    cmd_edit
+    ;;
+  help|--help|-h)
+    cmd_help
+    ;;
+  *)
+    log_error "Unknown command: $1"
+    cmd_help
+    exit 1
+    ;;
+esac

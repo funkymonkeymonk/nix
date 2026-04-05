@@ -53,6 +53,9 @@
     alias q="devenv tasks run check:all"
     alias b="devenv tasks run build:all"
     alias i="devenv tasks run dev:ide"
+
+    # Source switch-nix function (same source as system-wide install)
+    source ./modules/common/scripts/switch-nix
   '';
 
   # Disable devenv's built-in cachix module — we manage cachix manually via pkgs.cachix.
@@ -1005,6 +1008,7 @@
           -not -path './.devenv/*' \
           -not -path './.direnv/*' \
           -not -path './.worktrees/*' \
+          -not -path './.workspaces/*' \
           -not -name '.devenv.flake.nix' \
           | xargs alejandra --check
         echo "Checking for dead code..."
@@ -1012,6 +1016,7 @@
           -not -path './.devenv/*' \
           -not -path './.direnv/*' \
           -not -path './.worktrees/*' \
+          -not -path './.workspaces/*' \
           -not -name '.devenv.flake.nix' \
           | xargs deadnix --no-underscore --fail
         echo "Running static analysis..."

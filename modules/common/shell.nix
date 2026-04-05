@@ -2,18 +2,19 @@
   config,
   pkgs,
   ...
-}: {
+}: let
+  # Create proper executable scripts in the nix store
+  switch-nix-script = pkgs.writeShellScriptBin "switch-nix" (builtins.readFile ./scripts/switch-nix);
+  nix-cloud-init-script = pkgs.writeShellScriptBin "nix-cloud-init" (builtins.readFile ./scripts/nix-cloud-init);
+in {
   # System-level shell configuration
   # This module handles global shell setup that applies to all users
 
   # Enable zsh system-wide
   programs.zsh.enable = true;
 
-  # Provide a system-wide /etc/zshrc managed by Nix
-  # This sets SHELL to the Nix-provided zsh, initializes completion safely,
-  # and sources the user's ~/.zshrc if present
-  environment.etc."zshrc".text = ''
-    # /etc/zshrc - system-wide configuration managed by Nix
+  # System-wide zsh init - works on both NixOS and Darwin
+  programs.zsh.interactiveShellInit = ''
     export SHELL=${pkgs.zsh}/bin/zsh
 
     ${
@@ -25,14 +26,19 @@
       else ""
     }
 
-    # Load zshenv if present (follow distribution's behavior)
-    if [ -f /etc/zsh/zshenv ]; then
-      . /etc/zsh/zshenv
-    fi
-
-    # Source user's ~/.zshrc to allow per-user customizations
-    if [ -n "$HOME" ] && [ -f "$HOME/.zshrc" ]; then
-      . "$HOME/.zshrc"
+    # Source switch-nix function
+    if [ -f ${switch-nix-script}/bin/switch-nix ]; then
+      . ${switch-nix-script}/bin/switch-nix
     fi
   '';
+
+  # Make scripts available in PATH
+  environment.systemPackages = [
+    switch-nix-script
+    nix-cloud-init-script
+  ];
+
+  # Also install to /etc for reference
+  environment.etc."nix-cloud-init/switch-nix".source = "${switch-nix-script}/bin/switch-nix";
+  environment.etc."nix-cloud-init/nix-cloud-init".source = "${nix-cloud-init-script}/bin/nix-cloud-init";
 }

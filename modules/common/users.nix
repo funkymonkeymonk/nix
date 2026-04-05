@@ -120,6 +120,10 @@ in {
                 then "/Users/${user.name}"
                 else "/home/${user.name}";
             }
+            // optionalAttrs (!isDarwin) {
+              # NixOS-specific user options
+              useDefaultShell = true;
+            }
             // optionalAttrs user.isAdmin {
               # Additional admin configuration if needed
             };

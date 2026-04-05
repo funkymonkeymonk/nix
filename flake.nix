@@ -1,6 +1,10 @@
 {
   description = "Will Weaver system setup flake";
 
+  nixConfig = {
+    extra-experimental-features = ["flakes" "nix-command"];
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-25.05";
@@ -577,6 +581,7 @@
             users.users.monkey = {
               isNormalUser = true;
               extraGroups = ["wheel"];
+              useDefaultShell = true;
               openssh.authorizedKeys.keys = [
                 # MegamanX deploy key
                 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
@@ -616,6 +621,7 @@
             users.users.monkey = {
               isNormalUser = true;
               extraGroups = ["wheel"];
+              useDefaultShell = true;
               openssh.authorizedKeys.keys = [
                 "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
               ];

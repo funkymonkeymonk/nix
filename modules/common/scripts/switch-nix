@@ -1,0 +1,348 @@
+#!/usr/bin/env bash
+# switch-nix - Rebuild Nix configuration from GitHub flake
+# Usage: switch-nix [branch]
+#   branch: Git branch to build from (default: main)
+#
+# Config file: /etc/cloud-init.yaml (cloud-init format)
+#   #cloud-config
+#   hostname: <machine-hostname>
+#   timezone: <timezone>
+#   locale: <locale>
+#   ssh_authorized_keys:
+#     - ssh-rsa AAAA...
+#   bootcmd:
+#     - echo "hello"
+#   runcmd:
+#     - apt-get update
+#   nix:
+#     target: <flake-target>
+#     branch: <default-branch>
+#     impure: true|false
+#     roles:
+#       - developer
+#
+# Uses github:funkymonkeymonk/nix as the flake source.
+
+set -e
+
+CONFIG_FILE="/etc/cloud-init.yaml"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() {
+  echo -e "${BLUE}INFO:${NC} $1"
+}
+
+log_success() {
+  echo -e "${GREEN}SUCCESS:${NC} $1"
+}
+
+log_error() {
+  echo -e "${RED}ERROR:${NC} $1" >&2
+}
+
+log_warn() {
+  echo -e "${YELLOW}WARN:${NC} $1"
+}
+
+# Read value from YAML file
+read_yaml() {
+  local file="$1"
+  local key="$2"
+  
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+  
+  # Handle nested keys like "nix.target"
+  if [[ "$key" == *.* ]]; then
+    local section="${key%%.*}"
+    local subkey="${key#*.}"
+    sed -n "/^$section:/,/^[^ ]/p" "$file" 2>/dev/null | grep "^  $subkey:" | head -1 | sed "s/^  $subkey:[[:space:]]*//" | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+  else
+    grep -E "^[[:space:]]*${key}:" "$file" | head -1 | sed "s/^[[:space:]]*${key}:[[:space:]]*//" | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+  fi
+}
+
+# Read array from YAML
+read_yaml_array() {
+  local file="$1"
+  local key="$2"
+  
+  if [[ ! -f "$file" ]]; then
+    return 1
+  fi
+  
+  # Simple array parsing - find key, then read indented items until next top-level key
+  awk -v k="$key:" '
+    $1 == k { in_array = 1; next }
+    in_array && /^[^ #]/ { exit }
+    in_array && /^  - / { 
+      gsub(/^  - /, ""); 
+      gsub(/"/, "");
+      gsub(/'"'"'/, "");
+      print 
+    }
+  ' "$file"
+}
+
+# Validate config, run nix-cloud-init if needed
+validate_or_init_config() {
+  # Check if nix-cloud-init is available
+  if ! command -v nix-cloud-init &>/dev/null; then
+    log_error "nix-cloud-init not found in PATH"
+    log_info "Make sure /etc/nix-cloud-init/nix-cloud-init is executable and in PATH"
+    return 1
+  fi
+  
+  # Check if config file exists
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_warn "Cloud-init config not found at $CONFIG_FILE"
+    log_info "Running nix-cloud-init to create configuration..."
+    
+    if ! sudo nix-cloud-init init; then
+      log_error "Failed to create configuration"
+      return 1
+    fi
+  fi
+  
+  # Validate the config
+  if ! nix-cloud-init validate &>/dev/null; then
+    log_warn "Configuration validation failed"
+    log_info "Running nix-cloud-init to fix configuration..."
+    
+    if ! sudo nix-cloud-init edit; then
+      log_error "Failed to fix configuration"
+      return 1
+    fi
+    
+    # Re-validate
+    if ! nix-cloud-init validate &>/dev/null; then
+      log_error "Configuration still invalid after editing"
+      return 1
+    fi
+  fi
+  
+  return 0
+}
+
+# Set hostname on the current system
+set_hostname() {
+  local new_hostname="$1"
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    sudo scutil --set HostName "$new_hostname"
+    sudo scutil --set LocalHostName "$new_hostname"
+    sudo scutil --set ComputerName "$new_hostname"
+  else
+    # On NixOS, write to /etc/hostname for persistence
+    echo "$new_hostname" | sudo tee /etc/hostname > /dev/null 2>/dev/null || true
+    # Set immediately
+    sudo hostname "$new_hostname" 2>/dev/null || true
+    log_info "Hostname set to: $new_hostname"
+  fi
+}
+
+# Apply timezone
+apply_timezone() {
+  local tz="$1"
+  if [[ -z "$tz" ]]; then
+    return 0
+  fi
+  
+  if [[ "$(uname)" == "Darwin" ]]; then
+    sudo systemsetup -settimezone "$tz" 2>/dev/null || log_warn "Could not set timezone"
+  else
+    if command -v timedatectl &>/dev/null; then
+      sudo timedatectl set-timezone "$tz" 2>/dev/null || log_warn "Could not set timezone"
+    fi
+  fi
+}
+
+# Apply locale
+apply_locale() {
+  local locale="$1"
+  if [[ -z "$locale" ]]; then
+    return 0
+  fi
+  
+  export LANG="$locale"
+  export LC_ALL="$locale"
+  log_info "Locale set to: $locale"
+}
+
+# Execute boot commands
+execute_bootcmd() {
+  local file="$1"
+  log_info "Executing boot commands..."
+  
+  local cmds
+  cmds=$(read_yaml_array "$file" "bootcmd")
+  
+  if [[ -z "$cmds" ]]; then
+    return 0
+  fi
+  
+  while IFS= read -r cmd; do
+    if [[ -n "$cmd" ]]; then
+      log_info "Running: $cmd"
+      eval "$cmd" || log_warn "Boot command failed: $cmd"
+    fi
+  done <<< "$cmds"
+}
+
+# Execute run commands
+execute_runcmd() {
+  local file="$1"
+  log_info "Executing run commands..."
+  
+  local cmds
+  cmds=$(read_yaml_array "$file" "runcmd")
+  
+  if [[ -z "$cmds" ]]; then
+    return 0
+  fi
+  
+  while IFS= read -r cmd; do
+    if [[ -n "$cmd" ]]; then
+      log_info "Running: $cmd"
+      eval "$cmd" || log_warn "Run command failed: $cmd"
+    fi
+  done <<< "$cmds"
+}
+
+# Main switch function
+switch_nix() {
+  local branch="${1:-main}"
+  
+  echo "=== switch-nix ==="
+  echo "Branch: $branch"
+  echo ""
+  
+  # Validate or initialize config
+  if ! validate_or_init_config; then
+    log_error "Configuration validation/initialization failed"
+    return 1
+  fi
+  
+  # Read all config values
+  local target hostname timezone locale impure config_branch
+  hostname=$(read_yaml "$CONFIG_FILE" "hostname")
+  target=$(read_yaml "$CONFIG_FILE" "nix.target")
+  timezone=$(read_yaml "$CONFIG_FILE" "timezone")
+  locale=$(read_yaml "$CONFIG_FILE" "locale")
+  impure=$(read_yaml "$CONFIG_FILE" "nix.impure")
+  config_branch=$(read_yaml "$CONFIG_FILE" "nix.branch")
+  
+  # Use config branch if no branch specified and config has one
+  if [[ "$branch" == "main" && -n "$config_branch" ]]; then
+    branch="$config_branch"
+  fi
+  
+  # Validate required fields
+  if [[ -z "$target" ]]; then
+    log_error "No nix.target configured in $CONFIG_FILE"
+    log_info "Run 'sudo nix-cloud-init init' to create configuration"
+    return 1
+  fi
+  
+  if [[ -z "$hostname" ]]; then
+    log_error "No hostname configured in $CONFIG_FILE"
+    log_info "Run 'sudo nix-cloud-init set hostname <name>' to set hostname"
+    return 1
+  fi
+  
+  # Display configuration
+  echo "=== Configuration ==="
+  echo "Target:   $target"
+  echo "Hostname: $hostname"
+  echo "Branch:   $branch"
+  [[ -n "$timezone" ]] && echo "Timezone: $timezone"
+  [[ -n "$locale" ]] && echo "Locale:   $locale"
+  [[ -n "$impure" ]] && echo "Impure:   $impure"
+  
+  # Show additional settings
+  local roles
+  roles=$(read_yaml_array "$CONFIG_FILE" "nix.roles")
+  if [[ -n "$roles" ]]; then
+    echo "Roles:    $(echo "$roles" | tr '\n' ', ' | sed 's/,$//')"
+  fi
+  echo ""
+  
+  # Apply system settings
+  if [[ "$hostname" != "$(hostname -s)" ]]; then
+    echo "=== Setting hostname ==="
+    set_hostname "$hostname"
+    echo ""
+  fi
+  
+  [[ -n "$timezone" ]] && apply_timezone "$timezone"
+  [[ -n "$locale" ]] && apply_locale "$locale"
+  
+  # Execute commands
+  execute_bootcmd "$CONFIG_FILE"
+  execute_runcmd "$CONFIG_FILE"
+  
+  # Build flake URL
+  local flake="github:funkymonkeymonk/nix/$branch#$target"
+  echo "Flake: $flake"
+  echo ""
+  
+  # Detect platform and rebuild
+  if [[ "$(uname)" == "Darwin" ]]; then
+    echo "Platform: Darwin"
+    echo ""
+    
+    if ! command -v darwin-rebuild &>/dev/null; then
+      log_error "darwin-rebuild not found"
+      return 1
+    fi
+    
+    NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
+      --flake "$flake" \
+      --impure \
+      --show-trace 2>&1
+  else
+    echo "Platform: Linux"
+    echo ""
+    
+    if ! command -v nixos-rebuild &>/dev/null; then
+      log_error "nixos-rebuild not found"
+      return 1
+    fi
+    
+    sudo nixos-rebuild switch \
+      --flake "$flake" \
+      --impure \
+      --show-trace 2>&1
+  fi
+  
+  local exit_code=$?
+  if [[ $exit_code -eq 0 ]]; then
+    echo ""
+    log_success "Configuration '$target' applied to '$hostname' from branch '$branch'"
+    
+    # Show post-install notes
+    local ssh_keys key_count
+    ssh_keys=$(read_yaml_array "$CONFIG_FILE" "ssh_authorized_keys")
+    if [[ -n "$ssh_keys" ]]; then
+      key_count=$(echo "$ssh_keys" | wc -l)
+      echo ""
+      log_info "SSH authorized keys configured: $key_count key\(s\)"
+    fi
+  else
+    echo ""
+    log_error "Switch failed with exit code: $exit_code"
+  fi
+  return $exit_code
+}
+
+# Run if executed directly
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  switch_nix "$@"
+fi

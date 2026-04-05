@@ -36,6 +36,7 @@ in {
             fzf
             ripgrep
             fd
+            gum
 
             # Development tools
             devenv

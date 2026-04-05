@@ -179,6 +179,31 @@ If `.jj/` directory exists:
 4. Use `jj describe` for commit messages
 5. Never mix git and jj commands
 
+### Commit-First Workflow (Required)
+
+**This repository does NOT use `allow-dirty`** - Nix flakes require a clean git state.
+
+**Why:** The flake reads files from git HEAD, not the working copy. JJ's colocation with git can cause issues when parent commits have conflicts (jj stores conflicts specially that git can't read).
+
+**Workflow:**
+```bash
+# 1. Make your changes
+# 2. Commit them with jj
+jj describe -m "feat: your changes"
+
+# 3. NOW run nix commands
+nix build .#target
+# or
+devenv tasks run check:all
+```
+
+**If you must test before committing**, use `--impure`:
+```bash
+nix build .#target --impure
+```
+
+**Never use `--impure` for final validation** - always commit first and test without it.
+
 ## Platform Support
 
 - **macOS**: nix-darwin (aarch64-darwin)
