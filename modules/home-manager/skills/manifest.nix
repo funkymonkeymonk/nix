@@ -171,4 +171,14 @@
     };
     deps = [];
   };
+
+  "yak-shaving" = {
+    description = "Use when tracking, planning, or implementing work using yx (yaks) in a repository with jj workspaces, or when multiple agents need to coordinate on shared tasks";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/yak-shaving;
+    };
+    deps = [];
+  };
 }
