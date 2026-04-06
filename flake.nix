@@ -120,6 +120,7 @@
     ];
 
     # Helper to create microvm configuration
+    # Secrets come from 1Password via opnix (host and guest both use it)
     mkMicrovm = name: roleEnables:
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -552,6 +553,7 @@
         specialArgs = inputs;
         modules = [
           configuration
+          microvm.nixosModules.microvm
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
@@ -597,6 +599,7 @@
         specialArgs = inputs;
         modules = [
           configuration
+          microvm.nixosModules.microvm
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
@@ -615,7 +618,6 @@
 
           ./machine-types/server.nix
 
-          # REQUIRED: Configure at least one user with SSH access
           {
             users.users.root.openssh.authorizedKeys.keys = [];
             users.users.monkey = {

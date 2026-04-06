@@ -133,6 +133,13 @@ with lib; {
           description = "Local LLM hosting (ollama)";
         };
       };
+      microvm-host = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "MicroVM host infrastructure (bridge networking, DNS/connection logging, cloud-init VM discovery)";
+        };
+      };
     };
 
     development = {
@@ -950,6 +957,26 @@ with lib; {
           Each key is the theme name, value is a theme attribute set.
           Written to ~/.pi/agent/themes/<name>.json
         '';
+      };
+    };
+
+    microvm = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether this system is running inside a microvm";
+      };
+
+      ipAddress = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Static IP address for the microvm on the bridge network";
+      };
+
+      gateway = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Gateway IP for the microvm (bridge IP)";
       };
     };
   };

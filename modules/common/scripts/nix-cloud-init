@@ -691,6 +691,95 @@ cmd_edit() {
   done
 }
 
+# MicroVM management commands
+cmd_microvm() {
+  local subcmd="${1:-help}"
+  shift 2>/dev/null || true
+
+  case "$subcmd" in
+    list)
+      if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_info "No microvms defined"
+        return 0
+      fi
+      awk '
+        /^microvms:/ { in_vms=1; next }
+        in_vms && /^[^ -]/ { exit }
+        in_vms && /^  - name:/ { gsub(/^  - name:[[:space:]]*/, ""); print }
+      ' "$CONFIG_FILE"
+      ;;
+    add)
+      check_root
+      local name="$1"
+      local flake="$2"
+      local ip="$3"
+      local autostart="${4:-true}"
+
+      if [[ -z "$name" || -z "$flake" || -z "$ip" ]]; then
+        log_error "Usage: nix-cloud-init microvm add <name> <flake> <ipAddress> [autoStart]"
+        exit 1
+      fi
+
+      if ! grep -q "^microvms:" "$CONFIG_FILE" 2>/dev/null; then
+        echo "" >> "$CONFIG_FILE"
+        echo "microvms:" >> "$CONFIG_FILE"
+      fi
+
+      cat >> "$CONFIG_FILE" << EOF
+  - name: $name
+    flake: $flake
+    ipAddress: $ip
+    autoStart: $autostart
+EOF
+      log_success "MicroVM '$name' added ($ip, flake: $flake)"
+      ;;
+    remove)
+      check_root
+      local name="$1"
+      if [[ -z "$name" ]]; then
+        log_error "Usage: nix-cloud-init microvm remove <name>"
+        exit 1
+      fi
+      # Remove the VM block from cloud-init
+      awk -v name="$name" '
+        /^microvms:/ { in_vms=1; next }
+        in_vms && /^  - name:/ { in_vm=1; gsub(/^  - name:[[:space:]]*/, ""); if ($0 == name) skip=1; else skip=0; next }
+        in_vm && skip && /^  - / { skip=0; in_vm=0 }
+        in_vm && skip && /^[^ -]/ { skip=0; in_vms=0 }
+        !skip { print }
+      ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp"
+      mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      log_success "MicroVM '$name' removed"
+      ;;
+    help|*)
+      cat << EOF
+Usage: nix-cloud-init microvm <command> [args]
+
+Manage microvm definitions in cloud-init.
+
+Commands:
+  list                              List defined microvms
+  add <name> <flake> <ip> [auto]    Add a microvm definition
+  remove <name>                     Remove a microvm definition
+  help                              Show this help
+
+Examples:
+  sudo nix-cloud-init microvm add matrix .#microvm.nixosConfigurations.matrix 192.168.83.15
+  sudo nix-cloud-init microvm add openclaw .#microvm.nixosConfigurations.openclaw 192.168.83.16
+  nix-cloud-init microvm list
+  sudo nix-cloud-init microvm remove matrix
+
+Cloud-init format:
+  microvms:
+    - name: matrix
+      flake: .#microvm.nixosConfigurations.matrix
+      ipAddress: 192.168.83.15
+      autoStart: true
+EOF
+      ;;
+  esac
+}
+
 # Help command
 cmd_help() {
   cat << EOF
@@ -705,6 +794,7 @@ Commands:
   show                    Display current config
   validate                Validate the cloud-init file
   edit                    Edit config interactively
+  microvm <subcmd>        Manage microvm definitions (list, add, remove)
   help                    Show this help message
 
 Examples:
@@ -712,6 +802,7 @@ Examples:
   sudo nix-cloud-init set hostname drlight
   sudo nix-cloud-init set target type-server
   sudo nix-cloud-init set timezone America/Los_Angeles
+  sudo nix-cloud-init microvm add matrix .#microvm.nixosConfigurations.matrix 192.168.83.15
   nix-cloud-init show
   nix-cloud-init validate
 
@@ -723,6 +814,7 @@ Supported cloud-init fields:
   - ssh_authorized_keys
   - bootcmd, runcmd
   - nix.target, nix.branch, nix.impure, nix.roles
+  - microvms (name, flake, ipAddress, autoStart)
 EOF
 }
 
@@ -743,6 +835,9 @@ case "${1:-help}" in
     ;;
   edit)
     cmd_edit
+    ;;
+  microvm)
+    cmd_microvm "$@"
     ;;
   help|--help|-h)
     cmd_help

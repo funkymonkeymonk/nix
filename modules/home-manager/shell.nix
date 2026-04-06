@@ -16,12 +16,6 @@
         . /etc/nix-cloud-init/switch-nix
       fi
 
-      # Line editor configuration
-      bindkey -e  # Enable emacs keymap
-      bindkey '^L' clear-screen  # Ensure Ctrl+L clears screen
-      setopt PROMPT_CR  # Ensure proper line wrapping
-      setopt ALWAYS_LAST_PROMPT  # Redraw prompt after background jobs
-
       # Docker functions
       drm() { docker rm $(docker ps -q -a); }
       dri() { docker rmi $(docker images -q); }
@@ -36,6 +30,10 @@
 
       # Load z plugin for directory jumping (frecent directories)
       zinit load agkozak/zsh-z
+
+      # FZF configuration
+      export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border"
+      export FZF_COMPLETION_TRIGGER='**'
 
       # FZF key bindings and completion
       source ${pkgs.fzf}/share/fzf/key-bindings.zsh
