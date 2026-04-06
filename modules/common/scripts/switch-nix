@@ -23,8 +23,6 @@
 #
 # Uses github:funkymonkeymonk/nix as the flake source.
 
-set -e
-
 CONFIG_FILE="/etc/cloud-init.yaml"
 
 # Colors
@@ -344,5 +342,6 @@ switch_nix() {
 
 # Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  set -e
   switch_nix "$@"
 fi
