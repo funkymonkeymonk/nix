@@ -1,7 +1,7 @@
 # microvm-host role module
 # Enables MicroVM host infrastructure on any NixOS system (e.g. type-server)
-# When enabled, the system reads /etc/cloud-init.yaml for microvm definitions
-# and automatically starts them with bridge networking, DNS logging, and connection monitoring.
+# MicroVM definitions come from /etc/nixos/microvms.nix (generated from cloud-init).
+# Per-VM cloud-init files are generated at build time and mounted into each VM.
 #
 # NOTE: The host configuration must also import microvm.nixosModules.microvm
 # (e.g. via the flake or directly in the target).
@@ -13,22 +13,35 @@
 }: let
   cfg = config.myConfig.roles.microvm-host;
 in {
-  # Import the microvm host service module
   imports = [
     ../services/microvm-host
   ];
 
   config = lib.mkIf cfg.enable {
-    # Enable the microvm host service
     services.microvm-host.enable = true;
 
-    # Ensure KVM modules are loaded
     boot.kernelModules = lib.mkDefault ["kvm-intel" "kvm-amd"];
 
-    # Packages for microvm management
     environment.systemPackages = with pkgs; [
       cloud-hypervisor
       virtiofsd
     ];
+
+    # Generate per-VM cloud-init files at build time
+    # These are placed at /etc/cloud-init/<hostname>.yaml on the host
+    # and mounted into each VM via virtiofs at /etc/cloud-init/
+    # Currently contains hostname; expand for secrets (onecli) later.
+    environment.etc = lib.mkIf (config.microvm.vms != {}) (
+      builtins.listToAttrs (map (name: {
+        name = "cloud-init/${name}.yaml";
+        value = {
+          text = ''
+            #cloud-config
+            hostname: ${name}
+          '';
+          mode = "0644";
+        };
+      }) (builtins.attrNames config.microvm.vms))
+    );
   };
 }
