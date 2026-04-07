@@ -176,6 +176,12 @@ with lib; {
         default = null;
         description = "Path to the superpowers flake input (set automatically from flake inputs)";
       };
+
+      externalInputs = mkOption {
+        type = types.attrsOf types.path;
+        default = {};
+        description = "Attribute set of external skill repository flake inputs (e.g., vercel-skills = inputs.vercel-skills)";
+      };
     };
 
     opencode = {

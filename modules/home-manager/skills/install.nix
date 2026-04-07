@@ -16,6 +16,9 @@
   # Get superpowers path from flake input
   superpowersPath = cfg.superpowersPath or null;
 
+  # Get external skill inputs from flake
+  externalInputs = cfg.externalInputs or {};
+
   # Use default path if not specified (relative to home directory for home.file)
   skillsPath = cfg.skillsPath or ".config/opencode/skills";
   commandsPath = cfg.commandsPath or ".config/opencode/commands";
@@ -64,8 +67,19 @@
             source = "${superpowersPath}/skills/${skill.source.skillName}";
             recursive = true;
           }
+        else if skill.source.type == "flake-input" && externalInputs ? ${skill.source.input}
+        then
+          # External flake input: link from the specified flake input
+          let
+            inputPath = externalInputs.${skill.source.input};
+            skillSubpath = skill.source.subpath or ".";
+          in
+            lib.nameValuePair skillDir {
+              source = "${inputPath}/${skillSubpath}";
+              recursive = true;
+            }
         else
-          # External: placeholder for future implementation
+          # External: placeholder for unconfigured external skills
           lib.nameValuePair "${skillDir}/SKILL.md" {
             text = ''
               # ${name}
@@ -74,10 +88,15 @@
 
               ## Source
 
-              External skill from: ${skill.source.url or "unknown"}
+              External skill from: ${
+                if skill.source.type == "flake-input"
+                then "flake input: ${skill.source.input or "unknown"}"
+                else if skill.source ? url
+                then skill.source.url
+                else "unknown"
+              }
 
-              **Note**: External skill fetching not yet implemented.
-              To add this skill, copy the content from the URL above.
+              **Note**: External skill not configured. Add the flake input to your flake.nix and set `myConfig.skills.externalInputs`.
             '';
           }
     )
@@ -149,8 +168,22 @@
         To import from external repos, add to manifest with:
         ```nix
         source = {
-          type = "external";
-          url = "github:owner/repo//path/to/skill.md";
+          type = "flake-input";
+          input = "repo-name";      # Name of flake input
+          subpath = "path/to/skill"; # Path within repo (optional, defaults to root)
+        };
+        ```
+
+        Then add the flake input to your flake.nix:
+        ```nix
+        inputs.repo-name.url = "github:owner/repo";
+        inputs.repo-name.flake = false;
+        ```
+
+        And set `myConfig.skills.externalInputs`:
+        ```nix
+        myConfig.skills.externalInputs = {
+          inherit (inputs) repo-name;
         };
         ```
       '';

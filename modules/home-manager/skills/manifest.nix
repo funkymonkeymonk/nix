@@ -102,14 +102,27 @@
     deps = [];
   };
 
-  # External skills - fetched from other repositories
-  # Example: Uncomment and modify when you want to add external skills
+  # External skills - fetched from other repositories via flake inputs (Option 2: Pure Nix)
+  # To use: Add the input to flake.nix, set externalInputs in config, and enable for roles here
+  "find-skills" = {
+    description = "Helps users discover and install agent skills from the open agent skills ecosystem";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "flake-input";
+      input = "vercel-skills";    # Must match input name in flake.nix
+      subpath = "skills/find-skills";  # Path within the repo to the skill directory
+    };
+    deps = [];
+  };
+
+  # Example: External skill from another repo (requires adding the flake input)
   # "spec-driven-workflow" = {
   #   description = "SRE workflow patterns from Liatrio Labs";
   #   roles = ["developer" "workstation"];
   #   source = {
-  #     type = "external";
-  #     url = "github:liatrio-labs/spec-driven-workflow//sre-workflow/SKILL.md";
+  #     type = "flake-input";
+  #     input = "liatrio-skills";  # Add to flake.nix: inputs.liatrio-skills.url = "github:liatrio-labs/spec-driven-workflow";
+  #     subpath = "sre-workflow";  # Path to skill directory within the repo
   #   };
   #   deps = [];
   # };

@@ -39,6 +39,10 @@
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
     zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
+
+    # External skill repositories (Option 2: Pure Nix approach)
+    vercel-skills.url = "github:vercel-labs/skills";
+    vercel-skills.flake = false;
   };
 
   outputs = {
@@ -142,7 +146,12 @@
             nixpkgs.hostPlatform = "x86_64-linux";
             myConfig =
               {
-                skills.superpowersPath = inputs.superpowers;
+                skills = {
+                  superpowersPath = inputs.superpowers;
+                  externalInputs = {
+                    inherit (inputs) vercel-skills;
+                  };
+                };
                 users = [
                   {
                     name = "dev";
@@ -231,10 +240,15 @@
             system.stateVersion = 4;
             system.primaryUser = "wweaver";
             myConfig =
-              mkUser "wweaver" "wweaver@justworks.com"
-              // {
-                skills.superpowersPath = inputs.superpowers;
-                roles = {
+               mkUser "wweaver" "wweaver@justworks.com"
+               // {
+                 skills = {
+                   superpowersPath = inputs.superpowers;
+                   externalInputs = {
+                     inherit (inputs) vercel-skills;
+                   };
+                 };
+                 roles = {
                   developer.enable = true;
                   desktop.enable = true;
                   workstation.enable = true;
