@@ -3,7 +3,7 @@ title: "Project TODO and Changelog"
 description: "Completed work and remaining tasks for the Nix configuration repository"
 type: reference
 audience: both
-last-reviewed: 2026-04-06
+last-reviewed: 2026-04-07
 ---
 
 # Project Tasks
@@ -85,6 +85,59 @@ last-reviewed: 2026-04-06
 - [ ] Create NixOS VM integration tests for complex scenarios
 - [ ] Auto-generate options.md from Nix code
 - [ ] Add architecture diagrams to explanation docs
+
+### yx Sync - High Value (P1)
+**Priority:** High
+**Source:** yx sync 2026-04-07
+- [ ] Add explicit permissions blocks to all CI workflows
+- [ ] Add failure notifications for scheduled CI workflows
+- [ ] Add home-manager module composition tests
+- [ ] Add role-specific package tests
+- [ ] Add skills manifest validation test
+- [ ] Consolidate bundles.nix vs modules/roles/ duplication
+- [ ] Extract facter.json stub to shared CI script
+- [ ] Fix fjj.nix ignoring myConfig.fjj.mirrorRoot option
+- [ ] Fix llm-host.nix ignoring myConfig.sharedModels
+- [ ] Fix vane API keys stored in world-readable Nix store
+- [ ] Integrate jj skill tests into CI
+- [ ] Move inline config from flake.nix to targets/
+- [ ] Re-enable Linux build in main-build.yml
+- [ ] Replace hardcoded config fallback lists in pr-validation.yml
+
+### yx Sync - Cleanup (P2)
+**Priority:** Medium
+**Source:** yx sync 2026-04-07
+- [ ] Add stateVersion consistently to all microvm targets
+- [ ] Consolidate programs.zsh.enable (set in 3 places)
+- [ ] Extract shared LLM env vars from llm-client.nix and llm-claude.nix
+- [ ] Fix entertainment role being no-op on NixOS
+- [ ] Fix homebrew casks in creative/desktop roles failing on NixOS
+- [ ] Fix vane autoStart option being ignored by darwin.nix
+- [ ] Remove dead generate-env.sh in microvm targets
+- [ ] Remove dead perform_installation() in installer.nix
+- [ ] Remove duplicate claude-code from foundation.nix (belongs in llm-claude)
+- [ ] Remove duplicate development.enable vs roles.developer.enable options
+- [ ] Remove empty llm-server bundle in bundles.nix
+- [ ] Remove unused _config param in os/darwin.nix
+- [ ] Remove unused ollama.useHomebrew option
+- [ ] Unify nix.settings.experimental-features across modules
+
+### yx Sync - Nice to Have (P3)
+**Priority:** Low
+**Source:** yx sync 2026-04-07
+- [ ] Abstract NVIDIA config from targets/zero into reusable module
+- [ ] Add cross-platform option guard tests
+- [ ] Add overlay tests for custom packages (rtk, yaks, pi-coding-agent)
+- [ ] Add workflow_dispatch trigger to pr-validation.yml
+- [ ] Consolidate two separate installer implementations
+- [ ] Create Darwin target template (templates/new-target-darwin.nix)
+- [ ] Extract jj-autosync.nix embedded bash to separate .sh files
+- [ ] Implement mergiraf as AST-aware merge tool
+- [ ] Move boot.loader settings in os/nixos.nix behind lib.mkDefault
+- [ ] Remove hardcoded monitor name in aerospace.nix
+- [ ] Replace types.attrs with typed attrsets in options.nix
+- [ ] Split options.nix into per-feature option files
+- [ ] Unify hardware abstraction across targets (facter vs pathExists vs stub)
 
 ---
 
