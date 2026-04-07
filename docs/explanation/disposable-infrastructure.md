@@ -1,6 +1,6 @@
 ---
 title: "Disposable Infrastructure"
-description: "Philosophy and design of takeout containers vs heirloom dishes for NixOS management"
+description: "Philosophy and design of disposable vs artisanal approaches for NixOS management"
 type: explanation
 audience: both
 last-reviewed: 2026-04-06
@@ -8,16 +8,16 @@ last-reviewed: 2026-04-06
 
 # Disposable Infrastructure
 
-This document explains the "takeout container" approach to NixOS management: generic machine types with automatic hardware detection. No more per-machine `hardware-configuration.nix` files!
+This document explains the disposable infrastructure approach to NixOS management: generic machine types with automatic hardware detection. No more per-machine `hardware-configuration.nix` files!
 
-## Philosophy: Heirloom Dishes vs Takeout Containers
+## Philosophy: Artisanal vs Disposable
 
 Understanding the two approaches to machine management:
 
-- **Heirloom Dishes**: Each machine is unique, hand-crafted, named, and cared for individually. If it breaks, you repair it. You know its history.
-- **Takeout Containers**: Machines are standardized, disposable, and interchangeable. If one has a problem, you throw it away and grab another. You don't care which specific one you get.
+- **Artisanal**: Each machine is unique, hand-crafted, named, and cared for individually. If it breaks, you repair it. You know its history.
+- **Disposable**: Machines are standardized, interchangeable, and treated as infrastructure. If one has a problem, you replace it. You don't care which specific one you get.
 
-Your existing `zero` config is an heirloom dish. The `type-*` configs here are takeout containers.
+Your existing `zero` config is artisanal. The `type-*` configs here are disposable.
 
 ## How It Works
 
@@ -86,31 +86,31 @@ disko.devices = {
 
 ## Migration Path
 
-### Option 1: Keep Heirlooms + Add Takeout Containers (Recommended)
+### Option 1: Keep Artisanal + Add Disposable (Recommended)
 
-Keep `zero` as-is. Use takeout containers for new machines:
+Keep `zero` as-is. Use disposable configurations for new machines:
 
 ```nix
 nixosConfigurations = {
-  # Existing (heirlooms) - keep working
+  # Existing (artisanal) - keep working
   zero = mkNixosHost { ... };
   
-  # New machines (takeout) - pure, no per-machine config needed
+  # New machines (disposable) - pure, no per-machine config needed
   type-desktop = nixpkgs.lib.nixosSystem { ... };
   type-server = nixpkgs.lib.nixosSystem { ... };  # Hostname from DHCP
 };
 ```
 
-**Key difference**: Takeout container machines don't need `targets/<hostname>/` directories. The hostname comes from DHCP, not the flake.
+**Key difference**: Disposable machines don't need `targets/<hostname>/` directories. The hostname comes from DHCP, not the flake.
 
 ### Option 2: Full Migration
 
-Convert everything to takeout containers:
+Convert everything to disposable:
 
 1. Backup data from zero
-2. Reinstall using takeout container approach
+2. Reinstall using disposable approach
 3. Restore data
-4. Delete old heirloom configs
+4. Delete old artisanal configs
 
 ## Machine Types
 
@@ -122,7 +122,7 @@ Convert everything to takeout containers:
 - SSH enabled
 
 ### `type-server`
-- Headless server (takeout pattern - no hardcoded hostname)
+- Headless server (disposable pattern - no hardcoded hostname)
 - MicroVM host support (qemu, virtiofsd, KVM)
 - Hardened SSH (keys only, no root login)
 - Auto-upgrade from GitHub daily at 02:00
@@ -132,7 +132,7 @@ Convert everything to takeout containers:
 
 ## Hostnames and DHCP
 
-Takeout container machines don't have hardcoded hostnames in the flake. Instead, hostnames come from:
+Disposable machines don't have hardcoded hostnames in the flake. Instead, hostnames come from:
 
 1. **DHCP server** (recommended) - Configure your router/dhcpd to assign hostnames by MAC address
 2. **Local override** - Create `/etc/nixos/local.nix` on the machine (outside flake)
@@ -142,11 +142,11 @@ Example DHCP configuration (dnsmasq):
 dhcp-host=aa:bb:cc:dd:ee:ff,drlight,192.168.1.50,infinite
 ```
 
-This keeps all "heirloom" metadata (names, IPs) out of the flake.
+This keeps all "artisanal" metadata (names, IPs) out of the flake.
 
 ## Benefits
 
-| Before (Heirlooms) | After (Takeout Containers) |
+| Before (Artisanal) | After (Disposable) |
 |---------------------|---------------------------|
 | `hardware-configuration.nix` per machine | ❌ None - auto-detected |
 | Manual partitioning | ❌ Automated |
@@ -212,8 +212,9 @@ nixos-facter requires kexec or installer image. If on existing Linux:
 
 ## Related Documents
 
-- [QUICKSTART.md](../QUICKSTART.md) - Quick installation reference
-- [docs/how-to/add-machine.md](how-to/add-machine.md) - Adding new machines to the flake
+- [Install Disposable Quick Reference](../how-to/install-disposable-quick-reference.md) - Quick installation reference
+- [Install Disposable](../how-to/install-disposable.md) - Full installation guide
+- [Add a New Machine](../how-to/add-machine.md) - Adding new machines to the flake
 - [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) - Remote installation
 - [disko](https://github.com/nix-community/disko) - Declarative partitioning
 - [nixos-facter](https://github.com/nix-community/nixos-facter) - Hardware detection

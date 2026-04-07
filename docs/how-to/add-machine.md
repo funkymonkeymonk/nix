@@ -30,7 +30,7 @@ This guide shows you how to add a new machine configuration to the flake.
 Just use the existing `type-server` or `type-desktop` configurations:
 
 ```bash
-# Install using takeout container pattern
+# Install using disposable pattern
 nixos-install --flake github:funkymonkeymonk/nix#type-server
 
 # Hostname comes from DHCP - no per-machine config needed!
@@ -42,7 +42,7 @@ The `type-server` configuration includes:
 - Hardened SSH (keys only, no root)
 - Firewall with SSH access
 
-See [DISPOSABLE.md](../../DISPOSABLE.md) for full details.
+See [Disposable Infrastructure](../explanation/disposable-infrastructure.md) for full details.
 
 ## For macOS (Darwin)
 

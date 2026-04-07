@@ -1,15 +1,15 @@
 ---
-title: "Install NixOS with Takeout Containers"
-description: "Step-by-step guide for installing NixOS using the disposable takeout container approach"
+title: "Install NixOS with Disposable Infrastructure"
+description: "Step-by-step guide for installing NixOS using the disposable infrastructure approach"
 type: how-to
 audience: both
 automation-ready: false
 last-reviewed: 2026-04-06
 ---
 
-# Install NixOS with Takeout Containers
+# Install NixOS with Disposable Infrastructure
 
-This guide shows you how to install NixOS using the takeout container approach with automatic hardware detection.
+This guide shows you how to install NixOS using the disposable infrastructure approach with automatic hardware detection.
 
 ## Prerequisites
 
@@ -80,9 +80,9 @@ ssh monkey@<hostname>  # Hostname assigned via DHCP
 # System is already fully configured and auto-updating from GitHub
 ```
 
-### For Heirloom Machines (bootstrap → named host)
+### For Artisanal Machines (bootstrap → named host)
 
-If you used bootstrap to create an heirloom machine:
+If you used bootstrap to create an artisanal machine:
 
 ```bash
 # SSH into new machine
@@ -137,7 +137,7 @@ The TUI installer provides:
 - [ ] Restore data from backup
 - [ ] Test all hardware (graphics, audio, network)
 - [ ] Update DNS/known_hosts (SSH key changed)
-- [ ] Delete old heirloom config (optional)
+- [ ] Delete old artisanal config (optional)
 
 ## Troubleshooting
 
@@ -185,8 +185,8 @@ nix run github:nix-community/nixos-facter -- -o facter.json
 
 ## Related Documents
 
-- [docs/explanation/disposable-infrastructure.md](../explanation/disposable-infrastructure.md) - Philosophy and design
-- [QUICKSTART.md](../../QUICKSTART.md) - Quick reference
-- [docs/how-to/add-machine.md](add-machine.md) - Adding machines to flake
+- [Disposable Infrastructure](../explanation/disposable-infrastructure.md) - Philosophy and design
+- [Install Disposable Quick Reference](install-disposable-quick-reference.md) - Quick reference
+- [Add a New Machine](add-machine.md) - Adding machines to flake
 - [nixos-anywhere docs](https://github.com/nix-community/nixos-anywhere/tree/main/docs)
 - [disko examples](https://github.com/nix-community/disko/tree/master/example)

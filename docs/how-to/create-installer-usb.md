@@ -9,7 +9,7 @@ The NixOS installer ISO provides a guided, menu-driven installation experience t
 - Automatically uses your flake configuration from GitHub
 - Falls back to a bundled flake copy if network is unavailable
 - Uses `disko` for declarative disk partitioning
-- Supports both "cattle" (type-*) and "pet" (named host) configurations
+- Supports both disposable (type-*) and artisanal (named host) configurations
 
 ## Build the ISO
 
@@ -107,8 +107,8 @@ Welcome Screen
 Step 1: Enter Hostname
     ↓
 Step 2: Select Target
-    • type-desktop  (cattle pattern)
-    • type-server   (cattle pattern)  
+    • type-desktop  (disposable)
+    • type-server   (disposable)  
     • bootstrap     (minimal)
     • Existing host (if found)
     ↓
@@ -169,14 +169,14 @@ Useful for:
    sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#<hostname>
    ```
 
-### If using type-server or type-desktop (takeout containers):
+### If using type-server or type-desktop (disposable):
 
 System boots fully configured with auto-updates from GitHub. Just:
 1. SSH in: `ssh monkey@<hostname>` (hostname assigned via DHCP)
 2. Verify everything works
 3. Done! The system auto-updates daily at 02:00
 
-### If using existing heirloom target (e.g., "zero"):
+### If using existing artisanal target (e.g., "zero"):
 
 System boots fully configured. Just:
 1. Set passwords

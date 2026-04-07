@@ -24,6 +24,7 @@ This documentation follows the [Diataxis](https://diataxis.fr/) framework, organ
 | Set up OpenClaw AI quickly | [Automated OpenClaw Setup](how-to/setup-openclaw-microvm-automated.md) |
 | Learn the basics | [Getting Started](tutorials/getting-started.md) |
 | Deploy a MicroVM | [Set up MicroVM Host](how-to/setup-microvm-host.md) |
+| Install disposable NixOS | [Install Disposable](how-to/install-disposable.md) |
 | Configure a new machine | [Add a New Machine](how-to/add-machine.md) |
 | Find configuration options | [Options Reference](reference/options.md) |
 | Understand the architecture | [Architecture](explanation/architecture.md) |
@@ -47,6 +48,8 @@ Solve specific problems:
 
 ### Machine Setup
 - [Add a New Machine](how-to/add-machine.md) - Configure a new Darwin or NixOS machine
+- [Install Disposable](how-to/install-disposable.md) - Deploy disposable NixOS machines
+- [Install Disposable Quick Reference](how-to/install-disposable-quick-reference.md) - Quick reference
 - [Set Up MicroVM Host](how-to/setup-microvm-host.md) - Configure a server for MicroVMs
 
 ### AI Assistant Deployment (MicroVM)
@@ -104,7 +107,7 @@ Background and design:
 If you're an AI agent reading this, see:
 
 1. **[AGENTS.md](../AGENTS.md)** - Complete agent guide for this repository
-2. **[setup-opencode-microvm-automated.md](how-to/setup-opencode-microvm-automated.md)** - Deploy yourself in a MicroVM
+2. **[setup-openclaw-microvm-automated.md](how-to/setup-openclaw-microvm-automated.md)** - Deploy yourself in a MicroVM
 
 ### Automation-Ready Guides
 
@@ -112,7 +115,7 @@ These guides are designed for automated execution:
 
 | Guide | Automation Level |
 |-------|-----------------|
-| [Set Up OpenCode MicroVM (Automated)](how-to/setup-opencode-microvm-automated.md) | Full automation with verification |
+| [Set Up OpenClaw MicroVM (Automated)](how-to/setup-openclaw-microvm-automated.md) | Full automation with verification |
 | [Run CI Locally](how-to/run-ci-locally.md) | Command sequences |
 | [Add a New Role](how-to/add-role.md) | Step-by-step with templates |
 
