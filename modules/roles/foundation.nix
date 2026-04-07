@@ -51,7 +51,6 @@ in {
             # Shell ecosystem
             zinit
             zsh
-            glow
             antigen
           ];
 

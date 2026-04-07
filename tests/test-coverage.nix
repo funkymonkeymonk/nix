@@ -16,6 +16,7 @@
     # home-manager/
     "home-manager/aliases.nix"
     "home-manager/aerospace.nix"
+    "home-manager/charm.nix"
     "home-manager/claude-code.nix"
     "home-manager/default.nix"
     "home-manager/fjj.nix"
