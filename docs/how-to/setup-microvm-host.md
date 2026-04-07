@@ -1,3 +1,12 @@
+---
+title: "Set Up a MicroVM Host"
+description: "Configure a NixOS server as a MicroVM host for running isolated VMs"
+type: how-to
+audience: both
+automation-ready: false
+last-reviewed: 2026-04-06
+---
+
 # Set Up a MicroVM Host
 
 This guide shows you how to configure a server as a MicroVM host for running isolated NixOS virtual machines.

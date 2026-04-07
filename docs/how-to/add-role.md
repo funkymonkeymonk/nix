@@ -1,3 +1,12 @@
+---
+title: "Add a New Role"
+description: "How to create a new role module for grouping packages and configurations"
+type: how-to
+audience: both
+automation-ready: false
+last-reviewed: 2026-04-06
+---
+
 # Add a New Role
 
 This guide shows you how to create a new role for grouping packages and configurations.

@@ -1,3 +1,11 @@
+---
+title: "Architecture"
+description: "Design and structure of the Nix configuration system"
+type: explanation
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Architecture
 
 This document explains the design and structure of this Nix configuration system.

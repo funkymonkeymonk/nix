@@ -1,3 +1,11 @@
+---
+title: "Tasks Reference"
+description: "Reference for all devenv tasks and their usage"
+type: reference
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Tasks Reference
 
 Tasks are defined in `devenv.nix` and provide common operations.

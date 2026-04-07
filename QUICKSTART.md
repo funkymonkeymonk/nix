@@ -1,8 +1,21 @@
+---
+title: "Takeout Containers Quick Reference"
+description: "Quick reference for deploying disposable NixOS machines with automatic hardware detection"
+type: how-to
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Takeout Containers Quick Reference
 
 ## Status: ✅ Ready to Test
 
 Your flake now has both heirloom and takeout container configurations side-by-side.
+
+<!-- LLM: BEGIN AUTOMATED SECTION -->
+<!-- LLM: Prerequisites: NixOS host or USB installer -->
+<!-- LLM: Prerequisites: SSH access to target -->
+<!-- LLM: Verification: Machine installed and accessible -->
 
 ## Available Configurations
 
@@ -25,7 +38,7 @@ The installer features a beautiful ncurses-style TUI powered by [gum](https://gi
 # 2. Set password: passwd
 # 3. Get IP: ip addr show
 
-# 4. From your Mac - just run:
+# 4. From your deployment machine - just run:
 ./scripts/install-machine.sh
 
 # 5. Follow the interactive prompts:
@@ -97,7 +110,6 @@ nix run github:nix-community/nixos-facter -- -o facter.json
 | `machine-types/*.nix` | Generic system configs |
 | `disk-configs/*.nix` | Disk layouts |
 | `DISPOSABLE.md` | Full documentation |
-| `MIGRATION_SUMMARY.md` | Migration guide |
 
 ## Support
 
@@ -106,3 +118,14 @@ nix run github:nix-community/nixos-facter -- -o facter.json
 - [nixos-facter](https://github.com/nix-community/nixos-facter)
 
 Ready? Start with: `./scripts/install-machine.sh --help`
+
+---
+
+## Related Documents
+
+- [DISPOSABLE.md](../DISPOSABLE.md) - Full disposable infrastructure documentation
+- [docs/explanation/architecture.md](explanation/architecture.md) - Architecture overview
+- [docs/how-to/add-machine.md](how-to/add-machine.md) - Adding new machines
+- [docs/tutorials/getting-started.md](tutorials/getting-started.md) - Getting started tutorial
+
+<!-- LLM: END AUTOMATED SECTION -->

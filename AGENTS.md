@@ -1,6 +1,28 @@
+---
+title: "Agents Guide"
+description: "Complete guide for AI agents working with this Nix system configuration repository. Includes testing, workflows, and MicroVM automation."
+type: reference
+audience: agent
+last-reviewed: 2026-04-06
+---
+
 # Agents Guide
 
 Guide for AI agents working with this Nix system configuration repository.
+
+<!-- LLM: This document is optimized for AI agent consumption -->
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Run lint check | `devenv tasks run check:lint` |
+| Test Darwin configs | `devenv tasks run test:darwin-eval` |
+| Test NixOS configs | `devenv tasks run test:nixos-eval` |
+| Run all tests | `devenv tasks run test:all` |
+| Full validation | `devenv tasks run check:all` |
+
+---
 
 ## Repository Overview
 
@@ -23,12 +45,18 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 │   ├── home-manager/           # User environment
 │   │   └── skills/             # Agent skills management
 │   ├── roles/                  # Role modules (one per role)
+│   ├── services/               # Service modules (ollama, openclaw, matrix)
+│   ├── microvm/                # MicroVM guest configuration
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine configurations
+│   └── microvms/               # MicroVM definitions (dev-vm, openclaw, matrix)
+├── docs/                       # Documentation (Diataxis framework)
 ├── os/                         # Platform OS configurations
 ├── flake.nix                   # Main flake with helpers
 └── devenv.nix                  # Tasks and dev environment
 ```
+
+---
 
 ## Tasks
 
@@ -55,6 +83,8 @@ devenv tasks run <task>        # Run a task
 | `q` | `check:all` |
 | `b` | `build:all` |
 | `i` | `dev:ide` |
+
+---
 
 ## Working with This Repository
 
@@ -133,6 +163,8 @@ devenv tasks run test:all
 | New Module | Create in `modules/` subdirectory |
 | New Option | Add to `modules/common/options.nix` |
 
+---
+
 ## Roles (modules/roles/)
 
 | Role | Description |
@@ -150,6 +182,8 @@ devenv tasks run test:all
 | `pi` | Pi coding agent + rtk |
 | `llm-host` | Ollama |
 
+---
+
 ## Helper Functions (flake.nix)
 
 | Helper | Purpose |
@@ -157,6 +191,8 @@ devenv tasks run test:all
 | `mkUser` | Create user configuration with defaults |
 | `mkNixHomebrew` | Create homebrew config for Darwin |
 | `mkMicrovm` | Create microvm configuration |
+
+---
 
 ## Agent Skills
 
@@ -169,6 +205,77 @@ Skills auto-install when roles like `developer`, `opencode`, or `claude` are act
 1. Create `modules/home-manager/skills/internal/skill-name/SKILL.md`
 2. Register in `modules/home-manager/skills/manifest.nix`
 3. Rebuild system
+
+---
+
+## MicroVM Automation for Agents
+
+<!-- LLM: This section is for deploying yourself in a MicroVM -->
+
+### Automated OpenCode Deployment
+
+If you need to deploy OpenCode (or yourself) in a MicroVM, use the automation guide:
+
+**Document:** [Set Up OpenClaw MicroVM (Automated)](docs/how-to/setup-openclaw-microvm-automated.md)
+
+**Key features for agents:**
+- Cloud-init based configuration (no interactive prompts)
+- Verification at each step
+- No 1Password or Matrix required for basic setup
+- Clear preconditions and error handling
+
+### Quick Deployment
+
+```bash
+# From a NixOS host with MicroVM support:
+
+# 1. Create cloud-init configuration
+sudo tee /etc/cloud-init.yaml << 'EOF'
+#cloud-config
+hostname: opencode-vm
+ssh_authorized_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8
+nix:
+  target: type-server
+  flake: github:funkymonkeymonk/nix
+  roles:
+    - opencode
+microvms:
+  - name: opencode
+    flake: .#microvm.nixosConfigurations.openclaw
+    ipAddress: 192.168.83.16
+    autoStart: true
+EOF
+
+# 2. Build and run
+cd ~/nix
+nix run .#microvm.nixosConfigurations.openclaw.config.microvm.declarationRunner --impure
+
+# 3. Verify
+ssh root@192.168.83.16 "systemctl is-active opencode-gateway"
+```
+
+### Cloud-Init Tool
+
+The repository includes `nix-cloud-init` for managing cloud-init configurations:
+
+```bash
+# Interactive setup (requires gum)
+sudo nix-cloud-init init
+
+# Automated setup
+sudo nix-cloud-init set hostname opencode-vm
+sudo nix-cloud-init set target type-server
+sudo nix-cloud-init validate
+
+# MicroVM management
+sudo nix-cloud-init microvm add opencode .#microvm.nixosConfigurations.openclaw 192.168.83.16
+sudo nix-cloud-init microvm generate
+```
+
+See the full guide for complete automation details.
+
+---
 
 ## Jujutsu (jj) Version Control
 
@@ -204,6 +311,8 @@ nix build .#target --impure
 
 **Never use `--impure` for final validation** - always commit first and test without it.
 
+---
+
 ## Platform Support
 
 - **macOS**: nix-darwin (aarch64-darwin)
@@ -216,6 +325,8 @@ Tests are platform-specific:
 - `test:nixos` on Linux
 
 CI runs both on separate runners.
+
+---
 
 ## NixOS Rebuild Commands
 
@@ -231,12 +342,16 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 
 **Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
 
+---
+
 ## Code Style
 
 - Use alejandra formatter (`quality:check`)
 - Remove dead code (deadnix)
 - Follow existing patterns
 - Conventional commits: `feat:`, `fix:`, `docs:`
+
+---
 
 ## RTK Token Optimization
 
@@ -249,3 +364,27 @@ Use RTK-prefixed commands for token-efficient output:
 | `git log` | `rtk git log` | ~80% |
 
 Check savings: `rtk gain`
+
+---
+
+## Documentation for Agents
+
+### Diataxis Framework
+
+Documentation is organized by type:
+
+| Type | Location | Use When |
+|------|----------|----------|
+| Tutorials | `docs/tutorials/` | Learning something new |
+| How-To Guides | `docs/how-to/` | Completing a specific task |
+| Reference | `docs/reference/` | Looking up technical details |
+| Explanation | `docs/explanation/` | Understanding how/why |
+
+### Key Documents
+
+- **[docs/index.md](docs/index.md)** - Documentation hub with navigation
+- **[docs/how-to/setup-opencode-microvm-automated.md](docs/how-to/setup-opencode-microvm-automated.md)** - Automated deployment guide
+- **[docs/reference/options.md](docs/reference/options.md)** - Configuration reference
+- **[docs/explanation/architecture.md](docs/explanation/architecture.md)** - System architecture
+
+<!-- LLM: END OF AGENTS GUIDE -->

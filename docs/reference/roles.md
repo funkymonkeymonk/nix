@@ -1,3 +1,11 @@
+---
+title: "Roles Reference"
+description: "Reference for all available role modules and their packages"
+type: reference
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Roles Reference
 
 Roles are defined as NixOS modules in `modules/roles/`. Each role is gated by `myConfig.roles.<name>.enable`.

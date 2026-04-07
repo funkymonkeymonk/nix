@@ -1,3 +1,12 @@
+---
+title: "Add a New Machine"
+description: "How to add a new Darwin or NixOS machine to the flake configuration"
+type: how-to
+audience: both
+automation-ready: false
+last-reviewed: 2026-04-06
+---
+
 # Add a New Machine
 
 This guide shows you how to add a new machine configuration to the flake.

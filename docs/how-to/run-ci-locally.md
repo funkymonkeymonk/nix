@@ -1,3 +1,12 @@
+---
+title: "Run CI Locally"
+description: "How to run CI validation on your local machine before pushing"
+type: how-to
+audience: both
+automation-ready: true
+last-reviewed: 2026-04-06
+---
+
 # Run CI Locally
 
 This guide shows you how to run CI validation on your local machine.
