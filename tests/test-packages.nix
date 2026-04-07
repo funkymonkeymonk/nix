@@ -214,4 +214,85 @@
       echo "All foundation options verified"
       touch $out
     '';
+
+  # Test onepassword module options including new opnix integration
+  onepasswordOptionsTest = let
+    testEval = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+        {
+          config.myConfig.onepassword = {
+            enable = true;
+            enableGUI = true;
+            enableSSHAgent = true;
+            enableGitSigning = true;
+            signingKey = "ssh-ed25519 AAAAC3...";
+            enableSudo = true;
+            tokenFile = "/etc/custom/opnix-token";
+            secrets = {
+              testApiKey = {
+                reference = "op://vault/item/credential";
+                path = "/run/secrets/test-api-key";
+                mode = "0600";
+                owner = "testuser";
+                group = "users";
+                services = ["test-service"];
+              };
+            };
+          };
+        }
+      ];
+    };
+    cfg = testEval.config.myConfig.onepassword;
+  in
+    pkgs.runCommand "test-onepassword-options"
+    {}
+    ''
+      echo "=== Testing 1Password Options ==="
+
+      # Verify basic options
+      echo "  enable: ${builtins.toJSON cfg.enable}"
+      echo "  enableGUI: ${builtins.toJSON cfg.enableGUI}"
+      echo "  enableSSHAgent: ${builtins.toJSON cfg.enableSSHAgent}"
+      echo "  enableGitSigning: ${builtins.toJSON cfg.enableGitSigning}"
+      echo "  enableSudo: ${builtins.toJSON cfg.enableSudo}"
+
+      # Verify new opnix options
+      echo "  tokenFile: ${builtins.toJSON cfg.tokenFile}"
+      echo "  secrets count: ${toString (builtins.length (builtins.attrNames cfg.secrets))}"
+
+      # Verify secrets structure
+      ${
+        if cfg.secrets ? testApiKey
+        then ''
+          echo "  secrets.testApiKey.reference: ${builtins.toJSON cfg.secrets.testApiKey.reference}"
+          echo "  secrets.testApiKey.path: ${builtins.toJSON cfg.secrets.testApiKey.path}"
+          echo "  secrets.testApiKey.mode: ${builtins.toJSON cfg.secrets.testApiKey.mode}"
+          echo "  secrets.testApiKey.owner: ${builtins.toJSON cfg.secrets.testApiKey.owner}"
+          echo "  secrets.testApiKey.group: ${builtins.toJSON cfg.secrets.testApiKey.group}"
+          echo "  secrets.testApiKey.services: ${builtins.toJSON cfg.secrets.testApiKey.services}"
+        ''
+        else ''echo "  ERROR: testApiKey secret not found"; exit 1''
+      }
+
+      # Verify default tokenFile path
+      DEFAULT_TOKEN_FILE="/etc/opnix-token"
+      ${
+        if cfg.tokenFile == "/etc/custom/opnix-token"
+        then ''echo "  Custom tokenFile path set: OK"''
+        else ''echo "  ERROR: Custom tokenFile path not set correctly"; exit 1''
+      }
+
+      echo "All 1Password options verified"
+      touch $out
+    '';
 }

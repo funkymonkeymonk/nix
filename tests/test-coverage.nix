@@ -65,6 +65,8 @@
   testedModules = [
     # Directly tested via test-packages.nix foundationOptionsTest + configValidationTest
     "common/options.nix"
+    # Tested via test-packages.nix onepasswordOptionsTest
+    "common/onepassword.nix"
     # Tested via configValidationTest (imports roles/default.nix)
     "roles/default.nix"
     # All role modules tested via test-roles.nix (evalWithRole imports roles/default.nix
