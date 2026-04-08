@@ -2,38 +2,40 @@
   config,
   lib,
   pkgs,
+  earthsong,
   ...
 }:
 with lib; let
   cfg = config.myConfig.sketchybar;
+  t = earthsong.sketchybarTheme;
 
   # Helper to convert hex color to sketchybar format
   toSketchybarColor = hex: "0x" + (builtins.replaceStrings ["#"] [""] hex);
 
-  # Generate colors.lua from options
+  # Generate colors.lua from the Earthsong theme
   colorsLua = pkgs.writeText "colors.lua" ''
     return {
-      black = ${toSketchybarColor cfg.colors.black},
-      white = ${toSketchybarColor cfg.colors.white},
-      red = ${toSketchybarColor cfg.colors.red},
-      green = ${toSketchybarColor cfg.colors.green},
-      blue = ${toSketchybarColor cfg.colors.blue},
-      yellow = ${toSketchybarColor cfg.colors.yellow},
-      orange = ${toSketchybarColor cfg.colors.orange},
-      magenta = ${toSketchybarColor cfg.colors.magenta},
-      grey = ${toSketchybarColor cfg.colors.grey},
+      black = ${toSketchybarColor t.colors.black},
+      white = ${toSketchybarColor t.colors.white},
+      red = ${toSketchybarColor t.colors.red},
+      green = ${toSketchybarColor t.colors.green},
+      blue = ${toSketchybarColor t.colors.blue},
+      yellow = ${toSketchybarColor t.colors.yellow},
+      orange = ${toSketchybarColor t.colors.orange},
+      magenta = ${toSketchybarColor t.colors.magenta},
+      grey = ${toSketchybarColor t.colors.grey},
       transparent = 0x00000000,
 
       bar = {
-        bg = ${toSketchybarColor cfg.colors.bar.bg},
-        border = ${toSketchybarColor cfg.colors.bar.border},
+        bg = ${toSketchybarColor t.colors.bar.bg},
+        border = ${toSketchybarColor t.colors.bar.border},
       },
       popup = {
-        bg = ${toSketchybarColor cfg.colors.popup.bg},
-        border = ${toSketchybarColor cfg.colors.popup.border}
+        bg = ${toSketchybarColor t.colors.popup.bg},
+        border = ${toSketchybarColor t.colors.popup.border}
       },
-      bg1 = ${toSketchybarColor cfg.colors.bg1},
-      bg2 = ${toSketchybarColor cfg.colors.bg2},
+      bg1 = ${toSketchybarColor t.colors.bg1},
+      bg2 = ${toSketchybarColor t.colors.bg2},
 
       with_alpha = function(color, alpha)
         if alpha > 1.0 or alpha < 0.0 then return color end
@@ -42,12 +44,12 @@ with lib; let
     }
   '';
 
-  # Generate settings.lua from options
+  # Generate settings.lua from the Earthsong theme
   settingsLua = pkgs.writeText "settings.lua" ''
     return {
       font = {
-        text = "${cfg.font.text}",
-        numbers = "${cfg.font.numbers}",
+        text = "${t.font.text}",
+        numbers = "${t.font.numbers}",
       },
       group_paddings = ${toString cfg.groupPadding},
     }
@@ -76,7 +78,7 @@ with lib; let
       updates = "when_shown",
       icon = {
         font = {
-          family = "${cfg.font.text}",
+          family = "${t.font.text}",
           style = "Bold",
           size = 14.0
         },
@@ -86,7 +88,7 @@ with lib; let
       },
       label = {
         font = {
-          family = "${cfg.font.text}",
+          family = "${t.font.text}",
           style = "Semibold",
           size = 13.0
         },
