@@ -109,8 +109,8 @@
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "flake-input";
-      input = "vercel-skills";    # Must match input name in flake.nix
-      subpath = "skills/find-skills";  # Path within the repo to the skill directory
+      input = "vercel-skills"; # Must match input name in flake.nix
+      subpath = "skills/find-skills"; # Path within the repo to the skill directory
     };
     deps = [];
   };

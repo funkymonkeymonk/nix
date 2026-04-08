@@ -240,15 +240,15 @@
             system.stateVersion = 4;
             system.primaryUser = "wweaver";
             myConfig =
-               mkUser "wweaver" "wweaver@justworks.com"
-               // {
-                 skills = {
-                   superpowersPath = inputs.superpowers;
-                   externalInputs = {
-                     inherit (inputs) vercel-skills;
-                   };
-                 };
-                 roles = {
+              mkUser "wweaver" "wweaver@justworks.com"
+              // {
+                skills = {
+                  superpowersPath = inputs.superpowers;
+                  externalInputs = {
+                    inherit (inputs) vercel-skills;
+                  };
+                };
+                roles = {
                   developer.enable = true;
                   desktop.enable = true;
                   workstation.enable = true;
