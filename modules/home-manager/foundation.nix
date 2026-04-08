@@ -4,6 +4,7 @@
   lib,
   userConfig,
   myConfig,
+  earthsong,
   ...
 }: {
   # Syncthing for file synchronization
@@ -13,7 +14,7 @@
     overrideFolders = false;
   };
 
-  # Jujutsu version control with basic configuration
+  # Jujutsu version control with Earthsong color-words theme
   programs.jujutsu = lib.mkIf (userConfig.name != "") {
     enable = true;
     settings = {
@@ -27,15 +28,38 @@
         push-bookmark-prefix = "push-";
         default-branch = "main";
       };
-      # Set Helix as the default editor (command is 'hx')
+      colors = earthsong.jjColors;
       ui = {
         editor = "hx";
       };
-      # Custom aliases for common operations
       aliases = {
         ba = ["bookmark" "advance"];
       };
     };
+  };
+
+  # Helix — Earthsong custom theme
+  xdg.configFile."helix/themes/earthsong.toml".text = earthsong.helixTheme;
+  xdg.configFile."helix/config.toml".text = ''
+    theme = "earthsong"
+  '';
+
+  # bat — Earthsong TextMate theme
+  xdg.configFile."bat/themes/Earthsong.tmTheme".source = earthsong.batThemeFile;
+  programs.bat = {
+    enable = true;
+    config.theme = "Earthsong";
+  };
+
+  # fzf — Earthsong colours + display defaults
+  programs.fzf = {
+    enable = true;
+    defaultOptions = [
+      "--height 40%"
+      "--layout=reverse"
+      "--border"
+      "--color=${earthsong.fzfColors}"
+    ];
   };
 
   # Ghostty terminal configuration (Darwin only)
