@@ -30,6 +30,8 @@ in {
     # $XDG_CONFIG_HOME/glow/glow.yml. We write both paths to cover all cases.
     home.packages = [pkgs.glow] ++ optional cfg.mods.enable pkgs.mods;
 
+    home.shellAliases.md = "glow";
+
     xdg.configFile."glow/glow.yml".source = yamlFormat.generate "glow.yml" glowConfig;
 
     # Darwin: glow also reads from ~/Library/Preferences/glow/glow.yml

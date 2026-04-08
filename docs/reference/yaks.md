@@ -1,149 +1,86 @@
-# Yaks - Distributed TODO Lists
+# Yaks Reference
 
-## What is Yaks?
+Yaks (`yx`) is a distributed, CRDT-based TODO list stored in hidden git refs (`refs/notes/yaks`). It organizes work as a DAG/tree with three states: `todo`, `wip`, `done`.
 
-Yaks (`yx`) is a **distributed TODO list** designed for teams of humans and AI agents. It uses a CRDT (Conflict-free Replicated Data Type) approach stored in hidden git refs, enabling **zero-conflict collaboration**.
+> **New to yaks?** See the [tutorial](../tutorials/yak-shaving.md). For architecture details, see [Yaks + JJ Workspaces](../explanation/yaks-workspaces.md).
 
-## Key Concepts
+## Commands
 
-- **Everything is a "Yak"** - A simple tree structure (no epics/stories/tasks hierarchy)
-- **Three States** - `todo`, `wip`, `done`
-- **Event-Sourced** - All changes stored as immutable events on `.refs/yaks`
-- **Conflict-Free** - Multiple agents can edit simultaneously without coordination
+| Command | Description |
+|---------|-------------|
+| `yx add "name"` | Add a new yak |
+| `yx add "name" --under "parent"` | Add a child yak (parent is blocked by child) |
+| `yx ls` | Show the yak tree (todo + wip only) |
+| `yx ls --all` | Show all yaks including done |
+| `yx ls --format json` | JSON output for programmatic use |
+| `yx ls --only todo` | Filter by state |
+| `yx show "name"` | Show yak details |
+| `yx show "name" --format json` | Show details as JSON |
+| `yx start "name"` | Set state to wip |
+| `yx state "name" <state>` | Set arbitrary state (todo, wip, done) |
+| `yx done "name"` | Mark as done (requires all children done) |
+| `yx context "name"` | Set context from stdin |
+| `yx context --show "name"` | Read context |
+| `yx field "name" <field>` | Set custom field from stdin |
+| `yx field --show "name" <field>` | Read custom field |
+| `yx tag "name" <tag>` | Add a tag |
+| `yx tag "name" --remove <tag>` | Remove a tag |
+| `yx move "name" --under "parent"` | Move yak under a parent |
+| `yx move "name" --to-root` | Move yak to root level |
+| `yx rename "old" "new"` | Rename a yak |
+| `yx rm "name"` | Remove a yak |
+| `yx prune` | Remove all done yaks |
+| `yx sync` | Sync with remote via hidden git ref |
+| `yx log` | Show event log |
+| `yx compact` | Compact event stream into snapshot |
+| `yx reset` | Rebuild from git event store |
 
-## Quick Start
+## Shell Aliases
 
-### Basic Commands
+| Alias | Expands To |
+|-------|------------|
+| `yl` | `yx ls` |
+| `yla` | `yx ls --all` |
+| `ya` | `yx add` |
+| `yd` | `yx done` |
+| `ys` | `yx sync` |
 
-```bash
-# Add a new yak
-yx add "Fix authentication bug"
+## Tree Semantics
 
-# Add a sub-yak (yak shaving!)
-yx add "Update database schema" --under "Fix authentication bug"
+- **Children block parents**: A parent cannot be marked done until all children are done
+- **Nesting = dependency**: Adding a child under a parent means "parent is blocked by child"
+- **Work leaves first**: Leaf nodes (no children) are unblocked and ready to implement
+- **Bidirectional growth**: Add children downward (discover blockers) or create parents upward (discover broader goals with `yx move`)
 
-# Mark as in-progress
-yx state "Fix authentication bug" wip
+## States
 
-# Add context/notes
-echo "Need to handle edge case with OAuth" | yx context "Fix authentication bug"
+| State | Meaning |
+|-------|---------|
+| `todo` | Not started |
+| `wip` | In progress (claimed by someone) |
+| `done` | Complete |
 
-# Mark complete
-yx done "Fix authentication bug"
+## Storage
 
-# View the yak map
-yx ls
+- Events stored in `refs/notes/yaks` (hidden git ref)
+- Working directory cached in `.yaks/` (gitignored)
+- Operation-based CRDTs -- changes merge without conflicts regardless of order
+- `yx sync` pushes/pulls the hidden ref
 
-# Sync with remote (uses hidden git ref)
-yx sync
-```
+## Conventions
 
-### Useful Aliases (Pre-configured)
+| Convention | Description |
+|------------|-------------|
+| `@needs-human` tag | Yak is blocked on a human decision |
+| `progress` field | Store implementation progress notes |
+| Claim protocol | `yx sync` -> `yx show` -> `yx start` -> `yx sync` |
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `yl` | `yx ls` | List yaks |
-| `yla` | `yx ls --all` | List all yaks including done |
-| `ya` | `yx add` | Add a yak |
-| `yd` | `yx done` | Mark yak done |
-| `ys` | `yx sync` | Sync with remote |
+## Installation
 
-## For AI Agents
-
-```bash
-# Discover work (JSON output)
-yx ls --format json
-
-# Claim a yak
-yx state "fix the bug" wip
-
-# Store progress notes
-echo "Refactored auth module" | yx field "fix the bug" progress
-
-# Complete work
-yx done "fix the bug"
-
-# Always sync when done
-yx sync
-```
-
-## How It Works
-
-```
-┌─────────────────────────────────────┐
-│  Git Repository                     │
-│  ├── .refs/yaks (hidden ref)        │
-│  │   └── Event log (CRDT)           │
-│  └── Your code                      │
-└─────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────┐
-│  yx CLI reads events                │
-│  └── Builds current state           │
-└─────────────────────────────────────┘
-```
-
-### The CRDT Magic
-
-Unlike traditional TODO lists that might have:
-- Lock files
-- Merge conflicts
-- "Someone else is editing" errors
-
-Yaks uses **operation-based CRDTs**:
-1. Every change is an immutable event
-2. Events from different sources merge naturally
-3. Final state is deterministic regardless of merge order
-4. Works offline, syncs when connected
-
-## Yakthang (Orchestration Layer)
-
-Yakthang builds on Yaks to create a full autonomous workspace:
-
-- **Yakob** - Orchestrator agent (Claude) that plans work
-- **Yak Shavers** - Worker agents in separate Zellij tabs
-- **YakMap** - Visual Zellij plugin showing real-time task status
-
-See: https://github.com/wellmaintained/yakthang
-
-## Integration in Your Nix Config
-
-The `yaks` package is now:
-- ✅ Added to the `developer` role in `bundles.nix`
-- ✅ Available as a shell alias (`yl`, `ya`, `yd`, `ys`)
-- ✅ Buildable via `nix build .#yaks`
-
-To apply to your system:
-```bash
-s  # or: devenv tasks run system:switch
-```
-
-## Next Steps
-
-1. **Try it out** in any git repository:
-   ```bash
-   cd ~/some-project
-   yx add "Explore yaks tool"
-   yx ls
-   ```
-
-2. **Add to a project's AGENTS.md**:
-   ```markdown
-   ## Task Management with Yaks
-
-   This project uses [yaks](https://github.com/mattwynne/yaks) for task tracking.
-
-   - Discover work: `yx ls --format json`
-   - Claim a yak: `yx state "task name" wip`
-   - Add context: `echo "notes" | yx context "task name"`
-   - Mark done: `yx done "task name"`
-   - Sync: `yx sync`
-   ```
-
-3. **Consider Yakthang** if you want full orchestration with Zellij
+Included in the `developer` role. Available after `devenv tasks run system:switch`.
 
 ## Resources
 
-- **Yaks**: https://github.com/mattwynne/yaks
-- **Yakthang**: https://github.com/wellmaintained/yakthang
-- **CRDTs**: https://crdt.tech/
+- Upstream: https://github.com/mattwynne/yaks
+- Yakthang orchestration: https://github.com/wellmaintained/yakthang
+- CRDT background: https://crdt.tech/

@@ -1,91 +1,59 @@
-# Yaks Setup in JJ Workspaces
+# Yaks and JJ Workspaces
 
-## Architecture
+> For a hands-on introduction, see the [tutorial](../tutorials/yak-shaving.md). For command details, see the [reference](../reference/yaks.md).
 
-This repository uses **Jujutsu (jj) workspaces** with **colocated git** for yaks integration.
+## Why Yaks + JJ Workspaces?
 
-### Directory Structure
+This repository combines two tools that solve different problems:
 
-```
-~/src/funkymonkeymonk/nix/          # Parent jj repo with colocated git
-├── .git/                            # Shared git repository
-├── .gitignore                       # Contains .yaks/ exclusion
-└── .jj/                             # JJ repository data
+- **yx (yaks)** tracks _what_ needs doing -- a shared tree of tasks stored in hidden git refs
+- **jj workspaces** provide _where_ to do it -- isolated working copies that share the same repository
 
-~/workspaces/
-├── nix-yak-shaving/                 # This workspace
-│   ├── .git -> ~/src/.../nix/.git   # Symlink to parent git
-│   ├── .jj/repo -> ../../../src/... # JJ workspace config
-│   └── .yaks/                       # Yaks working directory
-├── nix-openclaw/                    # Other workspaces...
-└── ...
-```
+Together they enable multiple agents (or humans) to work on different tasks simultaneously without stepping on each other.
 
-### Important: Shared Yaks Data
+## How Yaks Data Is Shared
 
-**All jj workspaces share the same yaks data** because they use the same underlying git repository. This means:
+Yaks stores its events in `refs/notes/yaks`, a hidden git ref separate from your branches. When you run `yx sync`, it pushes and pulls this ref -- independent of whatever branch you're on.
 
-✅ **Pros:**
-- Single source of truth across all workspaces
-- Can see all project tasks from any workspace
-- Natural for project-wide task tracking
+Because all jj workspaces in this repository point to the same underlying `.git` directory, they all see the same yaks data. An agent in `.workspaces/feat-auth/` and another in `.workspaces/fix-ci/` both operate on the same yak map.
 
-⚠️ **Considerations:**
-- Use **workspace-specific prefixes** to avoid naming conflicts:
-  - `nix-yak-shaving: Fix flake.nix`
-  - `nix-openclaw: Update API endpoints`
-  - `default: Refactor common modules`
+This is a deliberate design choice: yaks represent project-wide goals, not workspace-local tasks. A single source of truth prevents work from being duplicated or lost when workspaces are created and destroyed.
 
-## Setup Required for Each New Workspace
+## The CRDT Advantage
 
-When creating a new workspace that needs yaks:
+Traditional TODO lists break when two people edit simultaneously -- you get merge conflicts or lost updates. Yaks avoids this entirely through operation-based CRDTs (Conflict-free Replicated Data Types).
 
-```bash
-# In the new workspace directory
-cd ~/workspaces/nix-new-workspace
+Every change (add, rename, state change, context update) is recorded as an immutable event. Events from different sources merge deterministically regardless of order. Two agents can claim different yaks, add context, and mark work done -- all without coordination. The next `yx sync` merges everything cleanly.
 
-# Create symlink to parent git repo
-ln -s ~/src/funkymonkeymonk/nix/.git .git
+This matters for multi-agent workflows where agents operate independently in their own workspaces and may not be online at the same time.
 
-# Yaks is now available
-yx ls
-yx add "nix-new-workspace: My task"
-```
+## Workspace Isolation vs. Shared State
 
-## Alternative: Per-Workspace Isolation
+There's an intentional asymmetry:
 
-If you prefer **isolated yaks per workspace** (not currently implemented):
+- **Code** is isolated per workspace. Each jj workspace has its own working copy at its own commit. Changes in one workspace don't appear in another until merged.
+- **Yaks** are shared across all workspaces. Claiming a yak in one workspace is visible from every other workspace after sync.
 
-1. Initialize a separate git repo in the workspace:
-   ```bash
-   git init
-   echo ".yaks/" >> .gitignore
-   ```
+This means the yak map serves as the coordination layer. Agents check what's claimed (`wip`) before starting work, and mark tasks done when finished. The code stays isolated; the task state stays shared.
 
-2. Yaks will use this local repo instead of the parent
+## The Claim Protocol
 
-3. **Trade-off:** Tasks won't be visible across workspaces
+Without a claim protocol, two agents could start the same yak simultaneously. The protocol is:
 
-## Current Yaks in This Repository
+1. Sync to get latest state
+2. Check if the yak is already `wip`
+3. Claim it with `yx start`
+4. Sync again to publish the claim
 
-```
-● nix-yak-shaving: Review yaks integration and documentation
-├─ ○ nix-yak-shaving: Try yaks in daily workflow
-╰─ ○ nix-yak-shaving: Update AGENTS.md with yaks guidelines
-```
+This isn't a lock -- CRDTs don't support locks. It's a convention. If two agents claim the same yak in the same sync window (before either syncs), both will see `wip` on the next sync and one should back off. In practice, with 5-minute sync intervals, collisions are rare.
 
-## Quick Reference
+## Why Not Per-Workspace Yaks?
 
-| Command | Description |
-|---------|-------------|
-| `yx ls` or `yl` | List all yaks (shared across workspaces!) |
-| `yx add "prefix: Task"` or `ya "prefix: Task"` | Add workspace-prefixed yak |
-| `ya "Task" --under "Parent"` | Add child yak |
-| `yx state "Task" wip` | Mark in-progress |
-| `yd "Task"` | Mark done |
-| `ys` | Sync with remote |
+An alternative design would give each workspace its own isolated yak map (separate git repos). This would prevent any possibility of collision but creates worse problems:
 
-## Files Modified
+- Tasks completed in one workspace aren't visible elsewhere
+- No single view of project progress
+- Work gets duplicated when agents can't see each other's claims
+- Cleanup requires visiting each workspace
 
-- `~/.gitignore` - Added `.yaks/` exclusion (in parent repo)
-- `~/workspaces/nix-yak-shaving/.git` - Symlink to parent git repo
+The shared model trades a small collision risk for much better visibility and coordination.

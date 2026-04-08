@@ -7,6 +7,10 @@ This documentation follows the [Diataxis](https://diataxis.fr/) framework, organ
 Step-by-step guides for learning:
 
 - [Getting Started](tutorials/getting-started.md) - Set up this configuration on a new machine
+- [Add Your Machine](tutorials/add-your-machine.md) - Add your own machine to this repo
+- [Create Your First Role](tutorials/create-your-first-role.md) - Build a custom role module
+- [Write Your First Skill](tutorials/write-your-first-skill.md) - Create an AI agent skill
+- [Yak Shaving with yx](tutorials/yak-shaving.md) - Multi-agent task tracking with jj workspaces
 
 ## How-To Guides (Tasks)
 
@@ -26,6 +30,7 @@ Technical descriptions:
 - [Roles Reference](reference/roles.md) - Available role modules
 - [Tasks Reference](reference/tasks.md) - Devenv task commands
 - [Skills Reference](reference/skills.md) - Agent skill manifest format
+- [Yaks Reference](reference/yaks.md) - yx task management commands
 - [CI/CD Reference](reference/ci.md) - Pipeline stages and tasks
 
 ## Explanation (Understanding)
@@ -34,3 +39,4 @@ Background and design:
 
 - [Architecture](explanation/architecture.md) - How modules, roles, and targets work
 - [Agent Skills System](explanation/agent-skills.md) - Why skills are managed through Nix
+- [Yaks and Workspaces](explanation/yaks-workspaces.md) - Multi-agent coordination design

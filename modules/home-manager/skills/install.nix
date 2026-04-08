@@ -1,6 +1,7 @@
 # Skills installation module
 # Filters skills by enabled roles and installs them to ~/.config/opencode/skills/
 # Also installs bundled commands to ~/.config/opencode/commands/
+# Skills with autoLoad = true are concatenated into an instructions file for each agent
 {
   osConfig,
   lib,
@@ -43,6 +44,36 @@
     inherit name;
     value = manifest.${name};
   }) (lib.unique allSkillNames));
+
+  # Filter auto-loaded skills (must be both enabled AND have autoLoad = true)
+  autoLoadSkills =
+    lib.filterAttrs (
+      _name: skill: skill.autoLoad or false
+    )
+    allSkills;
+
+  # Read and concatenate SKILL.md contents for auto-loaded skills
+  autoLoadContent = lib.concatStringsSep "\n\n---\n\n" (lib.mapAttrsToList (
+      name: skill: let
+        skillMd =
+          if skill.source.type == "internal"
+          then builtins.readFile "${skill.source.path}/SKILL.md"
+          else if skill.source.type == "superpowers" && superpowersPath != null
+          then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
+          else "# ${name}\n\n${skill.description}";
+      in
+        skillMd
+    )
+    autoLoadSkills);
+
+  hasAutoLoadSkills = autoLoadSkills != {};
+
+  # Generate the auto-loaded skills instruction file
+  autoLoadFile = lib.optionalAttrs hasAutoLoadSkills {
+    "${skillsPath}/auto-loaded.md" = {
+      text = autoLoadContent;
+    };
+  };
 
   # Generate home.file entries for each skill
   skillFiles =
@@ -158,6 +189,6 @@
   };
 in {
   config = lib.mkIf (enabledRoles != []) {
-    home.file = skillFiles // commandFiles // readmeFile;
+    home.file = skillFiles // commandFiles // readmeFile // autoLoadFile;
   };
 }

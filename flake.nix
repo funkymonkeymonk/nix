@@ -665,6 +665,10 @@
             role-packages
             role-cascades
             module-coverage
+            skills-manifest
+            skills-autoload-filtering
+            skills-autoload-content
+            skills-role-filtering
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
