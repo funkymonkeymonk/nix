@@ -7,15 +7,12 @@
   config,
   lib,
   pkgs,
-  options,
   ...
 }:
 with lib; let
   cfg = config.services.microvm-host;
   bridgeIp = builtins.head (builtins.split "/" cfg.bridgeSubnet);
   cloudInitDir = "/var/lib/microvms/cloud-init";
-  # Check if we're on NixOS by checking for NixOS-specific options
-  isNixOS = builtins.hasAttr "boot" options;
 in {
   options.services.microvm-host = {
     enable = mkEnableOption "MicroVM host infrastructure (bridge, DNS logging, connection monitoring)";
@@ -57,8 +54,9 @@ in {
     };
   };
 
-  # Only apply configuration on NixOS systems (where boot.* options exist)
-  config = mkIf (cfg.enable && isNixOS) {
+  # Only apply configuration when enabled
+  # Note: This module should only be imported on NixOS systems where boot.* options exist
+  config = lib.mkIf cfg.enable {
     boot.kernelModules = ["kvm-intel" "kvm-amd" "tap" "bridge"];
 
     # Bridge networking

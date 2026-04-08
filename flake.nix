@@ -231,10 +231,14 @@
           ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
           ./os/darwin.nix
-          ./modules/home-manager/aerospace.nix
           ./targets/wweaver
           home-manager.darwinModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+              ./modules/home-manager/aerospace.nix
+            ];
+          }
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.stateVersion = 4;
@@ -393,10 +397,14 @@
           ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
           ./os/darwin.nix
-          ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
           home-manager.darwinModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+              ./modules/home-manager/aerospace.nix
+            ];
+          }
           mac-app-util.darwinModules.default
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
@@ -486,6 +494,7 @@
           ./modules/nixos/streaming.nix
           ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
+          ./modules/roles/microvm-host.nix
           ./os/nixos.nix
           ./targets/zero
           home-manager.nixosModules.home-manager
@@ -530,6 +539,7 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
+          ./modules/roles/microvm-host.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
@@ -570,6 +580,7 @@
           microvm.nixosModules.microvm
           ./modules
           ./modules/nixos/base.nix
+          ./modules/roles/microvm-host.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 
@@ -616,6 +627,7 @@
           microvm.nixosModules.microvm
           ./modules
           ./modules/nixos/base.nix
+          ./modules/roles/microvm-host.nix
           home-manager.nixosModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
 

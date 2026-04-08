@@ -91,9 +91,7 @@
               External skill from: ${
                 if skill.source.type == "flake-input"
                 then "flake input: ${skill.source.input or "unknown"}"
-                else if skill.source ? url
-                then skill.source.url
-                else "unknown"
+                else skill.source.url or "unknown"
               }
 
               **Note**: External skill not configured. Add the flake input to your flake.nix and set `myConfig.skills.externalInputs`.

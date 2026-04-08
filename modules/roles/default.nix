@@ -20,7 +20,8 @@ in {
     ./claude.nix
     ./pi.nix
     ./llm-host.nix
-    ./microvm-host.nix
+    # NOTE: microvm-host.nix is imported in flake.nix only for NixOS systems
+    # to avoid evaluation errors on Darwin where NixOS-specific options don't exist
   ];
 
   # Derive enabledRoles from the roles options so skills/install.nix can use it

@@ -3,8 +3,7 @@
 # MicroVM definitions come from /etc/nixos/microvms.nix (generated from cloud-init).
 # Per-VM cloud-init files are generated at build time and mounted into each VM.
 #
-# NOTE: This module is conditionally imported only on NixOS systems (see modules/roles/default.nix).
-# The host configuration must also import microvm.nixosModules.microvm
+# NOTE: The host configuration must also import microvm.nixosModules.microvm
 # (e.g. via the flake or directly in the target).
 {
   config,
