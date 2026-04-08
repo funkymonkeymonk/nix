@@ -1,3 +1,12 @@
+---
+title: "Set Up 1Password SSH Signing"
+description: "Configure SSH-based git commit signing using 1Password"
+type: how-to
+audience: both
+automation-ready: false
+last-reviewed: 2026-04-06
+---
+
 # Set Up 1Password SSH Signing
 
 This guide shows you how to configure SSH-based git commit signing using 1Password.

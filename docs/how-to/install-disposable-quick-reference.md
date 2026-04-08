@@ -1,16 +1,29 @@
-# Takeout Containers Quick Reference
+---
+title: "Disposable Infrastructure Quick Reference"
+description: "Quick reference for deploying disposable NixOS machines with automatic hardware detection"
+type: how-to
+audience: both
+last-reviewed: 2026-04-06
+---
+
+# Disposable Infrastructure Quick Reference
 
 ## Status: ✅ Ready to Test
 
-Your flake now has both heirloom and takeout container configurations side-by-side.
+Your flake now has both artisanal and disposable configurations side-by-side.
+
+<!-- LLM: BEGIN AUTOMATED SECTION -->
+<!-- LLM: Prerequisites: NixOS host or USB installer -->
+<!-- LLM: Prerequisites: SSH access to target -->
+<!-- LLM: Verification: Machine installed and accessible -->
 
 ## Available Configurations
 
 ```bash
-# Heirloom configs (impure - unique per machine)
+# Artisanal configs (impure - unique per machine)
 nix build .#nixosConfigurations.zero.config.system.build.toplevel
 
-# Takeout container configs (pure - disposable)
+# Disposable configs (pure - generic)
 nix build .#nixosConfigurations.type-desktop.config.system.build.toplevel
 nix build .#nixosConfigurations.type-server.config.system.build.toplevel
 ```
@@ -25,7 +38,7 @@ The installer features a beautiful ncurses-style TUI powered by [gum](https://gi
 # 2. Set password: passwd
 # 3. Get IP: ip addr show
 
-# 4. From your Mac - just run:
+# 4. From your deployment machine - just run:
 ./scripts/install-machine.sh
 
 # 5. Follow the interactive prompts:
@@ -63,7 +76,7 @@ The installer features a beautiful ncurses-style TUI powered by [gum](https://gi
 - [ ] Restore data from backup
 - [ ] Test all hardware (graphics, audio, network)
 - [ ] Update DNS/known_hosts (SSH key changed)
-- [ ] Delete old heirloom config (optional)
+- [ ] Delete old artisanal config (optional)
 
 ## Troubleshooting
 
@@ -96,8 +109,6 @@ nix run github:nix-community/nixos-facter -- -o facter.json
 | `scripts/install-machine.sh` | One-command installer |
 | `machine-types/*.nix` | Generic system configs |
 | `disk-configs/*.nix` | Disk layouts |
-| `DISPOSABLE.md` | Full documentation |
-| `MIGRATION_SUMMARY.md` | Migration guide |
 
 ## Support
 
@@ -106,3 +117,14 @@ nix run github:nix-community/nixos-facter -- -o facter.json
 - [nixos-facter](https://github.com/nix-community/nixos-facter)
 
 Ready? Start with: `./scripts/install-machine.sh --help`
+
+---
+
+## Related Documents
+
+- [Install Disposable](install-disposable.md) - Full installation guide
+- [Disposable Infrastructure](../explanation/disposable-infrastructure.md) - Philosophy and design
+- [Add a New Machine](add-machine.md) - Adding new machines to the flake
+- [Getting Started](../tutorials/getting-started.md) - Getting started tutorial
+
+<!-- LLM: END AUTOMATED SECTION -->

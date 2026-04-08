@@ -1,3 +1,11 @@
+---
+title: "Architecture"
+description: "Design and structure of the Nix configuration system"
+type: explanation
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Architecture
 
 This document explains the design and structure of this Nix configuration system.
@@ -67,20 +75,20 @@ Roles can be combined: a machine with `developer` and `creative` enabled gets pa
 
 ### Targets (Machine-Specific Settings)
 
-Targets define *where* configurations apply for **heirloom** machines. Each target represents a specific machine.
+Targets define *where* configurations apply for **artisanal** machines. Each target represents a specific machine.
 
 **Location:** `targets/`
 
 ```
 targets/
-├── wweaver/          # Work laptop (heirloom)
-├── MegamanX/         # Personal desktop (heirloom)
-└── zero/             # NixOS gaming PC (heirloom)
+├── wweaver/          # Work laptop (artisanal)
+├── MegamanX/         # Personal desktop (artisanal)
+└── zero/             # NixOS gaming PC (artisanal)
 ```
 
 Targets contain only machine-specific settings like hostname, hardware config, and GPU drivers.
 
-**Takeout container machines** (type-server, type-desktop) don't need targets - they use generic configurations from `machine-types/`.
+**Disposable machines** (type-server, type-desktop) don't need targets - they use generic configurations from `machine-types/`.
 
 ## Configuration Flow
 

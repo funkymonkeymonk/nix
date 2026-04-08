@@ -1,3 +1,11 @@
+---
+title: "Configuration Options Reference"
+description: "Complete reference for myConfig.* configuration options"
+type: reference
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Configuration Options Reference
 
 Options are defined in `modules/common/options.nix` under the `myConfig` namespace.

@@ -29,6 +29,12 @@
         default-branch = "main";
       };
       colors = earthsong.jjColors;
+      ui = {
+        editor = "hx";
+      };
+      aliases = {
+        ba = ["bookmark" "advance"];
+      };
     };
   };
 

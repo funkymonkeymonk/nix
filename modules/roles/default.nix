@@ -20,6 +20,7 @@ in {
     ./claude.nix
     ./pi.nix
     ./llm-host.nix
+    ./microvm-host.nix
   ];
 
   # Derive enabledRoles from the roles options so skills/install.nix can use it

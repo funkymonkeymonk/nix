@@ -1,3 +1,11 @@
+---
+title: "Agent Skills System"
+description: "How the AI agent skills system works and design rationale"
+type: explanation
+audience: agent
+last-reviewed: 2026-04-06
+---
+
 # Agent Skills System
 
 This document explains how the AI agent skills system works and why it's designed this way.

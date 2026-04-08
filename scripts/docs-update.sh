@@ -4,8 +4,27 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Determine project root - try multiple methods for robustness
+# Method 1: Use git to find repository root (works in most cases)
+if git rev-parse --show-toplevel &>/dev/null; then
+    PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+# Method 2: Calculate from script location
+elif [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Method 3: Use current working directory as fallback
+else
+    PROJECT_ROOT="$(pwd)"
+fi
+
+# Verify we found a valid project root with expected structure
+if [[ ! -d "$PROJECT_ROOT/docs" ]]; then
+    echo "Error: Cannot find valid project root (docs/ directory not found at $PROJECT_ROOT/docs)" >&2
+    echo "Current directory: $(pwd)" >&2
+    echo "Git root: $(git rev-parse --show-toplevel 2>/dev/null || echo 'N/A')" >&2
+    exit 1
+fi
+
 DOCS_DIR="$PROJECT_ROOT/docs"
 
 # Colors for output
