@@ -39,6 +39,10 @@
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
     zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
+
+    # External skill repositories (Option 2: Pure Nix approach)
+    vercel-skills.url = "github:vercel-labs/skills";
+    vercel-skills.flake = false;
   };
 
   outputs = {
@@ -120,6 +124,7 @@
     ];
 
     # Helper to create microvm configuration
+    # Secrets come from 1Password via opnix (host and guest both use it)
     mkMicrovm = name: roleEnables:
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -141,7 +146,12 @@
             nixpkgs.hostPlatform = "x86_64-linux";
             myConfig =
               {
-                skills.superpowersPath = inputs.superpowers;
+                skills = {
+                  superpowersPath = inputs.superpowers;
+                  externalInputs = {
+                    inherit (inputs) vercel-skills;
+                  };
+                };
                 users = [
                   {
                     name = "dev";
@@ -232,7 +242,12 @@
             myConfig =
               mkUser "wweaver" "wweaver@justworks.com"
               // {
-                skills.superpowersPath = inputs.superpowers;
+                skills = {
+                  superpowersPath = inputs.superpowers;
+                  externalInputs = {
+                    inherit (inputs) vercel-skills;
+                  };
+                };
                 roles = {
                   developer.enable = true;
                   desktop.enable = true;
@@ -552,6 +567,7 @@
         specialArgs = inputs;
         modules = [
           configuration
+          microvm.nixosModules.microvm
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
@@ -597,6 +613,7 @@
         specialArgs = inputs;
         modules = [
           configuration
+          microvm.nixosModules.microvm
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
@@ -615,7 +632,6 @@
 
           ./machine-types/server.nix
 
-          # REQUIRED: Configure at least one user with SSH access
           {
             users.users.root.openssh.authorizedKeys.keys = [];
             users.users.monkey = {

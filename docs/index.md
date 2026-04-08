@@ -11,6 +11,7 @@ Step-by-step guides for learning:
 - [Create Your First Role](tutorials/create-your-first-role.md) - Build a custom role module
 - [Write Your First Skill](tutorials/write-your-first-skill.md) - Create an AI agent skill
 - [Yak Shaving with yx](tutorials/yak-shaving.md) - Multi-agent task tracking with jj workspaces
+- [Getting Started with jj](tutorials/jj-workflow.md) - Learn the jj version control workflow
 
 ## How-To Guides (Tasks)
 
@@ -21,6 +22,12 @@ Solve specific problems:
 - [Add a Custom Skill](how-to/add-skill.md) - Create an AI agent skill
 - [Set Up 1Password SSH Signing](how-to/setup-1password.md) - Configure commit signing
 - [Run CI Locally](how-to/run-ci-locally.md) - Validate before pushing
+- [Create a PR with jj](how-to/create-pr-with-jj.md) - Create a pull request
+- [Update an Existing PR](how-to/update-existing-pr.md) - Respond to review feedback
+- [Sync with Main](how-to/sync-with-main.md) - Keep your branch up to date
+- [Use jj Workspaces](how-to/use-workspaces.md) - Parallel development with workspaces
+- [Create Stacked PRs](how-to/create-stacked-prs.md) - Stack dependent pull requests
+- [Complete PR Workflow](how-to/complete-pr-workflow.md) - End-to-end with jj-finish
 
 ## Reference (Information)
 
@@ -32,6 +39,7 @@ Technical descriptions:
 - [Skills Reference](reference/skills.md) - Agent skill manifest format
 - [Yaks Reference](reference/yaks.md) - yx task management commands
 - [CI/CD Reference](reference/ci.md) - Pipeline stages and tasks
+- [JJ Commands Reference](reference/jj-commands.md) - Jujutsu command reference
 
 ## Explanation (Understanding)
 
@@ -40,3 +48,4 @@ Background and design:
 - [Architecture](explanation/architecture.md) - How modules, roles, and targets work
 - [Agent Skills System](explanation/agent-skills.md) - Why skills are managed through Nix
 - [Yaks and Workspaces](explanation/yaks-workspaces.md) - Multi-agent coordination design
+- [JJ Mental Model](explanation/jj-mental-model.md) - Why jj works the way it does

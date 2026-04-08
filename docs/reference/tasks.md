@@ -8,32 +8,31 @@ Tasks are defined in `devenv.nix` and provide common operations.
 devenv tasks run <task-name>
 ```
 
-Or use shell aliases:
+Or use the shell alias:
 ```bash
-dt <task-name>    # Run any task
-dtl               # List all tasks
+dt <task-name>
+dtr <task-name>
 ```
 
-## Shell Aliases
+List all tasks:
+```bash
+devenv tasks list
+dtl
+```
 
-| Alias | Task | Description |
-|-------|------|-------------|
-| `dt` | `devenv tasks run` | Run any task |
-| `dtr` | `devenv tasks run` | Run any task |
-| `dtl` | `devenv tasks list` | List all tasks |
-| `s` | `system:switch` | Apply configuration |
-| `q` | `check:all` | Run all checks |
-| `b` | `build:all` | Build configurations |
-| `i` | `dev:ide` | Launch IDE environment |
+## Available Tasks
 
-## System Configuration
+### Configuration
 
 | Task | Description |
 |------|-------------|
-| `system:switch` | Apply configuration (auto-detects platform/hostname) |
-| `system:init` | Initial nix-darwin setup (macOS, first-time) |
+| `switch` | Apply configuration to current system |
+| `init` | Initial setup commands for nix-darwin |
+| `build` | Build all configurations (dry-run) |
+| `build:darwin` | Build all Darwin (macOS) configurations |
+| `build:nixos` | Build all NixOS configurations |
 
-## Build
+### Build
 
 | Task | Description |
 |------|-------------|
@@ -41,102 +40,76 @@ dtl               # List all tasks
 | `build:darwin` | Build Darwin configurations (dry-run) |
 | `build:nixos` | Build NixOS configurations (dry-run) |
 
-## Checks
+### Code Quality
 
 | Task | Description |
 |------|-------------|
-| `check:all` | Run all checks - lint + platform tests |
-| `check:lint` | Lint checks (formatting, dead code, static analysis, YAML) |
-| `check:flake` | Check flake structure |
+| `quality` | Run all quality checks (format + lint) |
+| `fmt` | Format all Nix files with alejandra |
 
-## Formatting
-
-| Task | Description |
-|------|-------------|
-| `format:all` | Apply formatting fixes (alejandra) |
-
-## Documentation
+### Flake Management
 
 | Task | Description |
 |------|-------------|
-| `docs:update` | Update and validate documentation |
-| `docs:validate` | Validate structure only |
-| `docs:generate` | Generate reference docs only |
-
-## Development Environment
-
-| Task | Description |
-|------|-------------|
-| `dev:ide` | Launch zellij IDE (yazi, helix, opencode) |
-| `dev:pr-review` | Launch PR review dashboard (gh-dash) |
-
-## Flake Management
-
-| Task | Description |
-|------|-------------|
-| `flake:update` | Update nix flake inputs |
+| `flake:update` | Update flake inputs |
 | `devenv:update` | Update devenv lock file |
 
-## Agent Skills
+### Development
+
+| Task | Description |
+|------|-------------|
+| `ide` | Launch zellij IDE with file explorer and agent |
+| `pr:review` | Launch PR review dashboard (gh-dash) |
+
+### Agent Skills
 
 | Task | Description |
 |------|-------------|
 | `agent-skills:status` | Check skills installation status |
-| `agent-skills:update` | Update skills from superpowers |
+| `agent-skills:update` | Update skills from upstream superpowers |
 | `agent-skills:validate` | Validate skills format |
 
-## Git Remote
+### Git Remote
 
 | Task | Description |
 |------|-------------|
-| `git:set-remote-ssh` | Switch to SSH remote |
-| `git:set-remote-https` | Switch to HTTPS remote |
+| `git:set-remote-ssh` | Switch git remote to SSH |
+| `git:set-remote-https` | Switch git remote to HTTPS |
 
-## Cachix
-
-| Task | Description |
-|------|-------------|
-| `cachix:push` | Build and push current host to Cachix |
-| `cachix:push:all` | Build and push all platform configs |
-
-## MicroVM
+### Cachix
 
 | Task | Description |
 |------|-------------|
-| `microvm:build` | Build microvm image |
-| `microvm:run` | Run dev-vm (Linux only) |
-| `microvm:test` | Validate microvm configuration |
+| `cachix:push` | Build current host config and push to Cachix |
+| `cachix:push:all` | Build all configs for current platform and push |
 
-## Task Details
+### Documentation
 
-### system:switch
+| Task | Description |
+|------|-------------|
+| `docs:update` | Update and validate documentation |
+| `docs:validate` | Validate documentation structure |
+| `docs:generate` | Generate reference documentation |
 
-Auto-detects platform and hostname. Hostname mappings:
-- `wweaver`, `Will-Stride-MBP` -> `wweaver`
-- `MegamanX` -> `MegamanX`
+## Cross-Platform Validation
 
-Uses 1Password for sudo password retrieval on macOS.
+The `test:full` task validates both platforms regardless of host:
 
-### dev:ide
+- On Darwin: Tests Darwin and Linux configurations
+- On Linux: Tests Linux and Darwin configurations
 
-Launches zellij with configurable tools:
-- `$FILE_MANAGER` (default: yazi)
-- `$EDITOR` (default: helix)
-- `$AGENT` (default: opencode)
+Validation includes:
+- Flake structure and syntax (`nix flake check`)
+- Build plans (`nix build --dry-run`)
+- Configuration evaluation (`nix eval`)
 
-Set `WITH_PR=1` for PR review layout.
+## Shell Aliases
 
-### cachix:push
+After configuration is applied:
 
-Requires 1Password with token at `op://Private/Cachix/Auth Token`.
-
-## Git Hooks
-
-Pre-commit hooks run automatically:
-- `alejandra` - Nix formatting
-- `statix` - Static analysis
-- `deadnix` - Dead code detection
-- `yamllint` - YAML validation
-
-Pre-push hooks:
-- `docs-update` - Documentation validation
+| Alias | Expands To |
+|-------|------------|
+| `dt <task>` | `devenv tasks run <task>` |
+| `dtr <task>` | `devenv tasks run <task>` |
+| `dtl` | `devenv tasks list` |
+| `skills-list` | List installed agent skills |

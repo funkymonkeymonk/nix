@@ -84,6 +84,92 @@ in {
         See https://docs.openclaw.ai/gateway/configuration for options.
       '';
     };
+
+    hardening = {
+      noNewPrivileges = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Prevent the service from gaining new privileges";
+      };
+
+      protectSystem = mkOption {
+        type = types.enum ["true" "full" "strict"];
+        default = "strict";
+        description = "Make /usr and /boot read-only (full) or entire filesystem (strict)";
+      };
+
+      protectHome = mkOption {
+        type = types.enum ["true" "read-only" "tmpfs"];
+        default = "read-only";
+        description = "Protect home directories. read-only allows reading but not writing.";
+      };
+
+      privateTmp = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Use private /tmp and /var/tmp";
+      };
+
+      protectKernelTunables = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Make kernel tunables read-only";
+      };
+
+      protectKernelModules = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Block kernel module loading/unloading";
+      };
+
+      protectControlGroups = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Make cgroup tree read-only";
+      };
+
+      restrictSUIDSGID = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Block creating SUID/SGID files";
+      };
+
+      privateDevices = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Private /dev. Disable if voice features needed.";
+      };
+
+      restrictNamespaces = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Block namespace creation. Disable if sandboxing needed.";
+      };
+
+      restrictAddressFamilies = mkOption {
+        type = types.nullOr (types.listOf types.str);
+        default = null;
+        description = "Restrict socket address families. Set to ['AF_INET' 'AF_INET6' 'AF_NETLINK'] to allow networking + netlink.";
+      };
+
+      systemCallFilter = mkOption {
+        type = types.nullOr (types.listOf types.str);
+        default = null;
+        description = "System call filter (seccomp). e.g. ['@system-service' '~@privileged']";
+      };
+
+      memoryDenyWriteExecute = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Block creating writable+executable memory mappings. May break Node.js JIT.";
+      };
+
+      lockPersonality = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Lock execution domain personality";
+      };
+    };
   };
 
   config = mkIf cfg.enable {
@@ -122,82 +208,95 @@ in {
       after = ["network.target"];
       wantedBy = ["multi-user.target"];
 
-      serviceConfig = {
-        Type = "simple";
-        User = cfg.user;
-        Group = cfg.group;
-        WorkingDirectory = cfg.dataDir;
+      serviceConfig =
+        {
+          Type = "simple";
+          User = cfg.user;
+          Group = cfg.group;
+          WorkingDirectory = cfg.dataDir;
 
-        # Setup script - ensures openclaw is installed
-        ExecStartPre = pkgs.writeShellScript "openclaw-setup" (
-          ''
-            export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${pkgs.npm}/bin:$PATH"
+          # Setup script - ensures openclaw is installed
+          ExecStartPre = pkgs.writeShellScript "openclaw-setup" (
+            ''
+              export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${pkgs.npm}/bin:$PATH"
+              export HOME="${cfg.dataDir}"
+              export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
+
+              # Create npm global directory if it doesn't exist
+              mkdir -p "${cfg.dataDir}/.npm-global"
+
+              # Configure npm to use local prefix
+              ${pkgs.npm}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
+
+              # Check if we need to install openclaw
+              if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
+                echo "Installing OpenClaw..."
+                ${pkgs.npm}/bin/npm install -g openclaw@latest
+              fi
+
+              # Link config if provided
+              if [ -f /etc/openclaw/config.json ]; then
+                cp /etc/openclaw/config.json "${cfg.dataDir}/.openclaw/openclaw.json"
+                chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/.openclaw/openclaw.json"
+              fi
+
+              echo "OpenClaw setup complete"
+            ''
+            + lib.optionalString (cfg.environmentFile != null) ''
+              # Load environment file
+              set -a
+              source ${cfg.environmentFile}
+              set +a
+            ''
+          );
+
+          # Start script
+          ExecStart = pkgs.writeShellScript "openclaw-start" ''
+            export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${cfg.dataDir}/.npm-global/bin:$PATH"
             export HOME="${cfg.dataDir}"
             export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
 
-            # Create npm global directory if it doesn't exist
-            mkdir -p "${cfg.dataDir}/.npm-global"
+            # Set Node memory limit (helpful for microvms)
+            export NODE_OPTIONS="--max-old-space-size=3072"
 
-            # Configure npm to use local prefix
-            ${pkgs.npm}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
+            cd ${cfg.dataDir}
 
-            # Check if we need to install openclaw
-            if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
-              echo "Installing OpenClaw..."
-              ${pkgs.npm}/bin/npm install -g openclaw@latest
-            fi
+            # Start the gateway
+            exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --verbose
+          '';
 
-            # Link config if provided
-            if [ -f /etc/openclaw/config.json ]; then
-              cp /etc/openclaw/config.json "${cfg.dataDir}/.openclaw/openclaw.json"
-              chown ${cfg.user}:${cfg.group} "${cfg.dataDir}/.openclaw/openclaw.json"
-            fi
+          Restart = "always";
+          RestartSec = "30";
 
-            echo "OpenClaw setup complete"
-          ''
-          + lib.optionalString (cfg.environmentFile != null) ''
-            # Load environment file
-            set -a
-            source ${cfg.environmentFile}
-            set +a
-          ''
-        );
+          # Resource limits
+          MemoryMax = "3G";
+          CPUQuota = "80%";
 
-        # Start script
-        ExecStart = pkgs.writeShellScript "openclaw-start" ''
-          export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${cfg.dataDir}/.npm-global/bin:$PATH"
-          export HOME="${cfg.dataDir}"
-          export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
-
-          # Set Node memory limit (helpful for microvms)
-          export NODE_OPTIONS="--max-old-space-size=3072"
-
-          cd ${cfg.dataDir}
-
-          # Start the gateway
-          exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --verbose
-        '';
-
-        Restart = "always";
-        RestartSec = "30";
-
-        # Resource limits
-        MemoryMax = "3G";
-        CPUQuota = "80%";
-
-        # Security hardening
-        NoNewPrivileges = true;
-        ProtectSystem = "strict";
-        ProtectHome = true;
-        ReadWritePaths = [cfg.dataDir];
-        PrivateTmp = true;
-        ProtectKernelTunables = true;
-        ProtectKernelModules = true;
-        ProtectControlGroups = true;
-        RestrictSUIDSGID = true;
-        PrivateDevices = false; # May need devices for voice
-        RestrictNamespaces = false; # May need for sandboxing
-      };
+          # Security hardening (configurable via options)
+          NoNewPrivileges = cfg.hardening.noNewPrivileges;
+          ProtectSystem = cfg.hardening.protectSystem;
+          ProtectHome = cfg.hardening.protectHome;
+          ReadWritePaths = [cfg.dataDir];
+          PrivateTmp = cfg.hardening.privateTmp;
+          ProtectKernelTunables = cfg.hardening.protectKernelTunables;
+          ProtectKernelModules = cfg.hardening.protectKernelModules;
+          ProtectControlGroups = cfg.hardening.protectControlGroups;
+          RestrictSUIDSGID = cfg.hardening.restrictSUIDSGID;
+          PrivateDevices = cfg.hardening.privateDevices;
+          RestrictNamespaces = cfg.hardening.restrictNamespaces;
+        }
+        // lib.optionalAttrs (cfg.hardening.restrictAddressFamilies != null) {
+          RestrictAddressFamilies = cfg.hardening.restrictAddressFamilies;
+        }
+        // lib.optionalAttrs (cfg.hardening.systemCallFilter != null) {
+          SystemCallFilter = cfg.hardening.systemCallFilter;
+        }
+        // lib.optionalAttrs cfg.hardening.memoryDenyWriteExecute {
+          MemoryDenyWriteExecute = true;
+        }
+        // lib.optionalAttrs cfg.hardening.lockPersonality {
+          LockPersonality = true;
+        };
 
       environment = {
         HOME = cfg.dataDir;

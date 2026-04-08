@@ -1,3 +1,11 @@
+---
+title: "Getting Started"
+description: "Tutorial for setting up this Nix configuration on a new machine"
+type: tutorial
+audience: both
+last-reviewed: 2026-04-06
+---
+
 # Getting Started
 
 This tutorial walks you through setting up this Nix configuration on a new machine. By the end, you'll have a fully configured development environment.

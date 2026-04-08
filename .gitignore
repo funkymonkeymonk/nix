@@ -20,6 +20,7 @@ result-*
 
 # jj workspaces
 .workspaces
+workspaces/
 
 # Logs
 logs

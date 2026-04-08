@@ -1,512 +1,645 @@
 #!/usr/bin/env bash
 #
-# fjj - Fast Jujutsu Workflow
-# Universal workspace management with GitHub mirrors
+# fjj - Fast Jujutsu Workflow for Multi-Agent Repository Management
+#
+# Universal entry point that combines:
+# - GitHub mirror management (fjj --add)
+# - Workspace creation via jj-workspace (conventional naming)
+# - Integration with jj-pr, jj-finish, jj-sync workflow tools
 #
 
 set -euo pipefail
 
-# Configuration
-MIRROR_ROOT="/srv/github"
-WORKSPACE_ROOT="$HOME/workspaces"
-MAX_STACK_DEPTH=3
+# Configuration (override via environment variables)
+MIRROR_ROOT="${FJJ_MIRROR_ROOT:-/srv/github}"
+WORKSPACE_ROOT="${FJJ_WORKSPACE_ROOT:-$HOME/workspaces}"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Try to source jj-workspace-lib if available (installed by jj skill)
+JJ_WORKSPACE_LIB="${HOME}/.config/opencode/skills/jj/scripts/jj-workspace-lib"
+if [[ -f "$JJ_WORKSPACE_LIB" ]]; then
+  # shellcheck source=/dev/null
+  source "$JJ_WORKSPACE_LIB"
+else
+  # Fallback colors and minimal functions if lib not available
+  JJ_RED='\033[0;31m'
+  JJ_GREEN='\033[0;32m'
+  JJ_YELLOW='\033[1;33m'
+  JJ_BLUE='\033[0;34m'
+  JJ_NC='\033[0m'
+  
+  jj_generate_id() {
+    od -An -tx1 -N4 /dev/urandom 2>/dev/null | tr -d ' \n' | head -c 4
+  }
+fi
 
 # Logging (all go to stderr so stdout is clean for returns)
-log_info() { echo -e "${BLUE}ℹ${NC} $1" >&2; }
-log_success() { echo -e "${GREEN}✓${NC} $1" >&2; }
-log_warn() { echo -e "${YELLOW}⚠${NC} $1" >&2; }
-log_error() { echo -e "${RED}✗${NC} $1" >&2; }
+log_info() { echo -e "${JJ_BLUE}ℹ${JJ_NC} $1" >&2; }
+log_success() { echo -e "${JJ_GREEN}✓${JJ_NC} $1" >&2; }
+log_warn() { echo -e "${JJ_YELLOW}⚠${JJ_NC} $1" >&2; }
+log_error() { echo -e "${JJ_RED}✗${JJ_NC} $1" >&2; }
+
+# ============================================================================
+# Repository/Mirror Management
+# ============================================================================
 
 # Detect current repository from git remote
 detect_current_repo() {
-    local dir="${1:-$(pwd)}"
-    if [ -d "$dir/.git" ] || [ -d "$dir/.jj" ]; then
-        local remote
-        remote=$(cd "$dir" && git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]\([^/]*\/[^/]*\)\.git$/\1/' || true)
-        if [ -n "$remote" ]; then
-            echo "$remote"
-            return 0
-        fi
+  local dir="${1:-$(pwd)}"
+  if [[ -d "$dir/.git" ]] || [[ -d "$dir/.jj" ]]; then
+    local remote
+    remote=$(cd "$dir" && git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]\([^/]*\/[^/]*\)\.git$/\1/' || true)
+    if [[ -n "$remote" ]]; then
+      echo "$remote"
+      return 0
     fi
-    return 1
+  fi
+  return 1
 }
 
 # Get repo name from full path
 get_repo_name() {
-    local repo_path="$1"
-    basename "$repo_path"
+  local repo_path="$1"
+  basename "$repo_path"
 }
 
 # Check if mirror exists
 mirror_exists() {
-    local repo="$1"
-    [ -d "$MIRROR_ROOT/$repo/.git" ] || [ -d "$MIRROR_ROOT/$repo/.jj" ]
+  local repo="$1"
+  [[ -d "$MIRROR_ROOT/$repo/.git" ]] || [[ -d "$MIRROR_ROOT/$repo/.jj" ]]
+}
+
+# Get mirror path for a repo
+get_mirror_path() {
+  local repo="$1"
+  echo "$MIRROR_ROOT/$repo"
 }
 
 # Ensure mirror exists, create if not
 ensure_mirror() {
-    local repo="$1"
-    local mirror_path="$MIRROR_ROOT/$repo"
+  local repo="$1"
+  local mirror_path="$MIRROR_ROOT/$repo"
+  
+  if ! mirror_exists "$repo"; then
+    log_info "Mirror not found: $repo"
+    log_info "Cloning to $mirror_path..."
     
-    if ! mirror_exists "$repo"; then
-        log_info "Mirror not found: $repo"
-        log_info "Cloning to $mirror_path..."
-        
-        mkdir -p "$(dirname "$mirror_path")"
-        gh repo clone "$repo" "$mirror_path" || {
-            log_error "Failed to clone $repo"
-            return 1
-        }
-        
-        # Setup jj mirror if needed
-        if [ ! -d "$mirror_path/.jj" ]; then
-            (cd "$mirror_path" && jj git init --colocate 2>/dev/null || true)
-        fi
-        
-        log_success "Mirror created: $repo"
+    mkdir -p "$(dirname "$mirror_path")"
+    if ! gh repo clone "$repo" "$mirror_path"; then
+      log_error "Failed to clone $repo"
+      return 1
     fi
     
-    echo "$mirror_path"
-}
-
-# Generate workspace name
-generate_workspace_name() {
-    local repo="$1"
-    local branch="$2"
-    local date_str=$(date +%Y%m%d)
-    local id=$(openssl rand -hex 2 | cut -c1-4)
-    local repo_name=$(get_repo_name "$repo")
-    local branch_clean=$(echo "$branch" | tr '/' '-')
-    
-    echo "${repo_name}-${branch_clean}-${date_str}-${id}"
-}
-
-# Find existing workspace
-find_existing_workspace() {
-    local repo="$1"
-    local branch="$2"
-    local repo_name=$(get_repo_name "$repo")
-    local branch_clean=$(echo "$branch" | tr '/' '-')
-    
-    # Look for workspace matching pattern
-    local pattern="${WORKSPACE_ROOT}/${repo_name}-${branch_clean}-*"
-    local workspaces=( $pattern )
-    
-    if [ -d "${workspaces[0]}" ]; then
-        echo "${workspaces[0]}"
-        return 0
-    fi
-    return 1
-}
-
-# Create workspace from mirror
-create_workspace() {
-    local repo="$1"
-    local branch="$2"
-    local mirror_path="$3"
-    
-    local workspace_name=$(generate_workspace_name "$repo" "$branch")
-    local workspace_path="$WORKSPACE_ROOT/$workspace_name"
-    
-    mkdir -p "$WORKSPACE_ROOT"
-    
-    log_info "Creating workspace: $workspace_name"
-    
-    # Create jj workspace from mirror (redirect all output to stderr)
-    if ! (cd "$mirror_path" && jj workspace add "$workspace_path" 1>&2); then
-        log_error "Failed to create workspace"
-        return 1
+    # Setup jj colocation if needed
+    if [[ ! -d "$mirror_path/.jj" ]]; then
+      (cd "$mirror_path" && jj git init --colocate 2>/dev/null || true)
     fi
     
-    # Setup the branch (redirect to stderr)
-    (cd "$workspace_path" && jj bookmark create "$branch" -r @ 1>&2 2>/dev/null || true)
-    
-    # Add to zoxide
-    zoxide add "$workspace_path" 2>/dev/null || true
-    
-    log_success "Created workspace: $workspace_name"
-    echo "$workspace_path"
+    log_success "Mirror created: $repo"
+  fi
+  
+  echo "$mirror_path"
 }
+
+# ============================================================================
+# Interactive Selection
+# ============================================================================
 
 # Interactive repo selection with fzf
 select_repo_fzf() {
-    local header="Select repository (Tab:multi, Enter:confirm):"
-
-    # Build list of available mirrors
-    local mirrors=()
-    if [ -d "$MIRROR_ROOT" ]; then
-        while IFS= read -r -d '' mirror; do
-            local repo_name=$(basename "$mirror")
-            local owner=$(basename "$(dirname "$mirror")")
-            local full_name="${owner}/${repo_name}"
-
-            # Get last update time
-            local last_update=$(cd "$mirror" && git log -1 --format=%cd --date=relative 2>/dev/null || echo "unknown")
-            mirrors+=("${full_name}|${last_update}")
-        done < <(find "$MIRROR_ROOT" -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null)
-    fi
-
-    if [ ${#mirrors[@]} -eq 0 ]; then
-        log_error "No mirrors found. Run 'fjj --add' first."
-        return 1
-    fi
-
-    # Format for fzf
-    printf '%s\n' "${mirrors[@]}" | \
-        column -t -s '|' | \
-        fzf --header="$header" \
-            --preview "cd $MIRROR_ROOT/{1} && git log --oneline -5 2>/dev/null || echo 'No git history'" \
-            --preview-window=right:50% | \
-        awk '{print $1}'
+  local header="Select repository (Tab:multi, Enter:confirm):"
+  
+  # Build list of available mirrors
+  local mirrors=()
+  if [[ -d "$MIRROR_ROOT" ]]; then
+    while IFS= read -r -d '' mirror; do
+      local repo_name
+      repo_name=$(basename "$mirror")
+      local owner
+      owner=$(basename "$(dirname "$mirror")")
+      local full_name="${owner}/${repo_name}"
+      
+      # Get last update time
+      local last_update
+      last_update=$(cd "$mirror" && git log -1 --format=%cd --date=relative 2>/dev/null || echo "unknown")
+      mirrors+=("${full_name}|${last_update}")
+    done < <(find "$MIRROR_ROOT" -mindepth 2 -maxdepth 2 -type d -print0 2>/dev/null)
+  fi
+  
+  if [[ ${#mirrors[@]} -eq 0 ]]; then
+    log_error "No mirrors found. Run 'fjj --add' first."
+    return 1
+  fi
+  
+  # Format for fzf
+  printf '%s\n' "${mirrors[@]}" | \
+    column -t -s '|' | \
+    fzf --header="$header" \
+        --preview "cd $MIRROR_ROOT/{1} && git log --oneline -5 2>/dev/null || echo 'No git history'" \
+        --preview-window=right:50% | \
+    awk '{print $1}'
 }
 
 # Interactive branch selection
 select_branch_fzf() {
-    local repo_path="$1"
-    local header="Select branch, remote branch, or type new name (conventional: feat/, fix/, chore/, hotfix/):"
+  local repo_path="$1"
+  local header="Select bookmark/branch, or type new name (conventional: feat/, fix/, chore/):"
+  
+  (cd "$repo_path" && {
+    echo "=== Local Bookmarks ==="
+    jj bookmark list -a 2>/dev/null | grep -v '^@' | awk '{print $1}' | grep -v '^$' || true
     
-    (cd "$repo_path" && {
-        echo "=== Local Bookmarks ==="
-        jj bookmark list -a 2>/dev/null | grep -v '^@' | awk '{print $1}' | grep -v '^$' || true
-        
-        echo ""
-        echo "=== Remote Branches ==="
-        git branch -r 2>/dev/null | grep -v 'HEAD' | sed 's/origin\///' | awk '{print $1}' | sort -u || true
-        
-        echo ""
-        echo "[create new branch]"
-    }) | fzf --header="$header" --print-query | tail -1
+    echo ""
+    echo "=== Remote Branches ==="
+    git branch -r 2>/dev/null | grep -v 'HEAD' | sed 's/origin\///' | awk '{print $1}' | sort -u || true
+    
+    echo ""
+    echo "[create new branch]"
+  }) | fzf --header="$header" --print-query | tail -1
 }
 
 # Add repos to mirrors
 interactive_add() {
-    log_info "Discovering repositories..."
+  log_info "Discovering repositories..."
+  
+  # Build combined list from multiple sources
+  local repos=()
+  
+  # 1. User's repos
+  if gh auth status >/dev/null 2>&1; then
+    log_info "Fetching your repositories..."
+    while IFS= read -r repo; do
+      repos+=("[yours] $repo")
+    done < <(gh repo list --limit 100 --json nameWithOwner --jq '.[].nameWithOwner' 2>/dev/null || true)
     
-    # Build combined list from multiple sources
-    local repos=()
+    # 2. Org repos
+    log_info "Fetching organization repositories..."
+    while IFS= read -r org; do
+      while IFS= read -r repo; do
+        repos+=("[org:$org] $repo")
+      done < <(gh repo list "$org" --limit 50 --json nameWithOwner --jq '.[].nameWithOwner' 2>/dev/null || true)
+    done < <(gh org list --json login --jq '.[].login' 2>/dev/null || true)
     
-    # 1. User's repos
-    if gh auth status >/dev/null 2>&1; then
-        log_info "Fetching your repositories..."
-        while IFS= read -r repo; do
-            repos+=("[yours] $repo")
-        done < <(gh repo list --limit 100 --json nameWithOwner --jq '.[].nameWithOwner' 2>/dev/null || true)
-        
-        # 2. Org repos
-        log_info "Fetching organization repositories..."
-        while IFS= read -r org; do
-            while IFS= read -r repo; do
-                repos+=("[org:$org] $repo")
-            done < <(gh repo list "$org" --limit 50 --json nameWithOwner --jq '.[].nameWithOwner' 2>/dev/null || true)
-        done < <(gh org list --json login --jq '.[].login' 2>/dev/null || true)
-        
-        # 3. Starred repos
-        log_info "Fetching starred repositories..."
-        while IFS= read -r repo; do
-            repos+=("[starred] $repo")
-        done < <(gh api user/starred --jq '.[].full_name' 2>/dev/null || true)
+    # 3. Starred repos
+    log_info "Fetching starred repositories..."
+    while IFS= read -r repo; do
+      repos+=("[starred] $repo")
+    done < <(gh api user/starred --jq '.[].full_name' 2>/dev/null || true)
+  fi
+  
+  if [[ ${#repos[@]} -eq 0 ]]; then
+    log_warn "No repositories found. Make sure you're authenticated with 'gh auth login'"
+    log_info "You can still add public repos by typing 'owner/repo'"
+  fi
+  
+  # Add manual entry option
+  repos+=("[manual] Type owner/repo...")
+  
+  # Show fzf selector
+  local selected
+  selected=$(printf '%s\n' "${repos[@]}" | \
+    fzf --multi \
+        --header="Tab:select multiple, Enter:clone to mirror" \
+        --preview "echo {} | grep -oE '[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$' | head -1 | xargs -I [] gh repo view [] --json description,updatedAt,stargazersCount --template '{{.description}}\n⭐ {{.stargazersCount}} | Updated: {{.updatedAt}}' 2>/dev/null || echo 'Preview not available'" \
+        --preview-window=right:50%)
+  
+  if [[ -z "$selected" ]]; then
+    return 0
+  fi
+  
+  # Process selections
+  echo "$selected" | while IFS= read -r line; do
+    # Extract repo name
+    local repo
+    repo=$(echo "$line" | grep -oE '[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$' | head -1)
+    
+    if [[ "$line" == "[manual] Type owner/repo..." ]]; then
+      echo -n "Enter owner/repo: "
+      read -r repo
     fi
     
-    if [ ${#repos[@]} -eq 0 ]; then
-        log_warn "No repositories found. Make sure you're authenticated with 'gh auth login'"
-        log_info "You can still add public repos by typing 'owner/repo'"
+    if [[ -n "$repo" ]]; then
+      ensure_mirror "$repo" || true
     fi
-    
-    # Add manual entry option
-    repos+=("[manual] Type owner/repo...")
-    
-    # Show fzf selector
-    local selected=$(printf '%s\n' "${repos[@]}" | \
-        fzf --multi \
-            --header="Tab:select multiple, Enter:clone to mirror" \
-            --preview "echo {} | grep -oE '[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$' | head -1 | xargs -I [] gh repo view [] --json description,updatedAt,stargazersCount --template '{{.description}}\n⭐ {{.stargazersCount}} | Updated: {{.updatedAt}}' 2>/dev/null || echo 'Preview not available'" \
-            --preview-window=right:50%)
-    
-    if [ -z "$selected" ]; then
-        return 0
-    fi
-    
-    # Process selections
-    echo "$selected" | while IFS= read -r line; do
-        # Extract repo name
-        local repo=$(echo "$line" | grep -oE '[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$' | head -1)
-        
-        if [ "$line" == "[manual] Type owner/repo..." ]; then
-            echo -n "Enter owner/repo: "
-            read -r repo
-        fi
-        
-        if [ -n "$repo" ]; then
-            ensure_mirror "$repo" || true
-        fi
-    done
+  done
 }
 
 # Quick add specific repo
 quick_add() {
-    local repo="$1"
-    ensure_mirror "$repo"
+  local repo="$1"
+  ensure_mirror "$repo"
 }
+
+# ============================================================================
+# Workspace Management (delegates to jj-workspace)
+# ============================================================================
+
+# Find existing workspace for a repo/branch combination
+find_existing_workspace() {
+  local repo="$1"
+  local branch="$2"
+  local repo_name
+  repo_name=$(get_repo_name "$repo")
+  local branch_clean
+  branch_clean=$(echo "$branch" | tr '/' '-')
+  
+  # Look for workspace matching pattern: <branch>-<date>-<id> containing repo name
+  if [[ -d "$WORKSPACE_ROOT" ]]; then
+    for ws in "$WORKSPACE_ROOT"/*; do
+      if [[ -d "$ws" ]]; then
+        local ws_name
+        ws_name=$(basename "$ws")
+        # Check if workspace name contains branch (with / converted to -)
+        if [[ "$ws_name" == *"${branch_clean}-"* ]]; then
+          # Verify it's for the right repo by checking the mirror
+          local parent_path=""
+          if [[ -f "$ws/.jj/repo/repo" ]]; then
+            parent_path=$(grep '^path=' "$ws/.jj/repo/repo" 2>/dev/null | cut -d'=' -f2 || true)
+          fi
+          if [[ "$parent_path" == *"$repo_name"* ]]; then
+            echo "$ws"
+            return 0
+          fi
+        fi
+      fi
+    done
+  fi
+  return 1
+}
+
+# Create workspace using jj-workspace conventions
+# Usage: create_workspace <repo> <type/topic> [base]
+create_workspace() {
+  local repo="$1"
+  local name="$2"
+  local base="${3:-main}"
+  local mirror_path
+  mirror_path=$(get_mirror_path "$repo")
+  
+  # Generate workspace name using jj convention
+  local date_str
+  date_str=$(date +%Y%m%d)
+  local session_id
+  session_id=$(jj_generate_id)
+  
+  # Handle type/topic format
+  local full_name
+  if [[ "$name" == */* ]]; then
+    full_name="${name}-${date_str}-${session_id}"
+  else
+    full_name="feat/${name}-${date_str}-${session_id}"
+  fi
+  
+  # Create directory-safe version
+  local dir_name
+  dir_name=$(echo "$full_name" | tr '/' '-')
+  local workspace_path="${WORKSPACE_ROOT}/${dir_name}"
+  
+  # Ensure workspaces directory exists
+  mkdir -p "$WORKSPACE_ROOT"
+  
+  log_info "Creating workspace: $full_name"
+  log_info "Base: $base"
+  
+  # Create jj workspace from mirror
+  if ! (cd "$mirror_path" && jj workspace add "$workspace_path" -r "$base" 2>&1); then
+    log_error "Failed to create workspace"
+    return 1
+  fi
+  
+  # Create bookmark if type/topic format
+  local bookmark_name="$name"
+  if [[ "$name" != */* ]]; then
+    bookmark_name="feat/$name"
+  fi
+  
+  (cd "$workspace_path" && jj bookmark create "$bookmark_name" -r @ 2>/dev/null || true)
+  
+  # Add to zoxide
+  if command -v zoxide &>/dev/null; then
+    zoxide add "$workspace_path" 2>/dev/null || true
+  fi
+  
+  log_success "Created workspace: $full_name"
+  echo "$workspace_path"
+}
+
+# ============================================================================
+# Command Implementations
+# ============================================================================
 
 # List all workspaces
 cmd_list() {
-    if [ ! -d "$WORKSPACE_ROOT" ]; then
-        log_warn "No workspaces found"
-        return 0
+  if ! command -v jj-workspace &>/dev/null; then
+    # Fallback: list directories
+    if [[ ! -d "$WORKSPACE_ROOT" ]]; then
+      log_warn "No workspaces found"
+      return 0
     fi
     
-    local workspaces=()
-    while IFS= read -r -d '' ws; do
-        local name=$(basename "$ws")
-        local repo=$(detect_current_repo "$ws" 2>/dev/null || echo "unknown")
-        local last=$(stat -c %Y "$ws" 2>/dev/null || stat -f %m "$ws" 2>/dev/null)
-        local age=$(( ($(date +%s) - last) / 86400 ))
-        
-        workspaces+=("${name}|${repo}|${age}d ago")
-    done < <(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
-    
-    if [ ${#workspaces[@]} -eq 0 ]; then
-        log_warn "No workspaces found"
-        return 0
-    fi
-    
-    printf '%s\n' "${workspaces[@]}" | column -t -s '|'
+    echo -e "${JJ_GREEN}Workspaces:${JJ_NC}\n"
+    for ws in "$WORKSPACE_ROOT"/*; do
+      if [[ -d "$ws" ]]; then
+        local name
+        name=$(basename "$ws")
+        local repo
+        repo=$(detect_current_repo "$ws" 2>/dev/null || echo "unknown")
+        echo "  $name ($repo)"
+      fi
+    done
+    return 0
+  fi
+  
+  # Use jj-workspace if available
+  jj-workspace list
 }
 
 # Clean merged workspaces
 cmd_clean() {
-    log_info "Checking for merged workspaces..."
-
-    local cleaned=0
-    while IFS= read -r -d '' ws; do
-        local name=$(basename "$ws")
-
-        # Check if workspace has merged PR
-        (cd "$ws" && {
-            # Get the bookmark at @ - jj bookmark list -r @ outputs "bookmarkname: ..."
-            # The first line contains the active bookmark
-            local current_branch
-            current_branch=$(jj bookmark list -r @ 2>/dev/null | head -1 | awk '{print $1}' | tr -d ':' || true)
-
-            if [ -n "$current_branch" ]; then
-                # Get repo from mirror since workspaces don't have .git directories
-                # The workspace's .jj/repo/repo file contains the path to the parent repo
-                local repo=""
-                local parent_path=""
-
-                # Try to get the parent repo path from jj config
-                if [ -f .jj/repo/repo ]; then
-                    parent_path=$(grep '^path=' .jj/repo/repo 2>/dev/null | cut -d'=' -f2 || true)
-                fi
-
-                # If we found a parent path, get the repo from it
-                if [ -n "$parent_path" ] && [ -d "$parent_path/.git" ]; then
-                    repo=$(cd "$parent_path" && git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]\([^/]*\/[^/]*\)\.git$/\1/' || true)
-                fi
-
-                if [ -n "$repo" ]; then
-                    local state
-                    state=$(gh pr view "$current_branch" --json state --jq '.state' 2>/dev/null || echo "")
-                    if [ "$state" == "MERGED" ]; then
-                        log_info "Removing merged workspace: $name (branch: $current_branch)"
-                        # Remove the workspace from jj first, then delete the directory
-                        jj workspace forget "$ws" 2>/dev/null || true
-                        rm -rf "$ws"
-                        ((cleaned++))
-                    elif [ "$state" == "CLOSED" ]; then
-                        log_info "Removing closed workspace: $name (branch: $current_branch)"
-                        jj workspace forget "$ws" 2>/dev/null || true
-                        rm -rf "$ws"
-                        ((cleaned++))
-                    fi
-                else
-                    log_warn "Could not detect repo for workspace: $name"
-                fi
-            else
-                log_warn "No bookmark found at @ for workspace: $name"
-            fi
-        }) || true
-    done < <(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
-
-    log_success "Cleaned $cleaned workspaces"
+  log_info "Checking for merged workspaces..."
+  
+  local cleaned=0
+  while IFS= read -r -d '' ws; do
+    local name
+    name=$(basename "$ws")
+    
+    (cd "$ws" && {
+      # Get current bookmark
+      local current_branch
+      current_branch=$(jj bookmark list -r @ 2>/dev/null | head -1 | awk '{print $1}' | tr -d ':' || true)
+      
+      if [[ -n "$current_branch" ]]; then
+        # Get repo from parent path
+        local repo=""
+        local parent_path=""
+        
+        if [[ -f .jj/repo/repo ]]; then
+          parent_path=$(grep '^path=' .jj/repo/repo 2>/dev/null | cut -d'=' -f2 || true)
+        fi
+        
+        if [[ -n "$parent_path" ]] && [[ -d "$parent_path/.git" ]]; then
+          repo=$(cd "$parent_path" && git remote get-url origin 2>/dev/null | sed 's/.*github.com[:/]\([^/]*\/[^/]*\)\.git$/\1/' || true)
+        fi
+        
+        if [[ -n "$repo" ]]; then
+          local state
+          state=$(gh pr view "$current_branch" --repo "$repo" --json state --jq '.state' 2>/dev/null || echo "")
+          if [[ "$state" == "MERGED" ]] || [[ "$state" == "CLOSED" ]]; then
+            log_info "Removing ${state,,} workspace: $name (branch: $current_branch)"
+            jj workspace forget "$ws" 2>/dev/null || true
+            rm -rf "$ws"
+            ((cleaned++))
+          fi
+        fi
+      fi
+    }) || true
+  done < <(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+  
+  log_success "Cleaned $cleaned workspaces"
 }
 
 # Show status
 cmd_status() {
-    log_info "Mirror Status:"
-    if [ -d "$MIRROR_ROOT" ]; then
-        local count=$(find "$MIRROR_ROOT" -mindepth 2 -maxdepth 2 -type d 2>/dev/null | wc -l)
-        echo "  Mirrors: $count repositories"
-        echo "  Location: $MIRROR_ROOT"
+  log_info "Mirror Status:"
+  if [[ -d "$MIRROR_ROOT" ]]; then
+    local count
+    count=$(find "$MIRROR_ROOT" -mindepth 2 -maxdepth 2 -type d 2>/dev/null | wc -l)
+    echo "  Mirrors: $count repositories"
+    echo "  Location: $MIRROR_ROOT"
+  else
+    echo "  No mirrors configured"
+  fi
+  
+  echo ""
+  log_info "Workspace Status:"
+  if command -v jj-workspace &>/dev/null; then
+    jj-workspace status
+  else
+    if [[ -d "$WORKSPACE_ROOT" ]]; then
+      local count
+      count=$(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+      echo "  Active workspaces: $count"
+      echo "  Location: $WORKSPACE_ROOT"
     else
-        echo "  No mirrors configured"
+      echo "  No workspaces"
     fi
-    
-    echo ""
-    log_info "Workspace Status:"
-    if [ -d "$WORKSPACE_ROOT" ]; then
-        local count=$(find "$WORKSPACE_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
-        echo "  Active workspaces: $count"
-        echo "  Location: $WORKSPACE_ROOT"
+  fi
+  
+  echo ""
+  log_info "JJ Tools Available:"
+  for tool in jj-workspace jj-pr jj-finish jj-sync jj-update jj-stack; do
+    if command -v "$tool" &>/dev/null; then
+      echo "  ✓ $tool"
     else
-        echo "  No workspaces"
+      echo "  ✗ $tool (not installed)"
     fi
+  done
 }
 
-# Main workspace entry
+# Main workspace entry - smart context-aware
 cmd_workspace() {
-    local branch="${1:-}"
-    local explicit_repo="${2:-}"
-
-    # Detect current context
-    local current_repo=""
-    local current_workspace=""
-
-    # Check for actual repo (.git directory or .jj workspace with repo subdir)
-    if [ -d "$PWD/.git" ] || [ -d "$PWD/.jj/repo" ] || [ -d "$PWD/.jj/working_copy" ]; then
-        current_repo=$(detect_current_repo)
-        if [[ "$PWD" == "$WORKSPACE_ROOT"* ]]; then
-            current_workspace="$PWD"
-        fi
+  local branch="${1:-}"
+  local explicit_repo="${2:-}"
+  
+  # Detect current context
+  local current_repo=""
+  local current_workspace=""
+  
+  # Check for actual repo (.git directory or .jj workspace with repo subdir)
+  if [[ -d "$PWD/.git" ]] || [[ -d "$PWD/.jj/repo" ]] || [[ -d "$PWD/.jj/working_copy" ]]; then
+    current_repo=$(detect_current_repo)
+    if [[ "$PWD" == "$WORKSPACE_ROOT"* ]]; then
+      current_workspace="$PWD"
     fi
+  fi
+  
+  # Determine target repo
+  local target_repo=""
+  if [[ -n "$explicit_repo" ]]; then
+    target_repo="$explicit_repo"
+  elif [[ -n "$current_repo" ]] && [[ -z "$branch" ]]; then
+    # In workspace without args - interactive mode
+    target_repo=$(select_repo_fzf)
+    [[ -z "$target_repo" ]] && return 0
+  elif [[ -n "$current_repo" ]]; then
+    # In workspace with branch arg - stay in same repo
+    target_repo="$current_repo"
+  else
+    # Fresh start - interactive
+    target_repo=$(select_repo_fzf)
+    [[ -z "$target_repo" ]] && return 0
+  fi
+  
+  # Ensure mirror exists
+  local mirror_path
+  mirror_path=$(ensure_mirror "$target_repo")
+  [[ -z "$mirror_path" ]] && return 1
+  
+  # Determine workspace name (type/topic format)
+  local target_name=""
+  if [[ -n "$branch" ]]; then
+    target_name="$branch"
+  else
+    local selected
+    selected=$(select_branch_fzf "$mirror_path")
+    [[ "$selected" == "[create new branch]" ]] && selected=""
     
-    # Determine target repo
-    local target_repo=""
-    if [ -n "$explicit_repo" ]; then
-        target_repo="$explicit_repo"
-    elif [ -n "$current_repo" ] && [ -z "$branch" ]; then
-        # In workspace without args - interactive mode
-        target_repo=$(select_repo_fzf)
-        [ -z "$target_repo" ] && return 0
-    elif [ -n "$current_repo" ]; then
-        # In workspace with branch arg - stay in same repo
-        target_repo="$current_repo"
+    if [[ -z "$selected" ]]; then
+      echo -n "Enter workspace name (e.g., feat/my-feature): "
+      read -r target_name
     else
-        # Fresh start - interactive
-        target_repo=$(select_repo_fzf)
-        [ -z "$target_repo" ] && return 0
+      target_name="$selected"
+    fi
+  fi
+  
+  [[ -z "$target_name" ]] && return 0
+  
+  # Check for existing workspace
+  local existing
+  existing=$(find_existing_workspace "$target_repo" "$target_name")
+  if [[ -n "$existing" ]]; then
+    log_success "Using existing workspace: $(basename "$existing")"
+    echo "$existing"
+    if [[ -n "${FJJ_WORKSPACE_PATH_FILE:-}" ]]; then
+      echo "$existing" > "$FJJ_WORKSPACE_PATH_FILE"
+    fi
+    return 0
+  fi
+  
+  # Create new workspace
+  local workspace_path
+  workspace_path=$(create_workspace "$target_repo" "$target_name")
+  if [[ $? -eq 0 ]] && [[ -n "$workspace_path" ]]; then
+    echo "$workspace_path"
+    if [[ -n "${FJJ_WORKSPACE_PATH_FILE:-}" ]]; then
+      echo "$workspace_path" > "$FJJ_WORKSPACE_PATH_FILE"
     fi
     
-    # Ensure mirror exists
-    local mirror_path=$(ensure_mirror "$target_repo")
-    [ -z "$mirror_path" ] && return 1
-    
-    # Determine branch
-    local target_branch=""
-    if [ -n "$branch" ]; then
-        target_branch="$branch"
-    else
-        target_branch=$(select_branch_fzf "$mirror_path")
-        [ "$target_branch" == "[create new branch]" ] && target_branch=""
-        
-        if [ -z "$target_branch" ]; then
-            echo -n "Enter branch name (e.g., feat/my-feature): "
-            read -r target_branch
-        fi
+    # Start workspace session for fast sync if available
+    if command -v jj-workspace-session &>/dev/null; then
+      log_info "Starting workspace session for fast sync..."
+      jj-workspace-session start 2>/dev/null || true
     fi
-    
-    [ -z "$target_branch" ] && return 0
-    
-    # Check for existing workspace
-    local existing=$(find_existing_workspace "$target_repo" "$target_branch")
-    if [ -n "$existing" ]; then
-        log_success "Using existing workspace: $(basename "$existing")"
-        echo "$existing"  # Output path for parent shell to cd
-        # Write to file for wrapper if set
-        if [ -n "${FJJ_WORKSPACE_PATH_FILE:-}" ]; then
-            echo "$existing" > "$FJJ_WORKSPACE_PATH_FILE"
-        fi
-        return 0
-    fi
-
-    # Create new workspace
-    local workspace_path
-    workspace_path=$(create_workspace "$target_repo" "$target_branch" "$mirror_path")
-    if [ $? -eq 0 ] && [ -n "$workspace_path" ]; then
-        echo "$workspace_path"  # Output path for parent shell to cd
-        # Write to file for wrapper if set
-        if [ -n "${FJJ_WORKSPACE_PATH_FILE:-}" ]; then
-            echo "$workspace_path" > "$FJJ_WORKSPACE_PATH_FILE"
-        fi
-    else
-        return 1
-    fi
+  else
+    return 1
+  fi
 }
 
+# Start a session for fast sync
+cmd_session() {
+  if ! command -v jj-workspace-session &>/dev/null; then
+    log_error "jj-workspace-session not found. Install the jj skill first."
+    return 1
+  fi
+  
+  local action="${1:-start}"
+  shift || true
+  
+  case "$action" in
+    start|stop|status|touch|sync|prune)
+      jj-workspace-session "$action" "$@"
+      ;;
+    *)
+      log_error "Unknown session action: $action"
+      log_info "Available: start, stop, status, touch, sync, prune"
+      return 1
+      ;;
+  esac
+}
+
+# ============================================================================
 # Help
+# ============================================================================
+
 cmd_help() {
-    cat << 'EOF'
+  cat << 'EOF'
 Usage: fjj [command] [args]
 
-Fast Jujutsu Workflow - Universal workspace management
+Fast Jujutsu Workflow - Multi-agent repository management with GitHub mirrors
+and isolated workspaces using conventional jj workflow.
 
 Commands:
-  fjj [branch] [repo]     Create/goto workspace (smart context-aware)
-  fjj --add [owner/repo]  Add repositories to mirrors
-  fjj --list              List all workspaces
-  fjj --clean             Remove merged workspaces
-  fjj --status            Show mirror and workspace status
-  fjj --help              Show this help
+  fjj [type/topic] [repo]    Create/goto workspace (smart context-aware)
+                             Uses conventional naming: feat/name, fix/bug, etc.
+  fjj --add [owner/repo]     Add repositories to mirrors
+  fjj --list                 List all workspaces (via jj-workspace)
+  fjj --clean                Remove merged/closed workspaces
+  fjj --status               Show mirror, workspace, and tool status
+  fjj --session [action]     Manage workspace session (start/stop/status/sync)
+  fjj --help                 Show this help
 
 Workflow:
-  1. fjj --add            # Add your repos to $HOME/src/
-  2. fjj                  # Interactive: select repo → select/create branch
-  3. <do your work>       # Edit files, make commits with jj
-  4. fjj --clean          # Clean up merged workspaces
+  1. fjj --add                    # Add repos to mirrors
+  2. fjj feat/my-feature          # Create workspace with conventional name
+  3. jj new && <do work>          # Start working (jj new first!)
+  4. jj describe -m "message"     # Commit changes
+  5. jj-pr feat/my-feature        # Create PR (or use jj-finish)
+  6. fjj --clean                  # Clean up merged workspaces
+
+Integration with jj tools:
+  - Uses jj-workspace for workspace creation
+  - Compatible with jj-pr, jj-finish, jj-sync, jj-update, jj-stack
+  - Supports jj-workspace-session for fast sync
 
 Examples:
   fjj                          # Interactive mode
-  fjj feat/new-ui              # Create workspace feat/new-ui in current repo
-  fjj fix/bug nixpkgs          # Create workspace in nixpkgs repo
+  fjj feat/new-ui              # Create workspace feat/new-ui-20240115-a1b2
+  fjj fix/bug nixpkgs          # Create fix/bug workspace in nixpkgs repo
+  fjj chore/docs               # Create chore/docs workspace (defaults to feat/)
   fjj --add nixos/nixpkgs      # Quick add public repo
 
 Environment:
-  MIRROR_ROOT=$HOME/src        # Where mirrors are stored (macOS)
-  WORKSPACE_ROOT=$HOME/workspaces  # Where workspaces are created
+  FJJ_MIRROR_ROOT              # Mirror location (default: /srv/github or ~/src)
+  FJJ_WORKSPACE_ROOT           # Workspace location (default: ~/workspaces)
+
+Workspace Naming Convention:
+  <type>/<topic>-<date>-<id>
+  
+  Types: feat, fix, hotfix, chore, release
+  Example: feat/auth-20240115-a1b2
 
 EOF
 }
 
+# ============================================================================
 # Main
+# ============================================================================
+
 case "${1:-}" in
-    --add|-a)
-        shift
-        if [ $# -eq 0 ]; then
-            interactive_add
-        else
-            quick_add "$1"
-        fi
-        ;;
-    --list|-l)
-        cmd_list
-        ;;
-    --clean|-c)
-        cmd_clean
-        ;;
-    --status|-s)
-        cmd_status
-        ;;
-    --help|-h)
-        cmd_help
-        ;;
-    "")
-        # Interactive mode when no args provided
-        cmd_workspace
-        ;;
-    -*)
-        log_error "Unknown option: $1"
-        cmd_help
-        exit 1
-        ;;
-    *)
-        # Workspace mode: fjj [branch] [repo]
-        cmd_workspace "$@"
-        ;;
+  --add|-a)
+    shift
+    if [[ $# -eq 0 ]]; then
+      interactive_add
+    else
+      quick_add "$1"
+    fi
+    ;;
+  --list|-l)
+    cmd_list
+    ;;
+  --clean|-c)
+    cmd_clean
+    ;;
+  --status|-s)
+    cmd_status
+    ;;
+  --session)
+    shift
+    cmd_session "$@"
+    ;;
+  --help|-h)
+    cmd_help
+    ;;
+  "")
+    # Interactive mode when no args provided
+    cmd_workspace
+    ;;
+  -*)
+    log_error "Unknown option: $1"
+    cmd_help
+    exit 1
+    ;;
+  *)
+    # Workspace mode: fjj [type/topic] [repo]
+    cmd_workspace "$@"
+    ;;
 esac

@@ -8,19 +8,19 @@ Agent skills are defined in `modules/home-manager/skills/manifest.nix` and insta
 |-------|-------------|-------|
 | `brainstorming` | Collaborative design dialogue | developer, creative |
 | `debugging` | Systematic debugging approach | developer |
-| `diataxis-docs` | Documentation restructuring (Diataxis framework) | developer, creative, opencode, claude |
-| `jj` | Jujutsu version control | developer, opencode, claude |
-| `prd-review` | Display PRD files for review and status tracking | developer, opencode, claude |
-| `ralph-specs` | Write specs for Ralph Loop autonomous agent | developer, opencode, claude |
+| `diataxis-docs` | Documentation restructuring (Diataxis framework) | developer, creative, llm-client, llm-claude |
+| `jj` | Jujutsu version control | developer, llm-client, llm-claude |
 | `receiving-code-review` | Process review feedback | developer, workstation |
 | `requesting-code-review` | Prepare and request reviews | developer, workstation |
 | `tdd` | Test-driven development workflow | developer |
-| `using-superpowers` | Access available skills | opencode, claude |
+| `using-superpowers` | Access available skills | llm-client, llm-claude |
 | `verification-before-completion` | Pre-completion verification | developer |
 | `writing-plans` | Implementation plan creation | developer |
-| `writing-skills` | Skill documentation and creation | developer, creative, opencode, claude |
+| `writing-skills` | Documentation and skill writing | developer, creative, llm-client, llm-claude |
 
 ## Skill Structure
+
+Each skill contains:
 
 ```
 skills/<skill-name>/
@@ -32,7 +32,7 @@ skills/<skill-name>/
 ```markdown
 ---
 name: skill-name
-description: Brief description
+description: Brief description of what the skill does
 ---
 
 # Skill Name
@@ -47,24 +47,21 @@ description: Brief description
 ...
 ```
 
-## Skill Sources
-
-| Type | Location | Description |
-|------|----------|-------------|
-| `internal` | `modules/home-manager/skills/internal/` | Defined in this repo |
-| `external` | `modules/home-manager/skills/external/` | Adapted from external sources |
-| `superpowers` | From flake input | Skills from superpowers repo |
-
 ## Installation
 
-Skills install automatically based on enabled roles:
+Skills are installed automatically based on enabled roles:
 
-1. `mkBundleModule` sets `myConfig.skills.enabledRoles`
+1. `flake.nix` sets `myConfig.skills.enabledRoles`
 2. `skills/install.nix` filters manifest by roles
 3. Matching skills are symlinked via home-manager
-4. Dependencies are resolved and included
 
-## Manifest Entry
+## Skill Locations
+
+- **Internal skills**: `modules/home-manager/skills/internal/`
+- **External skills**: `modules/home-manager/skills/external/`
+- **Installed location**: `~/.config/opencode/skills/`
+
+## Manifest Entry Format
 
 ```nix
 "skill-name" = {
