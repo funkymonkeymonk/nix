@@ -1124,5 +1124,153 @@ with lib; {
         description = "Gateway IP for the microvm (bridge IP)";
       };
     };
+
+    sketchybar = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable sketchybar status bar (macOS only)";
+      };
+
+      height = mkOption {
+        type = types.int;
+        default = 40;
+        description = "Height of the sketchybar in pixels";
+      };
+
+      padding = mkOption {
+        type = types.int;
+        default = 2;
+        description = "Padding on left and right of the bar";
+      };
+
+      groupPadding = mkOption {
+        type = types.int;
+        default = 10;
+        description = "Padding between item groups";
+      };
+
+      font = {
+        text = mkOption {
+          type = types.str;
+          default = "SF Pro";
+          description = "Font family for text items";
+        };
+
+        numbers = mkOption {
+          type = types.str;
+          default = "SF Mono";
+          description = "Font family for numbers";
+        };
+      };
+
+      colors = {
+        black = mkOption {
+          type = types.str;
+          default = "#181819";
+          description = "Black color";
+        };
+
+        white = mkOption {
+          type = types.str;
+          default = "#e2e2e3";
+          description = "White color";
+        };
+
+        red = mkOption {
+          type = types.str;
+          default = "#fc5d7c";
+          description = "Red color";
+        };
+
+        green = mkOption {
+          type = types.str;
+          default = "#9ed072";
+          description = "Green color";
+        };
+
+        blue = mkOption {
+          type = types.str;
+          default = "#76cce0";
+          description = "Blue color";
+        };
+
+        yellow = mkOption {
+          type = types.str;
+          default = "#e7c664";
+          description = "Yellow color";
+        };
+
+        orange = mkOption {
+          type = types.str;
+          default = "#f39660";
+          description = "Orange color";
+        };
+
+        magenta = mkOption {
+          type = types.str;
+          default = "#b39df3";
+          description = "Magenta color";
+        };
+
+        grey = mkOption {
+          type = types.str;
+          default = "#7f8490";
+          description = "Grey color";
+        };
+
+        bar = {
+          bg = mkOption {
+            type = types.str;
+            default = "#2c2e34";
+            description = "Bar background color";
+          };
+
+          border = mkOption {
+            type = types.str;
+            default = "#2c2e34";
+            description = "Bar border color";
+          };
+        };
+
+        popup = {
+          bg = mkOption {
+            type = types.str;
+            default = "#2c2e34";
+            description = "Popup background color";
+          };
+
+          border = mkOption {
+            type = types.str;
+            default = "#7f8490";
+            description = "Popup border color";
+          };
+        };
+
+        bg1 = mkOption {
+          type = types.str;
+          default = "#363944";
+          description = "Background level 1 color";
+        };
+
+        bg2 = mkOption {
+          type = types.str;
+          default = "#414550";
+          description = "Background level 2 color";
+        };
+      };
+
+      useAerospaceIntegration = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable aerospace window manager integration for workspace display";
+      };
+
+      extraConfig = mkOption {
+        type = types.lines;
+        default = "";
+        description = "Extra Lua configuration to append to sketchybarrc";
+      };
+    };
   };
 }
