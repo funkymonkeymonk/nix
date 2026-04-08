@@ -9,6 +9,7 @@
   testPackages = import ./test-packages.nix {inherit pkgs;};
   testRoles = import ./test-roles.nix {inherit pkgs;};
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
+  testSkills = import ./test-skills.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -33,6 +34,12 @@ in
     role-composition = testRoles.allRolesCompositionTest;
     role-packages = testRoles.rolePackageInclusionTest;
     role-cascades = testRoles.roleCascadeTest;
+
+    # Skills tests
+    skills-manifest = testSkills.manifestValidationTest;
+    skills-autoload-filtering = testSkills.autoLoadFilteringTest;
+    skills-autoload-content = testSkills.autoLoadContentTest;
+    skills-role-filtering = testSkills.roleFilteringTest;
 
     # Coverage tracking
     module-coverage = testCoverage.moduleCoverageTest;

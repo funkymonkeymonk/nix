@@ -296,11 +296,14 @@ in {
       # Use home-manager's native programs.opencode
       opencode = {
         enable = true;
-        settings =
+        settings = let
+          # Build instructions list: RTK docs + any auto-loaded skills
+          instructionFiles =
+            lib.optional rtkCfg.enable "RTK.md"
+            ++ ["skills/auto-loaded.md"];
+        in
           settings
-          // (optionalAttrs rtkCfg.enable {
-            instructions = ["RTK.md"];
-          });
+          // {instructions = instructionFiles;};
       };
 
       # Configure opnix secrets for providers with 1Password items

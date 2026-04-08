@@ -1114,6 +1114,28 @@
       '';
     };
 
+    "test:skills" = {
+      description = "Test skills manifest, autoLoad filtering, and content generation";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Testing skills manifest validation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-manifest" --no-link
+        echo "Skills manifest test passed"
+        echo ""
+        echo "Testing autoLoad filtering ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-autoload-filtering" --no-link
+        echo "AutoLoad filtering test passed"
+        echo ""
+        echo "Testing autoLoad content generation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-autoload-content" --no-link
+        echo "AutoLoad content generation test passed"
+        echo ""
+        echo "Testing skills role filtering ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-role-filtering" --no-link
+        echo "Skills role filtering test passed"
+      '';
+    };
+
     "test:vm" = {
       description = "Run NixOS VM integration tests (Linux only)";
       exec = ''
@@ -1149,6 +1171,9 @@
         echo ""
         echo "=== Running Role Tests ==="
         devenv tasks run test:roles
+        echo ""
+        echo "=== Running Skills Tests ==="
+        devenv tasks run test:skills
         echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"

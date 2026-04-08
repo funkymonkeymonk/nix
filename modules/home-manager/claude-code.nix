@@ -7,6 +7,7 @@
 with lib; let
   cfg = osConfig.myConfig.claude-code;
   rtkCfg = osConfig.myConfig.llmClient.rtk;
+  skillsCfg = osConfig.myConfig.skills or {};
   hmLib = import ./lib.nix {inherit lib;};
 
   # Filter MCP servers that have 1Password items configured for API keys
@@ -46,6 +47,34 @@ with lib; let
     // (optionalAttrs (cfg.mcpServers != {}) {
       mcpServers = mcpServerConfig;
     });
+  # Build auto-loaded skills content from manifest
+  manifest = import ./skills/manifest.nix;
+  enabledRoles = skillsCfg.enabledRoles or [];
+  superpowersPath = skillsCfg.superpowersPath or null;
+  enabledSkills =
+    lib.filterAttrs (
+      _name: skill:
+        lib.any (role: lib.elem role skill.roles) enabledRoles
+    )
+    manifest;
+  autoLoadSkills =
+    lib.filterAttrs (
+      _name: skill: skill.autoLoad or false
+    )
+    enabledSkills;
+  autoLoadContent = lib.concatStringsSep "\n\n---\n\n" (lib.mapAttrsToList (
+      name: skill: let
+        skillMd =
+          if skill.source.type == "internal"
+          then builtins.readFile "${skill.source.path}/SKILL.md"
+          else if skill.source.type == "superpowers" && superpowersPath != null
+          then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
+          else "# ${name}\n\n${skill.description}";
+      in
+        skillMd
+    )
+    autoLoadSkills);
+  hasAutoLoadSkills = autoLoadSkills != {};
 in {
   config = mkIf cfg.enable {
     # RTK hook script - installed from rtk package when RTK is enabled
@@ -76,6 +105,11 @@ in {
           };
       in
         builtins.toJSON fullSettings;
+    };
+
+    # Auto-loaded skills injected into Claude Code session context
+    home.file.".claude/CLAUDE.md" = mkIf hasAutoLoadSkills {
+      text = autoLoadContent;
     };
 
     # Use home-manager's native programs.claude-code
