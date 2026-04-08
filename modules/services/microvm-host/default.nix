@@ -2,16 +2,20 @@
 # Provides: bridge networking, DNS logging, connection monitoring.
 # MicroVM definitions come from /etc/nixos/microvms.nix (generated from cloud-init).
 # Enabled via the microvm-host role.
+# NOTE: This module uses NixOS-specific options and will only apply config on NixOS systems.
 {
   config,
   lib,
   pkgs,
+  options,
   ...
 }:
 with lib; let
   cfg = config.services.microvm-host;
   bridgeIp = builtins.head (builtins.split "/" cfg.bridgeSubnet);
   cloudInitDir = "/var/lib/microvms/cloud-init";
+  # Check if we're on NixOS by checking for NixOS-specific options
+  isNixOS = builtins.hasAttr "boot" options;
 in {
   options.services.microvm-host = {
     enable = mkEnableOption "MicroVM host infrastructure (bridge, DNS logging, connection monitoring)";
@@ -53,7 +57,8 @@ in {
     };
   };
 
-  config = mkIf cfg.enable {
+  # Only apply configuration on NixOS systems (where boot.* options exist)
+  config = mkIf (cfg.enable && isNixOS) {
     boot.kernelModules = ["kvm-intel" "kvm-amd" "tap" "bridge"];
 
     # Bridge networking

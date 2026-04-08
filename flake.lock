@@ -2053,6 +2053,7 @@
         "nixpkgs-stable": "nixpkgs-stable",
         "opnix": "opnix",
         "superpowers": "superpowers",
+        "vercel-skills": "vercel-skills",
         "zellij-pane-tracker": "zellij-pane-tracker"
       }
     },
@@ -2290,6 +2291,22 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "vercel-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1775448549,
+        "narHash": "sha256-P7sHiKqeThQGIOfJ1nfjiECZnhQh+U2HuLex2sg8k5E=",
+        "owner": "vercel-labs",
+        "repo": "skills",
+        "rev": "df0579f85cb8a360473c921e1343359006100d3c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vercel-labs",
+        "repo": "skills",
         "type": "github"
       }
     },

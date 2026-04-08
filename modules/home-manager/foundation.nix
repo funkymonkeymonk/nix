@@ -27,6 +27,14 @@
         push-bookmark-prefix = "push-";
         default-branch = "main";
       };
+      # Set Helix as the default editor (command is 'hx')
+      ui = {
+        editor = "hx";
+      };
+      # Custom aliases for common operations
+      aliases = {
+        ba = ["bookmark" "advance"];
+      };
     };
   };
 
