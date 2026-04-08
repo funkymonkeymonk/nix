@@ -406,6 +406,78 @@ with lib; {
         default = true;
         description = "Enable 1Password for sudo authentication (NixOS only)";
       };
+
+      tokenFile = mkOption {
+        type = types.path;
+        default = "/etc/opnix-token";
+        description = ''
+          Path to the 1Password service account token file.
+          This file should contain a 1Password service account token and have restricted permissions (0600).
+          The token is used by opnix to fetch secrets at runtime.
+
+          To create a service account token:
+          1. Go to https://my.1password.com/developer-tools/service-accounts
+          2. Create a service account with access to the vaults containing your secrets
+          3. Copy the token and save it to this file
+
+          The service will fail gracefully if the token file doesn't exist or is invalid.
+        '';
+      };
+
+      secrets = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            reference = mkOption {
+              type = types.str;
+              description = "1Password reference (e.g., 'op://vault/item/field')";
+            };
+            path = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = ''
+                Path where the secret should be written.
+                If null, opnix uses its outputDir (default: /var/lib/opnix/secrets) plus the secret name.
+              '';
+            };
+            mode = mkOption {
+              type = types.str;
+              default = "0600";
+              description = "File permissions for the secret";
+            };
+            owner = mkOption {
+              type = types.str;
+              default = "root";
+              description = "Owner of the secret file";
+            };
+            group = mkOption {
+              type = types.str;
+              default = "root";
+              description = "Group of the secret file";
+            };
+            services = mkOption {
+              type = types.listOf types.str;
+              default = [];
+              description = "Services that depend on this secret (will be restarted when secret changes)";
+            };
+          };
+        });
+        default = {};
+        description = ''
+          Secrets to fetch from 1Password using opnix.
+          Secrets are fetched at boot time and written to the specified paths.
+          The 1Password service account must have access to the referenced vaults.
+
+          Example:
+          {
+            myApiKey = {
+              reference = "op://Private/MyAPI/credential";
+              path = "/run/secrets/my-api-key";
+              mode = "0600";
+              owner = "myuser";
+            };
+          }
+        '';
+      };
     };
 
     syncthing = {
