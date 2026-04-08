@@ -1,4 +1,12 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  config,
+  lib,
+  options,
+  ...
+}: let
+  homeManagerAvailable = builtins.hasAttr "home-manager" options;
+in {
   services.aerospace = {
     enable = true;
     package = pkgs.aerospace;
@@ -98,9 +106,19 @@
           };
           run = ["move-node-to-workspace 3.Dash"];
         }
+        {
+          "if" = {
+            app-id = "com.vivaldi.Vivaldi";
+          };
+          run = ["move-node-to-workspace 3.Dash"];
+        }
       ];
+
       # Default: new workspaces go to external monitor (PHL 346B1C)
-      on-focused-monitor-changed = ["move-mouse monitor-lazy-center"];
+      on-focused-monitor-changed = [
+        "move-mouse monitor-lazy-center"
+        "exec-and-forget ~/.config/aerospace-scripts/move-vivaldi-to-active-monitor.sh"
+      ];
 
       workspace-to-monitor-force-assignment = {
         # Comms stays on built-in display
@@ -112,4 +130,15 @@
       };
     };
   };
+
+  # Deploy the Vivaldi move script via home-manager when available
+  home-manager.users = lib.optionalAttrs homeManagerAvailable (
+    lib.mapAttrs (_: _: {
+      home.file.".config/aerospace-scripts/move-vivaldi-to-active-monitor.sh" = {
+        source = ../scripts/move-vivaldi-to-active-monitor.sh;
+        executable = true;
+      };
+    })
+    config.myConfig.users
+  );
 }
