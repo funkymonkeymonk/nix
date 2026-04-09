@@ -48,11 +48,57 @@
     alias dtr="devenv tasks run"
     alias dtl="devenv tasks list"
 
-    alias s="devenv tasks run system:switch"
-    alias switch="devenv tasks run system:switch"
-    alias q="devenv tasks run check:all"
-    alias b="devenv tasks run build:all"
-    alias i="devenv tasks run dev:ide"
+    # ============================================
+    # JJ Workspace Support - Check if in workspace
+    # ============================================
+    # Function to detect main repo root from workspace
+    _detect_jj_repo_root() {
+      local current_dir="$1"
+      if [[ -f "$current_dir/.jj/repo" ]] && [[ ! -d "$current_dir/.jj/repo" ]]; then
+        local repo_pointer=$(cat "$current_dir/.jj/repo" 2>/dev/null)
+        if [[ -n "$repo_pointer" ]]; then
+          (cd "$current_dir/.jj" && cd "$(dirname "$repo_pointer")" && cd .. && pwd)
+          return 0
+        fi
+      fi
+      echo "$current_dir"
+    }
+
+    # Check if we're in a jj workspace
+    if command -v jj &>/dev/null; then
+      _JJ_WORKSPACE_ROOT=$(jj root 2>/dev/null || pwd)
+      _JJ_REPO_ROOT=$(_detect_jj_repo_root "$_JJ_WORKSPACE_ROOT")
+
+      if [[ "$_JJ_WORKSPACE_ROOT" != "$_JJ_REPO_ROOT" ]] && [[ -d "$_JJ_WORKSPACE_ROOT/.jj" ]]; then
+        # In workspace - create functions that run from repo root
+        echo "📁 JJ Workspace: $(basename "$_JJ_WORKSPACE_ROOT")"
+        echo "   Switch will run from: $_JJ_REPO_ROOT"
+        echo ""
+
+        # Use functions instead of aliases for better compatibility
+        s() { (cd "$_JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
+        switch() { (cd "$_JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
+        b() { (cd "$_JJ_REPO_ROOT" && devenv tasks run build:all "$@"); }
+        q() { (cd "$_JJ_REPO_ROOT" && devenv tasks run check:all "$@"); }
+      else
+        # In main repo - use normal functions
+        s() { devenv tasks run system:switch "$@"; }
+        switch() { devenv tasks run system:switch "$@"; }
+        q() { devenv tasks run check:all "$@"; }
+        b() { devenv tasks run build:all "$@"; }
+      fi
+    else
+      # No jj - use normal functions
+      s() { devenv tasks run system:switch "$@"; }
+      switch() { devenv tasks run system:switch "$@"; }
+      q() { devenv tasks run check:all "$@"; }
+      b() { devenv tasks run build:all "$@"; }
+    fi
+    i() { devenv tasks run dev:ide "$@"; }
+
+    # Cleanup temp functions
+    unset -f _detect_jj_repo_root 2>/dev/null || true
+    unset _JJ_WORKSPACE_ROOT _JJ_REPO_ROOT 2>/dev/null || true
 
     # Source switch-nix function (same source as system-wide install)
     source ./modules/common/scripts/switch-nix
@@ -290,7 +336,7 @@
 
         if [[ "$PLATFORM" == "Darwin" ]]; then
           # Try hostname directly, then scan Darwin configs for a match
-          DARWIN_CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+          DARWIN_CONFIGS=$(nix eval --impure --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
           CONFIG_NAME=""
           for cfg in $DARWIN_CONFIGS; do
             if [[ "$cfg" == "$HOSTNAME" ]]; then
@@ -304,7 +350,7 @@
             # Fallback: check known hostname aliases
             for cfg in $DARWIN_CONFIGS; do
               # Try to evaluate primaryUser and match against hostname
-              PRIMARY_USER=$(nix eval --raw ".#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
+              PRIMARY_USER=$(nix eval --impure --raw ".#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
               if [[ -n "$PRIMARY_USER" && "$HOSTNAME" == *"$PRIMARY_USER"* ]]; then
                 CONFIG_NAME="$cfg"
                 break
