@@ -29,6 +29,10 @@ in
     # Option validation tests
     foundation-options = testPackages.foundationOptionsTest;
 
+    # Sketchybar tests
+    sketchybar-options = testPackages.sketchybarOptionsTest;
+    sketchybar-theme = testPackages.sketchybarThemeTest;
+
     # Per-role tests
     role-evaluation = testRoles.roleEvaluationTest;
     role-composition = testRoles.allRolesCompositionTest;

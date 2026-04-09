@@ -26,6 +26,8 @@
     "home-manager/opencode.nix"
     "home-manager/pi-coding-agent.nix"
     "home-manager/shell.nix"
+    "home-manager/sketchybar/default.nix"
+    "home-manager/themes.nix"
     "home-manager/watch-ci-jobs.nix"
     "home-manager/zellij.nix"
     "home-manager/skills/install.nix"
@@ -87,6 +89,8 @@
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
     "common/users.nix"
+    # Tested via test-packages.nix sketchybarThemeTest (direct import + validation)
+    "home-manager/themes.nix"
   ];
 
   # Modules not yet covered by tests

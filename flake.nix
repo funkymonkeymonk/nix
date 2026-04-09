@@ -688,6 +688,8 @@
             skills-autoload-filtering
             skills-autoload-content
             skills-role-filtering
+            sketchybar-options
+            sketchybar-theme
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

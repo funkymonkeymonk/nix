@@ -295,4 +295,205 @@
       echo "All 1Password options verified"
       touch $out
     '';
+
+  # Test sketchybar module options by evaluating their types and custom values
+  sketchybarOptionsTest = let
+    testEval = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+        {
+          config.myConfig.sketchybar = {
+            enable = true;
+            height = 50;
+            padding = 4;
+            groupPadding = 12;
+            useAerospaceIntegration = false;
+            extraConfig = "-- test config";
+          };
+        }
+      ];
+    };
+    cfg = testEval.config.myConfig.sketchybar;
+  in
+    pkgs.runCommand "test-sketchybar-options"
+    {}
+    ''
+      echo "=== Testing Sketchybar Options ==="
+
+      # Verify option values are correctly set
+      echo "  enable: ${builtins.toJSON cfg.enable}"
+      echo "  height: ${toString cfg.height}"
+      echo "  padding: ${toString cfg.padding}"
+      echo "  groupPadding: ${toString cfg.groupPadding}"
+      echo "  useAerospaceIntegration: ${builtins.toJSON cfg.useAerospaceIntegration}"
+
+      # Verify custom values override defaults
+      ${
+        if cfg.height == 50
+        then ''echo "  Custom height: OK"''
+        else ''echo "  Custom height: FAILED"; exit 1''
+      }
+      ${
+        if cfg.padding == 4
+        then ''echo "  Custom padding: OK"''
+        else ''echo "  Custom padding: FAILED"; exit 1''
+      }
+      ${
+        if cfg.groupPadding == 12
+        then ''echo "  Custom groupPadding: OK"''
+        else ''echo "  Custom groupPadding: FAILED"; exit 1''
+      }
+      ${
+        if !cfg.useAerospaceIntegration
+        then ''echo "  Aerospace disabled: OK"''
+        else ''echo "  Aerospace disabled: FAILED"; exit 1''
+      }
+
+      echo "All sketchybar options verified"
+      touch $out
+    '';
+
+  # Test sketchybar theme integration from themes.nix
+  sketchybarThemeTest = let
+    themesModule = import ../modules/home-manager/themes.nix {
+      inherit (pkgs) lib;
+      inherit pkgs;
+    };
+    theme = themesModule._module.args.earthsong.sketchybarTheme;
+  in
+    pkgs.runCommand "test-sketchybar-theme"
+    {}
+    ''
+      echo "=== Testing Sketchybar Theme Integration ==="
+
+      # Verify theme structure has required top-level keys
+      ${
+        if theme ? colors
+        then ''echo "  colors: present"''
+        else ''echo "  colors: MISSING"; exit 1''
+      }
+      ${
+        if theme ? font
+        then ''echo "  font: present"''
+        else ''echo "  font: MISSING"; exit 1''
+      }
+
+      # Verify color sub-attributes
+      ${
+        if theme.colors ? black
+        then ''echo "  colors.black: present"''
+        else ''echo "  colors.black: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? white
+        then ''echo "  colors.white: present"''
+        else ''echo "  colors.white: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? red
+        then ''echo "  colors.red: present"''
+        else ''echo "  colors.red: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? green
+        then ''echo "  colors.green: present"''
+        else ''echo "  colors.green: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? blue
+        then ''echo "  colors.blue: present"''
+        else ''echo "  colors.blue: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? yellow
+        then ''echo "  colors.yellow: present"''
+        else ''echo "  colors.yellow: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? orange
+        then ''echo "  colors.orange: present"''
+        else ''echo "  colors.orange: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? magenta
+        then ''echo "  colors.magenta: present"''
+        else ''echo "  colors.magenta: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? grey
+        then ''echo "  colors.grey: present"''
+        else ''echo "  colors.grey: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? bar
+        then ''echo "  colors.bar: present"''
+        else ''echo "  colors.bar: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? popup
+        then ''echo "  colors.popup: present"''
+        else ''echo "  colors.popup: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? bg1
+        then ''echo "  colors.bg1: present"''
+        else ''echo "  colors.bg1: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors ? bg2
+        then ''echo "  colors.bg2: present"''
+        else ''echo "  colors.bg2: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors.bar ? bg
+        then ''echo "  colors.bar.bg: present"''
+        else ''echo "  colors.bar.bg: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors.bar ? border
+        then ''echo "  colors.bar.border: present"''
+        else ''echo "  colors.bar.border: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors.popup ? bg
+        then ''echo "  colors.popup.bg: present"''
+        else ''echo "  colors.popup.bg: MISSING"; exit 1''
+      }
+      ${
+        if theme.colors.popup ? border
+        then ''echo "  colors.popup.border: present"''
+        else ''echo "  colors.popup.border: MISSING"; exit 1''
+      }
+
+      # Verify font values
+      ${
+        if theme.font.text == "SF Pro"
+        then ''echo "  font.text = SF Pro: OK"''
+        else ''echo "  font.text: unexpected value"; exit 1''
+      }
+      ${
+        if theme.font.numbers == "SF Mono"
+        then ''echo "  font.numbers = SF Mono: OK"''
+        else ''echo "  font.numbers: unexpected value"; exit 1''
+      }
+
+      # Verify color format (should be "#RRGGBB")
+      ${
+        if builtins.substring 0 1 theme.colors.black == "#"
+        then ''echo "  Color format (#hex): OK"''
+        else ''echo "  Color format: unexpected"; exit 1''
+      }
+
+      echo "All sketchybar theme tests passed"
+      touch $out
+    '';
 }
