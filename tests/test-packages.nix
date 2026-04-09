@@ -295,4 +295,311 @@
       echo "All 1Password options verified"
       touch $out
     '';
+
+  # Test onepassword.nix config output for both platforms
+  # Verifies that the module produces correct config for NixOS (isDarwin=false)
+  # and Darwin (isDarwin=true) without importing options.nix (avoids readOnly isDarwin).
+  onepasswordConfigOutputTest = let
+    inherit (pkgs) lib;
+
+    # Minimal option stubs shared by both evaluations
+    commonStubModule = {
+      options.nixpkgs.hostPlatform = lib.mkOption {
+        type = lib.types.anything;
+        default = {inherit (pkgs.stdenv.hostPlatform) system;};
+      };
+      options.myConfig = {
+        isDarwin = lib.mkOption {
+          type = lib.types.bool;
+          # No readOnly – tests override this
+        };
+        onepassword = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+          };
+          enableGUI = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          enableSSHAgent = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          enableGitSigning = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          signingKey = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+          };
+          enableSudo = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          tokenFile = lib.mkOption {
+            type = lib.types.path;
+            default = "/etc/opnix-token";
+          };
+          secrets = lib.mkOption {
+            type = lib.types.attrsOf lib.types.anything;
+            default = {};
+          };
+        };
+      };
+      options.environment.systemPackages = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [];
+      };
+    };
+
+    # --- NixOS evaluation (isDarwin = false) ---
+    nixosEval = lib.evalModules {
+      modules = [
+        commonStubModule
+        {
+          options.programs._1password = {
+            enable = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+            };
+            package = lib.mkOption {
+              type = lib.types.package;
+              default = pkgs._1password-cli;
+            };
+          };
+        }
+        ../modules/common/onepassword.nix
+        {config._module.args = {inherit pkgs;};}
+        {
+          config.myConfig = {
+            isDarwin = false;
+            onepassword.enable = true;
+          };
+        }
+      ];
+    };
+    nixosCfg = nixosEval.config;
+
+    # --- Darwin evaluation (isDarwin = true) ---
+    darwinEval = lib.evalModules {
+      modules = [
+        commonStubModule
+        {
+          # Darwin doesn't have programs._1password, so omit it
+          options.programs = lib.mkOption {
+            type = lib.types.attrsOf lib.types.anything;
+            default = {};
+          };
+        }
+        ../modules/common/onepassword.nix
+        {config._module.args = {inherit pkgs;};}
+        {
+          config.myConfig = {
+            isDarwin = true;
+            onepassword.enable = true;
+          };
+        }
+      ];
+    };
+    darwinCfg = darwinEval.config;
+
+    has1PasswordCli = builtins.any (p: (p.pname or "") == "_1password-cli" || (p.name or "") == pkgs._1password-cli.name) darwinCfg.environment.systemPackages;
+  in
+    pkgs.runCommand "test-onepassword-config-output"
+    {}
+    ''
+      echo "=== Testing 1Password Config Output ==="
+
+      # NixOS: programs._1password.enable should be true
+      echo "  NixOS: programs._1password.enable = ${builtins.toJSON nixosCfg.programs._1password.enable}"
+      ${
+        if nixosCfg.programs._1password.enable
+        then ''echo "  NixOS programs._1password.enable: OK"''
+        else ''echo "  ERROR: NixOS programs._1password.enable should be true"; exit 1''
+      }
+
+      # NixOS: programs._1password.package should be set
+      echo "  NixOS: programs._1password.package = ${nixosCfg.programs._1password.package.name}"
+      ${
+        if nixosCfg.programs._1password.package.name == pkgs._1password-cli.name
+        then ''echo "  NixOS programs._1password.package: OK"''
+        else ''echo "  ERROR: NixOS programs._1password.package mismatch"; exit 1''
+      }
+
+      # Darwin: environment.systemPackages should contain _1password-cli
+      echo "  Darwin: environment.systemPackages count = ${toString (builtins.length darwinCfg.environment.systemPackages)}"
+      ${
+        if has1PasswordCli
+        then ''echo "  Darwin environment.systemPackages contains _1password-cli: OK"''
+        else ''echo "  ERROR: Darwin environment.systemPackages missing _1password-cli"; exit 1''
+      }
+
+      echo "All 1Password config output tests passed"
+      touch $out
+    '';
+
+  # Test the hasOpnix conditional guard in onepassword.nix
+  # Verifies that services.onepassword-secrets config is only produced
+  # when the opnix option is available in options.services.
+  onepasswordOpnixGuardTest = let
+    inherit (pkgs) lib;
+
+    # Shared option stubs
+    commonStubModule = {
+      options.nixpkgs.hostPlatform = lib.mkOption {
+        type = lib.types.anything;
+        default = {inherit (pkgs.stdenv.hostPlatform) system;};
+      };
+      options.myConfig = {
+        isDarwin = lib.mkOption {type = lib.types.bool;};
+        onepassword = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+          };
+          enableGUI = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          enableSSHAgent = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          enableGitSigning = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          signingKey = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+          };
+          enableSudo = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+          };
+          tokenFile = lib.mkOption {
+            type = lib.types.path;
+            default = "/etc/opnix-token";
+          };
+          secrets = lib.mkOption {
+            type = lib.types.attrsOf lib.types.anything;
+            default = {};
+          };
+        };
+      };
+      options.environment.systemPackages = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [];
+      };
+      # programs stub for Darwin path (no programs._1password)
+      options.programs = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+      };
+    };
+
+    # --- Evaluation WITHOUT opnix (no services.onepassword-secrets option) ---
+    withoutOpnixEval = lib.evalModules {
+      modules = [
+        commonStubModule
+        ../modules/common/onepassword.nix
+        {config._module.args = {inherit pkgs;};}
+        {
+          config.myConfig = {
+            isDarwin = true;
+            onepassword = {
+              enable = true;
+              tokenFile = "/etc/opnix-token";
+              secrets = {};
+            };
+          };
+        }
+      ];
+    };
+    withoutOpnixCfg = withoutOpnixEval.config;
+    withoutHasOpnix = builtins.hasAttr "onepassword-secrets" (withoutOpnixCfg.services or {});
+
+    # --- Evaluation WITH opnix (services.onepassword-secrets option available) ---
+    withOpnixEval = lib.evalModules {
+      modules = [
+        commonStubModule
+        {
+          # Provide the opnix service option stub
+          options.services.onepassword-secrets = {
+            enable = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+            };
+            tokenFile = lib.mkOption {
+              type = lib.types.path;
+              default = "/etc/opnix-token";
+            };
+            secrets = lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
+              default = {};
+            };
+          };
+        }
+        ../modules/common/onepassword.nix
+        {config._module.args = {inherit pkgs;};}
+        {
+          config.myConfig = {
+            isDarwin = true;
+            onepassword = {
+              enable = true;
+              tokenFile = "/etc/my-token";
+              secrets = {
+                testSecret = {
+                  reference = "op://vault/item/field";
+                };
+              };
+            };
+          };
+        }
+      ];
+    };
+    withOpnixCfg = withOpnixEval.config;
+  in
+    pkgs.runCommand "test-onepassword-opnix-guard"
+    {}
+    ''
+      echo "=== Testing 1Password Opnix Guard ==="
+
+      # Without opnix: services should NOT have onepassword-secrets
+      echo "  Without opnix module: services.onepassword-secrets present = ${builtins.toJSON withoutHasOpnix}"
+      ${
+        if !withoutHasOpnix
+        then ''echo "  Without opnix: no onepassword-secrets config: OK"''
+        else ''echo "  ERROR: onepassword-secrets should not be present without opnix module"; exit 1''
+      }
+
+      # With opnix: services.onepassword-secrets.enable should be true
+      echo "  With opnix module: services.onepassword-secrets.enable = ${builtins.toJSON withOpnixCfg.services.onepassword-secrets.enable}"
+      ${
+        if withOpnixCfg.services.onepassword-secrets.enable
+        then ''echo "  With opnix: services.onepassword-secrets.enable = true: OK"''
+        else ''echo "  ERROR: services.onepassword-secrets.enable should be true"; exit 1''
+      }
+
+      # With opnix: tokenFile should be forwarded from myConfig
+      echo "  With opnix module: services.onepassword-secrets.tokenFile = ${builtins.toJSON withOpnixCfg.services.onepassword-secrets.tokenFile}"
+      ${
+        if withOpnixCfg.services.onepassword-secrets.tokenFile == "/etc/my-token"
+        then ''echo "  With opnix: tokenFile forwarded correctly: OK"''
+        else ''echo "  ERROR: tokenFile not forwarded correctly"; exit 1''
+      }
+
+      # With opnix: secrets should be forwarded from myConfig
+      echo "  With opnix module: secrets count = ${toString (builtins.length (builtins.attrNames withOpnixCfg.services.onepassword-secrets.secrets))}"
+      ${
+        if withOpnixCfg.services.onepassword-secrets.secrets ? testSecret
+        then ''echo "  With opnix: secrets forwarded correctly: OK"''
+        else ''echo "  ERROR: secrets not forwarded correctly"; exit 1''
+      }
+
+      echo "All 1Password opnix guard tests passed"
+      touch $out
+    '';
 }

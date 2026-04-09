@@ -676,6 +676,9 @@
           inherit
             (tests)
             foundation-options
+            onepassword-options
+            onepassword-config
+            onepassword-opnix-guard
             core-packages
             foundation-packages
             config-validation

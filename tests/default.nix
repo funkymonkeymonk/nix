@@ -29,6 +29,11 @@ in
     # Option validation tests
     foundation-options = testPackages.foundationOptionsTest;
 
+    # 1Password tests
+    onepassword-options = testPackages.onepasswordOptionsTest;
+    onepassword-config = testPackages.onepasswordConfigOutputTest;
+    onepassword-opnix-guard = testPackages.onepasswordOpnixGuardTest;
+
     # Per-role tests
     role-evaluation = testRoles.roleEvaluationTest;
     role-composition = testRoles.allRolesCompositionTest;
