@@ -99,6 +99,7 @@
                 claude.enable = true;
                 pi.enable = true;
                 llm-host.enable = true;
+                microvm-host.enable = true;
               };
             };
           }
@@ -120,6 +121,7 @@
     "claude"
     "pi"
     "llm-host"
+    "microvm-host"
   ];
 
   # Map of roles to their expected nix packages (name attr of the derivation)
@@ -193,7 +195,7 @@ in {
       in
         if _forceEval
         then ''
-          echo "  All 12 roles enabled simultaneously: OK"
+          echo "  All 13 roles enabled simultaneously: OK"
           echo "  System packages count: ${toString (builtins.length evalAllRoles.environment.systemPackages)}"
           echo "  Enabled roles: ${builtins.concatStringsSep ", " evalAllRoles.myConfig.skills.enabledRoles}"
         ''

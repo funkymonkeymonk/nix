@@ -993,18 +993,30 @@
     };
 
     "microvm:test" = {
-      description = "Validate microvm configuration";
+      description = "Validate microvm configurations (dev-vm, openclaw, matrix)";
       exec = ''
-        echo "Validating dev-vm microvm configuration..."
-        if nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
-          --json >/dev/null 2>&1; then
-          echo "dev-vm configuration valid"
-        else
-          echo "dev-vm configuration invalid"
-          nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
-            --json --show-trace
+        echo "Validating microvm configurations..."
+        FAILED=0
+
+        for VM in dev-vm openclaw matrix; do
+          echo -n "  $VM... "
+          if nix eval .#microvm.nixosConfigurations.$VM.config.system.build.toplevel \
+            --json >/dev/null 2>&1; then
+            echo "valid"
+          else
+            echo "INVALID"
+            nix eval .#microvm.nixosConfigurations.$VM.config.system.build.toplevel \
+              --json --show-trace 2>&1 | head -40
+            FAILED=$((FAILED + 1))
+          fi
+        done
+
+        if [ $FAILED -gt 0 ]; then
+          echo ""
+          echo "$FAILED microvm configuration(s) failed validation"
           exit 1
         fi
+        echo "All microvm configurations valid"
       '';
     };
 
