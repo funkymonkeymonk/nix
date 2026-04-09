@@ -1,0 +1,1 @@
+Add onepassword.nix config output test (programs._1password on NixOS, systemPackages on Darwin)
