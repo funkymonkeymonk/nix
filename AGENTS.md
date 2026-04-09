@@ -84,6 +84,30 @@ devenv tasks run <task>        # Run a task
 | `b` | `build:all` |
 | `i` | `dev:ide` |
 
+### JJ Workspace Support
+
+When working in a jj workspace (created with `jj workspace add` or `fjj`), the switch command is workspace-aware:
+
+```bash
+# From any workspace directory - automatically runs from repo root
+s
+switch
+q
+b
+```
+
+**How it works:**
+- Detects if you're in a workspace (has `.jj/repo` as a file, not directory)
+- Displays: `📁 JJ Workspace: <name>` and `Switch will run from: <repo-root>`
+- Runs the command from the main repo root using your workspace's current commit
+
+**Requirements:**
+- Commit changes with `jj describe` before switching
+- The switch uses your current jj commit
+- Uncommitted changes are NOT included (use `scripts/switch-workspace-override` to test them)
+
+This solves the Nix flake "untracked files" error when running from workspaces.
+
 ---
 
 ## Working with This Repository

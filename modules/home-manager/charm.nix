@@ -32,11 +32,17 @@ in {
 
     home.shellAliases.md = "glow";
 
-    xdg.configFile."glow/glow.yml".source = yamlFormat.generate "glow.yml" glowConfig;
+    xdg.configFile."glow/glow.yml" = {
+      source = yamlFormat.generate "glow.yml" glowConfig;
+      force = true;
+    };
 
     # Darwin: glow also reads from ~/Library/Preferences/glow/glow.yml
     home.file = mkIf pkgs.stdenv.hostPlatform.isDarwin {
-      "Library/Preferences/glow/glow.yml".source = yamlFormat.generate "glow-darwin.yml" glowConfig;
+      "Library/Preferences/glow/glow.yml" = {
+        source = yamlFormat.generate "glow-darwin.yml" glowConfig;
+        force = true;
+      };
     };
 
     # mods: AI on the command line (home-manager native support)

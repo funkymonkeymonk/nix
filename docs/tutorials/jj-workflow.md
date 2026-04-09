@@ -185,6 +185,22 @@ jj bookmark delete feat/my-change
 | `git push --force` | `jj squash` + `jj git push` |
 | `git reflog` | `jj op log` + `jj op restore` |
 
+## Working in Workspaces
+
+When using [jj workspaces](../how-to/use-workspaces.md) for parallel development, the system switch command is workspace-aware:
+
+```bash
+# From any workspace directory
+s
+```
+
+**What happens:**
+- Switch detects you're in a workspace (e.g., `fix-build`)
+- Automatically runs from the main repo root
+- Uses your current jj commit
+
+This lets you work in isolation while still being able to test your changes with a full system rebuild.
+
 ## What's Next
 
 - **[JJ Mental Model](../explanation/jj-mental-model.md)** — why jj works this way, change IDs vs commit IDs, conflicts as first-class objects
