@@ -43,6 +43,9 @@
     # External skill repositories (Option 2: Pure Nix approach)
     vercel-skills.url = "github:vercel-labs/skills";
     vercel-skills.flake = false;
+
+    # Sketchybar configuration with aerospace integration
+    aerospace-sketchybar.url = "github:zmre/aerospace-sketchybar-nix-lua-config";
   };
 
   outputs = {

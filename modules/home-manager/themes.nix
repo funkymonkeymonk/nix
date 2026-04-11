@@ -277,29 +277,32 @@
   # Glamour accepts a JSON stylesheet path as the glow "style" value.
   # We generate the JSON and expose the store path so charm.nix can reference it.
   glamourStyle = pkgs.writeText "earthsong-glamour.json" (builtins.toJSON {
+    # Glamour / termenv expect #-prefixed hex for RGB colours.
+    # Bare hex (no "#") is silently treated as a failed ANSI-256
+    # lookup by termenv, so no colour would be applied.
     document = {
       block_prefix = "\n";
       block_suffix = "\n";
-      color = bare p.fg;
+      color = p.fg;
       margin = 2;
     };
     block_quote = {
       indent = 1;
       indent_token = "│ ";
-      color = bare p.comment;
+      color = p.comment;
     };
     paragraph = {};
     list = {level_indent = 2;};
     heading = {
       block_suffix = "\n";
-      color = bare p.yellow;
+      color = p.yellow;
       bold = true;
     };
     h1 = {
       prefix = " ";
       suffix = " ";
-      color = bare p.brightWhite;
-      background_color = bare p.selectionBg;
+      color = p.brightWhite;
+      background_color = p.selectionBg;
       bold = true;
     };
     h2 = {prefix = "## ";};
@@ -308,7 +311,7 @@
     h5 = {prefix = "##### ";};
     h6 = {
       prefix = "###### ";
-      color = bare p.comment;
+      color = p.comment;
       bold = false;
     };
     text = {};
@@ -316,7 +319,7 @@
     emph = {italic = true;};
     strong = {bold = true;};
     hr = {
-      color = bare p.border;
+      color = p.border;
       format = "\n--------\n";
     };
     item = {block_prefix = "• ";};
@@ -326,63 +329,67 @@
       unticked = "[ ] ";
     };
     link = {
-      color = bare p.brightBlue;
+      color = p.brightBlue;
       underline = true;
     };
     link_text = {
-      color = bare p.cyan;
+      color = p.cyan;
       bold = true;
     };
     image = {
-      color = bare p.brightMagenta;
+      color = p.brightMagenta;
       underline = true;
     };
     image_text = {
-      color = bare p.comment;
+      color = p.comment;
       format = "Image: {{.text}} →";
     };
     code = {
       prefix = " ";
       suffix = " ";
-      color = bare p.brightGreen;
-      background_color = bare p.lineHighlight;
+      color = p.brightGreen;
+      background_color = p.lineHighlight;
     };
     code_block = {
-      color = bare p.fg;
+      color = p.fg;
       margin = 2;
+      # Chroma style entries require #-prefixed hex colours.  The chroma
+      # ParseStyleEntry parser rejects bare hex (e.g. "675f54") and
+      # chroma.MustNewStyle will panic on the error.  Use p.xxx (which
+      # already carries the "#" prefix) instead of bare p.xxx here.
       chroma = {
-        text = {color = bare p.fg;};
+        text = {color = p.fg;};
         error = {
-          color = bare p.brightWhite;
-          background_color = bare p.red;
+          color = p.brightWhite;
+          background_color = p.red;
         };
-        comment = {color = bare p.comment;};
-        comment_preproc = {color = bare p.brightMagenta;};
-        keyword = {color = bare p.blue;};
-        keyword_reserved = {color = bare p.brightBlue;};
-        keyword_namespace = {color = bare p.brightBlue;};
-        keyword_type = {color = bare p.brightBlue;};
-        operator = {color = bare p.brightMagenta;};
-        punctuation = {color = bare p.white;};
-        name = {color = bare p.fg;};
-        name_builtin = {color = bare p.brightMagenta;};
-        name_tag = {color = bare p.blue;};
-        name_attribute = {color = bare p.brightBlue;};
+        comment = {color = p.comment;};
+        comment_preproc = {color = p.brightMagenta;};
+        keyword = {color = p.blue;};
+        keyword_reserved = {color = p.brightBlue;};
+        keyword_namespace = {color = p.brightBlue;};
+        keyword_type = {color = p.brightBlue;};
+        operator = {color = p.brightMagenta;};
+        punctuation = {color = p.white;};
+        name = {color = p.fg;};
+        name_builtin = {color = p.brightMagenta;};
+        name_tag = {color = p.blue;};
+        name_attribute = {color = p.brightBlue;};
         name_class = {
-          color = bare p.brightWhite;
+          color = p.brightWhite;
           underline = true;
           bold = true;
         };
-        name_function = {color = bare p.brightGreen;};
-        literal_number = {color = bare p.magenta;};
-        literal_string = {color = bare p.yellow;};
-        literal_string_escape = {color = bare p.brightYellow;};
-        generic_deleted = {color = bare p.red;};
+        name_function = {color = p.brightGreen;};
+        literal_number = {color = p.magenta;};
+        literal_string = {color = p.yellow;};
+        literal_string_escape = {color = p.brightYellow;};
+        generic_deleted = {color = p.red;};
         generic_emph = {italic = true;};
-        generic_inserted = {color = bare p.green;};
+        generic_inserted = {color = p.green;};
         generic_strong = {bold = true;};
-        generic_subheading = {color = bare p.comment;};
-        background = {background_color = bare p.bg;};
+        generic_subheading = {color = p.comment;};
+        background = {background_color = p.bg;};
       };
     };
     table = {};
@@ -549,6 +556,32 @@
       underline = false;
     };
   };
+
+  # -- sketchybar --------------------------------------------------------
+  # Color and font configuration for the sketchybar macOS status bar.
+  # Colors are mapped from the Earthsong palette; fonts use system SF faces.
+  sketchybarTheme = {
+    colors = {
+      inherit (p) black white red green blue yellow;
+      orange = p.magenta; # closest warm hue in Earthsong
+      magenta = p.brightMagenta;
+      grey = p.brightBlack;
+      bar = {
+        bg = p.statusBg;
+        inherit (p) border;
+      };
+      popup = {
+        bg = p.statusBg;
+        inherit (p) border;
+      };
+      bg1 = p.selection;
+      bg2 = p.border;
+    };
+    font = {
+      text = "SF Pro";
+      numbers = "SF Mono";
+    };
+  };
 in {
   # Export all derivations as module arguments so sibling modules can import them.
   _module.args.earthsong = {
@@ -560,6 +593,7 @@ in {
       glamourStyle
       zellijTheme
       jjColors
+      sketchybarTheme
       ;
   };
 }

@@ -68,6 +68,36 @@ jj new
 # Make your changes...
 ```
 
+### 4. Run System Switch from Workspace
+
+When working in a jj workspace, you can still run the system switch command. The workspace-aware switch automatically detects you're in a workspace and runs from the main repo root while using your workspace's commit:
+
+```bash
+# From any workspace directory
+s
+# or
+switch
+# or
+devenv tasks run system:switch
+```
+
+**What happens:**
+- Switch detects you're in a workspace (`fix-build`, `feat-auth`, etc.)
+- Displays: `📁 JJ Workspace: fix-build`
+- Displays: `Switch will run from: /path/to/main/repo`
+- Runs the switch from the main repo root using your current jj commit
+
+**Requirements:**
+- Commit your changes first with `jj describe -m "message"`
+- The switch uses your current jj commit, so uncommitted changes won't be included
+
+**To test uncommitted changes before committing:**
+```bash
+./scripts/switch-workspace-override
+```
+
+This creates a temporary copy of your workspace changes and runs switch from there.
+
 ### 4. Create a Bookmark and PR
 
 ```bash
