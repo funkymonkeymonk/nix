@@ -14,7 +14,6 @@ with lib; let
 
   # Filter providers with dynamic models enabled
   providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
-  hasDynamicModels = providersWithDynamicModels != {};
 
   # Build opnix secrets configuration using shared helper
   opnixSecrets = hmLib.mkOpnixSecrets "opencode" (
@@ -134,6 +133,7 @@ with lib; let
     DYNAMIC_PROVIDERS='${dynamicProvidersJson}'
     BASE_CONFIG="$HOME/.config/opencode/opencode.json"
     DYNAMIC_CONFIG="$HOME/.config/opencode/opencode-dynamic.json"
+    PRIVATE_CONFIG="$HOME/.config/opencode/opencode-private.json"
 
     # Start with the base config
     if [[ -L "$BASE_CONFIG" ]]; then
@@ -199,6 +199,14 @@ with lib; let
       fi
     done
 
+    # Merge private config (machine-local sensitive settings, e.g. MCP servers)
+    # This file is NOT managed by Nix - create it manually at $PRIVATE_CONFIG
+    if [[ -f "$PRIVATE_CONFIG" ]]; then
+      echo "Merging private config from $PRIVATE_CONFIG..." >&2
+      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$DYNAMIC_CONFIG" "$PRIVATE_CONFIG" \
+        > "$DYNAMIC_CONFIG.tmp" && mv "$DYNAMIC_CONFIG.tmp" "$DYNAMIC_CONFIG"
+    fi
+
     echo "$DYNAMIC_CONFIG"
   '';
 
@@ -247,8 +255,11 @@ with lib; let
     });
 in {
   config = mkIf cfg.enable {
-    # Replace the opencode binary with a wrapper that fetches dynamic models
-    home.packages = mkIf hasDynamicModels [
+    # Replace the opencode binary with a wrapper that:
+    # 1. Fetches dynamic models (when dynamic providers are configured)
+    # 2. Merges ~/.config/opencode/opencode-private.json (always, if the file exists)
+    # The wrapper is always installed so the private config merge always applies.
+    home.packages = [
       (lib.hiPrio opencodeWrapped)
     ];
 
