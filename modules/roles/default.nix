@@ -21,6 +21,7 @@ in {
     ./pi.nix
     ./llm-host.nix
     ./microvm-host.nix
+    # Note: homebrew.nix is imported separately by configurations that use nix-homebrew
   ];
 
   # Derive enabledRoles from the roles options so skills/install.nix can use it

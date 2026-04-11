@@ -1,8 +1,4 @@
-{
-  _config,
-  lib,
-  ...
-}: {
+{lib, ...}: {
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [
@@ -10,9 +6,6 @@
     ];
 
   nix.enable = false;
-
-  # Enable auto-migration for nix-homebrew by default
-  nix-homebrew.autoMigrate = true;
 
   # Require password for each sudo command
   security.sudo.extraConfig = ''
