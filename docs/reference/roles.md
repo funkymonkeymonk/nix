@@ -60,6 +60,8 @@ Gaming tools.
 
 **Packages:** moonlight-qt
 
+### homebrew
+
 ### llm-host
 
 Local model hosting.
