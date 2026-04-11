@@ -15,6 +15,7 @@
   ];
 
   # Cloud-init support - apply configuration from /etc/cloud-init.yaml
+  # Applied on boot via launchd
   launchd.daemons.apply-cloud-init = {
     serviceConfig = {
       Label = "com.funkymonkeymonk.cloud-init";
@@ -74,6 +75,44 @@
       StandardOutPath = "/var/log/cloud-init.stdout";
       StandardErrorPath = "/var/log/cloud-init.stderr";
     };
+  };
+
+  # Also apply cloud-init on every darwin-rebuild switch
+  system.activationScripts.cloud-init = {
+    text = ''
+      echo "Applying cloud-init configuration during activation..."
+      CONFIG_FILE="/etc/cloud-init.yaml"
+
+      if [[ -f "$CONFIG_FILE" ]]; then
+        # Set hostname if specified
+        hostname=$(grep -E '^hostname:' "$CONFIG_FILE" | head -1 | sed 's/^hostname:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+        if [[ -n "$hostname" ]]; then
+          echo "Setting hostname to: $hostname"
+          scutil --set HostName "$hostname"
+          scutil --set LocalHostName "$hostname"
+          scutil --set ComputerName "$hostname"
+        fi
+
+        # Execute bootcmd commands if present
+        if grep -q "^bootcmd:" "$CONFIG_FILE"; then
+          echo "Executing bootcmd commands..."
+          awk '/^bootcmd:/{found=1; next} found && /^  - /{gsub(/^  - /, ""); print}' "$CONFIG_FILE" | while read -r cmd; do
+            if [[ -n "$cmd" ]]; then
+              echo "Running bootcmd: $cmd"
+              eval "$cmd" || echo "Warning: bootcmd failed: $cmd"
+            fi
+          done
+        fi
+
+        # Execute runcmd commands if present (only on first boot or explicitly requested)
+        # Note: runcmd is typically for first-boot only, so we skip it during activation
+        # to avoid re-running potentially destructive commands
+
+        echo "Cloud-init configuration applied during activation"
+      else
+        echo "No cloud-init configuration found at $CONFIG_FILE"
+      fi
+    '';
   };
 
   # Lume configuration for macOS VMs
