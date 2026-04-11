@@ -6,6 +6,9 @@ _: {
   # Server-specific configuration
   # Most config comes from roles and mkUser in flake.nix
 
+  # Enable SSH server for remote access
+  services.openssh.enable = true;
+
   # Lume configuration for macOS VMs
   myConfig.lume = {
     enable = true;
