@@ -198,7 +198,7 @@ jobs:
           else
             # No cache exists, build all configs
             echo "No cache found, will build all Darwin configs"
-            DARWIN_CHANGED='["core","darwin-server","wweaver"]
+            DARWIN_CHANGED='["core","darwin-server","wweaver"]'
           fi
           echo "darwin-changed=$DARWIN_CHANGED" >> $GITHUB_OUTPUT
           echo "Darwin configs needing rebuild: $DARWIN_CHANGED"
