@@ -217,10 +217,10 @@ with lib; let
     exec ${pkgs.opencode}/bin/opencode "$@"
   '';
 
-  # Build complete settings
+  # Build complete settings (TUI-specific keys like theme go in tui.json, not here)
   settings =
     {
-      inherit (cfg) theme autoupdate;
+      inherit (cfg) autoupdate;
       mcp =
         {
           devenv = {

@@ -140,6 +140,13 @@ with lib; {
           description = "MicroVM host infrastructure (bridge networking, DNS/connection logging, cloud-init VM discovery)";
         };
       };
+      homebrew = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Homebrew integration for macOS (requires Homebrew to be installed)";
+        };
+      };
     };
 
     development = {

@@ -3,6 +3,7 @@ final: _prev: {
   rtk = final.callPackage ../packages/rtk {};
   yaks = final.callPackage ../packages/yaks {};
   pi-coding-agent = final.callPackage ../packages/pi-coding-agent {};
+  lume = final.callPackage ../packages/lume {};
 
   # Pin opencode to 1.2.15 to avoid edit hanging bug in 1.3.10
   # https://github.com/anomalyco/opencode/issues/20477
