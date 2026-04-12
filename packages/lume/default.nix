@@ -22,8 +22,13 @@ stdenv.mkDerivation rec {
   installPhase = ''
     runHook preInstall
 
-    # Install the lume binary
-    install -Dm755 lume $out/bin/lume
+    # Install the actual lume binary from the app bundle
+    # (the 'lume' file in the tarball root is just a wrapper script)
+    install -Dm755 lume.app/Contents/MacOS/lume $out/bin/lume
+
+    # Install the app bundle resources (needed for VM templates)
+    mkdir -p $out/share/lume
+    cp -r lume.app $out/share/lume/
 
     # Install completions if they exist
     if [ -d completions ]; then
