@@ -332,6 +332,58 @@
           })
         ];
       };
+
+      # MegamanX - personal desktop/workstation
+      "MegamanX" = nix-darwin.lib.darwinSystem {
+        modules = [
+          configuration
+          nix-homebrew.darwinModules.nix-homebrew
+          ./modules
+          ./modules/roles/homebrew.nix
+          ./modules/services/ollama/darwin.nix
+          ./modules/services/vane/darwin.nix
+          ./os/darwin.nix
+          ./modules/home-manager/aerospace.nix
+          ./targets/MegamanX
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          {
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            system.primaryUser = "monkey";
+
+            myConfig =
+              mkUser "monkey" "me@willweaver.dev"
+              // {
+                skills.superpowersPath = inputs.superpowers;
+                roles = {
+                  developer.enable = true;
+                  desktop.enable = true;
+                  workstation.enable = true;
+                  entertainment.enable = true;
+                  llm-host.enable = true;
+                  opencode.enable = true;
+                  pi.enable = true;
+                  homebrew.enable = true;
+                };
+                ollama = {
+                  # Bind to all interfaces so Docker containers can access Ollama
+                  host = "0.0.0.0";
+                };
+                vane = {
+                  enable = true;
+                  # Uses default Ollama URL (host.docker.internal:11434)
+                  # Enable embedded SearxNG for web search
+                  embeddedSearxng = true;
+                  # Chat model - deepseek for reasoning tasks
+                  defaultModel = "deepseek-r1:14b";
+                  # Embedding model for vector search
+                  embeddingModel = "nomic-embed-text";
+                };
+              };
+          }
+        ];
+      };
     };
 
     nixosConfigurations = {
