@@ -133,6 +133,20 @@ with lib; {
           description = "Local LLM hosting (ollama)";
         };
       };
+      assistant = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Agent email tools (himalaya, gmailctl) for reading, moving, and filtering Gmail";
+        };
+      };
+      email-backup = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Immutable encrypted email backups (mbsync + restic + notmuch) with searchable archive";
+        };
+      };
       microvm-host = {
         enable = mkOption {
           type = types.bool;
@@ -147,6 +161,102 @@ with lib; {
         type = types.bool;
         default = false;
         description = "Enable development tools and environment";
+      };
+    };
+
+    email-agent = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable agent email tools (himalaya CLI, gmailctl filters)";
+      };
+
+      enableGmailctl = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable gmailctl for declarative Gmail filter management. Requires one-time OAuth2 setup via 'email-filters init'.";
+      };
+
+      gmailctlConfigDir = mkOption {
+        type = types.str;
+        default = ".config/gmailctl";
+        description = "Path relative to home directory for gmailctl configuration (Jsonnet filter definitions)";
+      };
+    };
+
+    email-backup = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable encrypted immutable email backups (mbsync pull-only + restic + notmuch)";
+      };
+
+      accountName = mkOption {
+        type = types.str;
+        default = "gmail";
+        description = "Name for the email account (used in Maildir subdirectory and backup tags)";
+      };
+
+      imapHost = mkOption {
+        type = types.str;
+        default = "imap.gmail.com";
+        description = "IMAP server hostname";
+      };
+
+      imapPort = mkOption {
+        type = types.port;
+        default = 993;
+        description = "IMAP server port";
+      };
+
+      username = mkOption {
+        type = types.str;
+        default = "";
+        description = "Username for launchd/systemd service environment (required on Darwin)";
+      };
+
+      backupInterval = mkOption {
+        type = types.int;
+        default = 3600;
+        description = "Backup interval in seconds (default: 3600 = 1 hour). Minimum recommended: 900 (15 min).";
+      };
+
+      maildir = mkOption {
+        type = types.str;
+        default = ".mail-backup";
+        description = "Maildir staging path relative to home directory (ephemeral, used for sync before restic snapshot)";
+      };
+
+      resticRepo = mkOption {
+        type = types.str;
+        default = ".local/share/email-backup/restic-repo";
+        description = "Restic repository path relative to home directory. Can also be s3:, b2:, sftp:, or rest: URLs for remote storage.";
+      };
+
+      resticPasswordFile = mkOption {
+        type = types.str;
+        default = ".config/email-backup/restic-password";
+        description = "Path relative to home directory containing the restic repository password";
+      };
+
+      retentionDays = mkOption {
+        type = types.int;
+        default = 365;
+        description = "Number of days to keep daily snapshots (default: 365). Hourly snapshots kept for 7 days.";
+      };
+
+      notmuchTags = {
+        new = mkOption {
+          type = types.str;
+          default = "new";
+          description = "Tag applied to new messages by notmuch";
+        };
+
+        exclude = mkOption {
+          type = types.listOf types.str;
+          default = ["deleted" "spam"];
+          description = "Tags to exclude from search results by default";
+        };
       };
     };
 

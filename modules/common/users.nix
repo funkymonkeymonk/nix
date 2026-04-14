@@ -81,6 +81,8 @@ with lib; let
           ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix
           ++ optional config.myConfig.agent-skills.enable ../../modules/home-manager/skills/install.nix
           ++ optional config.myConfig.jj-autosync.enable ../../modules/home-manager/jj-autosync.nix
+          ++ optional config.myConfig.email-agent.enable ../../modules/home-manager/email-agent.nix
+          ++ optional config.myConfig.email-backup.enable ../../modules/home-manager/email-backup.nix
           ++ optional config.myConfig.fjj.enable ../../modules/home-manager/fjj.nix
           ++ optional config.myConfig.sketchybar.enable ../../modules/home-manager/sketchybar
           ++ optional (
