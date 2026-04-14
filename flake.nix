@@ -241,12 +241,13 @@
           {
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.stateVersion = 4;
-            system.primaryUser = "monkey";
+            system.primaryUser = "wweaver";
 
             myConfig =
-              mkUser "monkey" "me@willweaver.dev"
+              mkUser "wweaver" "me@willweaver.dev"
               // {
                 skills.superpowersPath = inputs.superpowers;
+                onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
                 roles = {
                   developer.enable = true;
                   desktop.enable = true;
