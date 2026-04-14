@@ -125,7 +125,7 @@ jj bookmark set "$BRANCH" -r @
 
 # Push to remote
 echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
-jj_push_bookmark "$BRANCH" true
+jj_push_bookmark "$BRANCH"
 
 # Create PR
 echo -e "\n${JJ_GREEN}6. Creating PR...${JJ_NC}"

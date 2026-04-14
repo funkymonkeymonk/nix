@@ -130,7 +130,7 @@ echo "Implemented X, Y, Z. Tests pass." | yx field "yak name" progress
 
 ```bash
 jj bookmark set chore/yak-slug -r @
-jj git push --bookmark chore/yak-slug --allow-new
+jj git push --bookmark chore/yak-slug
 gh pr create --title "chore: description" --body "..."
 ```
 

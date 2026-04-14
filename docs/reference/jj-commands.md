@@ -84,7 +84,6 @@ Complete reference for Jujutsu (jj) commands. For workflow context see the [tuto
 | `jj git fetch --remote origin` | Fetch from a specific remote |
 | `jj git push` | Push tracked bookmarks |
 | `jj git push --bookmark <name>` | Push a specific bookmark |
-| `jj git push --bookmark <name> --allow-new` | Push a bookmark for the first time |
 | `jj git export` | Flush jj state to git refs |
 | `jj git import` | Import git ref changes into jj |
 | `jj git remote list` | List configured remotes |

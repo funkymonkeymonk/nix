@@ -211,7 +211,7 @@ jj new main                              # Start from main
 # ... make changes ...
 jj describe -m "Add feature"             # Describe
 jj bookmark set feat/my-feature -r @     # Create bookmark
-jj git push --bookmark feat/my-feature --allow-new
+jj git push --bookmark feat/my-feature
 gh pr create --head feat/my-feature
 ```
 
@@ -236,7 +236,6 @@ jj git push
 
 1. **Working in described commit**: Always `jj new` before making changes
 2. **Using `-c @` for updates**: This creates NEW bookmark/PR. Use `jj squash` + `jj git push`
-3. **Forgetting `--allow-new`**: Required first time pushing a bookmark
 
 ## Undo
 

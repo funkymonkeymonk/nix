@@ -243,7 +243,7 @@ Or manually:
 
 ```bash
 jj bookmark set feat/user-auth -r @
-jj git push --bookmark feat/user-auth --allow-new
+jj git push --bookmark feat/user-auth
 gh pr create --head feat/user-auth --fill
 ```
 
