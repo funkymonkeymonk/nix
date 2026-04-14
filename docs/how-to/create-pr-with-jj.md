@@ -62,7 +62,7 @@ If you prefer manual control:
 jj bookmark set feat/user-auth -r @
 
 # Push to remote
-jj git push --bookmark feat/user-auth --allow-new
+jj git push --bookmark feat/user-auth
 
 # Create PR
 g h pr create --head feat/user-auth --fill
@@ -108,10 +108,10 @@ jj bookmark delete feat/user-auth
 
 ### "Failed to push"
 
-You might need `--allow-new` for the first push:
+Ensure the remote is configured and you have push access:
 
 ```bash
-jj git push --bookmark feat/user-auth --allow-new
+jj git remote list
 ```
 
 ## Next Steps

@@ -51,7 +51,7 @@ jj describe -m "feat: Add API endpoints"
 jj bookmark set feat/api-endpoints -r @
 
 # 5. Push with correct base
-jj git push --bookmark feat/api-endpoints --allow-new
+jj git push --bookmark feat/api-endpoints
 
 # 6. Create PR targeting the first branch
 g h pr create --base "$CURRENT_BOOKMARK" --head feat/api-endpoints --fill

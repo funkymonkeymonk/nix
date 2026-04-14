@@ -28,6 +28,9 @@
         push-bookmark-prefix = "push-";
         default-branch = "main";
       };
+      remotes.origin = {
+        auto-track-bookmarks = "glob:*";
+      };
       colors = earthsong.jjColors;
       ui = {
         editor = "hx";
