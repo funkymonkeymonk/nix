@@ -1182,6 +1182,36 @@
       '';
     };
 
+    "test:email" = {
+      description = "Test email-agent and email-backup modules";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Testing email-agent options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-agent-options" --no-link
+        echo "email-agent options test passed"
+        echo ""
+        echo "Testing email-backup options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-backup-options" --no-link
+        echo "email-backup options test passed"
+        echo ""
+        echo "Testing custom email options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-custom-options" --no-link
+        echo "Custom email options test passed"
+        echo ""
+        echo "Testing email role composition ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-composition" --no-link
+        echo "Email composition test passed"
+        echo ""
+        echo "Testing email backup scripts ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-backup-scripts" --no-link
+        echo "Email backup scripts test passed"
+        echo ""
+        echo "Testing email role separation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-separation" --no-link
+        echo "Email role separation test passed"
+      '';
+    };
+
     "test:vm" = {
       description = "Run NixOS VM integration tests (Linux only)";
       exec = ''
@@ -1220,6 +1250,9 @@
         echo ""
         echo "=== Running Skills Tests ==="
         devenv tasks run test:skills
+        echo ""
+        echo "=== Running Email Tests ==="
+        devenv tasks run test:email
         echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"

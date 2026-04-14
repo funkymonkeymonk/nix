@@ -10,6 +10,7 @@
   testRoles = import ./test-roles.nix {inherit pkgs;};
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
   testSkills = import ./test-skills.nix {inherit pkgs;};
+  testEmail = import ./test-email.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -43,5 +44,13 @@ in
 
     # Coverage tracking
     module-coverage = testCoverage.moduleCoverageTest;
+
+    # Email module tests
+    email-agent-options = testEmail.emailAgentOptionsTest;
+    email-backup-options = testEmail.emailBackupOptionsTest;
+    email-custom-options = testEmail.emailCustomOptionsTest;
+    email-composition = testEmail.emailCompositionTest;
+    email-backup-scripts = testEmail.emailBackupScriptsTest;
+    email-separation = testEmail.emailSeparationTest;
   }
   // vmTests

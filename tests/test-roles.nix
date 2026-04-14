@@ -99,6 +99,8 @@
                 claude.enable = true;
                 pi.enable = true;
                 llm-host.enable = true;
+                assistant.enable = true;
+                email-backup.enable = true;
               };
             };
           }
@@ -120,6 +122,8 @@
     "claude"
     "pi"
     "llm-host"
+    "assistant"
+    "email-backup"
   ];
 
   # Map of roles to their expected nix packages (name attr of the derivation)
@@ -134,6 +138,8 @@
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
     llm-host = ["ollama"];
+    assistant = ["himalaya" "gmailctl"];
+    email-backup = ["isync" "notmuch" "restic"];
   };
 
   # Map of roles to cascade-enabled options
@@ -150,6 +156,8 @@
       "pi.enable" = true;
     };
     llm-host = {"ollama.enable" = true;};
+    assistant = {"email-agent.enable" = true;};
+    email-backup = {"email-backup.enable" = true;};
     foundation = {
       "onepassword.enable" = true;
       "syncthing.enable" = true;

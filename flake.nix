@@ -613,6 +613,12 @@
             skills-autoload-filtering
             skills-autoload-content
             skills-role-filtering
+            email-agent-options
+            email-backup-options
+            email-custom-options
+            email-composition
+            email-backup-scripts
+            email-separation
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
