@@ -82,6 +82,87 @@
         ];
     }).config.myConfig.vane;
 
+  # Stub modules for evaluating the vane darwin module
+  vaneDarwinStubs = [
+    ../modules/common/options.nix
+    {
+      options.nixpkgs.hostPlatform = lib.mkOption {
+        type = lib.types.anything;
+        default = {inherit (pkgs.stdenv.hostPlatform) system;};
+      };
+      # Darwin-specific stubs
+      options.environment = {
+        systemPackages = lib.mkOption {
+          type = lib.types.listOf lib.types.package;
+          default = [];
+        };
+        shellAliases = lib.mkOption {
+          type = lib.types.attrsOf lib.types.anything;
+          default = {};
+        };
+      };
+      options.launchd.user.agents = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+      };
+      options.system.activationScripts = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+      };
+    }
+    {
+      config._module.args = {inherit pkgs;};
+    }
+  ];
+
+  # Evaluate vane darwin module with autoStart = false (default)
+  vaneDarwinDefaultEval =
+    (lib.evalModules {
+      modules =
+        vaneDarwinStubs
+        ++ [
+          ../modules/services/vane/darwin.nix
+          {
+            config.myConfig.vane = {
+              enable = true;
+              autoStart = false;
+            };
+            config.myConfig.users = [{name = "testuser";}];
+            config.myConfig.isDarwin = true;
+          }
+        ];
+    })
+    .config
+    .launchd
+    .user
+    .agents
+    .vane
+    .serviceConfig;
+
+  # Evaluate vane darwin module with autoStart = true
+  vaneDarwinAutoStartEval =
+    (lib.evalModules {
+      modules =
+        vaneDarwinStubs
+        ++ [
+          ../modules/services/vane/darwin.nix
+          {
+            config.myConfig.vane = {
+              enable = true;
+              autoStart = true;
+            };
+            config.myConfig.users = [{name = "testuser";}];
+            config.myConfig.isDarwin = true;
+          }
+        ];
+    })
+    .config
+    .launchd
+    .user
+    .agents
+    .vane
+    .serviceConfig;
+
   # Evaluate openclaw options directly (it has its own option namespace)
   openclawEval =
     (lib.evalModules {
@@ -385,6 +466,40 @@ in {
       }
 
       echo "All openclaw option defaults verified"
+      touch $out
+    '';
+
+  # Test vane darwin launchd RunAtLoad respects autoStart = false (default)
+  vaneDarwinAutoStartDefaultTest =
+    pkgs.runCommand "test-vane-darwin-autostart-default"
+    {}
+    ''
+      echo "=== Testing Vane Darwin autoStart=false (default) ==="
+
+      ${
+        if !vaneDarwinDefaultEval.RunAtLoad
+        then ''echo "  RunAtLoad = false when autoStart = false: OK"''
+        else ''echo "  RunAtLoad should be false when autoStart = false!"; exit 1''
+      }
+
+      echo "Vane darwin autoStart default verified"
+      touch $out
+    '';
+
+  # Test vane darwin launchd RunAtLoad respects autoStart = true
+  vaneDarwinAutoStartTrueTest =
+    pkgs.runCommand "test-vane-darwin-autostart-true"
+    {}
+    ''
+      echo "=== Testing Vane Darwin autoStart=true ==="
+
+      ${
+        if vaneDarwinAutoStartEval.RunAtLoad
+        then ''echo "  RunAtLoad = true when autoStart = true: OK"''
+        else ''echo "  RunAtLoad should be true when autoStart = true!"; exit 1''
+      }
+
+      echo "Vane darwin autoStart=true verified"
       touch $out
     '';
 }
