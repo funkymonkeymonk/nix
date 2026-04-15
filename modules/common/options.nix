@@ -537,6 +537,17 @@ with lib; {
         description = "Enable 1Password for sudo authentication (NixOS only)";
       };
 
+      sudoPasswordRef = mkOption {
+        type = types.str;
+        default = "";
+        description = ''
+          1Password reference for the sudo password used by the system:switch task.
+          If empty (default), falls back to op://Private/<hostname> Sudo Password/password.
+          Override this for machines with different vault or item names,
+          e.g. "op://Employee/wweaver Sudo Password/password".
+        '';
+      };
+
       tokenFile = mkOption {
         type = types.path;
         default = "/etc/opnix-token";

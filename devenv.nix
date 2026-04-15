@@ -377,7 +377,13 @@
           echo "1Password CLI: found"
 
           # Get sudo password from 1Password
-          PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+          # Check if config defines a custom sudoPasswordRef, otherwise use default pattern
+          CUSTOM_REF=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
+          if [[ -n "$CUSTOM_REF" ]]; then
+            PASSWORD_PATH="$CUSTOM_REF"
+          else
+            PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+          fi
           echo "Fetching sudo password from 1Password..."
           echo "  Path: $PASSWORD_PATH"
 
@@ -386,8 +392,9 @@
             echo "ERROR: Failed to read sudo password from 1Password"
             echo "  Attempted path: $PASSWORD_PATH"
             echo ""
-            echo "Ensure you have a '$HOSTNAME Sudo Password' item in your Private vault"
-            echo "with a 'password' field containing your sudo password."
+            echo "Ensure the item exists in 1Password."
+            echo "You can set myConfig.onepassword.sudoPasswordRef in the machine config"
+            echo "to override the default path (op://Private/<hostname> Sudo Password/password)."
             exit 1
           }
           echo "Sudo password: retrieved"
