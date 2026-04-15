@@ -46,6 +46,9 @@ in
     skills-autoload-filtering = testSkills.autoLoadFilteringTest;
     skills-autoload-content = testSkills.autoLoadContentTest;
     skills-role-filtering = testSkills.roleFilteringTest;
+    skills-external-identification = testSkills.externalSkillsIdentificationTest;
+    skills-external-command-generation = testSkills.externalSkillCommandGenerationTest;
+    skills-external-empty-case = testSkills.externalSkillsEmptyTest;
 
     # Coverage tracking
     module-coverage = testCoverage.moduleCoverageTest;

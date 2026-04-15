@@ -2,9 +2,11 @@
 # Filters skills by enabled roles and installs them to ~/.config/opencode/skills/
 # Also installs bundled commands to ~/.config/opencode/commands/
 # Skills with autoLoad = true are concatenated into an instructions file for each agent
+# External skills (source.type = "external") are installed via npx skills on activation
 {
   osConfig,
   lib,
+  pkgs,
   ...
 }: let
   # Get skills config from OS config
@@ -75,7 +77,52 @@
     };
   };
 
-  # Generate home.file entries for each skill
+  # --- External skill activation via npx skills ---
+
+  # Filter external skills from enabled skills
+  externalSkills =
+    lib.filterAttrs (
+      _name: skill: skill.source.type or "" == "external"
+    )
+    allSkills;
+
+  hasExternalSkills = externalSkills != {};
+
+  # Map manifest roles to npx skills --agent flags
+  # OpenCode agent: opencode, Claude Code agent: claude-code, Pi agent: pi
+  roleToAgents = {
+    opencode = ["opencode"];
+    claude = ["claude-code"];
+    pi = ["pi"];
+    developer = ["opencode" "claude-code" "pi"];
+    workstation = ["opencode" "claude-code"];
+  };
+
+  # Collect unique agent flags for a skill based on its roles
+  agentFlagsForSkill = skill:
+    lib.unique (lib.concatLists (
+      map (role: roleToAgents.${role} or []) skill.roles
+    ));
+
+  # Generate the npx skills add command for one external skill
+  # Uses --global so skills install to ~/.<agent>/skills/ (not project-local)
+  # Uses --yes for non-interactive (CI-friendly) installation
+  externalSkillCommand = _name: skill: let
+    url = skill.source.url or "";
+    agents = agentFlagsForSkill skill;
+    agentFlags = lib.concatMapStringsSep " " (a: "--agent ${a}") agents;
+  in
+    lib.optionalString (url != "") "npx --yes skills@latest add ${url} --global --yes ${agentFlags}";
+
+  # Generate all external skill install commands (filter out empty strings)
+  externalInstallCommands =
+    lib.filter (cmd: cmd != "")
+    (lib.mapAttrsToList externalSkillCommand externalSkills);
+
+  # Build the activation script body
+  externalActivationScript = lib.concatStringsSep "\n" externalInstallCommands;
+
+  # --- Generate home.file entries for each skill ---
   skillFiles =
     lib.mapAttrs' (
       name: skill: let
@@ -96,8 +143,10 @@
             recursive = true;
           }
         else
-          # External: placeholder for future implementation
+          # External: write a placeholder noting the skill will be installed at activation
+          # The real content is installed by the home.activation script via npx skills
           lib.nameValuePair "${skillDir}/SKILL.md" {
+            force = true;
             text = ''
               # ${name}
 
@@ -107,8 +156,8 @@
 
               External skill from: ${skill.source.url or "unknown"}
 
-              **Note**: External skill fetching not yet implemented.
-              To add this skill, copy the content from the URL above.
+              **Note**: This skill is installed at system activation via `npx skills`.
+              The placeholder will be replaced when the activation script runs.
             '';
           }
     )
@@ -190,5 +239,19 @@
 in {
   config = lib.mkIf (enabledRoles != []) {
     home.file = skillFiles // commandFiles // readmeFile // autoLoadFile;
+
+    # Ensure nodejs is available for running npx skills (only when external skills present)
+    home.packages = lib.mkIf hasExternalSkills [pkgs.nodejs];
+
+    # Install external skills via npx skills on activation
+    # This runs after home-manager writes all files (writeBoundary)
+    # npx skills add is idempotent: re-running updates existing skills safely
+    home.activation.installExternalSkills = lib.mkIf hasExternalSkills (
+      lib.hm.dag.entryAfter ["writeBoundary"] ''
+        echo "Installing external skills via npx skills..."
+        ${externalActivationScript}
+        echo "External skills installation complete."
+      ''
+    );
   };
 }
