@@ -14,6 +14,7 @@
   testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
   testServices = import ./test-services.nix {inherit pkgs;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
+  testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -80,5 +81,8 @@ in
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
     shell-aliases = testHomeManager.shellAliasesTest;
+
+    # Workspace-aware switch shell function tests
+    workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
   }
   // vmTests

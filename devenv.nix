@@ -51,25 +51,15 @@
     # ============================================
     # JJ Workspace Support - Check if in workspace
     # ============================================
-    # Function to detect main repo root from workspace
-    _detect_jj_repo_root() {
-      local current_dir="$1"
-      if [[ -f "$current_dir/.jj/repo" ]] && [[ ! -d "$current_dir/.jj/repo" ]]; then
-        local repo_pointer=$(cat "$current_dir/.jj/repo" 2>/dev/null)
-        if [[ -n "$repo_pointer" ]]; then
-          (cd "$current_dir/.jj" && cd "$(dirname "$repo_pointer")" && cd .. && pwd)
-          return 0
-        fi
-      fi
-      echo "$current_dir"
-    }
+    # Source shared workspace detection library
+    source ./modules/common/scripts/jj-workspace-lib
 
     # Check if we're in a jj workspace
     if command -v jj &>/dev/null; then
       _JJ_WORKSPACE_ROOT=$(jj root 2>/dev/null || pwd)
-      _JJ_REPO_ROOT=$(_detect_jj_repo_root "$_JJ_WORKSPACE_ROOT")
+      _JJ_REPO_ROOT=$(detect_jj_repo_root "$_JJ_WORKSPACE_ROOT" || echo "$_JJ_WORKSPACE_ROOT")
 
-      if [[ "$_JJ_WORKSPACE_ROOT" != "$_JJ_REPO_ROOT" ]] && [[ -d "$_JJ_WORKSPACE_ROOT/.jj" ]]; then
+      if is_jj_workspace "$_JJ_WORKSPACE_ROOT" "$_JJ_REPO_ROOT"; then
         # In workspace - create functions that run from repo root
         echo "📁 JJ Workspace: $(basename "$_JJ_WORKSPACE_ROOT")"
         echo "   Switch will run from: $_JJ_REPO_ROOT"
@@ -96,8 +86,7 @@
     fi
     i() { devenv tasks run dev:ide "$@"; }
 
-    # Cleanup temp functions
-    unset -f _detect_jj_repo_root 2>/dev/null || true
+    # Cleanup temp variables
     unset _JJ_WORKSPACE_ROOT _JJ_REPO_ROOT 2>/dev/null || true
 
     # Source switch-nix function (same source as system-wide install)
@@ -1260,6 +1249,19 @@
       '';
     };
 
+    "test:workspace-switch" = {
+      description = "Test workspace-aware switch shell functions and jj-workspace-lib";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running workspace-switch tests ($CURRENT_SYSTEM)..."
+        echo "--- workspace-switch ---"
+        nix build ".#checks.''${CURRENT_SYSTEM}.workspace-switch" --no-link
+        echo "workspace-switch: passed"
+        echo ""
+        echo "All workspace-switch tests passed"
+      '';
+    };
+
     "test:vm" = {
       description = "Run NixOS VM integration tests (Linux only)";
       exec = ''
@@ -1343,6 +1345,9 @@
         echo ""
         echo "=== Running Home-Manager Tests ==="
         devenv tasks run test:home-manager
+        echo ""
+        echo "=== Running Workspace-Switch Tests ==="
+        devenv tasks run test:workspace-switch
         echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"
