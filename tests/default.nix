@@ -11,6 +11,7 @@
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
   testSkills = import ./test-skills.nix {inherit pkgs;};
   testEmail = import ./test-email.nix {inherit pkgs;};
+  testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -52,5 +53,16 @@ in
     email-composition = testEmail.emailCompositionTest;
     email-backup-scripts = testEmail.emailBackupScriptsTest;
     email-separation = testEmail.emailSeparationTest;
+
+    # 1Password guard and config output tests
+    onepassword-guard = testPackages.onepasswordGuardTest;
+    onepassword-config-output = testPackages.onepasswordConfigOutputTest;
+
+    # Sketchybar tests
+    sketchybar-options = testSketchybar.sketchybarOptionsTest;
+    sketchybar-custom-options = testSketchybar.sketchybarCustomOptionsTest;
+    sketchybar-theme = testSketchybar.sketchybarThemeTest;
+    sketchybar-color-conversion = testSketchybar.sketchybarColorConversionTest;
+    sketchybar-platform-guard = testSketchybar.sketchybarPlatformGuardTest;
   }
   // vmTests

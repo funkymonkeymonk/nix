@@ -32,6 +32,8 @@
     "home-manager/skills/manifest.nix"
     "home-manager/email-agent.nix"
     "home-manager/email-backup.nix"
+    "home-manager/sketchybar/default.nix"
+    "home-manager/themes.nix"
     # roles/
     "roles/agent-skills.nix"
     "roles/assistant.nix"
@@ -45,6 +47,7 @@
     "roles/foundation.nix"
     "roles/gaming.nix"
     "roles/llm-host.nix"
+    "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
@@ -59,6 +62,7 @@
     "services/ollama/darwin.nix"
     "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
+    "services/microvm-host/default.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
     # top-level
@@ -85,6 +89,7 @@
     "roles/foundation.nix"
     "roles/gaming.nix"
     "roles/llm-host.nix"
+    "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
@@ -96,6 +101,15 @@
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
     "common/users.nix"
+    # Tested via test-sketchybar.nix (option defaults, custom values, theme, color conversion)
+    "home-manager/sketchybar/default.nix"
+    "home-manager/themes.nix"
+    # Tested via test-packages.nix onepasswordGuardTest + onepasswordConfigOutputTest
+    # (hasOpnix guard, platform-specific config output)
+    # common/onepassword.nix was already listed above via onepasswordOptionsTest
+    # Tested via test-roles.nix (microvm-host added to allRoles)
+    # services/microvm-host tracked via role imports
+    "services/microvm-host/default.nix"
   ];
 
   # Modules not yet covered by tests

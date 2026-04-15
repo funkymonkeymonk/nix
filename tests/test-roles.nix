@@ -30,6 +30,10 @@
           type = lib.types.attrsOf lib.types.str;
           default = {};
         };
+        etc = lib.mkOption {
+          type = lib.types.attrsOf lib.types.anything;
+          default = {};
+        };
       };
       options.programs = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
@@ -39,6 +43,16 @@
         type = lib.types.anything;
         default = {};
       };
+      # Note: We intentionally do NOT stub NixOS-specific options (boot, networking,
+      # systemd, services). This means on Darwin, microvm-host evaluates as a no-op
+      # since isNixOS = builtins.hasAttr "boot" options => false.
+      # On NixOS (CI), these options exist natively.
+      # Stub for microvm.vms (referenced by microvm-host role, guarded by isNixOS)
+      options.microvm = lib.mkOption {
+        type = lib.types.anything;
+        default = {};
+      };
+      config.microvm.vms = {};
     }
     {
       config._module.args = {inherit pkgs;};
@@ -101,6 +115,7 @@
                 llm-host.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
+                microvm-host.enable = true;
               };
             };
           }
@@ -124,6 +139,7 @@
     "llm-host"
     "assistant"
     "email-backup"
+    "microvm-host"
   ];
 
   # Map of roles to their expected nix packages (name attr of the derivation)
@@ -140,6 +156,8 @@
     llm-host = ["ollama"];
     assistant = ["himalaya" "gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
+    # microvm-host packages are NixOS-only (guarded by isNixOS check).
+    # On Darwin, the role is a no-op and adds no packages.
   };
 
   # Map of roles to cascade-enabled options

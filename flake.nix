@@ -739,6 +739,13 @@
             email-composition
             email-backup-scripts
             email-separation
+            onepassword-guard
+            onepassword-config-output
+            sketchybar-options
+            sketchybar-custom-options
+            sketchybar-theme
+            sketchybar-color-conversion
+            sketchybar-platform-guard
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
