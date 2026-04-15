@@ -728,6 +728,7 @@
             role-composition
             role-packages
             role-cascades
+            llm-host-shared-models
             module-coverage
             skills-manifest
             skills-autoload-filtering
