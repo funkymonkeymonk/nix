@@ -763,12 +763,6 @@ with lib; {
         default = null;
         description = "Path to environment file with additional Ollama configuration";
       };
-
-      useHomebrew = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Use Homebrew-installed Ollama instead of Nix package (Darwin only). Useful for getting the latest version with Metal acceleration";
-      };
     };
 
     vane = {
