@@ -297,59 +297,6 @@ pkgs.writeScriptBin "nixos-installer-iso" ''
       echo "$temp_dir"
     }
 
-    # Perform the installation
-    perform_installation() {
-      echo ""
-      ${pkgs.gum}/bin/gum style --foreground 99 --bold "Installing NixOS..."
-      echo ""
-
-      # Generate SSH keys
-      local temp_dir
-      temp_dir=$(generate_ssh_keys)
-
-      # Create hardware config override
-      local hw_config="$temp_dir/hardware.nix"
-      cat > "$hw_config" <<-EOF
-    {
-      # Hardware configuration for $HOSTNAME
-      disko.devices.disk.main.device = "$DISK";
-      networking.hostName = "$HOSTNAME";
-    }
-    EOF
-
-      # Build nixos-anywhere command
-      local na_args=(
-        "--flake" "$ACTIVE_FLAKE#$TARGET"
-        "--generate-hardware-config" "nixos-facter" "$temp_dir/facter.json"
-        "--extra-files" "$temp_dir"
-        "--disko-mode" "destroy"
-      )
-
-      # Show what we're doing
-      ${pkgs.gum}/bin/gum style --foreground 242 "Running: nixos-anywhere --flake $ACTIVE_FLAKE#$TARGET --disko-mode destroy"
-      echo ""
-
-      # Run nixos-anywhere (must be installed or use nix run)
-      if ! command -v nixos-anywhere &> /dev/null; then
-        log_info "Installing nixos-anywhere..."
-        nix profile install github:nix-community/nixos-anywhere
-      fi
-
-      # Execute installation
-      if nixos-anywhere "''${na_args[@]}"; then
-        echo ""
-        show_success
-      else
-        echo ""
-        ${pkgs.gum}/bin/gum style --foreground 196 --bold "❌ Installation failed"
-        log_error "Check the output above for errors"
-        exit 1
-      fi
-
-      # Cleanup
-      rm -rf "$temp_dir"
-    }
-
     # Success message
     show_success() {
       ${pkgs.gum}/bin/gum style \
