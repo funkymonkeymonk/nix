@@ -746,6 +746,16 @@
             sketchybar-theme
             sketchybar-color-conversion
             sketchybar-platform-guard
+            ollama-options
+            ollama-custom-options
+            vane-options
+            vane-custom-options
+            openclaw-options
+            jj-autosync-options
+            jj-autosync-custom-options
+            opencode-options
+            opencode-custom-options
+            shell-aliases
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

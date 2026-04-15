@@ -110,6 +110,18 @@
     # Tested via test-roles.nix (microvm-host added to allRoles)
     # services/microvm-host tracked via role imports
     "services/microvm-host/default.nix"
+    # Tested via test-services.nix (ollama, vane, openclaw option tests)
+    "services/ollama/common.nix"
+    "services/ollama/darwin.nix"
+    "services/ollama/nixos.nix"
+    "services/openclaw/default.nix"
+    "services/vane/common.nix"
+    "services/vane/darwin.nix"
+    # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
+    "home-manager/jj-autosync.nix"
+    "home-manager/opencode.nix"
+    "home-manager/aliases.nix"
+    "home-manager/skills/manifest.nix"
   ];
 
   # Modules not yet covered by tests

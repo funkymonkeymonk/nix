@@ -12,6 +12,8 @@
   testSkills = import ./test-skills.nix {inherit pkgs;};
   testEmail = import ./test-email.nix {inherit pkgs;};
   testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
+  testServices = import ./test-services.nix {inherit pkgs;};
+  testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -64,5 +66,19 @@ in
     sketchybar-theme = testSketchybar.sketchybarThemeTest;
     sketchybar-color-conversion = testSketchybar.sketchybarColorConversionTest;
     sketchybar-platform-guard = testSketchybar.sketchybarPlatformGuardTest;
+
+    # Service module tests
+    ollama-options = testServices.ollamaOptionsTest;
+    ollama-custom-options = testServices.ollamaCustomOptionsTest;
+    vane-options = testServices.vaneOptionsTest;
+    vane-custom-options = testServices.vaneCustomOptionsTest;
+    openclaw-options = testServices.openclawOptionsTest;
+
+    # Home-manager module tests
+    jj-autosync-options = testHomeManager.jjAutosyncOptionsTest;
+    jj-autosync-custom-options = testHomeManager.jjAutosyncCustomOptionsTest;
+    opencode-options = testHomeManager.opencodeOptionsTest;
+    opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
+    shell-aliases = testHomeManager.shellAliasesTest;
   }
   // vmTests
