@@ -1243,6 +1243,36 @@
       '';
     };
 
+    "test:sketchybar" = {
+      description = "Test sketchybar options, theme, and color conversion";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
+        for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All sketchybar tests passed"
+      '';
+    };
+
+    "test:onepassword" = {
+      description = "Test 1Password options, guard, and config output";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running 1Password tests ($CURRENT_SYSTEM)..."
+        for test in onepassword-guard onepassword-config-output; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All 1Password tests passed"
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (platform-agnostic eval tests)";
       exec = ''
@@ -1260,6 +1290,12 @@
         echo ""
         echo "=== Running Email Tests ==="
         devenv tasks run test:email
+        echo ""
+        echo "=== Running Sketchybar Tests ==="
+        devenv tasks run test:sketchybar
+        echo ""
+        echo "=== Running 1Password Tests ==="
+        devenv tasks run test:onepassword
         echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"
