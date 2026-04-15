@@ -1,4 +1,11 @@
-{pkgs, ...}: {
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
+  cfg = config.myConfig;
+in {
   services.aerospace = {
     enable = true;
     package = pkgs.aerospace;
@@ -99,17 +106,18 @@
           run = ["move-node-to-workspace 3.Dash"];
         }
       ];
-      # Default: new workspaces go to external monitor (PHL 346B1C)
+      # Default: new workspaces go to external monitor (if configured)
       on-focused-monitor-changed = ["move-mouse monitor-lazy-center"];
 
-      workspace-to-monitor-force-assignment = {
-        # Comms stays on built-in display
-        "2.Comms" = ["built-in"];
-        # Everything else goes to external monitor
-        "1.Main" = ["PHL" "main"];
-        "3.Dash" = ["PHL" "main"];
-        "4.Distracted" = ["PHL" "main"];
-      };
+      workspace-to-monitor-force-assignment =
+        # Comms always stays on built-in display
+        {"2.Comms" = ["built-in"];}
+        // lib.optionalAttrs (cfg.aerospace.externalMonitor != null) {
+          # Everything else goes to external monitor when configured
+          "1.Main" = [cfg.aerospace.externalMonitor "main"];
+          "3.Dash" = [cfg.aerospace.externalMonitor "main"];
+          "4.Distracted" = [cfg.aerospace.externalMonitor "main"];
+        };
     };
   };
 }

@@ -1253,6 +1253,14 @@ with lib; {
       };
     };
 
+    aerospace = {
+      externalMonitor = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "External monitor identifier for aerospace workspace assignment (e.g., 'PHL'). Set to null to disable monitor-specific workspace assignment.";
+      };
+    };
+
     sketchybar = {
       enable = mkOption {
         type = types.bool;
