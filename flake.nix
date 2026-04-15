@@ -756,6 +756,7 @@
             opencode-options
             opencode-custom-options
             shell-aliases
+            workspace-switch
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
