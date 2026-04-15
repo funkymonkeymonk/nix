@@ -1172,7 +1172,7 @@
     };
 
     "test:skills" = {
-      description = "Test skills manifest, autoLoad filtering, and content generation";
+      description = "Test skills manifest, autoLoad filtering, content generation, and external skill activation";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Testing skills manifest validation ($CURRENT_SYSTEM)..."
@@ -1190,6 +1190,18 @@
         echo "Testing skills role filtering ($CURRENT_SYSTEM)..."
         nix build ".#checks.''${CURRENT_SYSTEM}.skills-role-filtering" --no-link
         echo "Skills role filtering test passed"
+        echo ""
+        echo "Testing external skills identification ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-external-identification" --no-link
+        echo "External skills identification test passed"
+        echo ""
+        echo "Testing external skill command generation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-external-command-generation" --no-link
+        echo "External skill command generation test passed"
+        echo ""
+        echo "Testing external skills empty case ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-external-empty-case" --no-link
+        echo "External skills empty case test passed"
       '';
     };
 

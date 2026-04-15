@@ -734,6 +734,9 @@
             skills-autoload-filtering
             skills-autoload-content
             skills-role-filtering
+            skills-external-identification
+            skills-external-command-generation
+            skills-external-empty-case
             email-agent-options
             email-backup-options
             email-custom-options
