@@ -1235,11 +1235,11 @@
     };
 
     "test:home-manager" = {
-      description = "Test home-manager module options (jj-autosync, opencode, aliases)";
+      description = "Test home-manager module options (jj-autosync, opencode, fjj, aliases)";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Running home-manager tests ($CURRENT_SYSTEM)..."
-        for test in jj-autosync-options jj-autosync-custom-options opencode-options opencode-custom-options shell-aliases; do
+        for test in jj-autosync-options jj-autosync-custom-options opencode-options opencode-custom-options shell-aliases fjj-options fjj-custom-options; do
           echo "--- $test ---"
           nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
           echo "$test: passed"
