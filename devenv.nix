@@ -1164,6 +1164,10 @@
         echo "Testing role cascades ($CURRENT_SYSTEM)..."
         nix build ".#checks.''${CURRENT_SYSTEM}.role-cascades" --no-link
         echo "Role cascade test passed"
+        echo ""
+        echo "Testing llm-host sharedModels wiring ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.llm-host-shared-models" --no-link
+        echo "llm-host sharedModels test passed"
       '';
     };
 

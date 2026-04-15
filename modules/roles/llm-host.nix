@@ -15,7 +15,7 @@ in {
       enable = true;
       host = "0.0.0.0";
       port = 11434;
-      models = ["qwen3.5:2b" "qwen3.5" "qwen3.5:122b"];
+      models = config.myConfig.sharedModels;
     };
   };
 }

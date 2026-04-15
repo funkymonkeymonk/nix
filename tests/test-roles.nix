@@ -59,6 +59,55 @@
     }
   ];
 
+  # Evaluate llm-host role with default sharedModels
+  llmHostDefaultEval =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig = {
+              users = [
+                {
+                  name = "testuser";
+                  email = "test@example.com";
+                  fullName = "Test User";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+              roles.llm-host.enable = true;
+            };
+          }
+        ];
+    })
+    .config;
+
+  # Evaluate llm-host role with custom sharedModels
+  llmHostCustomEval =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig = {
+              users = [
+                {
+                  name = "testuser";
+                  email = "test@example.com";
+                  fullName = "Test User";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+              roles.llm-host.enable = true;
+              sharedModels = ["llama3.2" "mistral:7b"];
+            };
+          }
+        ];
+    })
+    .config;
+
   # Helper: evaluate modules with a specific role enabled
   evalWithRole = roleName:
     (lib.evalModules {
@@ -301,6 +350,43 @@ in {
       ${cascadeChecks}
 
       echo "All role cascades work correctly"
+      touch $out
+    '';
+
+  # Test that llm-host role wires myConfig.sharedModels into ollama.models
+  llmHostSharedModelsTest = let
+    defaultModels = llmHostDefaultEval.myConfig.sharedModels;
+    defaultOllamaModels = llmHostDefaultEval.myConfig.ollama.models;
+    customOllamaModels = llmHostCustomEval.myConfig.ollama.models;
+  in
+    pkgs.runCommand "test-llm-host-shared-models"
+    {}
+    ''
+      echo "=== Testing llm-host sharedModels wiring ==="
+
+      ${
+        if defaultModels == defaultOllamaModels
+        then ''echo "  default sharedModels propagated to ollama.models: OK"''
+        else ''
+          echo "  sharedModels default should propagate to ollama.models!"
+          echo "  sharedModels = ${builtins.toJSON defaultModels}"
+          echo "  ollama.models = ${builtins.toJSON defaultOllamaModels}"
+          exit 1
+        ''
+      }
+
+      ${
+        if customOllamaModels == ["llama3.2" "mistral:7b"]
+        then ''echo "  custom sharedModels reflected in ollama.models: OK"''
+        else ''
+          echo "  custom sharedModels should be reflected in ollama.models!"
+          echo "  expected = [\"llama3.2\" \"mistral:7b\"]"
+          echo "  got = ${builtins.toJSON customOllamaModels}"
+          exit 1
+        ''
+      }
+
+      echo "All llm-host sharedModels tests passed"
       touch $out
     '';
 }

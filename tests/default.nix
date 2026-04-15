@@ -38,6 +38,7 @@ in
     role-composition = testRoles.allRolesCompositionTest;
     role-packages = testRoles.rolePackageInclusionTest;
     role-cascades = testRoles.roleCascadeTest;
+    llm-host-shared-models = testRoles.llmHostSharedModelsTest;
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;
