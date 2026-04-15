@@ -4,6 +4,7 @@ name: PR Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
