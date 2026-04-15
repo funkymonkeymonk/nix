@@ -353,7 +353,7 @@ in {
       serviceConfig = {
         Label = "com.vane.service";
         ProgramArguments = ["${vaneServiceScript}"];
-        RunAtLoad = true;
+        RunAtLoad = cfg.autoStart;
         KeepAlive = true;
         StandardOutPath = "/tmp/vane.log";
         StandardErrorPath = "/tmp/vane.error.log";
