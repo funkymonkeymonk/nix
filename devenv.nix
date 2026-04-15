@@ -1219,6 +1219,36 @@
       '';
     };
 
+    "test:services" = {
+      description = "Test service module options (ollama, vane, openclaw)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running service tests ($CURRENT_SYSTEM)..."
+        for test in ollama-options ollama-custom-options vane-options vane-custom-options openclaw-options; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All service tests passed"
+      '';
+    };
+
+    "test:home-manager" = {
+      description = "Test home-manager module options (jj-autosync, opencode, aliases)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running home-manager tests ($CURRENT_SYSTEM)..."
+        for test in jj-autosync-options jj-autosync-custom-options opencode-options opencode-custom-options shell-aliases; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All home-manager tests passed"
+      '';
+    };
+
     "test:vm" = {
       description = "Run NixOS VM integration tests (Linux only)";
       exec = ''
@@ -1296,6 +1326,12 @@
         echo ""
         echo "=== Running 1Password Tests ==="
         devenv tasks run test:onepassword
+        echo ""
+        echo "=== Running Service Tests ==="
+        devenv tasks run test:services
+        echo ""
+        echo "=== Running Home-Manager Tests ==="
+        devenv tasks run test:home-manager
         echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"
