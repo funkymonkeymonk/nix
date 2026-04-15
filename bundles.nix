@@ -295,12 +295,6 @@ with pkgs.lib; {
         };
       };
     };
-
-    llm-server = {
-      packages = [];
-
-      config = {};
-    };
   };
 
   platforms = {
