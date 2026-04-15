@@ -1,5 +1,5 @@
 # Home-manager module option tests using evalModules
-# Tests jj-autosync options, opencode options, and shell alias structure
+# Tests jj-autosync options, opencode options, fjj options, and shell alias structure
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
@@ -16,6 +16,30 @@
       config._module.args = {inherit pkgs;};
     }
   ];
+
+  # --- fjj option tests ---
+
+  # Evaluate fjj with defaults
+  fjjDefaults =
+    (lib.evalModules {
+      modules = stubModules;
+    }).config.myConfig.fjj;
+
+  # Evaluate fjj with a custom mirrorRoot
+  fjjCustom =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig.fjj = {
+              enable = true;
+              mirrorRoot = "/custom/mirror";
+              workspaceRoot = "/custom/workspaces";
+            };
+          }
+        ];
+    }).config.myConfig.fjj;
 
   # --- jj-autosync option tests ---
 
@@ -347,6 +371,65 @@ in {
       echo "  Aliases: ${builtins.concatStringsSep ", " (builtins.attrNames shellAliases)}"
 
       echo "All shell aliases verified"
+      touch $out
+    '';
+
+  # Test fjj option defaults
+  fjjOptionsTest =
+    pkgs.runCommand "test-fjj-options"
+    {}
+    ''
+      echo "=== Testing fjj Option Defaults ==="
+
+      ${
+        if !fjjDefaults.enable
+        then ''echo "  enable default = false: OK"''
+        else ''echo "  enable should default to false!"; exit 1''
+      }
+
+      ${
+        # Default mirrorRoot depends on platform: ~/src on Darwin, /srv/github on Linux
+        if (fjjDefaults.mirrorRoot == "~/src" || fjjDefaults.mirrorRoot == "/srv/github")
+        then ''echo "  mirrorRoot default is platform-appropriate: OK"''
+        else ''echo "  mirrorRoot should be ~/src or /srv/github, got: ${fjjDefaults.mirrorRoot}"; exit 1''
+      }
+
+      ${
+        if fjjDefaults.workspaceRoot == "~/workspaces"
+        then ''echo "  workspaceRoot default = ~/workspaces: OK"''
+        else ''echo "  workspaceRoot should default to ~/workspaces!"; exit 1''
+      }
+
+      echo "All fjj option defaults verified"
+      touch $out
+    '';
+
+  # Test fjj custom option values
+  fjjCustomOptionsTest =
+    pkgs.runCommand "test-fjj-custom-options"
+    {}
+    ''
+      echo "=== Testing fjj Custom Options ==="
+
+      ${
+        if fjjCustom.enable
+        then ''echo "  enable = true: OK"''
+        else ''echo "  enable should be true!"; exit 1''
+      }
+
+      ${
+        if fjjCustom.mirrorRoot == "/custom/mirror"
+        then ''echo "  mirrorRoot = /custom/mirror: OK"''
+        else ''echo "  mirrorRoot should be /custom/mirror!"; exit 1''
+      }
+
+      ${
+        if fjjCustom.workspaceRoot == "/custom/workspaces"
+        then ''echo "  workspaceRoot = /custom/workspaces: OK"''
+        else ''echo "  workspaceRoot should be /custom/workspaces!"; exit 1''
+      }
+
+      echo "All fjj custom options verified"
       touch $out
     '';
 }

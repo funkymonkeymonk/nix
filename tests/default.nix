@@ -85,5 +85,7 @@ in
 
     # Workspace-aware switch shell function tests
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
+    fjj-options = testHomeManager.fjjOptionsTest;
+    fjj-custom-options = testHomeManager.fjjCustomOptionsTest;
   }
   // vmTests

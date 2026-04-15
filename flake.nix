@@ -758,6 +758,8 @@
             opencode-custom-options
             shell-aliases
             workspace-switch
+            fjj-options
+            fjj-custom-options
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
