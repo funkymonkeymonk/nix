@@ -68,6 +68,7 @@ in
     sketchybar-theme = testSketchybar.sketchybarThemeTest;
     sketchybar-color-conversion = testSketchybar.sketchybarColorConversionTest;
     sketchybar-platform-guard = testSketchybar.sketchybarPlatformGuardTest;
+    sketchybar-entrypoint = testSketchybar.sketchybarEntryPointTest;
 
     # Service module tests
     ollama-options = testServices.ollamaOptionsTest;

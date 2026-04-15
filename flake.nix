@@ -747,6 +747,7 @@
             sketchybar-theme
             sketchybar-color-conversion
             sketchybar-platform-guard
+            sketchybar-entrypoint
             ollama-options
             ollama-custom-options
             vane-options

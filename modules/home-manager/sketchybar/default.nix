@@ -1,12 +1,13 @@
 {
   config,
+  osConfig,
   lib,
   pkgs,
   earthsong,
   ...
 }:
 with lib; let
-  cfg = config.myConfig.sketchybar;
+  cfg = osConfig.myConfig.sketchybar;
   t = earthsong.sketchybarTheme;
 
   # Helper to convert hex color to sketchybar format
@@ -158,10 +159,22 @@ with lib; let
       error = "",
     }
   '';
+
+  # Entry point: sketchybarrc requires all Lua modules and appends extraConfig
+  sketchybarrc = pkgs.writeText "sketchybarrc" ''
+    require("colors")
+    require("settings")
+    require("bar")
+    require("default")
+    require("icons")
+    ${cfg.extraConfig}
+  '';
 in {
-  config = mkIf (cfg.enable && config.myConfig.isDarwin) {
+  config = mkIf (cfg.enable && osConfig.myConfig.isDarwin) {
     home.file = {
-      # Copy Lua config files
+      # Entry point loaded by the launchd agent
+      ".config/sketchybar/sketchybarrc".source = sketchybarrc;
+      # Supporting Lua config files
       ".config/sketchybar/colors.lua".source = colorsLua;
       ".config/sketchybar/settings.lua".source = settingsLua;
       ".config/sketchybar/bar.lua".source = barLua;
