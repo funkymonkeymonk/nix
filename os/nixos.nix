@@ -1,3 +1,6 @@
+# Canonical NixOS platform configuration (used by: zero)
+# Note: machine-types/* and os/microvm.nix define their own copies since they
+# are NOT included alongside this file in any nixosConfiguration.
 {
   lib,
   pkgs,

@@ -14,7 +14,7 @@
     kernelModules = ["kvm-intel" "kvm-amd"];
   };
 
-  # Enable flakes
+  # Enable flakes (intentional: type-server does not include os/nixos.nix)
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
   # Networking - DHCP for IP and hostname
