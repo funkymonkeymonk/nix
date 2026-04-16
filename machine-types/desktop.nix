@@ -15,7 +15,7 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Enable flakes (for rebuilding)
+  # Enable flakes (intentional: type-desktop does not include os/nixos.nix)
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
   # Networking
