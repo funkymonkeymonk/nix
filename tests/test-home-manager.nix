@@ -1,5 +1,5 @@
 # Home-manager module option tests using evalModules
-# Tests jj-autosync options, opencode options, fjj options, and shell alias structure
+# Tests jj-autosync options, opencode options, fjj options, aerospace options, and shell alias structure
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
@@ -16,6 +16,28 @@
       config._module.args = {inherit pkgs;};
     }
   ];
+
+  # --- aerospace option tests ---
+
+  # Evaluate aerospace with defaults (externalMonitor = null)
+  aerospaceDefaults =
+    (lib.evalModules {
+      modules = stubModules;
+    }).config.myConfig.aerospace;
+
+  # Evaluate aerospace with externalMonitor set
+  aerospaceCustom =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig.aerospace = {
+              externalMonitor = "TEST";
+            };
+          }
+        ];
+    }).config.myConfig.aerospace;
 
   # --- fjj option tests ---
 
@@ -430,6 +452,40 @@ in {
       }
 
       echo "All fjj custom options verified"
+      touch $out
+    '';
+
+  # Test aerospace option defaults
+  aerospaceOptionsTest =
+    pkgs.runCommand "test-aerospace-options"
+    {}
+    ''
+      echo "=== Testing aerospace Option Defaults ==="
+
+      ${
+        if aerospaceDefaults.externalMonitor == null
+        then ''echo "  externalMonitor default = null: OK"''
+        else ''echo "  externalMonitor should default to null!"; exit 1''
+      }
+
+      echo "All aerospace option defaults verified"
+      touch $out
+    '';
+
+  # Test aerospace custom option values
+  aerospaceCustomOptionsTest =
+    pkgs.runCommand "test-aerospace-custom-options"
+    {}
+    ''
+      echo "=== Testing aerospace Custom Options ==="
+
+      ${
+        if aerospaceCustom.externalMonitor == "TEST"
+        then ''echo "  externalMonitor = TEST: OK"''
+        else ''echo "  externalMonitor should be TEST!"; exit 1''
+      }
+
+      echo "All aerospace custom options verified"
       touch $out
     '';
 }

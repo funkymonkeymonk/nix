@@ -93,5 +93,9 @@ in
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
     fjj-options = testHomeManager.fjjOptionsTest;
     fjj-custom-options = testHomeManager.fjjCustomOptionsTest;
+
+    # Aerospace option tests
+    aerospace-options = testHomeManager.aerospaceOptionsTest;
+    aerospace-custom-options = testHomeManager.aerospaceCustomOptionsTest;
   }
   // vmTests
