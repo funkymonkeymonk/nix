@@ -11,9 +11,13 @@ in {
     package = pkgs.aerospace;
 
     settings = {
+      "config-version" = 2;
+
       after-startup-command = [
         "layout tiles horizontal" # Root container horizontal
       ];
+
+      persistent-workspaces = ["1.Main" "2.Comms" "3.Dash" "4.Distracted"];
 
       gaps = {
         inner.horizontal = 0;
