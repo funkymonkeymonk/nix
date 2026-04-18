@@ -164,7 +164,7 @@
                   }
                 ];
                 development.enable = true;
-                onepassword.enable = false;
+                onepassword.enable = nixpkgs.lib.mkForce false;
               }
               // roleEnables;
           }
@@ -187,9 +187,10 @@
           # ISO installer only for x86_64-linux
           iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
           # MicroVM declaration runners
-          microvm-dev-vm = self.microvm.nixosConfigurations.dev-vm.config.microvm.declarationRunner;
-          microvm-openclaw = self.microvm.nixosConfigurations.openclaw.config.microvm.declarationRunner;
-          microvm-matrix = self.microvm.nixosConfigurations.matrix.config.microvm.declarationRunner;
+          microvm-dev-vm = self.microvm.nixosConfigurations.dev-vm.config.microvm.declaredRunner;
+          microvm-openclaw = self.microvm.nixosConfigurations.openclaw.config.microvm.declaredRunner;
+          microvm-matrix = self.microvm.nixosConfigurations.matrix.config.microvm.declaredRunner;
+          microvm-media-center = self.microvm.nixosConfigurations.media-center.config.microvm.declaredRunner;
         }
     );
 
@@ -701,6 +702,7 @@
       };
       openclaw = mkMicrovm "openclaw" {};
       matrix = mkMicrovm "matrix" {};
+      media-center = mkMicrovm "media-center" {};
     };
 
     # Flake checks for CI - run on Linux and Darwin
@@ -764,6 +766,14 @@
             workspace-switch
             fjj-options
             fjj-custom-options
+            microvm-config
+            microvm-jellyfin
+            microvm-arr-services
+            microvm-transmission
+            microvm-nginx
+            microvm-firewall
+            microvm-ip-uniqueness
+            microvm-ssh
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

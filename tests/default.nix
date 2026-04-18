@@ -15,6 +15,7 @@
   testServices = import ./test-services.nix {inherit pkgs;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
+  testMicrovm = import ./test-microvm.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -97,5 +98,15 @@ in
     # Aerospace option tests
     aerospace-options = testHomeManager.aerospaceOptionsTest;
     aerospace-custom-options = testHomeManager.aerospaceCustomOptionsTest;
+
+    # MicroVM tests
+    microvm-config = testMicrovm.mediaCenterConfigTest;
+    microvm-jellyfin = testMicrovm.mediaCenterJellyfinTest;
+    microvm-arr-services = testMicrovm.mediaCenterArrServicesTest;
+    microvm-transmission = testMicrovm.mediaCenterTransmissionTest;
+    microvm-nginx = testMicrovm.mediaCenterNginxTest;
+    microvm-firewall = testMicrovm.mediaCenterFirewallTest;
+    microvm-ip-uniqueness = testMicrovm.microvmIpUniquenessTest;
+    microvm-ssh = testMicrovm.mediaCenterSshTest;
   }
   // vmTests
