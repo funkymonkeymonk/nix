@@ -6,6 +6,7 @@
   # Create proper executable scripts in the nix store
   switch-nix-script = pkgs.writeShellScriptBin "switch-nix" (builtins.readFile ./scripts/switch-nix);
   nix-cloud-init-script = pkgs.writeShellScriptBin "nix-cloud-init" (builtins.readFile ./scripts/nix-cloud-init);
+  microvm-script = pkgs.writeShellScriptBin "microvm" (builtins.readFile ./scripts/microvm);
 in {
   # System-level shell configuration
   # This module handles global shell setup that applies to all users
@@ -36,6 +37,7 @@ in {
   environment.systemPackages = [
     switch-nix-script
     nix-cloud-init-script
+    microvm-script
   ];
 
   # Also install to /etc for reference

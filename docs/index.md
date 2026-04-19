@@ -22,6 +22,7 @@ Solve specific problems:
 - [Add a Custom Skill](how-to/add-skill.md) - Create an AI agent skill
 - [Set Up 1Password SSH Signing](how-to/setup-1password.md) - Configure commit signing
 - [Run CI Locally](how-to/run-ci-locally.md) - Validate before pushing
+- [Manage MicroVMs with Nix](how-to/manage-microvms-nix.md) - Pure Nix MicroVM management
 - [Create a PR with jj](how-to/create-pr-with-jj.md) - Create a pull request
 - [Update an Existing PR](how-to/update-existing-pr.md) - Respond to review feedback
 - [Sync with Main](how-to/sync-with-main.md) - Keep your branch up to date
@@ -46,6 +47,7 @@ Technical descriptions:
 Background and design:
 
 - [Architecture](explanation/architecture.md) - How modules, roles, and targets work
+- [MicroVM Base Architecture](explanation/microvm-base-architecture.md) - Base image pattern for MicroVMs
 - [Agent Skills System](explanation/agent-skills.md) - Why skills are managed through Nix
 - [Yaks and Workspaces](explanation/yaks-workspaces.md) - Multi-agent coordination design
 - [JJ Mental Model](explanation/jj-mental-model.md) - Why jj works the way it does

@@ -1247,6 +1247,97 @@ with lib; {
       };
     };
 
+    # MicroVM host configuration - define VMs to run on this host
+    # Each VM inherits from the base MicroVM configuration and can add customizations
+    microvms = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          enable = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Whether to enable this MicroVM on the host";
+          };
+
+          ip = mkOption {
+            type = types.str;
+            example = "192.168.83.16";
+            description = ''
+              Static IP address for the MicroVM on the bridge network.
+              Must be in the 192.168.83.0/24 subnet.
+            '';
+          };
+
+          flake = mkOption {
+            type = types.str;
+            default = null;
+            description = ''
+              Flake reference for the MicroVM configuration.
+              Default: .#microvm.nixosConfigurations.<name>
+            '';
+          };
+
+          mac = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = ''
+              Custom MAC address for the VM.
+              Default: auto-generated from VM name (deterministic).
+            '';
+          };
+
+          autostart = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Whether to start the VM on boot";
+          };
+
+          memory = mkOption {
+            type = types.int;
+            default = 1024;
+            description = "Memory allocation in MB";
+          };
+
+          vcpus = mkOption {
+            type = types.int;
+            default = 2;
+            description = "Number of virtual CPUs";
+          };
+
+          extraShares = mkOption {
+            type = types.listOf types.attrs;
+            default = [];
+            description = "Additional virtiofs shares beyond the standard ro-store and cloud-init";
+          };
+
+          extraInterfaces = mkOption {
+            type = types.listOf types.attrs;
+            default = [];
+            description = "Additional network interfaces beyond the standard tap interface";
+          };
+
+          customConfig = mkOption {
+            type = types.attrs;
+            default = {};
+            description = "Extra configuration attributes to merge into microvm.vms.<name>";
+          };
+        };
+      });
+      default = {};
+      description = ''
+        MicroVM definitions for this host.
+
+        Each VM automatically inherits from the base MicroVM configuration
+        (modules/microvm/base.nix) and adds VM-specific customizations.
+
+        Example:
+          myConfig.microvms.openclaw = {
+            ip = "192.168.83.16";
+            memory = 2048;
+            vcpus = 4;
+          };
+      '';
+    };
+
     aerospace = {
       externalMonitor = mkOption {
         type = types.nullOr types.str;

@@ -1,26 +1,25 @@
 # openclaw.nix - OpenClaw AI Assistant MicroVM
-# Secrets come from 1Password via opnix
-# https://github.com/openclaw/openclaw
-{
-  lib,
-  pkgs,
-  ...
-}: {
+# VM-specific customizations layered on top of modules/microvm/base.nix
+#
+# This file contains ONLY OpenClaw-specific configuration.
+# All MicroVMs share the base configuration (SSH, cloud-init, basic packages, etc.)
+{pkgs, ...}: {
   imports = [
     ../../modules/services/openclaw
   ];
 
+  # VM identity
   networking.hostName = "openclaw";
+  time.timeZone = "America/New_York";
 
-  system.autoUpgrade.enable = lib.mkForce false;
-
-  # Microvm-specific network config
+  # Network configuration (provided by host via myConfig.microvms)
   myConfig.microvm = {
     enable = true;
     ipAddress = "192.168.83.16";
     gateway = "192.168.83.1";
   };
 
+  # OpenClaw service configuration
   services.openclaw = {
     enable = true;
     port = 18789;
@@ -34,21 +33,15 @@
     environmentFile = "/run/openclaw/generated-env";
 
     extraConfig = {
-      agent = {
-        model = "zen/default";
-      };
-
+      agent.model = "zen/default";
       gateway = {
         bind = "0.0.0.0";
         verbose = true;
       };
-
-      channels = {
-        matrix = {
-          enabled = true;
-          homeserver = "http://192.168.83.15:8008";
-          userId = "@openclaw:matrix.local";
-        };
+      channels.matrix = {
+        enabled = true;
+        homeserver = "http://192.168.83.15:8008";
+        userId = "@openclaw:matrix.local";
       };
     };
 
@@ -111,19 +104,16 @@
     };
   };
 
+  # VM-specific packages (base packages like vim, git, htop come from base.nix)
   environment.systemPackages = with pkgs; [
-    vim
-    git
     gh
-    htop
-    curl
     jq
   ];
 
+  # SSH access (base config enables SSH, we just add authorized keys here)
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8"
   ];
 
-  time.timeZone = "America/New_York";
   system.stateVersion = "25.05";
 }
