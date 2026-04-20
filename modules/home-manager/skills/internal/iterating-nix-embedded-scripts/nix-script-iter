@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# nix-script-iter — fast iteration loop for shell scripts embedded in Nix flakes.
+#
+# Usage:
+#   nix-script-iter <flake-path> <config-name> <script-pname> [-- <script-args>...]
+#
+# Example:
+#   nix-script-iter ~/nix wweaver aerospace-summon -- com.vivaldi.Vivaldi
+#
+# What it does:
+#   1. Resolves the script derivation by filtering
+#      darwinConfigurations.<config-name>.config.environment.systemPackages
+#      for a package whose pname matches.
+#   2. Builds it with a stable symlink under /tmp.
+#   3. Executes the resulting binary with any passed-through arguments.
+#
+# Loop: edit the Nix source → re-run this command. ~1–3s per rebuild.
+#
+# Assumptions:
+#   - Darwin flake layout (swap darwinConfigurations for nixosConfigurations as needed).
+#   - Script is installed via environment.systemPackages. For home-manager scripts,
+#     adapt the --expr to walk home-manager.users.<you>.home.packages.
+
+set -euo pipefail
+
+if [ "$#" -lt 3 ]; then
+  cat >&2 <<EOF
+usage: nix-script-iter <flake-path> <config-name> <script-pname> [-- <args>...]
+
+  flake-path    absolute or relative path to the flake root
+  config-name   the darwinConfigurations / nixosConfigurations attribute name
+  script-pname  the pname (or name) of the writeShellScriptBin / writeShellApplication
+
+  -- <args>     everything after -- is passed to the built script
+EOF
+  exit 2
+fi
+
+FLAKE_PATH="$1"
+CONFIG_NAME="$2"
+SCRIPT_PNAME="$3"
+shift 3
+
+if [ "$#" -gt 0 ] && [ "$1" = "--" ]; then
+  shift
+fi
+
+# Resolve to absolute path for nix eval (builtins.getFlake requires abs path)
+FLAKE_ABS="$(cd "$FLAKE_PATH" && pwd)"
+
+OUT_LINK="/tmp/nix-script-iter-${SCRIPT_PNAME}"
+
+# Try darwinConfigurations first, fall back to nixosConfigurations.
+# Using --expr keeps this portable across flake attr layouts.
+EXPR='
+  let
+    flake = builtins.getFlake (toString FLAKE_ABS_PLACEHOLDER);
+    cfg =
+      flake.darwinConfigurations.CONFIG_PLACEHOLDER.config
+        or flake.nixosConfigurations.CONFIG_PLACEHOLDER.config;
+    pkgs = cfg.environment.systemPackages;
+    match = builtins.filter
+      (p: (p.pname or p.name or "") == "PNAME_PLACEHOLDER") pkgs;
+  in
+    if match == [] then
+      throw "no package with pname=PNAME_PLACEHOLDER found in environment.systemPackages"
+    else
+      builtins.head match
+'
+
+EXPR="${EXPR//FLAKE_ABS_PLACEHOLDER/$FLAKE_ABS}"
+EXPR="${EXPR//CONFIG_PLACEHOLDER/$CONFIG_NAME}"
+EXPR="${EXPR//PNAME_PLACEHOLDER/$SCRIPT_PNAME}"
+
+echo "→ building $SCRIPT_PNAME from $FLAKE_ABS#$CONFIG_NAME …" >&2
+nix build --impure --out-link "$OUT_LINK" --expr "$EXPR"
+
+BIN="$OUT_LINK/bin/$SCRIPT_PNAME"
+if [ ! -x "$BIN" ]; then
+  echo "nix-script-iter: built but no executable at $BIN" >&2
+  echo "contents of $OUT_LINK/bin:" >&2
+  ls -la "$OUT_LINK/bin" >&2 || true
+  exit 1
+fi
+
+echo "→ running $BIN $*" >&2
+exec "$BIN" "$@"
