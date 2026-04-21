@@ -196,4 +196,14 @@
       list = ["shave"];
     };
   };
+
+  "iterating-nix-embedded-scripts" = {
+    description = "Use when iterating on shell scripts embedded in Nix modules via writeShellScriptBin, writeShellApplication, writeScriptBin, or writeText — avoids slow build/switch cycles for every edit";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/iterating-nix-embedded-scripts;
+    };
+    deps = [];
+  };
 }

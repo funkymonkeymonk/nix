@@ -39,7 +39,6 @@ with pkgs.lib; {
         direnv
         rclone
         bat
-        watchman
         jnv
         docker
         # Colima provides Docker runtime on macOS (Linux uses native Docker)
