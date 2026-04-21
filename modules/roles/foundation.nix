@@ -41,7 +41,6 @@ in {
           direnv
           rclone
           bat
-          watchman
           jnv
           docker
           colima
