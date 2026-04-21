@@ -46,8 +46,8 @@ if ! echo "$context" | grep -qiE '(- \[|acceptance criteria|criteria|definition 
     exit 1
 fi
 
-# Check 3: Mentions specific files (heuristic: contains .nix or .sh or path-like strings)
-if ! echo "$context" | grep -qE '(\.(nix|sh|yml|yaml|md|json|toml)|modules/|tests/|\.github/)'; then
+# Check 3: Mentions specific files (heuristic: any path-like string — slash-separated or filename with extension)
+if ! echo "$context" | grep -qE '([a-zA-Z0-9_-]+/[a-zA-Z0-9_./-]+|[a-zA-Z0-9_-]+\.[a-zA-Z]{1,6})'; then
     echo "No specific files mentioned. Need concrete file paths for autonomous implementation."
     exit 1
 fi
