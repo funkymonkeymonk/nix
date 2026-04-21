@@ -19,6 +19,7 @@ in {
       gh-dash
       gomuks
       slidev-cli
+      temporal-cli
       yaks
     ];
 
