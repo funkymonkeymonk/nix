@@ -51,25 +51,15 @@
     # ============================================
     # JJ Workspace Support - Check if in workspace
     # ============================================
-    # Function to detect main repo root from workspace
-    _detect_jj_repo_root() {
-      local current_dir="$1"
-      if [[ -f "$current_dir/.jj/repo" ]] && [[ ! -d "$current_dir/.jj/repo" ]]; then
-        local repo_pointer=$(cat "$current_dir/.jj/repo" 2>/dev/null)
-        if [[ -n "$repo_pointer" ]]; then
-          (cd "$current_dir/.jj" && cd "$(dirname "$repo_pointer")" && cd .. && pwd)
-          return 0
-        fi
-      fi
-      echo "$current_dir"
-    }
+    # Source shared workspace detection library
+    source ./modules/common/scripts/jj-workspace-lib
 
     # Check if we're in a jj workspace
     if command -v jj &>/dev/null; then
       _JJ_WORKSPACE_ROOT=$(jj root 2>/dev/null || pwd)
-      _JJ_REPO_ROOT=$(_detect_jj_repo_root "$_JJ_WORKSPACE_ROOT")
+      _JJ_REPO_ROOT=$(detect_jj_repo_root "$_JJ_WORKSPACE_ROOT" || echo "$_JJ_WORKSPACE_ROOT")
 
-      if [[ "$_JJ_WORKSPACE_ROOT" != "$_JJ_REPO_ROOT" ]] && [[ -d "$_JJ_WORKSPACE_ROOT/.jj" ]]; then
+      if is_jj_workspace "$_JJ_WORKSPACE_ROOT" "$_JJ_REPO_ROOT"; then
         # In workspace - create functions that run from repo root
         echo "📁 JJ Workspace: $(basename "$_JJ_WORKSPACE_ROOT")"
         echo "   Switch will run from: $_JJ_REPO_ROOT"
@@ -96,8 +86,7 @@
     fi
     i() { devenv tasks run dev:ide "$@"; }
 
-    # Cleanup temp functions
-    unset -f _detect_jj_repo_root 2>/dev/null || true
+    # Cleanup temp variables
     unset _JJ_WORKSPACE_ROOT _JJ_REPO_ROOT 2>/dev/null || true
 
     # Source switch-nix function (same source as system-wide install)
@@ -377,7 +366,13 @@
           echo "1Password CLI: found"
 
           # Get sudo password from 1Password
-          PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+          # Check if config defines a custom sudoPasswordRef, otherwise use default pattern
+          CUSTOM_REF=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
+          if [[ -n "$CUSTOM_REF" ]]; then
+            PASSWORD_PATH="$CUSTOM_REF"
+          else
+            PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+          fi
           echo "Fetching sudo password from 1Password..."
           echo "  Path: $PASSWORD_PATH"
 
@@ -386,8 +381,9 @@
             echo "ERROR: Failed to read sudo password from 1Password"
             echo "  Attempted path: $PASSWORD_PATH"
             echo ""
-            echo "Ensure you have a '$HOSTNAME Sudo Password' item in your Private vault"
-            echo "with a 'password' field containing your sudo password."
+            echo "Ensure the item exists in 1Password."
+            echo "You can set myConfig.onepassword.sudoPasswordRef in the machine config"
+            echo "to override the default path (op://Private/<hostname> Sudo Password/password)."
             exit 1
           }
           echo "Sudo password: retrieved"
@@ -993,18 +989,29 @@
     };
 
     "microvm:test" = {
-      description = "Validate microvm configuration";
+      description = "Validate all microvm configurations";
       exec = ''
-        echo "Validating dev-vm microvm configuration..."
-        if nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
-          --json >/dev/null 2>&1; then
-          echo "dev-vm configuration valid"
-        else
-          echo "dev-vm configuration invalid"
-          nix eval .#microvm.nixosConfigurations.dev-vm.config.system.build.toplevel \
-            --json --show-trace
+        FAILED=0
+        for vm in dev-vm openclaw matrix; do
+          echo "Validating $vm microvm configuration..."
+          if nix eval ".#microvm.nixosConfigurations.$vm.config.system.build.toplevel" \
+            --json >/dev/null 2>&1; then
+            echo "  $vm: valid"
+          else
+            echo "  $vm: INVALID"
+            nix eval ".#microvm.nixosConfigurations.$vm.config.system.build.toplevel" \
+              --json --show-trace 2>&1 || true
+            FAILED=1
+          fi
+        done
+
+        if [ "$FAILED" -eq 1 ]; then
+          echo ""
+          echo "Some microvm configurations failed validation!"
           exit 1
         fi
+        echo ""
+        echo "All microvm configurations valid"
       '';
     };
 
@@ -1146,6 +1153,10 @@
         echo "Testing role cascades ($CURRENT_SYSTEM)..."
         nix build ".#checks.''${CURRENT_SYSTEM}.role-cascades" --no-link
         echo "Role cascade test passed"
+        echo ""
+        echo "Testing llm-host sharedModels wiring ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.llm-host-shared-models" --no-link
+        echo "llm-host sharedModels test passed"
       '';
     };
 
@@ -1161,7 +1172,7 @@
     };
 
     "test:skills" = {
-      description = "Test skills manifest, autoLoad filtering, and content generation";
+      description = "Test skills manifest, autoLoad filtering, content generation, and external skill activation";
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Testing skills manifest validation ($CURRENT_SYSTEM)..."
@@ -1179,6 +1190,91 @@
         echo "Testing skills role filtering ($CURRENT_SYSTEM)..."
         nix build ".#checks.''${CURRENT_SYSTEM}.skills-role-filtering" --no-link
         echo "Skills role filtering test passed"
+        echo ""
+        echo "Testing external skills identification ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-external-identification" --no-link
+        echo "External skills identification test passed"
+        echo ""
+        echo "Testing external skill command generation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-external-command-generation" --no-link
+        echo "External skill command generation test passed"
+        echo ""
+        echo "Testing external skills empty case ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.skills-external-empty-case" --no-link
+        echo "External skills empty case test passed"
+      '';
+    };
+
+    "test:email" = {
+      description = "Test email-agent and email-backup modules";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Testing email-agent options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-agent-options" --no-link
+        echo "email-agent options test passed"
+        echo ""
+        echo "Testing email-backup options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-backup-options" --no-link
+        echo "email-backup options test passed"
+        echo ""
+        echo "Testing custom email options ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-custom-options" --no-link
+        echo "Custom email options test passed"
+        echo ""
+        echo "Testing email role composition ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-composition" --no-link
+        echo "Email composition test passed"
+        echo ""
+        echo "Testing email backup scripts ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-backup-scripts" --no-link
+        echo "Email backup scripts test passed"
+        echo ""
+        echo "Testing email role separation ($CURRENT_SYSTEM)..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.email-separation" --no-link
+        echo "Email role separation test passed"
+      '';
+    };
+
+    "test:services" = {
+      description = "Test service module options (ollama, vane, openclaw)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running service tests ($CURRENT_SYSTEM)..."
+        for test in ollama-options ollama-custom-options vane-options vane-custom-options openclaw-options; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All service tests passed"
+      '';
+    };
+
+    "test:home-manager" = {
+      description = "Test home-manager module options (jj-autosync, opencode, fjj, aliases)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running home-manager tests ($CURRENT_SYSTEM)..."
+        for test in jj-autosync-options jj-autosync-custom-options opencode-options opencode-custom-options shell-aliases fjj-options fjj-custom-options; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All home-manager tests passed"
+      '';
+    };
+
+    "test:workspace-switch" = {
+      description = "Test workspace-aware switch shell functions and jj-workspace-lib";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running workspace-switch tests ($CURRENT_SYSTEM)..."
+        echo "--- workspace-switch ---"
+        nix build ".#checks.''${CURRENT_SYSTEM}.workspace-switch" --no-link
+        echo "workspace-switch: passed"
+        echo ""
+        echo "All workspace-switch tests passed"
       '';
     };
 
@@ -1206,6 +1302,36 @@
       '';
     };
 
+    "test:sketchybar" = {
+      description = "Test sketchybar options, theme, and color conversion";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
+        for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All sketchybar tests passed"
+      '';
+    };
+
+    "test:onepassword" = {
+      description = "Test 1Password options, guard, and config output";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running 1Password tests ($CURRENT_SYSTEM)..."
+        for test in onepassword-guard onepassword-config-output; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All 1Password tests passed"
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (platform-agnostic eval tests)";
       exec = ''
@@ -1220,6 +1346,24 @@
         echo ""
         echo "=== Running Skills Tests ==="
         devenv tasks run test:skills
+        echo ""
+        echo "=== Running Email Tests ==="
+        devenv tasks run test:email
+        echo ""
+        echo "=== Running Sketchybar Tests ==="
+        devenv tasks run test:sketchybar
+        echo ""
+        echo "=== Running 1Password Tests ==="
+        devenv tasks run test:onepassword
+        echo ""
+        echo "=== Running Service Tests ==="
+        devenv tasks run test:services
+        echo ""
+        echo "=== Running Home-Manager Tests ==="
+        devenv tasks run test:home-manager
+        echo ""
+        echo "=== Running Workspace-Switch Tests ==="
+        devenv tasks run test:workspace-switch
         echo ""
         echo "=== Running Configuration Evaluation Tests ==="
         echo "These tests validate configs can be evaluated without building"

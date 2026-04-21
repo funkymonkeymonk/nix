@@ -30,6 +30,10 @@
           type = lib.types.attrsOf lib.types.str;
           default = {};
         };
+        etc = lib.mkOption {
+          type = lib.types.attrsOf lib.types.anything;
+          default = {};
+        };
       };
       options.programs = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
@@ -39,11 +43,70 @@
         type = lib.types.anything;
         default = {};
       };
+      # Note: We intentionally do NOT stub NixOS-specific options (boot, networking,
+      # systemd, services). This means on Darwin, microvm-host evaluates as a no-op
+      # since isNixOS = builtins.hasAttr "boot" options => false.
+      # On NixOS (CI), these options exist natively.
+      # Stub for microvm.vms (referenced by microvm-host role, guarded by isNixOS)
+      options.microvm = lib.mkOption {
+        type = lib.types.anything;
+        default = {};
+      };
+      config.microvm.vms = {};
     }
     {
       config._module.args = {inherit pkgs;};
     }
   ];
+
+  # Evaluate llm-host role with default sharedModels
+  llmHostDefaultEval =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig = {
+              users = [
+                {
+                  name = "testuser";
+                  email = "test@example.com";
+                  fullName = "Test User";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+              roles.llm-host.enable = true;
+            };
+          }
+        ];
+    })
+    .config;
+
+  # Evaluate llm-host role with custom sharedModels
+  llmHostCustomEval =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig = {
+              users = [
+                {
+                  name = "testuser";
+                  email = "test@example.com";
+                  fullName = "Test User";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+              roles.llm-host.enable = true;
+              sharedModels = ["llama3.2" "mistral:7b"];
+            };
+          }
+        ];
+    })
+    .config;
 
   # Helper: evaluate modules with a specific role enabled
   evalWithRole = roleName:
@@ -99,6 +162,9 @@
                 claude.enable = true;
                 pi.enable = true;
                 llm-host.enable = true;
+                assistant.enable = true;
+                email-backup.enable = true;
+                microvm-host.enable = true;
               };
             };
           }
@@ -120,6 +186,9 @@
     "claude"
     "pi"
     "llm-host"
+    "assistant"
+    "email-backup"
+    "microvm-host"
   ];
 
   # Map of roles to their expected nix packages (name attr of the derivation)
@@ -134,6 +203,10 @@
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
     llm-host = ["ollama"];
+    assistant = ["himalaya" "gmailctl"];
+    email-backup = ["isync" "notmuch" "restic"];
+    # microvm-host packages are NixOS-only (guarded by isNixOS check).
+    # On Darwin, the role is a no-op and adds no packages.
   };
 
   # Map of roles to cascade-enabled options
@@ -150,6 +223,8 @@
       "pi.enable" = true;
     };
     llm-host = {"ollama.enable" = true;};
+    assistant = {"email-agent.enable" = true;};
+    email-backup = {"email-backup.enable" = true;};
     foundation = {
       "onepassword.enable" = true;
       "syncthing.enable" = true;
@@ -275,6 +350,43 @@ in {
       ${cascadeChecks}
 
       echo "All role cascades work correctly"
+      touch $out
+    '';
+
+  # Test that llm-host role wires myConfig.sharedModels into ollama.models
+  llmHostSharedModelsTest = let
+    defaultModels = llmHostDefaultEval.myConfig.sharedModels;
+    defaultOllamaModels = llmHostDefaultEval.myConfig.ollama.models;
+    customOllamaModels = llmHostCustomEval.myConfig.ollama.models;
+  in
+    pkgs.runCommand "test-llm-host-shared-models"
+    {}
+    ''
+      echo "=== Testing llm-host sharedModels wiring ==="
+
+      ${
+        if defaultModels == defaultOllamaModels
+        then ''echo "  default sharedModels propagated to ollama.models: OK"''
+        else ''
+          echo "  sharedModels default should propagate to ollama.models!"
+          echo "  sharedModels = ${builtins.toJSON defaultModels}"
+          echo "  ollama.models = ${builtins.toJSON defaultOllamaModels}"
+          exit 1
+        ''
+      }
+
+      ${
+        if customOllamaModels == ["llama3.2" "mistral:7b"]
+        then ''echo "  custom sharedModels reflected in ollama.models: OK"''
+        else ''
+          echo "  custom sharedModels should be reflected in ollama.models!"
+          echo "  expected = [\"llama3.2\" \"mistral:7b\"]"
+          echo "  got = ${builtins.toJSON customOllamaModels}"
+          exit 1
+        ''
+      }
+
+      echo "All llm-host sharedModels tests passed"
       touch $out
     '';
 }

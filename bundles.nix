@@ -39,7 +39,6 @@ with pkgs.lib; {
         direnv
         rclone
         bat
-        watchman
         jnv
         docker
         # Colima provides Docker runtime on macOS (Linux uses native Docker)
@@ -294,12 +293,6 @@ with pkgs.lib; {
           models = ["qwen3.5:2b" "qwen3.5" "qwen3.5:122b"];
         };
       };
-    };
-
-    llm-server = {
-      packages = [];
-
-      config = {};
     };
   };
 

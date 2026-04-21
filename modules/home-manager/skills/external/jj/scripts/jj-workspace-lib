@@ -238,14 +238,8 @@ jj_merge_pr() {
 }
 
 # Push bookmark to origin
-# Usage: jj_push_bookmark <bookmark> [allow_new]
+# Usage: jj_push_bookmark <bookmark>
 jj_push_bookmark() {
     local bookmark="$1"
-    local allow_new="${2:-false}"
-    
-    if [[ "$allow_new" == "true" ]]; then
-        jj git push --bookmark "$bookmark" --allow-new
-    else
-        jj git push --bookmark "$bookmark"
-    fi
+    jj git push --bookmark "$bookmark"
 }

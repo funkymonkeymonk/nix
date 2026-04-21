@@ -30,17 +30,24 @@
     "home-manager/zellij.nix"
     "home-manager/skills/install.nix"
     "home-manager/skills/manifest.nix"
+    "home-manager/email-agent.nix"
+    "home-manager/email-backup.nix"
+    "home-manager/sketchybar/default.nix"
+    "home-manager/themes.nix"
     # roles/
     "roles/agent-skills.nix"
+    "roles/assistant.nix"
     "roles/claude.nix"
     "roles/creative.nix"
     "roles/default.nix"
     "roles/desktop.nix"
     "roles/developer.nix"
+    "roles/email-backup.nix"
     "roles/entertainment.nix"
     "roles/foundation.nix"
     "roles/gaming.nix"
     "roles/llm-host.nix"
+    "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
@@ -55,6 +62,7 @@
     "services/ollama/darwin.nix"
     "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
+    "services/microvm-host/default.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
     # top-level
@@ -81,12 +89,39 @@
     "roles/foundation.nix"
     "roles/gaming.nix"
     "roles/llm-host.nix"
+    "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
+    # Tested via test-email.nix (email-agent and email-backup module tests)
+    "roles/assistant.nix"
+    "roles/email-backup.nix"
+    "home-manager/email-agent.nix"
+    "home-manager/email-backup.nix"
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
     "common/users.nix"
+    # Tested via test-sketchybar.nix (option defaults, custom values, theme, color conversion)
+    "home-manager/sketchybar/default.nix"
+    "home-manager/themes.nix"
+    # Tested via test-packages.nix onepasswordGuardTest + onepasswordConfigOutputTest
+    # (hasOpnix guard, platform-specific config output)
+    # common/onepassword.nix was already listed above via onepasswordOptionsTest
+    # Tested via test-roles.nix (microvm-host added to allRoles)
+    # services/microvm-host tracked via role imports
+    "services/microvm-host/default.nix"
+    # Tested via test-services.nix (ollama, vane, openclaw option tests)
+    "services/ollama/common.nix"
+    "services/ollama/darwin.nix"
+    "services/ollama/nixos.nix"
+    "services/openclaw/default.nix"
+    "services/vane/common.nix"
+    "services/vane/darwin.nix"
+    # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
+    "home-manager/jj-autosync.nix"
+    "home-manager/opencode.nix"
+    "home-manager/aliases.nix"
+    "home-manager/skills/manifest.nix"
   ];
 
   # Modules not yet covered by tests

@@ -19,6 +19,8 @@ in {
     ./opencode.nix
     ./claude.nix
     ./pi.nix
+    ./assistant.nix
+    ./email-backup.nix
     ./llm-host.nix
     ./microvm-host.nix
     # Note: homebrew.nix is imported separately by configurations that use nix-homebrew

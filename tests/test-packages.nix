@@ -48,7 +48,6 @@
         direnv
         rclone
         bat
-        watchman
         jnv
         docker
         colima
@@ -293,6 +292,170 @@
       }
 
       echo "All 1Password options verified"
+      touch $out
+    '';
+
+  # Test onepassword.nix config output: hasOpnix guard
+  # When opnix module is NOT available, services.onepassword-secrets should not be set
+  onepasswordGuardTest = let
+    # Evaluate WITHOUT opnix module (no services.onepassword-secrets option)
+    testEvalNoOpnix = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        ../modules/common/onepassword.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+          options.environment.systemPackages = pkgs.lib.mkOption {
+            type = pkgs.lib.types.listOf pkgs.lib.types.package;
+            default = [];
+          };
+          # Stub programs._1password for NixOS path
+          options.programs._1password = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {};
+          };
+          # No services.onepassword-secrets option here — simulates no opnix
+          options.services = pkgs.lib.mkOption {
+            type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
+            default = {};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+        {
+          config.myConfig.onepassword = {
+            enable = true;
+            secrets = {
+              testKey = {
+                reference = "op://vault/item/cred";
+                path = "/run/secrets/test";
+              };
+            };
+          };
+        }
+      ];
+    };
+    cfgNoOpnix = testEvalNoOpnix.config;
+    # Check that no services.onepassword-secrets config is produced
+    hasOpnixConfig = (cfgNoOpnix.services or {}) ? onepassword-secrets;
+  in
+    pkgs.runCommand "test-onepassword-guard"
+    {}
+    ''
+      echo "=== Testing 1Password hasOpnix Guard ==="
+
+      # Without opnix module, services.onepassword-secrets should NOT be configured
+      ${
+        if !hasOpnixConfig
+        then ''echo "  No opnix config without module: OK"''
+        else ''echo "  ERROR: opnix config present without module!"; exit 1''
+      }
+
+      # Verify the module evaluates without error (no infinite recursion)
+      echo "  Module evaluates cleanly without opnix: OK"
+
+      echo "1Password guard test passed"
+      touch $out
+    '';
+
+  # Test onepassword.nix config output: platform-specific package installation
+  # Note: isDarwin is read-only, computed from pkgs.stdenv.hostPlatform.system.
+  # On Darwin hosts, we can only test the Darwin path. The NixOS path is verified
+  # by CI running on Linux runners.
+  onepasswordConfigOutputTest = let
+    isDarwin = builtins.elem pkgs.stdenv.hostPlatform.system ["aarch64-darwin" "x86_64-darwin"];
+
+    # Evaluate onepassword.nix with stubs appropriate for the current platform
+    testEval = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        ../modules/common/onepassword.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+          options.environment.systemPackages = pkgs.lib.mkOption {
+            type = pkgs.lib.types.listOf pkgs.lib.types.package;
+            default = [];
+          };
+          # Stub programs._1password for NixOS path
+          options.programs._1password = {
+            enable = pkgs.lib.mkOption {
+              type = pkgs.lib.types.bool;
+              default = false;
+            };
+            package = pkgs.lib.mkOption {
+              type = pkgs.lib.types.package;
+              default = pkgs._1password-cli;
+            };
+          };
+          options.services = pkgs.lib.mkOption {
+            type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
+            default = {};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+        {
+          config.myConfig.onepassword.enable = true;
+        }
+      ];
+    };
+    evalCfg = testEval.config;
+    pkgNames = map (p: p.name or p.pname or "unknown") evalCfg.environment.systemPackages;
+    hasCli = builtins.any (n: pkgs.lib.hasInfix "1password" n) pkgNames;
+  in
+    pkgs.runCommand "test-onepassword-config-output"
+    {}
+    ''
+      echo "=== Testing 1Password Config Output ==="
+      echo "  Platform: ${
+        if isDarwin
+        then "Darwin"
+        else "NixOS"
+      }"
+
+      ${
+        if isDarwin
+        then ''
+          # On Darwin: should add _1password-cli to systemPackages
+          ${
+            if hasCli
+            then ''echo "  Darwin: _1password-cli in systemPackages: OK"''
+            else ''echo "  Darwin: _1password-cli NOT in systemPackages!"; exit 1''
+          }
+
+          # On Darwin: programs._1password should NOT be enabled (NixOS-only option)
+          ${
+            if !evalCfg.programs._1password.enable
+            then ''echo "  Darwin: programs._1password.enable = false: OK (NixOS-only)"''
+            else ''echo "  Darwin: programs._1password should not be enabled!"; exit 1''
+          }
+        ''
+        else ''
+          # On NixOS: should enable programs._1password
+          ${
+            if evalCfg.programs._1password.enable
+            then ''echo "  NixOS: programs._1password.enable = true: OK"''
+            else ''echo "  NixOS: programs._1password.enable should be true!"; exit 1''
+          }
+
+          # On NixOS: should NOT add CLI to systemPackages (handled by programs._1password)
+          ${
+            if !hasCli
+            then ''echo "  NixOS: _1password-cli NOT in systemPackages: OK (handled by programs._1password)"''
+            else ''echo "  NixOS: _1password-cli should not be in systemPackages!"; exit 1''
+          }
+        ''
+      }
+
+      echo "1Password config output test passed"
       touch $out
     '';
 }

@@ -90,11 +90,11 @@ Set a bookmark (jj's name for a branch) and push:
 
 ```bash
 jj bookmark set feat/my-change -r @
-jj git push --bookmark feat/my-change --allow-new
+jj git push --bookmark feat/my-change
 gh pr create --head feat/my-change --fill
 ```
 
-`--allow-new` is required the first time you push a bookmark. After that, plain `jj git push` is enough.
+New bookmarks are automatically tracked by the remote thanks to the `remotes.origin.auto-track-bookmarks` config.
 
 **Bookmark naming convention:**
 

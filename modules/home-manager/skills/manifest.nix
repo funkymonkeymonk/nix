@@ -182,4 +182,28 @@
     deps = [];
     autoLoad = true;
   };
+
+  "shave-yaks" = {
+    description = "Use when you want to autonomously work through a yak backlog end-to-end — triaging, implementing, testing, and shipping PRs until all yaks are done or flagged for refinement";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/shave-yaks;
+    };
+    deps = ["yak-shaving" "jj" "watch-ci-jobs"];
+    commands = {
+      path = ./internal/shave-yaks/commands;
+      list = ["shave"];
+    };
+  };
+
+  "iterating-nix-embedded-scripts" = {
+    description = "Use when iterating on shell scripts embedded in Nix modules via writeShellScriptBin, writeShellApplication, writeScriptBin, or writeText — avoids slow build/switch cycles for every edit";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/iterating-nix-embedded-scripts;
+    };
+    deps = [];
+  };
 }

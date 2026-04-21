@@ -1,14 +1,19 @@
 {
   pkgs,
   lib,
-  osConfig,
+  config,
+  osConfig ? null,
   ...
 }: let
-  # Platform-specific mirror location (macOS uses ~/src since /srv is read-only)
+  # Mirror root from config option (platform default is set in options.nix)
+  # Falls back through osConfig (home-manager in NixOS/Darwin), then home-manager config
+  fjjCfg = osConfig.myConfig.fjj or config.myConfig.fjj or {};
   mirrorRoot =
-    if osConfig.myConfig.isDarwin
-    then "$HOME/src"
-    else "/srv/github";
+    fjjCfg.mirrorRoot or (
+      if (osConfig.myConfig.isDarwin or pkgs.stdenv.hostPlatform.isDarwin)
+      then "~/src"
+      else "/srv/github"
+    );
 
   # Read the script and inject configuration
   fjjScript = pkgs.writeShellScriptBin "fjj" (

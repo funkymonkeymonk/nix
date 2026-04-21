@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# jj-workspace-lib - Shared library for jj workspace detection
+#
+# Source this file to get workspace-aware helper functions.
+# Used by both devenv.nix enterShell and .envrc.
+#
+# Usage:
+#   source ./modules/common/scripts/jj-workspace-lib
+#   detect_jj_repo_root "/path/to/dir"   # prints repo root, returns 0 on success
+#   is_jj_workspace "/path/to/dir"       # returns 0 if in a workspace, 1 if main repo
+
+# detect_jj_repo_root <dir>
+#
+# Given a directory, detect the main jj repository root.
+# A workspace has .jj/repo as a FILE (pointer to main repo).
+# The main repo has .jj/repo as a DIRECTORY.
+#
+# Prints the resolved repo root path and returns 0 on success.
+# Returns 1 if dir is not a jj repo at all.
+detect_jj_repo_root() {
+  local current_dir="$1"
+
+  # Must have .jj directory to be any kind of jj repo
+  if [[ ! -d "$current_dir/.jj" ]]; then
+    return 1
+  fi
+
+  # If .jj/repo is a FILE, we're in a workspace — resolve to main repo
+  if [[ -f "$current_dir/.jj/repo" ]] && [[ ! -d "$current_dir/.jj/repo" ]]; then
+    local repo_pointer
+    repo_pointer=$(cat "$current_dir/.jj/repo" 2>/dev/null)
+    if [[ -n "$repo_pointer" ]]; then
+      # repo_pointer is relative to .jj/, points into the main repo's .jj/
+      # so go up one more level to get the repo root
+      local repo_path
+      repo_path=$(cd "$current_dir/.jj" && cd "$(dirname "$repo_pointer")" && cd .. && pwd)
+      if [[ -d "$repo_path" ]]; then
+        echo "$repo_path"
+        return 0
+      fi
+    fi
+  fi
+
+  # If .jj/repo is a DIRECTORY, we're in the main repo
+  if [[ -d "$current_dir/.jj/repo" ]]; then
+    echo "$current_dir"
+    return 0
+  fi
+
+  # .jj exists but no repo sub-entry — still treat as a repo (older jj layouts)
+  echo "$current_dir"
+  return 0
+}
+
+# is_jj_workspace <workspace_root> <repo_root>
+#
+# Returns 0 if workspace_root != repo_root (we're in a workspace),
+# returns 1 if they're the same (we're in the main repo).
+is_jj_workspace() {
+  local workspace_root="$1"
+  local repo_root="$2"
+  [[ "$workspace_root" != "$repo_root" ]] && [[ -d "$workspace_root/.jj" ]]
+}
