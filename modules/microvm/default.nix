@@ -32,6 +32,7 @@ in {
 
     defaultGateway = lib.mkIf (config.myConfig.microvm.gateway != null) {
       address = config.myConfig.microvm.gateway;
+      interface = "eth0";
     };
 
     nameservers = lib.mkDefault ["192.168.83.1"];

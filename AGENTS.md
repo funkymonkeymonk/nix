@@ -178,6 +178,132 @@ devenv tasks run test:all
 3. Run `devenv tasks run check:all` for validation
 4. Commit with conventional commit messages
 
+---
+
+## Test-Driven Development (TDD) Workflow
+
+This repository follows TDD principles. **Write tests before implementation.**
+
+### TDD Cycle
+
+```
+┌─────────────────┐
+│  1. Write Test  │ ← Start here: Define expected behavior
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 2. See it Fail  │ ← Run test, confirm it fails (RED)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 3. Implement    │ ← Write minimal code to pass
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 4. See it Pass  │ ← Run test, confirm it passes (GREEN)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 5. Refactor     │ ← Clean up, improve, optimize
+└─────────────────┘
+```
+
+### TDD Example: Adding a New MicroVM
+
+**Step 1: Write the test first**
+
+```bash
+# Create test file tests/test-microvm.nix with tests for your new VM
+# Test hostname, services, ports, etc.
+```
+
+**Step 2: Add test to test suite**
+
+```nix
+# In tests/default.nix, add your test:
+my-microvm-config = testMicrovm.myMicrovmConfigTest;
+```
+
+**Step 3: Run test - it should fail**
+
+```bash
+# This will fail because the MicroVM doesn't exist yet
+nix build .#checks.x86_64-linux.my-microvm-config
+```
+
+**Step 4: Implement the MicroVM**
+
+```nix
+# Create targets/microvms/my-microvm.nix
+# Add to flake.nix microvm.nixosConfigurations
+```
+
+**Step 5: Run test - it should pass**
+
+```bash
+# Now the test should pass
+nix build .#checks.x86_64-linux.my-microvm-config
+```
+
+### Test Types to Write
+
+| Type | Location | When to Write | Example |
+|------|----------|---------------|---------|
+| **Config Test** | `tests/test-*.nix` | Before adding new module | Test hostname, IP, basic options |
+| **Service Test** | `tests/test-*.nix` | Before enabling services | Test `services.x.enable = true` |
+| **Firewall Test** | `tests/test-*.nix` | Before opening ports | Test `allowedTCPPorts` contains expected ports |
+| **Integration Test** | `tests/vm/*.nix` | Before full feature | Boot VM, test actual service behavior |
+| **Eval Test** | `devenv task` | Always | `test:nixos-eval`, `test:darwin-eval` |
+
+### Test Helper Functions
+
+Use these helpers from `pkgs.lib`:
+
+```nix
+# Assert equality
+assertEq = name: expected: actual:
+  if actual == expected
+  then "${name}: OK"
+  else throw "${name}: expected ${toString expected}, got ${toString actual}";
+
+# Assert list contains value  
+assertContains = name: value: list:
+  if builtins.elem value list
+  then "${name}: OK"
+  else throw "${name}: list missing ${toString value}";
+```
+
+### Running Specific Tests
+
+```bash
+# Run all checks
+nix flake check
+
+# Run specific check
+nix build .#checks.x86_64-linux.microvm-config --no-link
+
+# Run all tests via devenv
+devenv tasks run test:all
+
+# Run eval tests only
+devenv tasks run test:nixos-eval
+```
+
+### TDD Checklist
+
+Before marking a task complete:
+
+- [ ] Tests written BEFORE implementation
+- [ ] Test fails before implementation (RED phase verified)
+- [ ] Minimal implementation to make test pass (GREEN phase)
+- [ ] Refactoring complete without breaking tests
+- [ ] All existing tests still pass
+- [ ] CI checks pass (`check:lint`, `test:all`)
+
 ### Adding Features
 
 | Feature | Steps |
