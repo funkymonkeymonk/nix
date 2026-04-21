@@ -1,15 +1,15 @@
 ---
 name: yak-shaving
-description: Use when tracking, planning, or implementing work using yx (yaks) in a repository with jj workspaces, or when multiple agents need to coordinate on shared tasks
+description: Use when tracking, planning, implementing, or reviewing work using yx (yaks), or when a human wants to triage @needs-human yaks interactively
 ---
 
-# Yak Shaving with yx + jj Workspaces
+# Yak Shaving
 
 ## Overview
 
-Use `yx` (yaks) for shared task tracking and `jj` workspaces for isolated implementation. Yaks syncs via hidden git refs (`refs/notes/yaks`) using CRDTs -- multiple agents update simultaneously with zero conflicts.
+Use `yx` (yaks) for shared task tracking across agents and humans. Yaks syncs via hidden git refs (`refs/notes/yaks`) using CRDTs -- multiple agents update simultaneously with zero conflicts.
 
-**Key mental model:** `yx` owns **what** to do. `jj` owns **where** to do it. They share the same git repo but operate independently.
+**Key mental model:** `yx` owns **what** to do. Everything else owns **how** to do it.
 
 ## Quick Reference
 
@@ -43,7 +43,7 @@ yx sync                    # 4. Push your claim so others see it
 
 **Never skip sync.** Without it, two agents can claim the same yak simultaneously.
 
-## Three Workflows
+## Four Workflows
 
 ### /map -- Discover work structure
 
@@ -63,6 +63,65 @@ yx ls                              # Always show the map
 **Scope first:** After adding the top-level goal, discuss scope with the human before adding children. Don't create yaks for everything you can think of.
 
 **Nesting means dependency:** Children block parents. Work leaves first (deepest nodes), then their parents.
+
+### /review -- Human-in-the-loop backlog refinement
+
+Use when: a human wants to work through `@needs-human` yaks interactively — deciding what's real, what's stale, and what's ready to implement.
+
+**Step 1: Pick a topic cluster**
+
+```bash
+yx ls   # Show clusters; pick one with @needs-human children to focus on
+```
+
+**Step 2: For each yak — verify the code before deciding**
+
+Never decide based on the title alone. Always inspect first:
+
+```bash
+yx show "yak name"                           # Read current state and context
+grep -rn "<pattern>" modules/ targets/ os/   # Verify the problem exists in code
+find . -name "<filename>" 2>/dev/null         # Confirm files mentioned actually exist
+```
+
+**Step 3: Apply one of four verdicts**
+
+| Verdict | When | Commands |
+|---------|------|----------|
+| **Delete** | Stale — problem no longer exists in code | `yx rm "yak name"` |
+| **Close** | Policy already decided, no code to write | `yx done "yak name"` |
+| **Unblock** | Problem is real and scope is clear | Add context + `yx tag rm "yak name" "@needs-human"` |
+| **Keep** | Genuinely needs human input | Update context with _why_ it's blocked, leave tag |
+
+**Step 4: Write full context before unblocking**
+
+A yak needs all three before `@needs-human` can be removed:
+
+```bash
+cat <<'EOF' | yx context "yak name"
+# Problem
+[What is wrong and exactly where in the code]
+
+# Acceptance Criteria
+- [ ] Specific, verifiable outcome
+- [ ] Another verifiable outcome
+
+# Files
+- path/to/file.nix (what to change)
+EOF
+
+yx tag rm "yak name" "@needs-human"
+```
+
+No partial context — if you can write the problem but not the acceptance criteria, keep `@needs-human`.
+
+**Step 5: Sync once at the end**
+
+```bash
+yx sync
+```
+
+**Batching tip:** Inspect all yaks in the cluster first, propose all verdicts to the human, then execute decisions in one pass before syncing.
 
 ### /prepare -- Spec out a yak
 
@@ -85,7 +144,7 @@ Use when: yak exists but needs detail before implementation.
 
 ### /work -- Implement a yak
 
-**Use jj workspaces, NOT git worktrees.** This is the critical adaptation from upstream yaks.
+Use when: a yak is claimed and ready to implement.
 
 #### Step 1: Claim
 
@@ -96,55 +155,28 @@ yx start "yak name"
 yx sync
 ```
 
-#### Step 2: Create jj workspace
+#### Step 2: Implement
 
-If `jj-workspace-session` is available (enables fast-sync every 5 min):
-```bash
-jj-workspace-session start chore/yak-slug
-```
+Do the work. Use whatever version control workflow this repo requires.
 
-Otherwise, create manually:
-```bash
-jj workspace add --name chore-yak-slug .workspaces/chore-yak-slug
-```
-
-Naming convention: `<type>-<slug>` (`feat`, `fix`, `chore`, etc.). Workspaces go in `.workspaces/` relative to repo root.
-
-#### Step 3: Implement in the workspace
-
-```bash
-# Work in the new workspace
-# All changes are automatically in the jj working copy commit
-jj describe -m "chore: implement the yak"
-```
-
-Follow the repo's commit-first workflow: describe changes with `jj describe`, then run nix checks.
-
-#### Step 4: Store progress
+#### Step 3: Store progress
 
 ```bash
 echo "Implemented X, Y, Z. Tests pass." | yx field "yak name" progress
 ```
 
-#### Step 5: Push and create PR
+#### Step 4: Ship and mark done
 
-```bash
-jj bookmark set chore/yak-slug -r @
-jj git push --bookmark chore/yak-slug
-gh pr create --title "chore: description" --body "..."
-```
-
-#### Step 6: Mark done and clean up
+Open a PR using the repo's normal workflow, then:
 
 ```bash
 yx done "yak name"
 yx sync
-jj workspace remove chore-yak-slug
 ```
 
 ## Multi-Agent Coordination
 
-All jj workspaces share the same underlying git repo, which means they share yaks data.
+Yaks syncs via git refs, so all agents in the same repo share the same task state.
 
 ### Claiming prevents conflicts
 
@@ -153,15 +185,11 @@ All jj workspaces share the same underlying git repo, which means they share yak
 - `yx sync` after claiming pushes your claim
 - Other agents see wip and skip that yak
 
-### Workspace isolation
-
-Each agent gets its own jj workspace at a different commit. No file-level conflicts during implementation. Conflicts only arise at PR merge time if agents modified the same files.
-
 ### @needs-human convention
 
 When stuck or need a decision:
 ```bash
-yx tag "yak name" @needs-human
+yx tag add "yak name" "@needs-human"
 cat <<'EOF' | yx context "yak name"
 [existing context]
 
@@ -175,11 +203,10 @@ yx sync
 
 | Mistake | Fix |
 |---------|-----|
-| Using `git worktree` instead of `jj workspace` | Always use `jj workspace add` for isolation |
 | Skipping `yx sync` before/after claiming | Sync is mandatory -- other agents can't see your claim without it |
 | Not checking state before `yx start` | Always `yx show` first to verify it's not already wip |
-| Workspace outside `.workspaces/` | Use `.workspaces/<name>` relative to repo root |
 | Forgetting `yx ls` after adding yaks | Iron Law: `yx add` then `yx ls`, always |
 | Touching `.yaks/` directory directly | Use `yx` CLI only -- never `rm`, `mkdir`, `cat` on `.yaks/` |
-| Using `git commit` in a jj workspace | Use `jj describe` -- the working copy IS the commit |
 | Not syncing yaks after marking done | Others won't see completion without `yx sync` |
+| Deciding to delete/unblock based on yak title alone | Always grep the actual code first during /review |
+| Unblocking without acceptance criteria | A yak without checkboxes will be re-flagged @needs-human by the next /shave |
