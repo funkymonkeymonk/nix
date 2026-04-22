@@ -747,6 +747,7 @@
             email-separation
             onepassword-guard
             onepassword-config-output
+            zsh-enable-single-location
             sketchybar-options
             sketchybar-custom-options
             sketchybar-theme

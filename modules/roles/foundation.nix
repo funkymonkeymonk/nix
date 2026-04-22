@@ -54,8 +54,6 @@ in {
         myConfig.onepassword.enable = true;
         myConfig.syncthing.enable = true;
 
-        programs.zsh.enable = true;
-
         environment.variables = {
           EDITOR = "helix";
           VISUAL = "helix";

@@ -11,7 +11,4 @@
     coreutils # Basic Unix utilities
     vim # Emergency editor
   ];
-
-  # Essential shell
-  programs.zsh.enable = true;
 }
