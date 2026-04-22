@@ -775,6 +775,7 @@
             microvm-firewall
             microvm-ip-uniqueness
             microvm-ssh
+            microvm-dev-vm-stateversion
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
