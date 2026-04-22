@@ -111,5 +111,6 @@ in
     microvm-firewall = testMicrovm.mediaCenterFirewallTest;
     microvm-ip-uniqueness = testMicrovm.microvmIpUniquenessTest;
     microvm-ssh = testMicrovm.mediaCenterSshTest;
+    microvm-dev-vm-stateversion = testMicrovm.devVmStateVersionTest;
   }
   // vmTests

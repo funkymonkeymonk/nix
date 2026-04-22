@@ -231,4 +231,20 @@ in {
       echo "SSH configuration tests passed"
       touch $out
     '';
+
+  # Test that dev-vm has stateVersion set
+  devVmStateVersionTest =
+    pkgs.runCommand "test-dev-vm-has-stateversion"
+    {src = ../.;}
+    ''
+      echo "=== Testing dev-vm has system.stateVersion ==="
+
+      if ! grep -q 'stateVersion.*25\.05' $src/targets/microvms/dev-vm.nix; then
+        echo "FAIL: dev-vm.nix is missing system.stateVersion = \"25.05\""
+        exit 1
+      fi
+
+      echo "PASS: dev-vm.nix has stateVersion = \"25.05\""
+      touch $out
+    '';
 }
