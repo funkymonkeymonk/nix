@@ -66,6 +66,9 @@ in
     onepassword-guard = testPackages.onepasswordGuardTest;
     onepassword-config-output = testPackages.onepasswordConfigOutputTest;
 
+    # Structural / deduplication tests
+    zsh-enable-single-location = testPackages.zshEnableSingleLocationTest;
+
     # Sketchybar tests
     sketchybar-options = testSketchybar.sketchybarOptionsTest;
     sketchybar-custom-options = testSketchybar.sketchybarCustomOptionsTest;

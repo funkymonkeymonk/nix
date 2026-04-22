@@ -458,4 +458,49 @@
       echo "1Password config output test passed"
       touch $out
     '';
+
+  # Test that programs.zsh.enable is set in exactly one location (shell.nix)
+  # This is a structural test to prevent redundant duplicate assignments.
+  zshEnableSingleLocationTest =
+    pkgs.runCommand "test-zsh-enable-single-location"
+    {
+      src = ../.;
+    }
+    ''
+      echo "=== Testing programs.zsh.enable single location ==="
+
+      # Count occurrences across the three files that previously had duplicates
+      foundation_count=$(grep -c "programs\.zsh\.enable" $src/modules/roles/foundation.nix || true)
+      shell_count=$(grep -c "programs\.zsh\.enable" $src/modules/common/shell.nix || true)
+      core_count=$(grep -c "programs\.zsh\.enable" $src/modules/common/core.nix || true)
+      total=$((foundation_count + shell_count + core_count))
+
+      echo "  modules/roles/foundation.nix:   $foundation_count occurrence(s)"
+      echo "  modules/common/shell.nix:        $shell_count occurrence(s)"
+      echo "  modules/common/core.nix:         $core_count occurrence(s)"
+      echo "  Total across three files:        $total"
+
+      # Canonical location must have the setting
+      if [ "$shell_count" -ne 1 ]; then
+        echo "  FAIL: modules/common/shell.nix should have exactly 1 occurrence (got $shell_count)"
+        exit 1
+      fi
+      echo "  modules/common/shell.nix has exactly 1 occurrence: OK"
+
+      # Duplicates must be absent
+      if [ "$foundation_count" -ne 0 ]; then
+        echo "  FAIL: modules/roles/foundation.nix should have 0 occurrences (got $foundation_count)"
+        exit 1
+      fi
+      echo "  modules/roles/foundation.nix has 0 occurrences: OK"
+
+      if [ "$core_count" -ne 0 ]; then
+        echo "  FAIL: modules/common/core.nix should have 0 occurrences (got $core_count)"
+        exit 1
+      fi
+      echo "  modules/common/core.nix has 0 occurrences: OK"
+
+      echo "programs.zsh.enable single-location check passed"
+      touch $out
+    '';
 }
