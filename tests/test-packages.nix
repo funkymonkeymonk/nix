@@ -180,7 +180,6 @@
                 sshIncludes = [];
               }
             ];
-            development.enable = true;
             agent-skills.enable = false;
             onepassword.enable = false;
             opencode.enable = false;
@@ -199,7 +198,6 @@
       # If any option type is wrong, this derivation will fail to instantiate.
       echo "  users count: ${toString (builtins.length evaluatedConfig.users)}"
       echo "  first user name: ${(builtins.head evaluatedConfig.users).name}"
-      echo "  development.enable: ${builtins.toJSON evaluatedConfig.development.enable}"
       echo "  isDarwin: ${builtins.toJSON evaluatedConfig.isDarwin}"
       echo "  ollama.enable: ${builtins.toJSON evaluatedConfig.ollama.enable}"
       echo "  ollama.port: ${toString evaluatedConfig.ollama.port}"

@@ -103,7 +103,6 @@
           sshIncludes = [];
         }
       ];
-      development.enable = true;
       onepassword.enable = true;
       jj-autosync = {
         enable = true;
@@ -163,7 +162,6 @@
                     sshIncludes = [];
                   }
                 ];
-                development.enable = true;
                 onepassword.enable = nixpkgs.lib.mkForce false;
               }
               // roleEnables;
@@ -445,7 +443,6 @@
             nix.enable = false;
             myConfig = {
               users = [];
-              development.enable = false;
               agent-skills.enable = false;
               onepassword.enable = false;
               opencode.enable = false;
@@ -731,6 +728,7 @@
             role-packages
             role-cascades
             llm-host-shared-models
+            no-dead-development-option
             module-coverage
             skills-manifest
             skills-autoload-filtering
