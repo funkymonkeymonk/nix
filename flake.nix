@@ -774,6 +774,11 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
+            llm-client-opencode
+            llm-client-claude
+            llm-client-pi
+            llm-client-custom-host
+            llm-client-no-ai-roles
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

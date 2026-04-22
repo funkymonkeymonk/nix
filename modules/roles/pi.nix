@@ -28,8 +28,6 @@ in {
     };
 
     environment.variables = {
-      LLM_SERVER_HOST = host;
-      LLM_SERVER_PORT = port;
       PI_CODING_AGENT_DIR = "$HOME/.pi/agent";
     };
 
