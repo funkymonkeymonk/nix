@@ -41,6 +41,7 @@ in
     role-packages = testRoles.rolePackageInclusionTest;
     role-cascades = testRoles.roleCascadeTest;
     llm-host-shared-models = testRoles.llmHostSharedModelsTest;
+    no-dead-development-option = testRoles.noDeadDevelopmentOptionTest;
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;

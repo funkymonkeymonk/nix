@@ -36,7 +36,6 @@
                 sshIncludes = [];
               }
             ];
-            development.enable = true;
             onepassword.enable = false;
           };
         }

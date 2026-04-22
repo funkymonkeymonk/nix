@@ -163,14 +163,6 @@ with lib; {
       };
     };
 
-    development = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Enable development tools and environment";
-      };
-    };
-
     email-agent = {
       enable = mkOption {
         type = types.bool;

@@ -212,7 +212,6 @@
   # Map of roles to cascade-enabled options
   roleCascades = {
     developer = {
-      "development.enable" = true;
       "fjj.enable" = true;
       "zellij.enable" = true;
     };
@@ -352,6 +351,56 @@ in {
       echo "All role cascades work correctly"
       touch $out
     '';
+
+  # Test that dead myConfig.development option has been removed from options.nix.
+  # This option was declared and set (by developer role) but never consumed by any module.
+  # The actual developer role check uses config.myConfig.roles.developer.enable.
+  noDeadDevelopmentOptionTest = let
+    testEval = pkgs.lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        {
+          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+        }
+        {config._module.args = {inherit pkgs;};}
+        {
+          config.myConfig.users = [
+            {
+              name = "testuser";
+              email = "test@example.com";
+              fullName = "Test User";
+              isAdmin = true;
+              sshIncludes = [];
+            }
+          ];
+        }
+      ];
+    };
+    # If myConfig.development was removed, attrByPath returns the sentinel null.
+    developmentAttr = pkgs.lib.attrByPath ["development"] null testEval.config.myConfig;
+    isDead = developmentAttr == null;
+  in
+    pkgs.runCommand "test-no-dead-development-option"
+    {}
+    (
+      if isDead
+      then ''
+        echo "=== Testing myConfig.development removed ==="
+        echo "  myConfig.development: absent (correctly removed)"
+        echo "Dead development option successfully removed"
+        touch $out
+      ''
+      else ''
+        echo "=== Testing myConfig.development removed ==="
+        echo "  myConfig.development: STILL PRESENT (should be removed)"
+        echo "  Value: ${builtins.toJSON developmentAttr}"
+        echo "FAIL: myConfig.development is dead code and must be removed"
+        exit 1
+      ''
+    );
 
   # Test that llm-host role wires myConfig.sharedModels into ollama.models
   llmHostSharedModelsTest = let
