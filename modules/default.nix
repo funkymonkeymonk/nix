@@ -12,6 +12,7 @@
     ./common/onepassword.nix
     ./common/cachix.nix
     ./common/motd.nix
+    ./common/llm-client.nix
 
     # Home-manager shared settings
     ./home-manager

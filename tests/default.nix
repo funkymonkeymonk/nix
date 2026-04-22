@@ -16,6 +16,7 @@
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
+  testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -113,5 +114,12 @@ in
     microvm-ip-uniqueness = testMicrovm.microvmIpUniquenessTest;
     microvm-ssh = testMicrovm.mediaCenterSshTest;
     microvm-dev-vm-stateversion = testMicrovm.devVmStateVersionTest;
+
+    # LLM client module tests
+    llm-client-opencode = testLlmClient.llmClientOpencodeTest;
+    llm-client-claude = testLlmClient.llmClientClaudeTest;
+    llm-client-pi = testLlmClient.llmClientPiTest;
+    llm-client-custom-host = testLlmClient.llmClientCustomHostTest;
+    llm-client-no-ai-roles = testLlmClient.llmClientNoAiRolesTest;
   }
   // vmTests

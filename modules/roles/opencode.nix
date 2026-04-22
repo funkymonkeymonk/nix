@@ -23,13 +23,6 @@ in {
       serverPort = lib.mkDefault "11434";
     };
 
-    environment.variables = {
-      LLM_SERVER_HOST = host;
-      LLM_SERVER_PORT = port;
-      OPENCODE_ENDPOINT = "http://${host}:${port}";
-      CLAUDE_API_BASE = "http://${host}:${port}";
-    };
-
     environment.shellAliases = {
       llm-status = "curl http://${host}:${port}/status";
     };
