@@ -678,7 +678,7 @@ with lib; {
         };
 
         settings = mkOption {
-          type = types.attrs;
+          type = types.attrsOf types.anything;
           default = {};
           description = ''
             Mods configuration written to $XDG_CONFIG_HOME/mods/mods.yml.
@@ -1032,7 +1032,7 @@ with lib; {
       };
 
       extraSettings = mkOption {
-        type = types.attrs;
+        type = types.attrsOf types.anything;
         default = {};
         description = "Additional Claude Code settings";
       };
@@ -1102,7 +1102,7 @@ with lib; {
       };
 
       settings = mkOption {
-        type = types.attrs;
+        type = types.attrsOf types.anything;
         default = {};
         description = ''
           Pi settings.json configuration.
@@ -1209,7 +1209,7 @@ with lib; {
       };
 
       themes = mkOption {
-        type = types.attrsOf types.attrs;
+        type = types.attrsOf (types.attrsOf types.anything);
         default = {};
         description = ''
           Custom themes as attribute set.
