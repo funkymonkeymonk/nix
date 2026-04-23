@@ -43,6 +43,7 @@ in
     role-cascades = testRoles.roleCascadeTest;
     llm-host-shared-models = testRoles.llmHostSharedModelsTest;
     no-dead-development-option = testRoles.noDeadDevelopmentOptionTest;
+    entertainment-nixos = testRoles.entertainmentNixosTest;
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;

@@ -199,6 +199,8 @@
     gaming = ["moonlight-qt"];
     desktop = ["logseq" "super-productivity"];
     workstation = ["slack" "trippy" "unar"];
+    # entertainment: NixOS packages (obs-studio, discord) are tested separately
+    # in entertainmentNixosTest using linuxPkgs; they only appear on NixOS (isDarwin=false)
     opencode = ["opencode" "rtk"];
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
@@ -229,6 +231,64 @@
       "syncthing.enable" = true;
     };
   };
+  # Evaluate entertainment role in a NixOS-like context:
+  # - Import only the modules needed (not via roles/default.nix to avoid
+  #   microvm-host which would require networking.* stubs)
+  # - Stub options.boot so isNixOS = builtins.hasAttr "boot" options is true
+  entertainmentNixosEval =
+    (lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        ../modules/roles/entertainment.nix
+        {
+          options.nixpkgs.hostPlatform = lib.mkOption {
+            type = lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+          options.environment = {
+            systemPackages = lib.mkOption {
+              type = lib.types.listOf lib.types.package;
+              default = [];
+            };
+          };
+          options.programs = lib.mkOption {
+            type = lib.types.attrsOf lib.types.anything;
+            default = {};
+          };
+          options.homebrew = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
+          # Stub options.boot so isNixOS = builtins.hasAttr "boot" options is true.
+          # Safe here because we do NOT import microvm-host (which needs networking.*).
+          options.boot = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
+          options.microvm = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
+          config.microvm.vms = {};
+        }
+        {
+          config._module.args = {inherit pkgs;};
+          config.myConfig = {
+            users = [
+              {
+                name = "testuser";
+                email = "test@example.com";
+                fullName = "Test User";
+                isAdmin = true;
+                sshIncludes = [];
+              }
+            ];
+            roles.entertainment.enable = true;
+          };
+        }
+      ];
+    })
+    .config;
 in {
   # Test that each role evaluates without errors
   roleEvaluationTest =
@@ -436,6 +496,41 @@ in {
       }
 
       echo "All llm-host sharedModels tests passed"
+      touch $out
+    '';
+
+  # Test entertainment role on NixOS: obs-studio and discord in systemPackages.
+  # entertainmentNixosEval has options.boot stubbed so isNixOS=true in the module,
+  # meaning packages are always added regardless of host platform.
+  entertainmentNixosTest = let
+    sysPkgNames = map (p: p.name or (builtins.parseDrvName (p.pname or "unknown")).name) entertainmentNixosEval.environment.systemPackages;
+    obsFound = builtins.any (n: lib.hasInfix "obs-studio" n) sysPkgNames;
+    discordFound = builtins.any (n: lib.hasInfix "discord" n) sysPkgNames;
+  in
+    pkgs.runCommand "test-entertainment-nixos"
+    {}
+    ''
+      echo "=== Testing Entertainment Role on NixOS ==="
+
+      ${
+        if obsFound
+        then ''echo "  obs-studio in systemPackages: OK"''
+        else ''
+          echo "  obs-studio NOT found in systemPackages: [${builtins.concatStringsSep ", " sysPkgNames}]"
+          exit 1
+        ''
+      }
+
+      ${
+        if discordFound
+        then ''echo "  discord in systemPackages: OK"''
+        else ''
+          echo "  discord NOT found in systemPackages: [${builtins.concatStringsSep ", " sysPkgNames}]"
+          exit 1
+        ''
+      }
+
+      echo "All entertainment NixOS tests passed"
       touch $out
     '';
 }
