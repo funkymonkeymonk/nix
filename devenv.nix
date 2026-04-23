@@ -19,6 +19,8 @@
     # YAML linting
     pkgs.yamllint
     pkgs.yamlfmt
+    # Shell script linting
+    pkgs.shellcheck
     pkgs.nixd
     pkgs.optnix
     # Cachix CLI for pushing to binary cache
@@ -1077,6 +1079,9 @@
         statix check .
         echo "Checking YAML files..."
         yamllint .
+        echo "Checking jj-autosync shell scripts with shellcheck..."
+        find ./modules/home-manager -name 'jj-autosync*.sh' -o -name 'jj-workspace-session.sh' -o -name 'jj-fast-sync.sh' \
+          | xargs ${pkgs.shellcheck}/bin/shellcheck
         echo "Lint checks complete"
       '';
     };
