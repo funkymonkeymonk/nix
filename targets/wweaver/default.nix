@@ -159,5 +159,53 @@
         };
       };
       llmClient.rtk.enable = true;
+      sketchybar = {
+        enable = true;
+        position = "left";
+        height = 40;
+        padding = 4;
+        groupPadding = 10;
+        vivaldiWorkspaces = {
+          enable = true;
+          # Bar is on the left edge, so place the Vivaldi item in the
+          # bottom slot ("right" on a vertical bar == bottom in layout order).
+          # Popup rows are ordered workspace 1 at bottom, ascending upward.
+          position = "right";
+          profile = "Default";
+          iconText = "V";
+        };
+        extraConfig = ''
+          local colors = require("colors")
+
+          sbar.add("item", "clock", "center", {
+            update_freq = 1,
+            label = {
+              color = colors.black,
+              font = { size = 13.0 },
+            },
+            background = {
+              color = colors.yellow,
+              corner_radius = 6,
+              height = 28,
+              padding_left = 8,
+              padding_right = 8,
+            },
+            updates = true,
+          })
+
+          sbar.add("event", "clock_update")
+
+          sbar.subscribe("clock", "system_clock_change", function(env)
+            sbar.set("clock", { label = os.date("%H:%M") })
+          end)
+
+          sbar.subscribe("clock", "forced", function(env)
+            sbar.set("clock", { label = os.date("%H:%M") })
+          end)
+
+          -- Initial value
+          sbar.set("clock", { label = os.date("%H:%M") })
+        '';
+      };
     };
 }
