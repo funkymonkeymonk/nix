@@ -5,6 +5,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -99,33 +102,7 @@ jobs:
             drv-${{ github.ref }}-
             drv-main-
       - name: Create stub facter.json
-        run: |
-          # Create stub facter.json for NixOS configs that use nixos-facter
-          # Format: https://github.com/nix-community/nixos-facter
-          sudo mkdir -p /etc/nixos
-          sudo tee /etc/nixos/facter.json > /dev/null << 'FACTER_EOF'
-          {
-            "version": 1,
-            "hardware": {
-              "system": { "uuid": "00000000-0000-0000-0000-000000000000" },
-              "cpu": [
-                {
-                  "architecture": "x86_64",
-                  "vendor_name": "GenuineIntel",
-                  "features": ["vmx"]
-                }
-              ],
-              "memory": { "total_bytes": 8589934592 },
-              "disks": [{ "path": "/dev/sda", "size_bytes": 53687091200 }],
-              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }],
-              "pci": [],
-              "scsi": []
-            },
-            "boot": { "efi_available": true },
-            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }],
-            "virtualisation": "none"
-          }
-          FACTER_EOF
+        run: bash .github/scripts/create-facter-stub.sh
       - name: Discover configurations
         id: discover
         run: |
@@ -197,11 +174,14 @@ jobs:
               DARWIN_CHANGED=$(printf '%s\n' "${DARWIN_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
           else
-            # No cache exists, build all configs
-            echo "No cache found, will build all Darwin configs"
-            DARWIN_CHANGED='["core","darwin-server","wweaver"]'
+            # No cache exists, discover configs dynamically
+            echo "No cache found, discovering Darwin configs dynamically..."
+            DARWIN_CHANGED=$(nix eval .#darwinConfigurations \
+              --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
           fi
-          echo "darwin-changed=$DARWIN_CHANGED" >> $GITHUB_OUTPUT
+          echo "darwin-changed<<EOF" >> $GITHUB_OUTPUT
+          echo "$DARWIN_CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "Darwin configs needing rebuild: $DARWIN_CHANGED"
           # Check NixOS configs
           NIXOS_CHANGED="[]"
@@ -223,11 +203,15 @@ jobs:
               NIXOS_CHANGED=$(printf '%s\n' "${NIXOS_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
           else
-            # No cache exists, build all configs
-            echo "No cache found, will build all NixOS configs"
-            NIXOS_CHANGED='["bootstrap","installer-iso","type-desktop","type-server","zero"]'
+            # No cache exists, discover configs dynamically (exclude ARM - can't build on x86_64)
+            echo "No cache found, discovering NixOS configs dynamically..."
+            ALL_NIXOS=$(nix eval --impure .#nixosConfigurations \
+              --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+            NIXOS_CHANGED=$(echo "$ALL_NIXOS" | jq '[.[] | select(test("-arm$") | not)]')
           fi
-          echo "nixos-changed=$NIXOS_CHANGED" >> $GITHUB_OUTPUT
+          echo "nixos-changed<<EOF" >> $GITHUB_OUTPUT
+          echo "$NIXOS_CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           echo "NixOS configs needing rebuild: $NIXOS_CHANGED"
           # Save current config lists to staging
           echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
@@ -301,33 +285,7 @@ jobs:
           name: funkymonkeymonk
           skipPush: true
       - name: Create stub facter.json
-        run: |
-          # Create stub facter.json for CI builds
-          # Format: https://github.com/nix-community/nixos-facter
-          sudo mkdir -p /etc/nixos
-          sudo tee /etc/nixos/facter.json > /dev/null << 'FACTER_EOF'
-          {
-            "version": 1,
-            "hardware": {
-              "system": { "uuid": "00000000-0000-0000-0000-000000000000" },
-              "cpu": [
-                {
-                  "architecture": "x86_64",
-                  "vendor_name": "GenuineIntel",
-                  "features": ["vmx"]
-                }
-              ],
-              "memory": { "total_bytes": 8589934592 },
-              "disks": [{ "path": "/dev/sda", "size_bytes": 53687091200 }],
-              "network_interfaces": [{ "name": "eth0", "mac": "00:00:00:00:00:00" }],
-              "pci": [],
-              "scsi": []
-            },
-            "boot": { "efi_available": true },
-            "filesystems": [{ "mountpoint": "/", "device": "/dev/sda1", "fs_type": "ext4" }],
-            "virtualisation": "none"
-          }
-          FACTER_EOF
+        run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
         id: build
         run: |
