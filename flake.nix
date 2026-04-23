@@ -780,6 +780,7 @@
             llm-client-custom-host
             llm-client-no-ai-roles
             entertainment-nixos
+            typed-attrs-options
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

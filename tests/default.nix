@@ -17,6 +17,7 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
+  testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -122,5 +123,8 @@ in
     llm-client-pi = testLlmClient.llmClientPiTest;
     llm-client-custom-host = testLlmClient.llmClientCustomHostTest;
     llm-client-no-ai-roles = testLlmClient.llmClientNoAiRolesTest;
+
+    # NixOS module option tests
+    typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
   }
   // vmTests
