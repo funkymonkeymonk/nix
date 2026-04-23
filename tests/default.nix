@@ -80,6 +80,8 @@ in
     sketchybar-color-conversion = testSketchybar.sketchybarColorConversionTest;
     sketchybar-platform-guard = testSketchybar.sketchybarPlatformGuardTest;
     sketchybar-entrypoint = testSketchybar.sketchybarEntryPointTest;
+    sketchybar-vivaldi-workspaces-options = testSketchybar.sketchybarVivaldiWorkspacesOptionsTest;
+    sketchybar-vivaldi-workspaces-script = testSketchybar.sketchybarVivaldiWorkspacesScriptTest;
 
     # Service module tests
     ollama-options = testServices.ollamaOptionsTest;

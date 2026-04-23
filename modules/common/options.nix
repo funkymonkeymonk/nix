@@ -1254,6 +1254,12 @@ with lib; {
         description = "Enable sketchybar status bar (macOS only)";
       };
 
+      position = mkOption {
+        type = types.enum ["top" "bottom" "left" "right"];
+        default = "top";
+        description = "Position of the sketchybar on screen";
+      };
+
       height = mkOption {
         type = types.int;
         default = 40;
@@ -1282,6 +1288,49 @@ with lib; {
         type = types.lines;
         default = "";
         description = "Extra Lua configuration to append to sketchybarrc";
+      };
+
+      vivaldiWorkspaces = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = ''
+            Enable the Vivaldi workspaces dropdown item on sketchybar.
+
+            Adds a single clickable item that, on click, reads Vivaldi's
+            Preferences file (`~/Library/Application Support/Vivaldi/Default/Preferences`)
+            and shows the current workspace list as a popup. Clicking a
+            workspace row switches Vivaldi to that workspace.
+
+            Switching uses `COMMAND_WORKSPACE_SWITCH_N` for workspaces 1-10
+            (Vivaldi binds these to ⌃⇧1..9,0 by default) and falls back to
+            Vivaldi's Quick Commands (F2 + type name) for workspaces 11+.
+
+            Requires Vivaldi installed. First click will prompt macOS for
+            Accessibility permission for sketchybar.
+
+            Does not detect the currently active workspace — Vivaldi does
+            not expose that to external tools. See README for design notes.
+          '';
+        };
+
+        position = mkOption {
+          type = types.enum ["left" "center" "right"];
+          default = "right";
+          description = "Sketchybar position (alignment slot) for the Vivaldi item";
+        };
+
+        profile = mkOption {
+          type = types.str;
+          default = "Default";
+          description = "Vivaldi profile directory name (under ~/Library/Application Support/Vivaldi/)";
+        };
+
+        iconText = mkOption {
+          type = types.str;
+          default = "V";
+          description = "Icon shown on the parent item. Keep it short — single letter or glyph.";
+        };
       };
     };
   };

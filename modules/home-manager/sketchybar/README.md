@@ -190,3 +190,85 @@ See the [zmre repository](https://github.com/zmre/aerospace-sketchybar-nix-lua-c
 - [zmre](https://github.com/zmre) - aerospace-sketchybar-nix-lua-config flake
 - [FelixKratz](https://github.com/FelixKratz) - SketchyBar and SbarLua
 - [nikitabobko](https://github.com/nikitabobko) - Aerospace window manager
+
+## Vivaldi Workspaces Dropdown
+
+An optional item that renders a single clickable button on the bar. On
+click, a helper script reads Vivaldi's `Preferences` JSON and opens a
+popup listing your Vivaldi Workspaces. Clicking a row switches Vivaldi
+to that workspace.
+
+### Enable
+
+```nix
+myConfig.sketchybar = {
+  enable = true;
+  vivaldiWorkspaces = {
+    enable = true;
+    position = "right";  # or "left" / "center"
+    profile = "Default"; # Vivaldi profile directory name
+    iconText = "V";      # single character/glyph on the button
+  };
+};
+```
+
+### How it works
+
+1. The button runs `sketchybar-vivaldi-workspaces build-popup <parent>`.
+2. The script reads `~/Library/Application Support/Vivaldi/<profile>/Preferences`
+   and extracts `vivaldi.workspaces.list` with `jq`. Renames/additions in
+   Vivaldi show up on the next click — there is no caching.
+3. Each workspace becomes a clickable popup row whose click handler
+   calls back into the script as `switch <index> <name> <parent>`.
+4. **Workspaces 1–9** switch via the built-in Vivaldi shortcut
+   `⌃⇧1..9` (these are Vivaldi's `COMMAND_WORKSPACE_SWITCH_N` defaults).
+5. **Workspaces 10+** fall back to Vivaldi's Quick Commands: the script
+   presses `F2`, types the workspace name, presses Return.
+
+### Required one-time setup
+
+- **macOS Accessibility permission.** The click handlers send keystrokes
+  via System Events. On first click, macOS will prompt you to allow
+  `sketchybar` (or its parent process) in *System Settings → Privacy &
+  Security → Accessibility*. This is a per-binary permission Nix cannot
+  grant — you have to click allow once.
+
+- **Vivaldi default shortcuts.** Verify `COMMAND_WORKSPACE_SWITCH_1..9`
+  are bound to `⌃⇧1..9` in Vivaldi's *Settings → Keyboard → Workspaces*
+  (they are by default). If you've remapped them, also update the
+  keystroke in `scripts/vivaldi-workspaces.sh`.
+
+- **Quick Commands shortcut.** Fallback path presses `F2`. If you've
+  remapped Vivaldi's Quick Commands shortcut, edit the `key code 120`
+  line in `scripts/vivaldi-workspaces.sh`.
+
+### Limitations (important, read this)
+
+- **Active workspace is not highlighted.** Vivaldi does not expose the
+  currently active workspace to extensions, AppleScript, or any
+  external process. The state lives only in Vivaldi's memory. A feature
+  request exists upstream (Vivaldi forum post 877428) but has not been
+  implemented. Every row in the popup looks the same — you don't get
+  an "active" indicator.
+
+- **No workspace-change events.** Since we can't detect the active
+  workspace, we can't highlight on `aerospace_workspace_change`-style
+  events either.
+
+- **Preferences can be briefly unreadable.** Vivaldi occasionally
+  rewrites `Preferences`. The script retries once after 150 ms. If
+  both reads fail, the popup shows `(Vivaldi Preferences unreadable)`
+  instead of crashing.
+
+- **Profile support is single.** The `profile` option selects one
+  Vivaldi profile directory. Multi-profile display would require extra
+  logic not yet implemented.
+
+### Future work
+
+True active-workspace detection would require writing a Vivaldi Mod
+(a JS file injected into Vivaldi's privileged `browser.html` UI) that
+subscribes to the internal workspace store and pushes updates to
+sketchybar via `sketchybar --trigger`. This works but breaks on
+Vivaldi updates as internal APIs shift. See the "Awesome-Vivaldi"
+community repo for prior art on Vivaldi Mods.

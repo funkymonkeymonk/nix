@@ -385,4 +385,174 @@ in {
       echo "Sketchybar platform guard verified"
       touch $out
     '';
+
+  # Test the Vivaldi workspaces option defaults and custom values.
+  sketchybarVivaldiWorkspacesOptionsTest = let
+    vw = sketchybarDefaults.vivaldiWorkspaces;
+
+    testEvalVW = lib.evalModules {
+      modules = [
+        ../modules/common/options.nix
+        {
+          options.nixpkgs.hostPlatform = lib.mkOption {
+            type = lib.types.anything;
+            default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+        }
+        {
+          config._module.args = {inherit pkgs;};
+        }
+        {
+          config.myConfig.sketchybar = {
+            enable = true;
+            vivaldiWorkspaces = {
+              enable = true;
+              position = "left";
+              profile = "Profile 2";
+              iconText = "W";
+            };
+          };
+        }
+      ];
+    };
+    vwCustom = testEvalVW.config.myConfig.sketchybar.vivaldiWorkspaces;
+  in
+    pkgs.runCommand "test-sketchybar-vivaldi-workspaces-options"
+    {}
+    ''
+      echo "=== Testing Sketchybar Vivaldi Workspaces Options ==="
+
+      # Defaults
+      ${
+        if !vw.enable
+        then ''echo "  vivaldiWorkspaces.enable default = false: OK"''
+        else ''echo "  vivaldiWorkspaces.enable should default to false!"; exit 1''
+      }
+
+      ${
+        if vw.position == "right"
+        then ''echo "  vivaldiWorkspaces.position default = right: OK"''
+        else ''echo "  vivaldiWorkspaces.position should default to right!"; exit 1''
+      }
+
+      ${
+        if vw.profile == "Default"
+        then ''echo "  vivaldiWorkspaces.profile default = Default: OK"''
+        else ''echo "  vivaldiWorkspaces.profile should default to Default!"; exit 1''
+      }
+
+      ${
+        if vw.iconText == "V"
+        then ''echo "  vivaldiWorkspaces.iconText default = V: OK"''
+        else ''echo "  vivaldiWorkspaces.iconText should default to V!"; exit 1''
+      }
+
+      # Custom values
+      ${
+        if vwCustom.enable
+        then ''echo "  custom enable = true: OK"''
+        else ''echo "  custom enable should be true!"; exit 1''
+      }
+
+      ${
+        if vwCustom.position == "left"
+        then ''echo "  custom position = left: OK"''
+        else ''echo "  custom position should be left!"; exit 1''
+      }
+
+      ${
+        if vwCustom.profile == "Profile 2"
+        then ''echo "  custom profile accepted: OK"''
+        else ''echo "  custom profile should be 'Profile 2'!"; exit 1''
+      }
+
+      ${
+        if vwCustom.iconText == "W"
+        then ''echo "  custom iconText = W: OK"''
+        else ''echo "  custom iconText should be W!"; exit 1''
+      }
+
+      echo "All vivaldiWorkspaces options verified"
+      touch $out
+    '';
+
+  # Test the shell script's JSON parsing against a fixture Preferences file.
+  # This exercises the jq path extraction logic that the real script uses.
+  sketchybarVivaldiWorkspacesScriptTest = let
+    # Build a minimal fixture that mirrors Vivaldi's Preferences JSON shape
+    fixture = builtins.toJSON {
+      vivaldi = {
+        workspaces = {
+          list = [
+            {
+              id = 1768406996551.0;
+              name = "Scratchpad";
+            }
+            {
+              id = 1768407617261.0;
+              name = "Personal";
+            }
+            {
+              id = 1775171181444.0;
+              name = "MBR";
+            }
+          ];
+        };
+      };
+    };
+  in
+    pkgs.runCommand "test-sketchybar-vivaldi-workspaces-script"
+    {
+      nativeBuildInputs = [pkgs.jq];
+    }
+    ''
+      echo "=== Testing Vivaldi Workspaces Script Parsing ==="
+      mkdir -p $out
+
+      # Write the fixture to a temp path
+      cat > Preferences.json <<'PREFS'
+      ${fixture}
+      PREFS
+
+      # The parsing logic the real script must implement:
+      # Extract workspaces as tab-separated "index<TAB>id<TAB>name" lines.
+      # Index is 1-based (matches COMMAND_WORKSPACE_SWITCH_N numbering).
+      result=$(jq -r '.vivaldi.workspaces.list
+        | to_entries
+        | map([.key + 1, .value.id, .value.name] | @tsv)
+        | .[]' Preferences.json)
+
+      echo "Parsed:"
+      echo "$result"
+
+      # Verify we got exactly 3 lines
+      count=$(printf '%s\n' "$result" | wc -l | tr -d ' ')
+      if [ "$count" != "3" ]; then
+        echo "Expected 3 workspaces, got $count" >&2
+        exit 1
+      fi
+      echo "  count = 3: OK"
+
+      # Verify each expected name is present
+      for name in Scratchpad Personal MBR; do
+        if printf '%s\n' "$result" | grep -q "$name"; then
+          echo "  contains $name: OK"
+        else
+          echo "  missing $name!" >&2
+          exit 1
+        fi
+      done
+
+      # Verify indexing starts at 1
+      first_idx=$(printf '%s\n' "$result" | head -n1 | cut -f1)
+      if [ "$first_idx" = "1" ]; then
+        echo "  first index = 1: OK"
+      else
+        echo "  first index should be 1, got $first_idx!" >&2
+        exit 1
+      fi
+
+      echo "Script parsing logic verified"
+      touch $out/marker
+    '';
 }

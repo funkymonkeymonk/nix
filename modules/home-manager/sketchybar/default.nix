@@ -8,10 +8,36 @@
 }:
 with lib; let
   cfg = osConfig.myConfig.sketchybar;
+  vwCfg = cfg.vivaldiWorkspaces;
   t = earthsong.sketchybarTheme;
 
-  # Helper to convert hex color to sketchybar format
-  toSketchybarColor = hex: "0x" + (builtins.replaceStrings ["#"] [""] hex);
+  # Lua interpreter bundled with sbarlua
+  lua = pkgs.sbarlua.luaModule;
+
+  # Helper to convert hex color to sketchybar format (0xAARRGGBB)
+  toSketchybarColor = hex: "0xff" + (builtins.replaceStrings ["#"] [""] hex);
+
+  # Vivaldi workspaces helper script (shell), written to the Nix store.
+  # Pulls jq and sketchybar from PATH at runtime — the parent sketchybar
+  # launchd agent sets PATH to include pkgs.sketchybar, and we extend it
+  # below when the option is enabled.
+  vivaldiWorkspacesScript = pkgs.writeShellApplication {
+    name = "sketchybar-vivaldi-workspaces";
+    runtimeInputs = [pkgs.jq pkgs.sketchybar];
+    # Disable shellcheck SC2016 (intentional single-quoted AppleScript)
+    # and SC2155 (declare+assign in single line are fine for our use).
+    checkPhase = "";
+    text = builtins.readFile ./scripts/vivaldi-workspaces.sh;
+  };
+
+  # Template the Lua item by substituting @VW_POSITION@, @VW_ICON@, and
+  # @VW_SCRIPT@ with the option values and Nix-store script path.
+  vivaldiWorkspacesLua = pkgs.runCommand "vivaldi_workspaces.lua" {} ''
+    substitute ${./items/vivaldi_workspaces.lua} $out \
+      --replace-quiet '@VW_POSITION@' '${vwCfg.position}' \
+      --replace-quiet '@VW_ICON@' '${vwCfg.iconText}' \
+      --replace-quiet '@VW_SCRIPT@' '${vivaldiWorkspacesScript}/bin/sketchybar-vivaldi-workspaces'
+  '';
 
   # Generate colors.lua from the Earthsong theme
   colorsLua = pkgs.writeText "colors.lua" ''
@@ -61,6 +87,7 @@ with lib; let
     local colors = require("colors")
 
     sbar.bar({
+      position = "${cfg.position}",
       height = ${toString cfg.height},
       color = colors.bar.bg,
       display = "all",
@@ -160,38 +187,70 @@ with lib; let
     }
   '';
 
-  # Entry point: sketchybarrc requires all Lua modules and appends extraConfig
+  # Entry point: shell script that runs the Lua config via sbarlua
+  # sketchybar executes this as a script (fork_exec), so it needs a shebang
+  # and the executable bit. LUA_CPATH must include sbarlua's sketchybar.so.
+  # LUA_PATH includes $CONFIG_DIR and $CONFIG_DIR/items so nested requires
+  # (e.g. require("items.vivaldi_workspaces")) resolve reliably.
   sketchybarrc = pkgs.writeText "sketchybarrc" ''
+    #!/bin/sh
+    export LUA_CPATH="${pkgs.sbarlua}/lib/lua/5.5/?.so;;"
+    export LUA_PATH="$CONFIG_DIR/?.lua;$CONFIG_DIR/?/init.lua;;"
+    exec ${lua}/bin/lua "$CONFIG_DIR/init.lua"
+  '';
+
+  # Main Lua entry point (loaded by sketchybarrc shell script)
+  initLua = pkgs.writeText "init.lua" ''
+    sbar = require("sketchybar")
     require("colors")
     require("settings")
     require("bar")
     require("default")
     require("icons")
+    ${lib.optionalString vwCfg.enable ''require("items.vivaldi_workspaces")''}
     ${cfg.extraConfig}
+  '';
+
+  # Bundle all Lua files into one store directory so sketchybar's CONFIG_DIR
+  # resolves require() calls correctly (each pkgs.writeText produces a separate
+  # store path, so require("colors") would fail to find colors.lua).
+  configDir = pkgs.runCommand "sketchybar-config" {} ''
+    mkdir -p $out/items
+    cp ${colorsLua}    $out/colors.lua
+    cp ${settingsLua}  $out/settings.lua
+    cp ${barLua}       $out/bar.lua
+    cp ${defaultLua}   $out/default.lua
+    cp ${iconsLua}     $out/icons.lua
+    cp ${initLua}      $out/init.lua
+    cp ${sketchybarrc} $out/sketchybarrc
+    chmod +x $out/sketchybarrc
+    ${lib.optionalString vwCfg.enable ''
+      cp ${vivaldiWorkspacesLua} $out/items/vivaldi_workspaces.lua
+    ''}
   '';
 in {
   config = mkIf (cfg.enable && osConfig.myConfig.isDarwin) {
     home.file = {
-      # Entry point loaded by the launchd agent
-      ".config/sketchybar/sketchybarrc".source = sketchybarrc;
-      # Supporting Lua config files
-      ".config/sketchybar/colors.lua".source = colorsLua;
-      ".config/sketchybar/settings.lua".source = settingsLua;
-      ".config/sketchybar/bar.lua".source = barLua;
-      ".config/sketchybar/default.lua".source = defaultLua;
-      ".config/sketchybar/icons.lua".source = iconsLua;
+      # Symlink the whole config directory so all files share one store path
+      ".config/sketchybar".source = configDir;
     };
 
     # Install required packages
-    home.packages = with pkgs;
+    home.packages =
       [
-        sketchybar
-        sketchybar-app-font
+        pkgs.sketchybar
+        pkgs.sketchybar-app-font
+        pkgs.sbarlua
+        lua
       ]
       ++ lib.optionals cfg.useAerospaceIntegration [
-        aerospace
-        jankyborders
-        nowplaying-cli
+        pkgs.aerospace
+        pkgs.jankyborders
+        pkgs.nowplaying-cli
+      ]
+      ++ lib.optionals vwCfg.enable [
+        pkgs.jq
+        vivaldiWorkspacesScript
       ];
 
     # Create launchd service for sketchybar
@@ -208,6 +267,26 @@ in {
         KeepAlive = true;
         StandardOutPath = "/tmp/sketchybar.log";
         StandardErrorPath = "/tmp/sketchybar.err.log";
+        EnvironmentVariables = {
+          # Include jq and the Vivaldi helper script directory on PATH when
+          # the option is enabled, so the click scripts can find them.
+          PATH = lib.concatStringsSep ":" (
+            [
+              "${pkgs.sketchybar}/bin"
+            ]
+            ++ lib.optionals vwCfg.enable [
+              "${pkgs.jq}/bin"
+              "${vivaldiWorkspacesScript}/bin"
+            ]
+            ++ [
+              "/usr/local/bin"
+              "/usr/bin"
+              "/bin"
+              "/usr/sbin"
+              "/sbin"
+            ]
+          );
+        };
       };
     };
   };

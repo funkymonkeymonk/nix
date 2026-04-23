@@ -1312,7 +1312,7 @@
       exec = ''
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
-        for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
+        for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard sketchybar-vivaldi-workspaces-options sketchybar-vivaldi-workspaces-script; do
           echo "--- $test ---"
           nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
           echo "$test: passed"

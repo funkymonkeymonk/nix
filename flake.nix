@@ -432,6 +432,8 @@
             sketchybar-color-conversion
             sketchybar-platform-guard
             sketchybar-entrypoint
+            sketchybar-vivaldi-workspaces-options
+            sketchybar-vivaldi-workspaces-script
             ollama-options
             ollama-custom-options
             vane-options
