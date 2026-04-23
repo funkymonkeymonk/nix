@@ -1,6 +1,6 @@
-# Generic headless server configuration
+# Generic headless ARM64 server configuration
 # Uses nixos-facter for automatic hardware detection
-# Minimal configuration for servers
+# Minimal configuration for ARM servers
 {
   pkgs,
   lib,
@@ -9,19 +9,18 @@
 }: {
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
-    autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+    autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
   };
 
   hardware.facter.reportPath = "/etc/nixos/facter.json";
 
   # REQUIRED: Configure at least one user with SSH access
-  users.users.root.openssh.authorizedKeys.keys = []; # Root SSH disabled
+  users.users.root.openssh.authorizedKeys.keys = [];
   users.users.monkey = {
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
     openssh.authorizedKeys.keys = [
-      # MegamanX deploy key
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
     ];
   };
@@ -34,18 +33,16 @@
     kernelModules = ["kvm-intel" "kvm-amd"];
   };
 
-  # Enable flakes (intentional: type-server does not include os/nixos.nix)
+  # Enable flakes (intentional: type-server-arm does not include os/nixos.nix)
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
   # Networking - DHCP for IP and hostname
   networking = {
     useDHCP = lib.mkDefault true;
-    # Accept hostname from DHCP server (takeout container pattern)
     dhcpcd.extraConfig = ''
       option host_name
       send host-name = ""
     '';
-    # Firewall - allow SSH
     firewall = {
       enable = true;
       allowedTCPPorts = [22];
@@ -59,9 +56,9 @@
   services.openssh = {
     enable = true;
     settings = {
-      PermitRootLogin = "no"; # Disable root SSH entirely
-      PubkeyAuthentication = true; # Keys only
-      PasswordAuthentication = false; # No passwords
+      PermitRootLogin = "no";
+      PubkeyAuthentication = true;
+      PasswordAuthentication = false;
     };
   };
 

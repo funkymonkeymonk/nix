@@ -4,6 +4,8 @@
   config,
   pkgs,
   lib,
+  mkUser,
+  inputs,
   ...
 }: {
   imports =
@@ -13,6 +15,32 @@
     ++ lib.optionals (!builtins.pathExists /etc/nixos/hardware-configuration.nix) [
       ../hardware-stub.nix
     ];
+
+  nixpkgs.hostPlatform = "x86_64-linux";
+  system.stateVersion = "25.05";
+
+  myConfig =
+    mkUser "monkey" "me@willweaver.dev"
+    // {
+      skills.superpowersPath = inputs.superpowers;
+      roles = {
+        developer.enable = true;
+        desktop.enable = true;
+        opencode.enable = true;
+      };
+      desktop = {
+        enable = true;
+        autoLoginUser = "monkey";
+      };
+      gaming.enable = true;
+      streaming.enable = true;
+      llmEndpoints = {
+        MegamanX = {
+          host = "MegamanX.local";
+          port = "4000";
+        };
+      };
+    };
 
   networking = {
     hostName = "zero";
