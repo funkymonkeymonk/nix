@@ -157,8 +157,10 @@ cmd_build_popup() {
     return 0
   fi
 
-  # Build one row per workspace. Click handler calls this script back
-  # with "switch <index> <name> <parent>".
+  # Build one row per workspace. Rows are added in reverse order (last
+  # workspace first) so that when the popup renders top-to-bottom the
+  # lowest visible row is workspace 1 — giving a bottom-to-top appearance
+  # that matches the item sitting at the bottom of a vertical bar.
   #
   # We pass self_path so the click handler stays Nix-store-referenced
   # rather than hardcoding the store path here.
@@ -176,7 +178,7 @@ cmd_build_popup() {
         background.drawing=off \
         click_script="'$self_path' switch '$idx' '$name' '$parent'" \
       >/dev/null
-  done <<<"$rows"
+  done < <(tac <<<"$rows")
 
   sbar --set "$parent" popup.drawing=toggle >/dev/null
 }
