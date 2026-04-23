@@ -1,3 +1,32 @@
+# Purpose: ISO-bundled installer script for the custom NixOS installer image.
+#
+# Invoked automatically on TTY1 when booting from the installer ISO, or via
+# the dev-mode wrapper (nixos-installer-dev-mode) which can pull a fresh copy
+# from a specific git branch for testing.
+#
+# This is a SEPARATE implementation from packages/installer/default.nix.
+# The two installers serve different use cases:
+#
+#   targets/installer-iso/installer.nix (THIS FILE)
+#   ─────────────────────────────────────────────────────────────────────────────
+#   • Delivery:  Bundled inside the custom installer ISO (packages.iso)
+#   • Interface: Rich TUI via gum (styled prompts, spinners, confirmation dialogs)
+#   • Disk setup: Automated with disko — partitions and formats the disk for you
+#   • Network:   Prefers remote flake; falls back to the copy bundled on the ISO
+#   • Workflow:   All-in-one — partitions, formats, and installs in a single run
+#   • Use when:  Installing on bare metal from the custom ISO
+#
+#   packages/installer/ (standalone app)
+#   ─────────────────────────────────────────────────────────────────────────────
+#   • Delivery:  Standalone — run with `nix run github:funkymonkeymonk/nix#installer`
+#   • Interface: Plain bash (read/echo) — no external TUI tools required
+#   • Disk setup: Interactive guidance only — does NOT auto-partition
+#   • Workflow:   Two-stage — installs bootstrap first, then instructs user to
+#                 apply full config on next boot
+#   • Use when:  You already have a running NixOS Live USB / existing system
+#
+# References in flake.nix: nixosConfigurations.installer-iso → targets/installer-iso/default.nix
+#                           which includes this file via nixpkgs.config.packageOverrides
 {pkgs, ...}:
 pkgs.writeScriptBin "nixos-installer-iso" ''
     #!${pkgs.bash}/bin/bash

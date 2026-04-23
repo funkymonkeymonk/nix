@@ -1,3 +1,29 @@
+# Purpose: Standalone `nix run` installer for bootstrapping NixOS from any machine.
+#
+# Invoked via: nix run github:funkymonkeymonk/nix#installer
+#
+# This is a SEPARATE implementation from targets/installer-iso/installer.nix.
+# The two installers serve different use cases:
+#
+#   packages/installer/ (THIS FILE)
+#   ─────────────────────────────────────────────────────────────────────────────
+#   • Delivery:  Standalone package/app — no ISO required
+#   • Interface: Plain bash (read/echo) — no external TUI tools (no gum)
+#   • Disk setup: Interactive guidance only — does NOT auto-partition
+#   • Workflow:   Two-stage — installs bootstrap first, then instructs user to
+#                 apply full config on next boot
+#   • Use when:  You already have a running NixOS Live USB / existing system and
+#                want to quickly apply this flake without building a custom ISO
+#
+#   targets/installer-iso/installer.nix
+#   ─────────────────────────────────────────────────────────────────────────────
+#   • Delivery:  Bundled inside the custom installer ISO image
+#   • Interface: Rich TUI via gum (styled prompts, spinners, confirmation dialogs)
+#   • Disk setup: Automated with disko — partitions and formats the disk for you
+#   • Workflow:   All-in-one — partitions, formats, and installs in a single run
+#   • Use when:  Installing on bare metal from the custom ISO
+#
+# References in flake.nix: packages.installer, apps.installer
 {pkgs, ...}:
 pkgs.writeScriptBin "nixos-flake-installer" ''
   #!${pkgs.bash}/bin/bash
