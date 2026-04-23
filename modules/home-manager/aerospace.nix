@@ -91,9 +91,9 @@ in {
         inner.horizontal = 0;
         inner.vertical = 0;
         outer = {
-          left = 0;
+          left = lib.mkIf (config.myConfig.sketchybar.enable && config.myConfig.sketchybar.position == "left") config.myConfig.sketchybar.height;
           bottom = 0;
-          top = 0;
+          top = lib.mkIf (config.myConfig.sketchybar.enable && config.myConfig.sketchybar.position == "top") config.myConfig.sketchybar.height;
           right = 0;
         };
       };
