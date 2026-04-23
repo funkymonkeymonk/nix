@@ -1,12 +1,17 @@
 # Generic desktop configuration for gaming/workstations
 # Uses nixos-facter for automatic hardware detection
 # No hardware-configuration.nix required!
-{...}: {
+{inputs, ...}: {
   imports = [
     # Hardware detection - replaces hardware-configuration.nix
     # This is populated automatically during installation
     # { hardware.facter.reportPath = ./facter.json; }
   ];
+
+  myConfig = {
+    skills.superpowersPath = inputs.superpowers;
+    autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
+  };
 
   # Allow unfree packages (Steam, NVIDIA drivers, etc.)
   nixpkgs.config.allowUnfree = true;
@@ -62,6 +67,11 @@
       PasswordAuthentication = false;
     };
   };
+
+  # SSH keys for initial access (replace with your key)
+  users.users.root.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+  ];
 
   # User will be created by your user module
   # This is just the base system

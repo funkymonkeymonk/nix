@@ -2,9 +2,39 @@
 # Headless Darwin (macOS) server for macOS VM management via Lume
 # Hardware: Mac M4 with 24GB RAM
 # Primary User: monkey (admin)
-{pkgs, ...}: {
-  # Server-specific configuration
-  # Most config comes from roles and mkUser in flake.nix
+{
+  mkUser,
+  inputs,
+  pkgs,
+  ...
+}: {
+  nixpkgs.hostPlatform = "aarch64-darwin";
+  system.stateVersion = 4;
+  system.primaryUser = "monkey";
+
+  myConfig =
+    mkUser "monkey" "me@willweaver.dev"
+    // {
+      skills.superpowersPath = inputs.superpowers;
+      roles = {
+        developer.enable = true;
+        opencode.enable = true;
+      };
+      opencode = {
+        enable = true;
+        # Use remote LLM APIs since no local Ollama
+        model = null; # User will select on first run
+      };
+      llmClient.rtk.enable = true;
+      lume = {
+        enable = true;
+        enableBackgroundService = true;
+        port = 7777;
+        enableAutoUpdater = true;
+        # Pre-pull macOS Tahoe vanilla image
+        prePullImages = ["macos-tahoe-vanilla:latest"];
+      };
+    };
 
   # Enable SSH server for remote access
   services.openssh.enable = true;
@@ -113,15 +143,5 @@
         echo "No cloud-init configuration found at $CONFIG_FILE"
       fi
     '';
-  };
-
-  # Lume configuration for macOS VMs
-  myConfig.lume = {
-    enable = true;
-    enableBackgroundService = true;
-    port = 7777;
-    enableAutoUpdater = true;
-    # Pre-pull macOS Tahoe vanilla image
-    prePullImages = ["macos-tahoe-vanilla:latest"];
   };
 }

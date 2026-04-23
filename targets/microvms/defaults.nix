@@ -1,0 +1,32 @@
+# Default configuration for all MicroVMs
+# Provides shared user config, skills, and disables 1Password
+# Individual VM configs can override these defaults via roleEnables specialArg
+{
+  inputs,
+  roleEnables,
+  lib,
+  ...
+}: {
+  nixpkgs.hostPlatform = "x86_64-linux";
+  myConfig = lib.mkMerge [
+    {
+      skills = {
+        superpowersPath = inputs.superpowers;
+        externalInputs = {
+          inherit (inputs) vercel-skills;
+        };
+      };
+      users = [
+        {
+          name = "dev";
+          email = "dev@localhost";
+          fullName = "Development User";
+          isAdmin = true;
+          sshIncludes = [];
+        }
+      ];
+      onepassword.enable = lib.mkForce false;
+    }
+    roleEnables
+  ];
+}
