@@ -34,7 +34,7 @@ sbar.add("item", parent_name, {
     border_color = colors.bg2,
     border_width = 1,
     corner_radius = 6,
-    height = 32,
+    height = 44,
   },
   popup = {
     align = "center",

@@ -162,7 +162,7 @@
       sketchybar = {
         enable = true;
         position = "left";
-        height = 40;
+        height = 50;
         padding = 4;
         groupPadding = 10;
         vivaldiWorkspaces = {
@@ -177,18 +177,24 @@
         extraConfig = ''
           local colors = require("colors")
 
-          sbar.add("item", "clock", "center", {
+          sbar.add("item", "clock", {
+            position = "right",
             update_freq = 1,
+            icon = {
+              drawing = false,
+            },
             label = {
               color = colors.black,
               font = { size = 13.0 },
+              padding_left = 4,
+              padding_right = 4,
             },
             background = {
               color = colors.yellow,
               corner_radius = 6,
-              height = 28,
-              padding_left = 8,
-              padding_right = 8,
+              height = 44,
+              padding_left = 2,
+              padding_right = 2,
             },
             updates = true,
           })

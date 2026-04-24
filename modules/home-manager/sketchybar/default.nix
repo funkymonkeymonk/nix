@@ -125,7 +125,7 @@ with lib; let
         padding_right = 8,
       },
       background = {
-        height = 28,
+        height = 44,
         corner_radius = 6,
         border_width = 1,
         border_color = colors.bg2,
