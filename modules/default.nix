@@ -18,5 +18,8 @@
 
     # Role modules (each gated by myConfig.roles.<name>.enable)
     ./roles
+
+    # Service modules (each gated by myConfig.services.<name>.enable or myConfig.<name>.enable)
+    ./services/matrix-notify
   ];
 }
