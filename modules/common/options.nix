@@ -1422,6 +1422,109 @@ with lib; {
       };
     };
 
+    notify = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable notification router for multi-backend notifications";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 18080;
+        description = "Port for the notification router HTTP API";
+      };
+
+      defaultBackend = mkOption {
+        type = types.enum ["matrix" "ntfy"];
+        default = "matrix";
+        description = "Default notification backend to use";
+      };
+
+      backends = {
+        matrix = {
+          enable = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Enable Matrix backend";
+          };
+
+          homeserver = mkOption {
+            type = types.str;
+            default = "https://matrix.tchncs.de";
+            description = "Matrix homeserver URL (e.g., https://matrix.tchncs.de, https://matrix.org)";
+          };
+
+          roomId = mkOption {
+            type = types.str;
+            default = "";
+            description = ''
+              Default Matrix room ID (e.g., !roomid:matrix.tchncs.de).
+              Can be overridden per-message.
+            '';
+          };
+
+          accessTokenFile = mkOption {
+            type = types.str;
+            default = "";
+            description = ''
+              Path to file containing Matrix access token.
+              Get your token from Element: Settings -> Help & About -> Access Token
+            '';
+          };
+        };
+
+        ntfy = {
+          enable = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Enable ntfy.sh backend";
+          };
+
+          server = mkOption {
+            type = types.str;
+            default = "https://ntfy.sh";
+            description = "ntfy server URL (use https://ntfy.sh for public, or your self-hosted URL)";
+          };
+
+          topic = mkOption {
+            type = types.str;
+            default = "";
+            description = ''
+              Default ntfy topic to publish to.
+              Treat this as a password - anyone who knows it can subscribe.
+            '';
+          };
+        };
+      };
+
+      routes = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Route name (for logging)";
+            };
+            backend = mkOption {
+              type = types.enum ["matrix" "ntfy"];
+              description = "Backend to route to";
+            };
+            match = mkOption {
+              type = types.str;
+              default = "";
+              description = "Pattern to match (prefix, or 'priority:high' for priority-based routing)";
+            };
+          };
+        });
+        default = [];
+        description = ''
+          Routing rules for notifications.
+          Routes are evaluated in order, first match wins.
+          Example: [{ name = "alerts"; backend = "matrix"; match = "priority:high"; }]
+        '';
+      };
+    };
+
     sketchybar = {
       enable = mkOption {
         type = types.bool;
