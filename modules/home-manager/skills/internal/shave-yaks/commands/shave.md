@@ -8,7 +8,7 @@ Work through the yak backlog autonomously using the `shave-yaks` skill.
 ## Your Mission
 
 Loop through all actionable yaks until none remain. For each yak:
-- If it has clear acceptance criteria and file context → implement it (TDD/BDD, PR, CI, merge)
+- If it has clear acceptance criteria and file context → implement it (TDD/BDD, PR, CI)
 - If it's unclear → flag it with @needs-human and move on
 
 **Do not stop until every leaf yak is either done ✓ or tagged @needs-human.**
@@ -49,7 +49,7 @@ Load the `shave-yaks` skill for the full workflow. Key requirements:
 6. **Parallel where safe** — check contexts for file overlap; serialize when in doubt
 7. **TDD mandatory** — every subagent must write tests BEFORE implementation
 8. **BDD style** — acceptance criteria map to test assertions on desired outcomes
-9. **Full PR cycle** — each subagent does: implement → validate → commit → PR → CI → merge → done
+9. **Full PR cycle** — each subagent does: implement → validate → commit → PR → CI. Stop there — human merges.
 
 ## Parallelism
 
@@ -67,6 +67,6 @@ reason=$("$SKILL_DIR/yak-needs-refinement.sh" "yak name" 2>&1) || {
 ## When Done
 
 Report:
-- Count of yaks shaved (merged PRs)
+- Count of yaks shaved (PRs created)
 - Count flagged for refinement (with reasons)
 - Any open issues requiring human attention
