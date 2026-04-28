@@ -33,7 +33,7 @@ These commands are available in OpenCode when this skill is installed:
 
 | Command | Purpose |
 |---------|---------|
-| `/finish` | Push, create PR, watch CI, retry on failure, merge on success |
+| `/finish` | Push, create PR, watch CI, retry on failure |
 | `/pr` | Create new PR with conventional branch naming |
 | `/update` | Update existing PR (squash and push) |
 | `/sync` | Sync with main branch (fetch and rebase) |
@@ -118,9 +118,8 @@ jj-sync develop # Rebase onto develop
 ### `jj-finish` - Complete PR Workflow
 
 ```bash
-# Usage: jj-finish [--merge] [--max-retries N]
+# Usage: jj-finish [--max-retries N]
 jj-finish                 # Push, create PR, watch tests
-jj-finish --merge         # Same, but prompt to merge on success
 jj-finish --max-retries 3 # Limit to 3 retry attempts
 ```
 
@@ -129,7 +128,7 @@ Workflow:
 2. Create PR if one doesn't exist
 3. Watch for all CI checks to complete
 4. If checks fail: prompts user to fix, then retries (up to 5 times by default)
-5. If checks pass: asks user if they want to merge
+5. Stop here - human merges the PR
 
 ### `jj-stack` - Stacked PRs
 

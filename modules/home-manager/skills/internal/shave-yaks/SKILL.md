@@ -7,7 +7,7 @@ description: Use when you want to autonomously work through a yak backlog end-to
 
 ## Overview
 
-Autonomous yak shaving: triage the backlog, implement each yak in an isolated jj workspace with TDD/BDD tests, ship a PR, watch CI, merge, and loop until done. Yaks with insufficient context get flagged for human refinement instead of guessed at.
+Autonomous yak shaving: triage the backlog, implement each yak in an isolated jj workspace with TDD/BDD tests, ship a PR, watch CI, and loop until done. Yaks with insufficient context get flagged for human refinement instead of guessed at.
 
 **Key mental model:** One yak = one jj workspace = one subagent = one PR. Parallel where file conflicts are impossible.
 
@@ -116,8 +116,7 @@ jj git push --bookmark <branch>
 gh pr create ...
 
 # 5. Watch CI (poll gh pr view --json statusCheckRollup)
-# 6. Merge when green
-gh pr merge <n> --repo <repo> --squash --delete-branch --admin
+# 6. Stop here - human merges the PR
 
 # 7. Mark done
 yx done "<yak name>" && yx sync
@@ -132,7 +131,6 @@ jj workspace forget <name> && rm -rf .workspaces/<name>
 | Two subagents editing the same file | Check context file paths before parallelizing |
 | Forgetting `git add -A` before `nix build --impure` | Staged files must be visible for impure eval |
 | Claiming without syncing | Always `yx sync` before AND after `yx start` |
-| Merging with failing CI | Wait for all checks — `"conclusion":"SUCCESS"` |
 | Implementation before test | RED phase is mandatory; delete any code written before tests |
 
 ## Finishing Up
