@@ -9,6 +9,10 @@
   system.stateVersion = 4;
   system.primaryUser = "wweaver";
 
+  homebrew.casks = [
+    "granola"
+  ];
+
   myConfig =
     mkUser "wweaver" "wweaver@justworks.com"
     // {
