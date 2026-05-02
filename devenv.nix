@@ -626,14 +626,17 @@
 
         for config in single-disk-ext4; do
           echo "Checking disk-configs/$config.nix..."
-          if nix eval .#nixosConfigurations.type-desktop.config.disko.devices \
-              --quiet >/dev/null 2>&1; then
+          # Use nix build --dry-run to validate disko config without triggering
+          # type-system recursion that can cause stack overflow with newer nixpkgs
+          if nix build .#nixosConfigurations.type-desktop.config.system.build.diskoScript \
+              --no-link --dry-run --quiet 2>/dev/null; then
             echo "  disk-configs/$config.nix: valid"
           else
             echo "  disk-configs/$config.nix: INVALID"
             echo ""
-            echo "Running eval with verbose output:"
-            nix eval .#nixosConfigurations.type-desktop.config.disko.devices --show-trace
+            echo "Running build with verbose output:"
+            nix build .#nixosConfigurations.type-desktop.config.system.build.diskoScript \
+              --no-link --dry-run --show-trace
             exit 1
           fi
         done
