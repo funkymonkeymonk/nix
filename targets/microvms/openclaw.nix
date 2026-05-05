@@ -1,12 +1,15 @@
 # openclaw.nix - OpenClaw AI Assistant MicroVM
-# Uses official nix-openclaw module with shared configuration
+# Secrets come from 1Password via opnix
 # https://github.com/openclaw/openclaw
 {
-  config,
   lib,
   pkgs,
   ...
 }: {
+  imports = [
+    ../../modules/services/openclaw
+  ];
+
   networking.hostName = "openclaw";
 
   system.autoUpgrade.enable = lib.mkForce false;
@@ -18,29 +21,81 @@
     gateway = "192.168.83.1";
   };
 
-  # Enable OpenClaw with shared configuration
-  myConfig.openclaw = {
+  services.openclaw = {
     enable = true;
-    user = "agent";
     port = 18789;
     openFirewall = true;
 
-    # Matrix integration - connects to the Matrix microvm
-    matrix = {
-      enable = true;
-      homeserver = "http://192.168.83.15:8008";
-      userId = "@openclaw:matrix.local";
-      # Access token will be loaded from secrets
-      accessTokenFile = "/run/secrets/openclaw-matrix-access-token";
+    user = "dev";
+    group = "users";
+    dataDir = "/home/dev";
+
+    # Secrets loaded from opnix at /run/secrets/
+    environmentFile = "/run/openclaw/generated-env";
+
+    extraConfig = {
+      agent = {
+        model = "zen/default";
+      };
+
+      gateway = {
+        bind = "0.0.0.0";
+        verbose = true;
+      };
+
+      channels = {
+        matrix = {
+          enabled = true;
+          homeserver = "http://192.168.83.15:8008";
+          userId = "@openclaw:matrix.local";
+        };
+        discord = {
+          enabled = true;
+          tokenFile = "/run/secrets/openclaw-discord-bot-token";
+          allowFrom = ["279110923438915586"]; # Your Discord user ID
+          dmPolicy = "pairing";
+        };
+      };
     };
 
-    model = "zen/default";
-
-    # Additional environment file for API keys
-    environmentFiles = [];
+    # Additional hardening for microvm environment
+    hardening = {
+      protectHome = "read-only";
+      restrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_NETLINK"];
+      lockPersonality = true;
+    };
   };
 
-  # Opnix secrets configuration for Matrix token and Zen API key
+  # Generate env file from opnix secrets at boot
+  systemd.services.openclaw-generate-env = {
+    description = "Generate OpenClaw environment file from secrets";
+    after = ["onepassword-secrets.service"];
+    before = ["openclaw-gateway.service"];
+    wantedBy = ["multi-user.target"];
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "dev";
+      Group = "users";
+    };
+
+    script = ''
+      mkdir -p /run/openclaw
+
+      MATRIX_TOKEN=$(cat /run/secrets/openclaw-matrix-access-token 2>/dev/null || echo "placeholder_token")
+      ZEN_KEY=$(cat /run/secrets/openclaw-zen-api-key 2>/dev/null || echo "zen_placeholder")
+      DISCORD_TOKEN=$(cat /run/secrets/openclaw-discord-bot-token 2>/dev/null || echo "discord_placeholder")
+
+      echo "OPENCLAW_MATRIX_ACCESS_TOKEN=$MATRIX_TOKEN" > /run/openclaw/generated-env
+      echo "ZEN_API_KEY=$ZEN_KEY" >> /run/openclaw/generated-env
+      echo "OPENCLAW_DISCORD_BOT_TOKEN=$DISCORD_TOKEN" >> /run/openclaw/generated-env
+
+      chmod 600 /run/openclaw/generated-env
+    '';
+  };
+
+  # Opnix secrets configuration
   services.onepassword-secrets = {
     enable = true;
     tokenFile = "/etc/opnix-token";
@@ -50,7 +105,7 @@
         reference = "op://Homelab/OpenClaw/zen-api-key";
         path = "/run/secrets/openclaw-zen-api-key";
         mode = "0600";
-        owner = "agent";
+        owner = "dev";
         services = ["openclaw-generate-env" "openclaw-gateway"];
       };
 
@@ -58,19 +113,18 @@
         reference = "op://Homelab/OpenClaw/matrix-access-token";
         path = "/run/secrets/openclaw-matrix-access-token";
         mode = "0600";
-        owner = "agent";
+        owner = "dev";
+        services = ["openclaw-generate-env" "openclaw-gateway"];
+      };
+
+      openclawDiscordToken = {
+        reference = "op://Homelab/OpenClaw/discord-bot-token";
+        path = "/run/secrets/openclaw-discord-bot-token";
+        mode = "0600";
+        owner = "dev";
         services = ["openclaw-generate-env" "openclaw-gateway"];
       };
     };
-  };
-
-  # Add Zen API key to environment
-  systemd.services.openclaw-generate-env = lib.mkIf config.myConfig.openclaw.enable {
-    script = lib.mkAfter ''
-      # Append Zen API key to generated env file
-      ZEN_KEY=$(cat /run/secrets/openclaw-zen-api-key 2>/dev/null || echo "zen_placeholder")
-      echo "ZEN_API_KEY=$ZEN_KEY" >> /run/openclaw/generated-env
-    '';
   };
 
   environment.systemPackages = with pkgs; [

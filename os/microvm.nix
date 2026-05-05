@@ -5,6 +5,9 @@
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
+  # Use systemd-based initrd (scripted initrd deprecated in 26.11)
+  boot.initrd.systemd.enable = true;
+
   # Minimal footprint
   documentation.enable = lib.mkDefault false;
   services.xserver.enable = lib.mkDefault false;
