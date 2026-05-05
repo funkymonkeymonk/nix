@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Build script for openclaw-vfkit using Determinate's native Linux builder
+# 
+# IMPORTANT: This requires:
+# 1. Determinate Nix 3.8.4+ with native-linux-builder enabled
+# 2. External builders feature configured
+#
+# Current status:
+# - Determinate Nix: 3.13.2 (native-linux-builder enabled ✓)
+# - Issue: Nix rejecting external-builders feature
+#
+# Workaround: Build must be done on protoman where FlakeHub auth is configured
+
+set -e
+
+echo "==============================================="
+echo "OpenClaw vfkit Build Script"
+echo "==============================================="
+echo ""
+echo "Current configuration:"
+echo "  - Determinate Nix: $(determinate-nixd version 2>&1 | grep 'daemon version' | awk '{print $4}')"
+echo "  - Native Linux Builder: $(determinate-nixd version 2>&1 | grep -q 'native-linux-builder' && echo '✓ Enabled' || echo '✗ Disabled')"
+echo ""
+
+# Check if we're on protoman
+if [[ "$(hostname)" == "protoman" ]]; then
+    echo "✓ Running on protoman - can build locally"
+    echo ""
+    echo "Building openclaw-vfkit..."
+    nix build .#microvm-openclaw-vfkit --impure
+else
+    echo "⚠ Not running on protoman"
+    echo ""
+    echo "The native Linux builder requires FlakeHub authentication."
+    echo "Please build on protoman instead:"
+    echo ""
+    echo "  ssh monkey@192.168.1.192"
+    echo "  cd ~/nix"
+    echo "  git pull origin feat/openclaw-vfkit"
+    echo "  nix run .#microvm-openclaw-vfkit --impure"
+    echo ""
+    exit 1
+fi

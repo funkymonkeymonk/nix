@@ -44,6 +44,63 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
 
+  # Opnix configuration - fetches service account token for MicroVM
+  services.onepassword-secrets = {
+    enable = true;
+    tokenFile = "/etc/opnix-token";
+    secrets = {
+      openclawServiceAccount = {
+        reference = "op://Service Accounts/6p3oex3elzffchzmd2kl3s7cp4/credential";
+        path = "/var/lib/opnix/secrets/openclaw-service-account";
+        mode = "0600";
+      };
+    };
+  };
+
+  # OpenClaw vfkit MicroVM launchd service
+  # Uses opnix-managed token file to start the VM
+  launchd.daemons.openclaw-vfkit = {
+    serviceConfig = {
+      Label = "com.funkymonkey.openclaw-vfkit";
+      ProgramArguments = [
+        "/bin/sh"
+        "-c"
+        ''
+          set -e
+          TOKEN_FILE="/tmp/openclaw-vfkit-opnix-token"
+          OPNIX_SECRET="/var/lib/opnix/secrets/openclaw-service-account"
+          LOG_DIR="/Users/monkey/Library/Logs"
+
+          mkdir -p "$LOG_DIR"
+          mkdir -p "$(dirname "$TOKEN_FILE")"
+
+          # Copy token from opnix-managed location
+          echo "$(date '+%Y-%m-%d %H:%M:%S') Setting up opnix token for MicroVM..." >> "$LOG_DIR/openclaw-vfkit.log"
+          if [[ -f "$OPNIX_SECRET" ]]; then
+            cp "$OPNIX_SECRET" "$TOKEN_FILE"
+            chmod 600 "$TOKEN_FILE"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') Token file prepared successfully" >> "$LOG_DIR/openclaw-vfkit.log"
+          else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: opnix secret not found at $OPNIX_SECRET" >> "$LOG_DIR/openclaw-vfkit.log"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') Run 'sudo opnix token set' first to authenticate" >> "$LOG_DIR/openclaw-vfkit.log"
+            exit 1
+          fi
+
+          # Start the microvm
+          echo "$(date '+%Y-%m-%d %H:%M:%S') Starting openclaw-vfkit microvm..." >> "$LOG_DIR/openclaw-vfkit.log"
+          exec /run/current-system/sw/bin/nix run github:funkymonkeymonk/nix/feat/openclaw-vfkit#microvm-openclaw-vfkit --impure 2>> "$LOG_DIR/openclaw-vfkit.log"
+        ''
+      ];
+      EnvironmentVariables = {
+        PATH = "/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin";
+      };
+      StandardOutPath = "/Users/monkey/Library/Logs/openclaw-vfkit.stdout";
+      StandardErrorPath = "/Users/monkey/Library/Logs/openclaw-vfkit.stderr";
+      RunAtLoad = true;
+      KeepAlive = true;
+    };
+  };
+
   # Cloud-init support - apply configuration from /etc/cloud-init.yaml
   # Applied on boot via launchd
   launchd.daemons.apply-cloud-init = {

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Build script for aarch64-linux packages using Determinate's native Linux builder
+
+export NIX_CONFIG="extra-experimental-features = nix-command flakes external-builders
+external-builders = [{\"systems\":[\"aarch64-linux\",\"x86_64-linux\"],\"program\":\"/usr/local/bin/determinate-nixd\",\"args\":[\"builder\"]}]"
+
+exec nix "$@"

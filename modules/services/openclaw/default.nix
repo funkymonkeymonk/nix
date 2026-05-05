@@ -218,7 +218,7 @@ in {
           # Setup script - ensures openclaw is installed
           ExecStartPre = pkgs.writeShellScript "openclaw-setup" (
             ''
-              export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${pkgs.npm}/bin:$PATH"
+              export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:$PATH"
               export HOME="${cfg.dataDir}"
               export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
 
@@ -226,12 +226,12 @@ in {
               mkdir -p "${cfg.dataDir}/.npm-global"
 
               # Configure npm to use local prefix
-              ${pkgs.npm}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
+              ${cfg.nodePackage}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
 
               # Check if we need to install openclaw
               if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
                 echo "Installing OpenClaw..."
-                ${pkgs.npm}/bin/npm install -g openclaw@latest
+                ${cfg.nodePackage}/bin/npm install -g openclaw@latest
               fi
 
               # Link config if provided

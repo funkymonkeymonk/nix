@@ -49,6 +49,12 @@
           homeserver = "http://192.168.83.15:8008";
           userId = "@openclaw:matrix.local";
         };
+        discord = {
+          enabled = true;
+          tokenFile = "/run/secrets/openclaw-discord-bot-token";
+          allowFrom = ["279110923438915586"]; # Your Discord user ID
+          dmPolicy = "pairing";
+        };
       };
     };
 
@@ -79,9 +85,11 @@
 
       MATRIX_TOKEN=$(cat /run/secrets/openclaw-matrix-access-token 2>/dev/null || echo "placeholder_token")
       ZEN_KEY=$(cat /run/secrets/openclaw-zen-api-key 2>/dev/null || echo "zen_placeholder")
+      DISCORD_TOKEN=$(cat /run/secrets/openclaw-discord-bot-token 2>/dev/null || echo "discord_placeholder")
 
       echo "OPENCLAW_MATRIX_ACCESS_TOKEN=$MATRIX_TOKEN" > /run/openclaw/generated-env
       echo "ZEN_API_KEY=$ZEN_KEY" >> /run/openclaw/generated-env
+      echo "OPENCLAW_DISCORD_BOT_TOKEN=$DISCORD_TOKEN" >> /run/openclaw/generated-env
 
       chmod 600 /run/openclaw/generated-env
     '';
@@ -104,6 +112,14 @@
       openclawMatrixToken = {
         reference = "op://Homelab/OpenClaw/matrix-access-token";
         path = "/run/secrets/openclaw-matrix-access-token";
+        mode = "0600";
+        owner = "dev";
+        services = ["openclaw-generate-env" "openclaw-gateway"];
+      };
+
+      openclawDiscordToken = {
+        reference = "op://Homelab/OpenClaw/discord-bot-token";
+        path = "/run/secrets/openclaw-discord-bot-token";
         mode = "0600";
         owner = "dev";
         services = ["openclaw-generate-env" "openclaw-gateway"];
