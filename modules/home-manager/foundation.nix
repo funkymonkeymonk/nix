@@ -38,6 +38,11 @@
       aliases = {
         ba = ["bookmark" "advance"];
       };
+      # Treat pushed commits as immutable. Prevents `jj squash`, `jj describe`,
+      # `jj rebase`, etc. from rewriting any commit reachable from a remote
+      # bookmark. See modules/home-manager/skills/external/jj/SKILL.md
+      # "Pushed commits are immutable" for the design rationale.
+      revset-aliases."immutable_heads()" = "present(trunk()) | remote_bookmarks()";
     };
   };
 

@@ -1,161 +1,170 @@
 #!/usr/bin/env bash
-# jj-stack: Add another PR to the current stack
-# Usage: jj-stack <type> <description> [commit-message]
-# Example: jj-stack feat login-ui "Add login UI components"
+# jj-stack: Create a stacked PR on top of the current branch.
+#
+# Uses the immutable "new commit on top" pattern: the stacked PR gets a single
+# new commit whose parent is the current branch's tip (either its remote tip
+# if pushed, or local tip if not yet pushed). The GitHub PR is opened with
+# the current branch as its base, so reviewers see only this stack level's diff.
+#
+# Usage: jj-stack <type> <description> --message "<msg>"
 
 set -euo pipefail
 
-# Source shared library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/jj-workspace-lib"
 
 usage() {
     cat <<EOF
-Usage: jj-stack <type> <description> [commit-message]
+Usage: jj-stack <type> <description> --message "<message>"
 
-Add another PR to the current stack (stacked PRs workflow).
-Works in jj workspaces (including child workspaces separate from the parent repo).
+Create a stacked PR on top of the current branch.
 
-This script:
-1. Creates a new commit on top of current
-2. Sets commit message
-3. Creates conventional branch bookmark
-4. Pushes to remote
-5. Creates PR with proper base branch
-
-Types:
-  feat, feature  - New features
-  fix, bugfix    - Bug fixes
-  hotfix         - Urgent fixes
-  release        - Release preparation
-  chore          - Non-code tasks (deps, docs)
+The CURRENT @ must already be a new commit on top of the parent branch, with
+the changes you want in the stacked PR. jj-stack will:
+  1. Capture the current tree.
+  2. Create a new commit with the given message, parented on the parent
+     branch's tip (remote if tracked, local otherwise).
+  3. Restore the tree into that new commit.
+  4. Set the new bookmark and push.
+  5. Open a PR with the parent branch as the base.
 
 Arguments:
-  type           - Branch type prefix
-  description    - Branch description (kebab-case)
-  commit-message - Optional commit message (uses description if not provided)
+  type           feat, feature, fix, bugfix, hotfix, release, or chore.
+  description    Kebab-case branch description.
+
+Required:
+  -m, --message MSG   Conventional commit message for this stack level's commit.
+
+Options:
+  -h, --help          Show this help.
 
 Examples:
-  jj-stack feat login-ui "Add login UI components"
-  jj-stack fix validation-error
+  jj-stack feat login-ui -m "feat: add login UI components"
+  jj-stack fix validation-error -m "fix: validate email on profile form"
 EOF
-    exit 1
+    exit "${1:-1}"
 }
 
-# Validate type
 validate_type() {
-    local type="$1"
-    case "$type" in
-        feat|feature|fix|bugfix|hotfix|release|chore)
-            return 0
-            ;;
+    case "$1" in
+        feat|feature|fix|bugfix|hotfix|release|chore) return 0 ;;
         *)
-            echo -e "${JJ_RED}Error: Invalid type '$type'${JJ_NC}"
-            echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore"
+            echo -e "${JJ_RED}Error: Invalid type '$1'${JJ_NC}" >&2
+            echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore" >&2
             exit 1
             ;;
     esac
 }
 
-# Normalize type (feature -> feat, bugfix -> fix)
 normalize_type() {
-    local type="$1"
-    case "$type" in
+    case "$1" in
         feature) echo "feat" ;;
-        bugfix) echo "fix" ;;
-        *) echo "$type" ;;
+        bugfix)  echo "fix" ;;
+        *)       echo "$1" ;;
     esac
 }
 
-# Validate description (kebab-case, no special chars)
 validate_description() {
-    local desc="$1"
-    if [[ ! "$desc" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-        echo -e "${JJ_RED}Error: Description must be kebab-case (lowercase, hyphens only)${JJ_NC}"
-        echo "Got: $desc"
-        echo "Example: user-auth, fix-null-pointer, gh-123-add-feature"
+    if [[ ! "$1" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo -e "${JJ_RED}Error: Description must be kebab-case.${JJ_NC}" >&2
         exit 1
     fi
 }
 
-# Get bookmark name for a revision
-get_bookmark() {
-    local rev="$1"
-    jj log -r "$rev" --no-graph -T 'bookmarks' 2>/dev/null | head -1 | sed 's/\*.*//' | tr -d ' '
-}
+MESSAGE=""
+POSITIONAL=()
 
-# Main
-if [[ $# -lt 2 ]]; then
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--message) MESSAGE="${2:-}"; shift 2 ;;
+        -h|--help) usage 0 ;;
+        -*) echo -e "${JJ_RED}Unknown flag: $1${JJ_NC}" >&2; usage ;;
+        *) POSITIONAL+=("$1"); shift ;;
+    esac
+done
+
+if [[ ${#POSITIONAL[@]} -lt 2 ]]; then
     usage
 fi
 
-TYPE="$1"
-DESC="$2"
-MESSAGE="${3:-$DESC}"
+TYPE="${POSITIONAL[0]}"
+DESC="${POSITIONAL[1]}"
+
+if [[ -z "$MESSAGE" ]]; then
+    echo -e "${JJ_RED}Error: --message is required.${JJ_NC}" >&2
+    usage
+fi
 
 validate_type "$TYPE"
 validate_description "$DESC"
-
 TYPE=$(normalize_type "$TYPE")
 BRANCH="${TYPE}/${DESC}"
 
-# Check we're in a jj repo
 if ! jj_in_repo; then
-    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}" >&2
     exit 1
 fi
 
-# Get GitHub repo
 GH_REPO=$(jj_get_gh_repo)
 
-# Get parent bookmark for PR base
-PARENT_BOOKMARK=$(get_bookmark '@-')
+# Parent bookmark is the bookmark on the commit immediately preceding the
+# current line of work. In the common flow you've done `jj new <parent>` then
+# made changes; the parent commit therefore carries the parent bookmark.
+PARENT_BOOKMARK=$(jj log -r '@-' --no-graph -T 'bookmarks' 2>/dev/null | head -1 | sed 's/\*.*//' | tr -d ' ')
 if [[ -z "$PARENT_BOOKMARK" ]]; then
-    echo -e "${JJ_RED}Error: Parent commit has no bookmark${JJ_NC}"
-    echo "The parent commit needs a bookmark for stacked PRs to work."
-    echo "Create one with: jj bookmark set <name> -r @-"
+    echo -e "${JJ_RED}Error: Parent commit has no bookmark.${JJ_NC}" >&2
+    echo "Stacked PRs need the parent branch to have a bookmark." >&2
+    echo "Make sure @- points to a commit with a bookmark (usually the parent PR's tip)." >&2
     exit 1
 fi
 
-echo -e "${JJ_YELLOW}Adding to stack: ${BRANCH} (based on ${PARENT_BOOKMARK})${JJ_NC}"
-echo -e "GitHub repo: ${JJ_BLUE}${GH_REPO}${JJ_NC}"
+echo -e "${JJ_YELLOW}Creating stacked PR: ${BRANCH} based on ${PARENT_BOOKMARK}${JJ_NC}"
+echo -e "   GitHub repo: ${JJ_BLUE}${GH_REPO}${JJ_NC}"
 
-# Check current state
-echo -e "\n${JJ_GREEN}1. Current stack:${JJ_NC}"
-jj log -r 'ancestors(@, 5)' --no-graph
+echo -e "\n${JJ_GREEN}1. Fetching from remote...${JJ_NC}"
+jj git fetch
 
-# Check if we have changes
-if jj diff --stat | grep -q .; then
-    echo -e "\n${JJ_GREEN}2. Changes detected in working copy${JJ_NC}"
-else
-    echo -e "\n${JJ_YELLOW}Warning: No changes in working copy${JJ_NC}"
-    read -p "Continue anyway? [y/N] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+# Resolve parent tip: remote tracking preferred, local fallback.
+PARENT_TIP="${PARENT_BOOKMARK}@origin"
+if ! jj log -r "$PARENT_TIP" --no-graph -T 'commit_id' &>/dev/null; then
+    echo -e "${JJ_YELLOW}   ${PARENT_TIP} not tracked; using local ${PARENT_BOOKMARK}.${JJ_NC}"
+    PARENT_TIP="$PARENT_BOOKMARK"
 fi
 
-# Describe the commit
-echo -e "\n${JJ_GREEN}3. Setting commit message...${JJ_NC}"
-jj describe -m "$MESSAGE"
+# Check for changes.
+RANGE_COUNT=$(jj log -r "${PARENT_TIP}..@" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null | grep -c . || true)
+HAS_WC_CHANGES=$(jj diff --stat 2>/dev/null | grep -c . || true)
+if [[ "$RANGE_COUNT" -eq 0 && "$HAS_WC_CHANGES" -eq 0 ]]; then
+    echo -e "${JJ_RED}Error: No changes between ${PARENT_TIP} and @.${JJ_NC}" >&2
+    exit 1
+fi
 
-# Create bookmark
-echo -e "\n${JJ_GREEN}4. Creating bookmark: ${BRANCH}${JJ_NC}"
+echo -e "\n${JJ_GREEN}2. Changes to publish:${JJ_NC}"
+jj diff --stat -r "${PARENT_TIP}..@" 2>/dev/null || jj diff --stat
+
+OLD_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
+echo -e "\n${JJ_GREEN}3. Current @ snapshot: ${OLD_COMMIT:0:12}${JJ_NC}"
+
+echo -e "\n${JJ_GREEN}4. Creating new commit on top of ${PARENT_TIP}...${JJ_NC}"
+jj new "$PARENT_TIP" -m "$MESSAGE"
+
+echo -e "\n${JJ_GREEN}5. Restoring tree from ${OLD_COMMIT:0:12}...${JJ_NC}"
+jj restore --from "$OLD_COMMIT" --to @
+
+echo -e "\n${JJ_GREEN}6. Creating bookmark: ${BRANCH}${JJ_NC}"
 jj bookmark set "$BRANCH" -r @
 
-# Push to remote
-echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
+echo -e "\n${JJ_GREEN}7. Pushing to remote...${JJ_NC}"
 jj_push_bookmark "$BRANCH"
 
-# Create PR with correct base
-echo -e "\n${JJ_GREEN}6. Creating PR (base: ${PARENT_BOOKMARK})...${JJ_NC}"
+echo -e "\n${JJ_GREEN}8. Creating PR (base: ${PARENT_BOOKMARK})...${JJ_NC}"
 gh pr create --repo "$GH_REPO" --head "$BRANCH" --base "$PARENT_BOOKMARK" --fill
 
-# Create new empty commit for next work
-echo -e "\n${JJ_GREEN}7. Creating new commit for next work...${JJ_NC}"
-jj new
-
 PR_URL=$(jj_get_pr_url "$GH_REPO" "$BRANCH")
+NEW_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
+
 echo -e "\n${JJ_GREEN}Done! Stacked PR created: ${JJ_BLUE}${PR_URL}${JJ_NC}"
-echo -e "Stack: ${PARENT_BOOKMARK} -> ${BRANCH}"
+echo -e "   Stack: ${PARENT_BOOKMARK} -> ${BRANCH}"
+echo -e "   Pushed commit: ${JJ_BLUE}${NEW_COMMIT:0:12}${JJ_NC}"
+echo ""
+echo -e "${JJ_YELLOW}Next step:${JJ_NC} Run ${JJ_BLUE}jj new${JJ_NC} before making more changes."
