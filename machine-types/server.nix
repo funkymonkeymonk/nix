@@ -55,13 +55,14 @@
   # No desktop environment
   services.xserver.enable = false;
 
-  # SSH - hardened
+  # SSH - hardened with agent forwarding support
   services.openssh = {
     enable = true;
     settings = {
       PermitRootLogin = "no"; # Disable root SSH entirely
       PubkeyAuthentication = true; # Keys only
       PasswordAuthentication = false; # No passwords
+      AllowAgentForwarding = true; # Enable SSH agent forwarding for 1Password
     };
   };
 

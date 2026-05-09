@@ -59,12 +59,13 @@
     enable32Bit = true;
   };
 
-  # SSH
+  # SSH with agent forwarding support
   services.openssh = {
     enable = true;
     settings = {
       PermitRootLogin = "prohibit-password";
       PasswordAuthentication = false;
+      AllowAgentForwarding = true; # Enable SSH agent forwarding for 1Password
     };
   };
 
