@@ -417,6 +417,9 @@
               microvm = {
                 hypervisor = "vfkit";
                 vmHostPackages = darwinPkgs;
+                # Disable unsupported devices on macOS
+                random.enable = false;
+                console.enable = false;
                 interfaces = [
                   {
                     type = "user";
