@@ -65,12 +65,13 @@ in {
     '';
   };
 
-  # Enable SSH for management
+  # Enable SSH for management with agent forwarding support
   services.openssh = {
     enable = true;
     settings = {
       PermitRootLogin = "prohibit-password";
       PasswordAuthentication = false;
+      AllowAgentForwarding = true; # Enable SSH agent forwarding for 1Password
     };
   };
 
