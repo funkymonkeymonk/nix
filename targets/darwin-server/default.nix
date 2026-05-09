@@ -51,61 +51,41 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
 
-  # OPNIX configuration for darwin-server's own secrets
-  # Uses service account token placed at /etc/opnix-token
+  # OPNIX configuration for darwin-server
+  # Fetches secrets for local use and for MicroVMs
   services.onepassword-secrets = {
     enable = true;
     tokenFile = "/etc/opnix-token";
     secrets = {
-      # Connect server credentials (1password-credentials.json)
-      connectCredentials = {
-        reference = "op://Homelab/credentials/document";
-        path = "/var/lib/opnix/secrets/connect-credentials";
-        mode = "0600";
-      };
-      # Connect API token for MicroVM authentication
-      connectToken = {
-        reference = "op://Homelab/1Password Connect/token";
-        path = "/var/lib/opnix/secrets/connect-token";
+      # OpenClaw service account token - mounted to MicroVM
+      openclawServiceAccount = {
+        reference = "op://Service Accounts/OpenClaw MicroVM/credential";
+        path = "/var/lib/opnix/secrets/openclaw-token";
         mode = "0600";
       };
     };
   };
 
-  # Copy opnix-fetched credentials to Connect location
-  # This runs after opnix but before Connect starts
-  system.activationScripts.connect-credentials = {
+  # Copy OpenClaw token for MicroVM mount
+  system.activationScripts.openclaw-credentials = {
     text = ''
-      echo "Setting up 1Password Connect credentials..."
-      OPNIX_CREDS="/var/lib/opnix/secrets/connect-credentials"
-      CONNECT_CREDS="/etc/1password-connect-credentials"
-
-      if [[ -f "$OPNIX_CREDS" ]]; then
-        cp "$OPNIX_CREDS" "$CONNECT_CREDS"
-        chmod 600 "$CONNECT_CREDS"
-        echo "Connect credentials installed from opnix"
-      elif [[ ! -f "$CONNECT_CREDS" ]]; then
-        echo "WARNING: Connect credentials not found at $OPNIX_CREDS"
-        echo "Place credentials manually at $CONNECT_CREDS or configure opnix"
-      fi
-
-      # Copy Connect token for MicroVM
-      OPNIX_TOKEN="/var/lib/opnix/secrets/connect-token"
-      VM_TOKEN="/tmp/openclaw-vfkit-connect-token"
+      echo "Setting up OpenClaw credentials..."
+      OPNIX_TOKEN="/var/lib/opnix/secrets/openclaw-token"
+      VM_TOKEN="/tmp/openclaw-vfkit-opnix-token"
 
       if [[ -f "$OPNIX_TOKEN" ]]; then
         cp "$OPNIX_TOKEN" "$VM_TOKEN"
         chmod 600 "$VM_TOKEN"
-        echo "Connect token prepared for MicroVM"
+        echo "OpenClaw token prepared for MicroVM"
       elif [[ ! -f "$VM_TOKEN" ]]; then
-        echo "WARNING: Connect token not found at $OPNIX_TOKEN"
+        echo "WARNING: OpenClaw token not found at $OPNIX_TOKEN"
         echo "Place token manually at $VM_TOKEN or configure opnix"
+        echo "Secret reference: op://Service Accounts/OpenClaw MicroVM/credential"
       fi
     '';
   };
 
   # OpenClaw vfkit MicroVM launchd service
-  # Mounts Connect API for MicroVM to use
   launchd.daemons.openclaw-vfkit = {
     serviceConfig = {
       Label = "com.funkymonkey.openclaw-vfkit";

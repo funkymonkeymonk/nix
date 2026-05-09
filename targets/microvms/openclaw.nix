@@ -1,5 +1,5 @@
 # openclaw.nix - OpenClaw AI Assistant MicroVM
-# Secrets come from 1Password Connect (REST API)
+# Uses opnix with service account token for secrets
 # https://github.com/openclaw/openclaw
 {
   lib,
@@ -30,7 +30,7 @@
     group = "users";
     dataDir = "/home/dev";
 
-    # Secrets loaded from Connect API
+    # Secrets loaded from opnix at /run/secrets/
     environmentFile = "/run/openclaw/generated-env";
 
     extraConfig = {
@@ -66,78 +66,67 @@
     };
   };
 
-  # Generate env file from Connect secrets at boot
+  # OPNIX configuration - uses mounted service account token
+  services.onepassword-secrets = {
+    enable = true;
+    tokenFile = "/etc/opnix-token";
+
+    secrets = {
+      # Zen API key for LLM service
+      openclawZenKey = {
+        reference = "op://Homelab/OpenClaw/zen-api-key";
+        path = "/run/secrets/openclaw-zen-api-key";
+        mode = "0600";
+        owner = "dev";
+        services = ["openclaw-generate-env" "openclaw-gateway"];
+      };
+
+      # Matrix access token
+      openclawMatrixToken = {
+        reference = "op://Homelab/OpenClaw/matrix-access-token";
+        path = "/run/secrets/openclaw-matrix-access-token";
+        mode = "0600";
+        owner = "dev";
+        services = ["openclaw-generate-env" "openclaw-gateway"];
+      };
+
+      # Discord bot token
+      openclawDiscordToken = {
+        reference = "op://Homelab/OpenClaw/discord-bot-token";
+        path = "/run/secrets/openclaw-discord-bot-token";
+        mode = "0600";
+        owner = "dev";
+        services = ["openclaw-generate-env" "openclaw-gateway"];
+      };
+    };
+  };
+
+  # Generate env file from opnix secrets at boot
   systemd.services.openclaw-generate-env = {
-    description = "Generate OpenClaw environment file from 1Password Connect";
-    after = ["network-online.target"];
+    description = "Generate OpenClaw environment file from secrets";
+    after = ["onepassword-secrets.service"];
     before = ["openclaw-gateway.service"];
     wantedBy = ["multi-user.target"];
 
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      User = "root";
+      User = "dev";
       Group = "users";
     };
 
     script = ''
-      set -euo pipefail
+      mkdir -p /run/openclaw
 
-      mkdir -p /run/openclaw /run/secrets
+      MATRIX_TOKEN=$(cat /run/secrets/openclaw-matrix-access-token 2>/dev/null || echo "placeholder_token")
+      ZEN_KEY=$(cat /run/secrets/openclaw-zen-api-key 2>/dev/null || echo "zen_placeholder")
+      DISCORD_TOKEN=$(cat /run/secrets/openclaw-discord-bot-token 2>/dev/null || echo "discord_placeholder")
 
-      CONNECT_URL="http://192.168.83.1:8080"
-      TOKEN_FILE="/etc/connect-token"
-
-      # Check if Connect token exists
-      if [[ ! -f "$TOKEN_FILE" ]]; then
-        echo "WARNING: Connect token not found at $TOKEN_FILE"
-        echo "Using placeholder values"
-
-        echo "OPENCLAW_MATRIX_ACCESS_TOKEN=placeholder_token" > /run/openclaw/generated-env
-        echo "ZEN_API_KEY=zen_placeholder" >> /run/openclaw/generated-env
-        echo "OPENCLAW_DISCORD_BOT_TOKEN=discord_placeholder" >> /run/openclaw/generated-env
-        echo "discord_placeholder" > /run/secrets/openclaw-discord-bot-token
-        chmod 600 /run/openclaw/generated-env /run/secrets/openclaw-discord-bot-token
-        chown dev:users /run/openclaw/generated-env /run/secrets/openclaw-discord-bot-token
-        exit 0
-      fi
-
-      TOKEN=$(cat "$TOKEN_FILE")
-
-      # Helper function to fetch secrets from Connect
-      fetch_secret() {
-        local vault="$1"
-        local item="$2"
-        local field="$3"
-
-        curl -sf \
-          -H "Authorization: Bearer $TOKEN" \
-          "$CONNECT_URL/v1/vaults/$vault/items/$item" | \
-          ${pkgs.jq}/bin/jq -r ".fields[] | select(.label==\"$field\").value" 2>/dev/null || \
-          echo ""
-      }
-
-      # Fetch secrets
-      echo "Fetching secrets from 1Password Connect..."
-
-      ZEN_KEY=$(fetch_secret "Homelab" "openclaw" "zen-api-key")
-      MATRIX_TOKEN=$(fetch_secret "Homelab" "openclaw" "matrix-access-token")
-      DISCORD_TOKEN=$(fetch_secret "Homelab" "openclaw" "discord-bot-token")
-
-      # Write environment file
-      echo "OPENCLAW_MATRIX_ACCESS_TOKEN=''${MATRIX_TOKEN:-placeholder_token}" > /run/openclaw/generated-env
-      echo "ZEN_API_KEY=''${ZEN_KEY:-zen_placeholder}" >> /run/openclaw/generated-env
-      echo "OPENCLAW_DISCORD_BOT_TOKEN=''${DISCORD_TOKEN:-discord_placeholder}" >> /run/openclaw/generated-env
+      echo "OPENCLAW_MATRIX_ACCESS_TOKEN=$MATRIX_TOKEN" > /run/openclaw/generated-env
+      echo "ZEN_API_KEY=$ZEN_KEY" >> /run/openclaw/generated-env
+      echo "OPENCLAW_DISCORD_BOT_TOKEN=$DISCORD_TOKEN" >> /run/openclaw/generated-env
 
       chmod 600 /run/openclaw/generated-env
-      chown dev:users /run/openclaw/generated-env
-
-      # Write Discord token to file for OpenClaw
-      echo "''${DISCORD_TOKEN:-discord_placeholder}" > /run/secrets/openclaw-discord-bot-token
-      chmod 600 /run/secrets/openclaw-discord-bot-token
-      chown dev:users /run/secrets/openclaw-discord-bot-token
-
-      echo "Secrets fetched successfully"
     '';
   };
 
