@@ -34,6 +34,13 @@
         # Pre-pull macOS Tahoe vanilla image
         prePullImages = ["macos-tahoe-vanilla:latest"];
       };
+      # 1Password Connect Server for MicroVM secret access
+      # Provides REST API for scaled secret management with per-VM access control
+      onepassword-connect = {
+        enable = true;
+        port = 8080;
+        credentialsFile = "/etc/1password-connect-credentials";
+      };
     };
 
   # Enable SSH server for remote access
@@ -43,6 +50,103 @@
   users.users.monkey.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
+
+  # OPNIX configuration for darwin-server's own secrets
+  # Uses service account token placed at /etc/opnix-token
+  services.onepassword-secrets = {
+    enable = true;
+    tokenFile = "/etc/opnix-token";
+    secrets = {
+      # Connect server credentials (1password-credentials.json)
+      connectCredentials = {
+        reference = "op://Homelab/1Password Connect/credentials";
+        path = "/var/lib/opnix/secrets/connect-credentials";
+        mode = "0600";
+      };
+      # Connect API token for MicroVM authentication
+      connectToken = {
+        reference = "op://Homelab/1Password Connect/token";
+        path = "/var/lib/opnix/secrets/connect-token";
+        mode = "0600";
+      };
+    };
+  };
+
+  # Copy opnix-fetched credentials to Connect location
+  # This runs after opnix but before Connect starts
+  system.activationScripts.connect-credentials = {
+    text = ''
+      echo "Setting up 1Password Connect credentials..."
+      OPNIX_CREDS="/var/lib/opnix/secrets/connect-credentials"
+      CONNECT_CREDS="/etc/1password-connect-credentials"
+
+      if [[ -f "$OPNIX_CREDS" ]]; then
+        cp "$OPNIX_CREDS" "$CONNECT_CREDS"
+        chmod 600 "$CONNECT_CREDS"
+        echo "Connect credentials installed from opnix"
+      elif [[ ! -f "$CONNECT_CREDS" ]]; then
+        echo "WARNING: Connect credentials not found at $OPNIX_CREDS"
+        echo "Place credentials manually at $CONNECT_CREDS or configure opnix"
+      fi
+
+      # Copy Connect token for MicroVM
+      OPNIX_TOKEN="/var/lib/opnix/secrets/connect-token"
+      VM_TOKEN="/tmp/openclaw-vfkit-connect-token"
+
+      if [[ -f "$OPNIX_TOKEN" ]]; then
+        cp "$OPNIX_TOKEN" "$VM_TOKEN"
+        chmod 600 "$VM_TOKEN"
+        echo "Connect token prepared for MicroVM"
+      elif [[ ! -f "$VM_TOKEN" ]]; then
+        echo "WARNING: Connect token not found at $OPNIX_TOKEN"
+        echo "Place token manually at $VM_TOKEN or configure opnix"
+      fi
+    '';
+  };
+
+  # OpenClaw vfkit MicroVM launchd service
+  # Mounts Connect API for MicroVM to use
+  launchd.daemons.openclaw-vfkit = {
+    serviceConfig = {
+      Label = "com.funkymonkey.openclaw-vfkit";
+      ProgramArguments = [
+        "/bin/sh"
+        "-c"
+        ''
+          set -e
+          LOG_DIR="/Users/monkey/Library/Logs"
+
+          mkdir -p "$LOG_DIR"
+
+          # Wait for Connect server to be ready
+          echo "$(date '+%Y-%m-%d %H:%M:%S') Waiting for 1Password Connect..." >> "$LOG_DIR/openclaw-vfkit.log"
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/v1/health > /dev/null 2>&1; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') Connect server is ready" >> "$LOG_DIR/openclaw-vfkit.log"
+              break
+            fi
+            if [[ $i -eq 30 ]]; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: Connect server not responding" >> "$LOG_DIR/openclaw-vfkit.log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Start the microvm
+          echo "$(date '+%Y-%m-%d %H:%M:%S') Starting openclaw-vfkit microvm..." >> "$LOG_DIR/openclaw-vfkit.log"
+          exec /run/current-system/sw/bin/nix run github:funkymonkeymonk/nix/feat/openclaw-vfkit#microvm-openclaw-vfkit --impure 2>> "$LOG_DIR/openclaw-vfkit.log"
+        ''
+      ];
+      EnvironmentVariables = {
+        PATH = "/run/current-system/sw/bin:/usr/local/bin:/usr/bin:/bin";
+      };
+      StandardOutPath = "/Users/monkey/Library/Logs/openclaw-vfkit.stdout";
+      StandardErrorPath = "/Users/monkey/Library/Logs/openclaw-vfkit.stderr";
+      # Wait for Connect to start first
+      RunAtLoad = true;
+      KeepAlive = true;
+    };
+  };
 
   # Cloud-init support - apply configuration from /etc/cloud-init.yaml
   # Applied on boot via launchd

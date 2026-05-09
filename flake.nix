@@ -168,6 +168,10 @@
           microvm-matrix = self.microvm.nixosConfigurations.matrix.config.microvm.declaredRunner;
           microvm-media-center = self.microvm.nixosConfigurations.media-center.config.microvm.declaredRunner;
         }
+        // nixpkgs.lib.optionalAttrs (system == "aarch64-darwin") {
+          # vfkit MicroVM for macOS (runs on protoman without Lume)
+          microvm-openclaw-vfkit = self.microvm.nixosConfigurations.openclaw-vfkit.config.microvm.declaredRunner;
+        }
     );
 
     apps = forAllSystems (
@@ -225,8 +229,10 @@
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          opnix.darwinModules.default
           ./modules
           ./modules/services/lume/darwin.nix
+          ./modules/services/1password-connect/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -380,6 +386,74 @@
       openclaw = mkMicrovm "openclaw" {};
       matrix = mkMicrovm "matrix" {};
       media-center = mkMicrovm "media-center" {};
+
+      # vfkit MicroVM for macOS (runs on protoman without Lume)
+      # Uses Determinate Nix's native Linux builder
+      openclaw-vfkit = let
+        darwinPkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      in
+        nixpkgs.lib.nixosSystem {
+          system = "aarch64-linux";
+          specialArgs =
+            inputs
+            // {
+              roleEnables = {};
+              inherit darwinPkgs;
+            };
+          modules = [
+            {nixpkgs.hostPlatform = nixpkgs.lib.mkForce "aarch64-linux";}
+            {nixpkgs.config.allowUnfree = true;}
+            microvm.nixosModules.microvm
+            opnix.nixosModules.default
+            # Minimal modules for vfkit - avoid full ./modules which has Linux-specific packages
+            ./modules/common/options.nix
+            ./modules/services/openclaw
+            ./targets/microvms/openclaw.nix
+            # vfkit-specific configuration
+            {
+              networking.hostName = nixpkgs.lib.mkForce "openclaw-vfkit";
+              system.stateVersion = "25.05";
+
+              microvm = {
+                hypervisor = "vfkit";
+                vmHostPackages = darwinPkgs;
+                interfaces = [
+                  {
+                    type = "user";
+                    id = "usernet";
+                    mac = "02:00:00:01:01:01";
+                  }
+                ];
+                # Use virtiofs for shares (9p doesn't work on macOS)
+                shares = [
+                  {
+                    source = "/nix/store";
+                    mountPoint = "/nix/.ro-store";
+                    tag = "ro-store";
+                    proto = "virtiofs";
+                  }
+                  # Mount 1Password Connect token from host
+                  {
+                    source = "/tmp/openclaw-vfkit-connect-token";
+                    mountPoint = "/etc/connect-token";
+                    tag = "connect-token";
+                    proto = "virtiofs";
+                  }
+                ];
+              };
+
+              # Minimal user setup
+              users.users.root = {
+                password = "";
+                openssh.authorizedKeys.keys = [
+                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8"
+                ];
+              };
+              services.openssh.enable = true;
+              services.openssh.settings.PermitRootLogin = "yes";
+            }
+          ];
+        };
     };
 
     # Flake checks for CI - run on Linux and Darwin
