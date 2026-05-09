@@ -25,6 +25,7 @@ with lib; let
     # Ensure colima and docker are in PATH
     export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
     export LIMA_HOME="${colimaDataDir}/_lima"
+    export HOME="/var/root"
 
     COMMAND=''${1:-status}
 
@@ -95,6 +96,7 @@ with lib; let
     export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
     export DOCKER_HOST="unix://${colimaSocket}"
     export LIMA_HOME="${colimaDataDir}/_lima"
+    export HOME="/var/root"
 
     CREDENTIALS_FILE="${cfg.credentialsFile}"
 
@@ -239,6 +241,7 @@ in {
             export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
             export DOCKER_HOST="unix://${colimaSocket}"
             export LIMA_HOME="${colimaDataDir}/_lima"
+            export HOME="/var/root"
 
             LOG_FILE="/var/log/1password-connect.log"
             mkdir -p "$(dirname "$LOG_FILE")"
@@ -306,6 +309,7 @@ in {
         EnvironmentVariables = {
           PATH = "${pkgs.colima}/bin:${pkgs.docker}/bin:/usr/local/bin:/usr/bin:/bin";
           LIMA_HOME = "${colimaDataDir}/_lima";
+          HOME = "/var/root";
         };
       };
     };
