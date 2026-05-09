@@ -387,8 +387,8 @@
       matrix = mkMicrovm "matrix" {};
       media-center = mkMicrovm "media-center" {};
 
-      # vfkit MicroVM for macOS (runs on protoman without Lume)
-      # Uses Determinate Nix's native Linux builder
+      # QEMU MicroVM for macOS (runs on protoman without Lume)
+      # Uses QEMU with HVF (Hypervisor.framework) for native virtualization
       openclaw-vfkit = let
         darwinPkgs = nixpkgs.legacyPackages.aarch64-darwin;
       in
@@ -405,39 +405,32 @@
             {nixpkgs.config.allowUnfree = true;}
             microvm.nixosModules.microvm
             opnix.nixosModules.default
-            # Minimal modules for vfkit - avoid full ./modules which has Linux-specific packages
+            # Minimal modules for QEMU - avoid full ./modules which has Linux-specific packages
             ./modules/common/options.nix
             ./modules/services/openclaw
             ./targets/microvms/openclaw.nix
-            # vfkit-specific configuration
+            # QEMU-specific configuration
             {
               networking.hostName = nixpkgs.lib.mkForce "openclaw-vfkit";
               system.stateVersion = "25.05";
 
               microvm = {
-                hypervisor = "vfkit";
+                hypervisor = "qemu";
                 vmHostPackages = darwinPkgs;
-                interfaces = [
-                  {
-                    type = "user";
-                    id = "usernet";
-                    mac = "02:00:00:01:01:01";
-                  }
-                ];
-                # Use virtiofs for shares (9p doesn't work on macOS)
+                # Use 9p for shares (virtiofs not supported in QEMU on macOS)
                 shares = [
                   {
                     source = "/nix/store";
                     mountPoint = "/nix/.ro-store";
                     tag = "ro-store";
-                    proto = "virtiofs";
+                    proto = "9p";
                   }
                   # Mount 1Password service account token for opnix
                   {
                     source = "/tmp/openclaw-vfkit-opnix-token";
                     mountPoint = "/etc/opnix-token";
                     tag = "opnix-token";
-                    proto = "virtiofs";
+                    proto = "9p";
                   }
                 ];
               };
