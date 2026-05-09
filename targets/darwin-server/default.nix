@@ -98,27 +98,6 @@
 
           mkdir -p "$LOG_DIR"
 
-          # Wait for Connect server to be ready (indefinitely with helpful messages)
-          echo "$(date '+%Y-%m-%d %H:%M:%S') Waiting for 1Password Connect..." >> "$LOG_DIR/openclaw-vfkit.log"
-          ATTEMPTS=0
-          while true; do
-            if curl -sf http://localhost:8080/v1/health > /dev/null 2>&1; then
-              echo "$(date '+%Y-%m-%d %H:%M:%S') Connect server is ready" >> "$LOG_DIR/openclaw-vfkit.log"
-              break
-            fi
-            ATTEMPTS=$((ATTEMPTS + 1))
-            if [[ $ATTEMPTS -eq 30 ]]; then
-              echo "$(date '+%Y-%m-%d %H:%M:%S') Still waiting for Connect..." >> "$LOG_DIR/openclaw-vfkit.log"
-              echo "$(date '+%Y-%m-%d %H:%M:%S') To start Connect manually, run: connect-start" >> "$LOG_DIR/openclaw-vfkit.log"
-            fi
-            if [[ $ATTEMPTS -eq 300 ]]; then
-              echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: Connect not available after 5 minutes" >> "$LOG_DIR/openclaw-vfkit.log"
-              echo "$(date '+%Y-%m-%d %H:%M:%S') MicroVM requires Connect for secrets. Please start it." >> "$LOG_DIR/openclaw-vfkit.log"
-              ATTEMPTS=0  # Reset to avoid spam
-            fi
-            sleep 1
-          done
-
           # Start the microvm
           echo "$(date '+%Y-%m-%d %H:%M:%S') Starting openclaw-vfkit microvm..." >> "$LOG_DIR/openclaw-vfkit.log"
           exec /run/current-system/sw/bin/nix run github:funkymonkeymonk/nix/feat/openclaw-vfkit#microvm-openclaw-vfkit --impure 2>> "$LOG_DIR/openclaw-vfkit.log"
