@@ -1,5 +1,5 @@
 # 1Password Connect Server module for Darwin (macOS)
-# Runs Connect as user agent (requires manual start on headless servers)
+# Runs Connect via Colima VM for container support on macOS
 # https://developer.1password.com/docs/connect
 {
   config,
@@ -14,9 +14,11 @@ with lib; let
   primaryUser =
     if config.myConfig.users != []
     then (builtins.head config.myConfig.users).name
-    else "root";
+    else "monkey";
 
   homeDir = "/Users/${primaryUser}";
+  colimaProfile = "connect";
+  colimaSocket = "${homeDir}/.colima/${colimaProfile}/docker.sock";
   connectDataDir = "${homeDir}/.local/share/1password-connect";
 in {
   options.myConfig.onepassword-connect = {
@@ -52,81 +54,173 @@ in {
   };
 
   config = mkIf cfg.enable {
-    # Helper scripts
+    # Colima and helper scripts
     environment.systemPackages = [
+      pkgs.colima
+      pkgs.docker
+      (pkgs.writeShellScriptBin "connect-colima" ''
+        set -euo pipefail
+        export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
+
+        COMMAND=''${1:-status}
+        case "$COMMAND" in
+          start)
+            if colima list | grep -q "^${colimaProfile}"; then
+              if colima list | grep "^${colimaProfile}" | grep -q "Running"; then
+                echo "Colima VM already running"
+              else
+                echo "Starting Colima VM..."
+                colima start ${colimaProfile}
+              fi
+            else
+              echo "Creating Colima VM..."
+              colima start ${colimaProfile} --cpu 2 --memory 2 --disk 10 --vm-type vz
+            fi
+            ;;
+          stop)
+            colima stop ${colimaProfile} 2>/dev/null || true
+            ;;
+          status)
+            colima list | grep "^${colimaProfile}" || echo "VM not found"
+            ;;
+          *)
+            echo "Usage: connect-colima {start|stop|status}"
+            ;;
+        esac
+      '')
       (pkgs.writeShellScriptBin "connect-start" ''
         set -euo pipefail
+        export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
+        export DOCKER_HOST="unix://${colimaSocket}"
 
-        export PATH="${pkgs.docker}/bin:$PATH"
-        CREDENTIALS_FILE="${cfg.credentialsFile}"
-        DATA_DIR="${connectDataDir}"
-
-        mkdir -p "$DATA_DIR"
-
-        if [ ! -f "$CREDENTIALS_FILE" ]; then
-          echo "ERROR: Credentials not found at $CREDENTIALS_FILE"
-          exit 1
+        # Start Colima if needed
+        if ! colima list 2>/dev/null | grep -q "^${colimaProfile}.*Running"; then
+          echo "Starting Colima VM..."
+          connect-colima start
+          echo "Waiting for Docker..."
+          for i in {1..30}; do
+            [ -S "${colimaSocket}" ] && break
+            sleep 1
+          done
         fi
 
-        echo "Starting 1Password Connect..."
-
-        # Stop existing
+        # Start Connect containers
+        echo "Starting Connect containers..."
         docker stop connect-sync connect-api 2>/dev/null || true
         docker rm connect-sync connect-api 2>/dev/null || true
 
-        # Start sync
-        docker run -d \
-          --name connect-sync \
-          --restart unless-stopped \
-          -v "$CREDENTIALS_FILE:/home/opuser/.op/1password-credentials.json:ro" \
-          -v "$DATA_DIR:/home/opuser/.op/data" \
-          -e OP_HTTP_PORT=8081 \
-          -e OP_BUS_PORT=11221 \
+        docker run -d --name connect-sync \
+          -v "${cfg.credentialsFile}:/home/opuser/.op/1password-credentials.json:ro" \
           -e OP_BUS_PEERS=localhost:11220 \
           ${cfg.syncImage}
 
-        # Start API
-        docker run -d \
-          --name connect-api \
-          --restart unless-stopped \
-          -p "${toString cfg.port}:${toString cfg.port}" \
-          -v "$CREDENTIALS_FILE:/home/opuser/.op/1password-credentials.json:ro" \
-          -v "$DATA_DIR:/home/opuser/.op/data" \
-          -e OP_HTTP_PORT=${toString cfg.port} \
-          -e OP_BUS_PORT=11220 \
+        docker run -d --name connect-api -p "${toString cfg.port}:${toString cfg.port}" \
+          -v "${cfg.credentialsFile}:/home/opuser/.op/1password-credentials.json:ro" \
           -e OP_BUS_PEERS=localhost:11221 \
           ${cfg.image}
 
         echo "Connect started on port ${toString cfg.port}"
       '')
       (pkgs.writeShellScriptBin "connect-logs" ''
+        export DOCKER_HOST="unix://${colimaSocket}"
         docker logs -f connect-api
       '')
       (pkgs.writeShellScriptBin "connect-status" ''
-        echo "=== Docker Containers ==="
-        docker ps --filter "name=connect-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "No containers"
+        export DOCKER_HOST="unix://${colimaSocket}"
+        echo "=== Colima VM ==="
+        colima list | grep "^${colimaProfile}" || echo "Not running"
         echo ""
-        echo "=== Health Check ==="
-        if curl -sf http://localhost:${toString cfg.port}/v1/health > /dev/null 2>&1; then
-          echo "✓ Connect API is responding"
-        else
-          echo "✗ Connect API is not responding"
-        fi
+        echo "=== Containers ==="
+        docker ps --filter "name=connect-" 2>/dev/null || echo "No containers"
+        echo ""
+        echo "=== Health ==="
+        curl -sf http://localhost:${toString cfg.port}/v1/health >/dev/null 2>&1 && echo "✓ Ready" || echo "✗ Not responding"
       '')
     ];
 
-    # Note: On Darwin headless servers, Docker/Podman/Colima all require
-    # a user session. For now, start Connect manually after login:
-    #   connect-start
-    #
-    # Future: Use native macOS virtualization (tart/vfkit) or
-    # install Docker Desktop and start it automatically.
+    # Launchd USER AGENT - starts when user logs in
+    # Colima requires user session, so this runs as user agent
+    launchd.user.agents.onepassword-connect = {
+      serviceConfig = {
+        Label = "com.1password.connect";
+        ProgramArguments = [
+          "${pkgs.bash}/bin/bash"
+          "-c"
+          ''
+            set -euo pipefail
+            export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
+            export DOCKER_HOST="unix://${colimaSocket}"
 
-    # Ensure data directory exists
+            LOG="${homeDir}/Library/Logs/1password-connect.log"
+            mkdir -p "$(dirname "$LOG")"
+
+            log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG"; }
+
+            # Check credentials exist
+            if [ ! -f "${cfg.credentialsFile}" ]; then
+              log "ERROR: Credentials not found at ${cfg.credentialsFile}"
+              log "Run: op connect server create <name>"
+              exit 1
+            fi
+
+            # Start Colima if not running
+            if ! colima list 2>/dev/null | grep -q "^${colimaProfile}.*Running"; then
+              log "Starting Colima VM..."
+              colima start ${colimaProfile} --cpu 2 --memory 2 --disk 10 --vm-type vz 2>/dev/null || true
+            fi
+
+            # Wait for Docker
+            for i in {1..30}; do
+              [ -S "${colimaSocket}" ] && break
+              sleep 1
+            done
+
+            if [ ! -S "${colimaSocket}" ]; then
+              log "ERROR: Docker socket not available"
+              exit 1
+            fi
+
+            # Start containers if not running
+            if ! docker ps | grep -q connect-api; then
+              log "Starting Connect containers..."
+              docker stop connect-sync connect-api 2>/dev/null || true
+              docker rm connect-sync connect-api 2>/dev/null || true
+
+              docker run -d --name connect-sync \
+                -v "${cfg.credentialsFile}:/home/opuser/.op/1password-credentials.json:ro" \
+                -e OP_BUS_PEERS=localhost:11220 \
+                ${cfg.syncImage}
+
+              docker run -d --name connect-api -p "${toString cfg.port}:${toString cfg.port}" \
+                -v "${cfg.credentialsFile}:/home/opuser/.op/1password-credentials.json:ro" \
+                -e OP_BUS_PEERS=localhost:11221 \
+                ${cfg.image}
+
+              log "Connect started"
+            fi
+
+            # Monitor
+            while true; do
+              sleep 30
+              if ! curl -sf http://localhost:${toString cfg.port}/v1/health >/dev/null 2>&1; then
+                log "WARNING: Connect not responding"
+              fi
+            done
+          ''
+        ];
+        RunAtLoad = true;
+        KeepAlive = true;
+        StandardOutPath = "${homeDir}/Library/Logs/1password-connect.stdout";
+        StandardErrorPath = "${homeDir}/Library/Logs/1password-connect.stderr";
+      };
+    };
+
+    # Ensure directories exist
     system.activationScripts.onepassword-connect-dirs = {
       text = ''
         mkdir -p ${connectDataDir}
-        chown ${primaryUser}:staff ${connectDataDir}
+        mkdir -p ${homeDir}/Library/Logs
+        chown ${primaryUser}:staff ${homeDir}/Library/Logs
       '';
     };
   };
