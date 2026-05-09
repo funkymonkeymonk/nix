@@ -1,5 +1,5 @@
 # 1Password Connect Server module for Darwin (macOS)
-# Runs Connect inside a Colima VM for proper service management
+# Runs Connect inside a Colima VM as a system daemon
 # https://developer.1password.com/docs/connect
 {
   config,
@@ -10,28 +10,21 @@
 with lib; let
   cfg = config.myConfig.onepassword-connect;
 
-  # Get the primary user for launchd environment
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "root";
-
-  # Darwin home directory
-  darwinHomeDir = "/Users/${primaryUser}";
-
-  # Colima VM configuration for Connect
+  # System-wide paths for daemon operation
   colimaProfile = "connect";
-  colimaSocket = "${darwinHomeDir}/.colima/connect/docker.sock";
+  colimaDataDir = "/var/lib/colima";
+  colimaSocket = "${colimaDataDir}/connect/docker.sock";
 
   # Connect data directory inside Colima VM
   connectDataDir = "/var/lib/1password-connect";
 
-  # Script to manage Colima VM
+  # Script to manage Colima VM (runs as root)
   connectColimaScript = pkgs.writeShellScriptBin "connect-colima" ''
     set -euo pipefail
 
     # Ensure colima and docker are in PATH
     export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
+    export LIMA_HOME="${colimaDataDir}/_lima"
 
     COMMAND=''${1:-status}
 
@@ -50,6 +43,7 @@ with lib; let
           echo "  CPU: 2 cores"
           echo "  Memory: 2GB"
           echo "  Disk: 10GB"
+          mkdir -p ${colimaDataDir}
           colima start ${colimaProfile} \
             --cpu 2 \
             --memory 2 \
@@ -100,6 +94,7 @@ with lib; let
 
     export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
     export DOCKER_HOST="unix://${colimaSocket}"
+    export LIMA_HOME="${colimaDataDir}/_lima"
 
     CREDENTIALS_FILE="${cfg.credentialsFile}"
 
@@ -208,11 +203,13 @@ in {
       (pkgs.writeShellScriptBin "connect-logs" ''
         export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
         export DOCKER_HOST="unix://${colimaSocket}"
+        export LIMA_HOME="${colimaDataDir}/_lima"
         ${pkgs.docker}/bin/docker logs -f connect-api
       '')
       (pkgs.writeShellScriptBin "connect-status" ''
         export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
         export DOCKER_HOST="unix://${colimaSocket}"
+        export LIMA_HOME="${colimaDataDir}/_lima"
         echo "=== Colima Status ==="
         ${pkgs.colima}/bin/colima list | grep "^${colimaProfile}" || echo "Colima VM not running"
         echo ""
@@ -228,9 +225,9 @@ in {
       '')
     ];
 
-    # Launchd service to manage Colima + Connect
-    # Uses a KeepAlive script that ensures both are running
-    launchd.user.agents.onepassword-connect = {
+    # Launchd DAEMON (system-wide, runs as root)
+    # This ensures Connect starts at boot before user login
+    launchd.daemons.onepassword-connect = {
       serviceConfig = {
         Label = "com.1password.connect";
         ProgramArguments = [
@@ -241,9 +238,9 @@ in {
 
             export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:$PATH"
             export DOCKER_HOST="unix://${colimaSocket}"
-            export LIMA_HOME="${darwinHomeDir}/.colima/_lima"
+            export LIMA_HOME="${colimaDataDir}/_lima"
 
-            LOG_FILE="${darwinHomeDir}/Library/Logs/1password-connect.log"
+            LOG_FILE="/var/log/1password-connect.log"
             mkdir -p "$(dirname "$LOG_FILE")"
 
             log() {
@@ -304,19 +301,20 @@ in {
         ];
         RunAtLoad = true;
         KeepAlive = true;
-        StandardOutPath = "${darwinHomeDir}/Library/Logs/1password-connect.stdout";
-        StandardErrorPath = "${darwinHomeDir}/Library/Logs/1password-connect.stderr";
+        StandardOutPath = "/var/log/1password-connect.stdout";
+        StandardErrorPath = "/var/log/1password-connect.stderr";
         EnvironmentVariables = {
           PATH = "${pkgs.colima}/bin:${pkgs.docker}/bin:/usr/local/bin:/usr/bin:/bin";
+          LIMA_HOME = "${colimaDataDir}/_lima";
         };
       };
     };
 
-    # Ensure log directory exists
-    system.activationScripts.onepassword-connect-logs = {
+    # Ensure directories exist
+    system.activationScripts.onepassword-connect-dirs = {
       text = ''
-        mkdir -p "${darwinHomeDir}/Library/Logs"
-        chown ${primaryUser}:staff "${darwinHomeDir}/Library/Logs"
+        mkdir -p ${colimaDataDir}
+        mkdir -p /var/log
       '';
     };
   };
