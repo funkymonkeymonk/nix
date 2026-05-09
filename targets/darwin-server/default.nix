@@ -51,6 +51,9 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
 
+  # System packages for darwin-server
+  environment.systemPackages = [pkgs.opnix];
+
   # OPNIX configuration for darwin-server's own secrets
   # Uses service account token placed at /etc/opnix-token
   services.onepassword-secrets = {
