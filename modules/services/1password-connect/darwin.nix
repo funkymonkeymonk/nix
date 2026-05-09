@@ -1,5 +1,5 @@
 # 1Password Connect Server module for Darwin (macOS)
-# Runs Connect containers directly via Docker (no Colima VM)
+# Runs Connect containers via Podman (daemonless, works as root)
 # https://developer.1password.com/docs/connect
 {
   config,
@@ -35,26 +35,26 @@ in {
     image = mkOption {
       type = types.str;
       default = "1password/connect-api:1.7.3";
-      description = "Docker image for Connect API server";
+      description = "Container image for Connect API server";
     };
 
     syncImage = mkOption {
       type = types.str;
       default = "1password/connect-sync:1.7.3";
-      description = "Docker image for Connect sync server";
+      description = "Container image for Connect sync server";
     };
   };
 
   config = mkIf cfg.enable {
-    # Docker and helper scripts
+    # Podman and helper scripts
     environment.systemPackages = [
-      pkgs.docker
+      pkgs.podman
       (pkgs.writeShellScriptBin "connect-logs" ''
-        ${pkgs.docker}/bin/docker logs -f connect-api
+        ${pkgs.podman}/bin/podman logs -f connect-api
       '')
       (pkgs.writeShellScriptBin "connect-status" ''
-        echo "=== Docker Containers ==="
-        ${pkgs.docker}/bin/docker ps --filter "name=connect-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "No containers running"
+        echo "=== Podman Containers ==="
+        ${pkgs.podman}/bin/podman ps --filter "name=connect-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "No containers running"
         echo ""
         echo "=== Health Check ==="
         if curl -sf http://localhost:${toString cfg.port}/v1/health > /dev/null 2>&1; then
@@ -92,34 +92,20 @@ in {
               exit 1
             fi
 
-            # Wait for Docker to be available
-            log "Waiting for Docker..."
-            for i in {1..30}; do
-              if ${pkgs.docker}/bin/docker info > /dev/null 2>&1; then
-                log "Docker is available"
-                break
-              fi
-              if [ $i -eq 30 ]; then
-                log "ERROR: Docker not available after 30 seconds"
-                exit 1
-              fi
-              sleep 1
-            done
-
             # Check if containers are running
-            API_RUNNING=$(${pkgs.docker}/bin/docker ps --filter "name=connect-api" --format "{{.Names}}" 2>/dev/null || true)
-            SYNC_RUNNING=$(${pkgs.docker}/bin/docker ps --filter "name=connect-sync" --format "{{.Names}}" 2>/dev/null || true)
+            API_RUNNING=$(${pkgs.podman}/bin/podman ps --filter "name=connect-api" --format "{{.Names}}" 2>/dev/null || true)
+            SYNC_RUNNING=$(${pkgs.podman}/bin/podman ps --filter "name=connect-sync" --format "{{.Names}}" 2>/dev/null || true)
 
             if [ -z "$API_RUNNING" ] || [ -z "$SYNC_RUNNING" ]; then
               log "Starting Connect containers..."
 
               # Stop any existing containers
-              ${pkgs.docker}/bin/docker stop connect-sync connect-api 2>/dev/null || true
-              ${pkgs.docker}/bin/docker rm connect-sync connect-api 2>/dev/null || true
+              ${pkgs.podman}/bin/podman stop connect-sync connect-api 2>/dev/null || true
+              ${pkgs.podman}/bin/podman rm connect-sync connect-api 2>/dev/null || true
 
               # Start sync container
               log "Starting sync service..."
-              ${pkgs.docker}/bin/docker run -d \
+              ${pkgs.podman}/bin/podman run -d \
                 --name connect-sync \
                 --restart unless-stopped \
                 -v "${cfg.credentialsFile}:/home/opuser/.op/1password-credentials.json:ro" \
@@ -131,7 +117,7 @@ in {
 
               # Start API container
               log "Starting API service..."
-              ${pkgs.docker}/bin/docker run -d \
+              ${pkgs.podman}/bin/podman run -d \
                 --name connect-api \
                 --restart unless-stopped \
                 -p "${toString cfg.port}:${toString cfg.port}" \
@@ -164,7 +150,7 @@ in {
         StandardOutPath = "/var/log/1password-connect.stdout";
         StandardErrorPath = "/var/log/1password-connect.stderr";
         EnvironmentVariables = {
-          PATH = "${pkgs.docker}/bin:/usr/local/bin:/usr/bin:/bin";
+          PATH = "${pkgs.podman}/bin:/usr/local/bin:/usr/bin:/bin";
         };
       };
     };
