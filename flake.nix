@@ -723,6 +723,7 @@
             {nixpkgs.hostPlatform = nixpkgs.lib.mkForce "aarch64-linux";}
             {nixpkgs.config.allowUnfree = true;}
             microvm.nixosModules.microvm
+            opnix.nixosModules.default
             # Minimal modules for vfkit - avoid full ./modules which has Linux-specific packages
             ./modules/common/options.nix
             ./modules/services/openclaw
@@ -750,11 +751,11 @@
                     tag = "ro-store";
                     proto = "virtiofs";
                   }
-                  # Mount 1Password Connect token from host
+                  # Mount 1Password service account token for opnix
                   {
-                    source = "/tmp/openclaw-vfkit-connect-token";
-                    mountPoint = "/etc/connect-token";
-                    tag = "connect-token";
+                    source = "/tmp/openclaw-vfkit-opnix-token";
+                    mountPoint = "/etc/opnix-token";
+                    tag = "opnix-token";
                     proto = "virtiofs";
                   }
                 ];
