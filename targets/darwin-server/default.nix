@@ -59,7 +59,7 @@
     secrets = {
       # Connect server credentials (1password-credentials.json)
       connectCredentials = {
-        reference = "op://Homelab/1Password Connect/credentials";
+        reference = "op://Homelab/credentials/document";
         path = "/var/lib/opnix/secrets/connect-credentials";
         mode = "0600";
       };

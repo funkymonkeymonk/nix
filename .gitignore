@@ -34,3 +34,4 @@ hardware-configuration.nix
 
 # Local tmp directory for testing
 tmp
+1password-credentials.json
