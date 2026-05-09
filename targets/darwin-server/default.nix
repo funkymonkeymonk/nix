@@ -59,7 +59,7 @@
     secrets = {
       # OpenClaw service account token - mounted to MicroVM
       openclawServiceAccount = {
-        reference = "op://Service Accounts/OpenClaw MicroVM/credential";
+        reference = "op://Service Accounts/1Password Service Account Auth Token: Openclaw/credential";
         path = "/var/lib/opnix/secrets/openclaw-token";
         mode = "0600";
       };
