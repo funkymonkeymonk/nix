@@ -100,7 +100,7 @@
 
           # Start the microvm
           echo "$(date '+%Y-%m-%d %H:%M:%S') Starting openclaw-vfkit microvm..." >> "$LOG_DIR/openclaw-vfkit.log"
-          exec /run/current-system/sw/bin/nix run github:funkymonkeymonk/nix/feat/openclaw-vfkit#microvm-openclaw-vfkit --impure 2>> "$LOG_DIR/openclaw-vfkit.log"
+          exec /nix/var/nix/profiles/default/bin/nix run github:funkymonkeymonk/nix/feat/openclaw-vfkit#microvm-openclaw-vfkit --impure 2>> "$LOG_DIR/openclaw-vfkit.log"
         ''
       ];
       EnvironmentVariables = {
