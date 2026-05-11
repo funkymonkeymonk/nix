@@ -229,6 +229,11 @@
       "darwin-server" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
+          ({pkgs, ...}: {
+            nixpkgs.config.permittedInsecurePackages = [
+              "openclaw-2026.4.22"
+            ];
+          })
           configuration
           ./modules
           ./modules/services/lume/darwin.nix

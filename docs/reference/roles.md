@@ -12,6 +12,8 @@ AI agent skills management.
 
 Automatically enabled by `opencode` or `claude` roles.
 
+### assistant
+
 ### claude
 
 Claude Code AI assistant with rtk token optimization.
@@ -45,6 +47,8 @@ Development tools and environment.
 **Packages:** emacs, helix, clang, python3, nodejs, yarn, docker, k3d, kubectl, kubernetes-helm, k9s, gh-dash
 
 **Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj
+
+### email-backup
 
 ### entertainment
 
