@@ -6,6 +6,7 @@
   mkUser,
   inputs,
   pkgs,
+  lib,
   ...
 }: {
   nixpkgs.hostPlatform = "aarch64-darwin";
@@ -80,16 +81,14 @@
           };
         };
 
-        # Environment for Ollama connection and Discord bot token
-        # The token file content is read at runtime since the variable doesn't end in _FILE
+        # Environment for Ollama connection
         environment = {
           OLLAMA_HOST = "127.0.0.1:11434";
-          DISCORD_BOT_TOKEN = "/Users/monkey/.config/openclaw/secrets/discord-bot-token";
         };
       };
     };
 
-    # 1Password secrets for wadsworth (Discord bot token only, using local Ollama)
+    # 1Password secrets for wadsworth (Discord bot token)
     programs.onepassword-secrets = {
       enable = true;
       tokenFile = "/Users/monkey/.config/opnix/token";
@@ -101,6 +100,34 @@
         };
       };
     };
+
+    # Activation script to inject Discord token into OpenClaw config
+    home.activation.injectDiscordToken = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      TOKEN_FILE="/Users/monkey/.config/openclaw/secrets/discord-bot-token"
+      CONFIG_FILE="/Users/monkey/.openclaw-wadsworth/openclaw.json"
+
+      # Wait for token file to exist (1Password may still be syncing)
+      for i in {1..30}; do
+        if [[ -f "$TOKEN_FILE" ]]; then
+          break
+        fi
+        echo "Waiting for Discord token file..."
+        sleep 1
+      done
+
+      if [[ -f "$TOKEN_FILE" && -f "$CONFIG_FILE" ]]; then
+        TOKEN=$(cat "$TOKEN_FILE")
+        TMP_CONFIG=$(mktemp)
+        ${pkgs.jq}/bin/jq --arg token "$TOKEN" '.channels.discord.token = $token' "$CONFIG_FILE" > "$TMP_CONFIG"
+        mv "$TMP_CONFIG" "$CONFIG_FILE"
+        chmod 600 "$CONFIG_FILE"
+        echo "Discord token injected into OpenClaw config"
+      else
+        echo "Warning: Could not inject Discord token - file not found"
+        echo "  Token file: $TOKEN_FILE"
+        echo "  Config file: $CONFIG_FILE"
+      fi
+    '';
   };
 
   # Enable SSH server for remote access
