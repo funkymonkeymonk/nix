@@ -101,7 +101,7 @@
       };
     };
 
-    # Activation script to inject Discord token into OpenClaw config
+    # Activation script to inject Discord token and fix plugin dependencies
     home.activation.injectDiscordToken = ''
       TOKEN_FILE="/Users/monkey/.config/openclaw/secrets/discord-bot-token"
       CONFIG_FILE="/Users/monkey/.openclaw-wadsworth/openclaw.json"
@@ -126,6 +126,21 @@
         echo "Warning: Could not inject Discord token - file not found"
         echo "  Token file: $TOKEN_FILE"
         echo "  Config file: $CONFIG_FILE"
+      fi
+
+      # Workaround for nix-openclaw Discord plugin missing 'openclaw' package
+      # See yak: openclaw-discord-missing-dependency
+      PLUGIN_DEPS_DIR="/Users/monkey/.openclaw-wadsworth/plugin-runtime-deps"
+      if [[ -d "$PLUGIN_DEPS_DIR" ]]; then
+        for dir in "$PLUGIN_DEPS_DIR"/openclaw-*/; do
+          if [[ -d "$dir/node_modules" && ! -e "$dir/node_modules/openclaw" ]]; then
+            OPENCLAW_PKG="${pkgs.openclaw}/lib/openclaw"
+            if [[ -d "$OPENCLAW_PKG" ]]; then
+              ln -sf "$OPENCLAW_PKG" "$dir/node_modules/openclaw"
+              echo "Created symlink for openclaw package in plugin runtime deps"
+            fi
+          fi
+        done
       fi
     '';
   };
