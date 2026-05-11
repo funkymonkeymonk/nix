@@ -225,13 +225,14 @@
       };
 
       # Darwin server - headless macOS server for VM hosting
-      # Uses Lume for macOS VMs, no local LLMs
+      # Uses Lume for macOS VMs, with Ollama for local LLMs
       "darwin-server" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
           ./modules
           ./modules/services/lume/darwin.nix
+          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager

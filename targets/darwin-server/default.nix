@@ -22,7 +22,7 @@
       };
       opencode = {
         enable = true;
-        # Use remote LLM APIs since no local Ollama
+        # Local Ollama is now available, but user can still select
         model = null; # User will select on first run
       };
       llmClient.rtk.enable = true;
@@ -34,6 +34,12 @@
         # Pre-pull macOS Tahoe vanilla image
         prePullImages = ["macos-tahoe-vanilla:latest"];
       };
+      # Enable Ollama with Qwen 7B for wadsworth
+      ollama = {
+        enable = true;
+        acceleration = "metal"; # Use Apple Silicon GPU
+        models = ["qwen2.5:7b"];
+      };
     };
 
   # Enable OpenClaw via official nix-openclaw home-manager module
@@ -42,12 +48,50 @@
   home-manager.users.monkey = {
     programs.openclaw = {
       enable = true;
-      # Matrix integration (defaults to localhost if not configured)
-      config = {
-        agent.model = "zen/default";
-        gateway = {
-          bind = "0.0.0.0";
-          verbose = true;
+
+      # Documents directory with wadsworth's personality and instructions
+      documents = ./documents;
+
+      # Wadsworth instance - personal AI assistant
+      instances.wadsworth = {
+        enable = true;
+        gatewayPort = 18789;
+
+        config = {
+          gateway = {
+            mode = "local";
+          };
+
+          channels.discord = {
+            tokenFile = "/Users/monkey/.config/openclaw/secrets/discord-bot-token";
+            allowFrom = ["279110923438915586"];
+            dmPolicy = "pairing";
+          };
+
+          agents = {
+            defaults = {
+              # Use local Ollama with Qwen 7B
+              model = "ollama/qwen2.5:7b";
+            };
+          };
+        };
+
+        # Environment for Ollama connection
+        environment = {
+          OLLAMA_HOST = "127.0.0.1:11434";
+        };
+      };
+    };
+
+    # 1Password secrets for wadsworth (Discord bot token only, using local Ollama)
+    programs.onepassword-secrets = {
+      enable = true;
+      tokenFile = "/Users/monkey/.config/opnix/token";
+      secrets = {
+        openclawDiscordToken = {
+          reference = "op://openclaw/Wadsworth - Discord API Token/credential";
+          path = ".config/openclaw/secrets/discord-bot-token";
+          mode = "0600";
         };
       };
     };
