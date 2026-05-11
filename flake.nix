@@ -232,6 +232,7 @@
           ({pkgs, ...}: {
             nixpkgs.config.permittedInsecurePackages = [
               "openclaw-2026.4.22"
+              "olm-3.2.16"
             ];
           })
           configuration
