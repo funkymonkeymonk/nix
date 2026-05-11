@@ -65,8 +65,9 @@
             mode = "local";
           };
 
+          # Discord channel config
+          # Token is injected via environment variable at runtime
           channels.discord = {
-            tokenFile = "/Users/monkey/.config/openclaw/secrets/discord-bot-token";
             allowFrom = ["279110923438915586"];
             dmPolicy = "pairing";
           };
@@ -79,9 +80,11 @@
           };
         };
 
-        # Environment for Ollama connection
+        # Environment for Ollama connection and Discord bot token
+        # The token file content is read at runtime since the variable doesn't end in _FILE
         environment = {
           OLLAMA_HOST = "127.0.0.1:11434";
+          DISCORD_BOT_TOKEN = "/Users/monkey/.config/openclaw/secrets/discord-bot-token";
         };
       };
     };
