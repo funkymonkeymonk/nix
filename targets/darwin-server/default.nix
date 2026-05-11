@@ -102,7 +102,7 @@
     };
 
     # Activation script to inject Discord token into OpenClaw config
-    home.activation.injectDiscordToken = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    home.activation.injectDiscordToken = ''
       TOKEN_FILE="/Users/monkey/.config/openclaw/secrets/discord-bot-token"
       CONFIG_FILE="/Users/monkey/.openclaw-wadsworth/openclaw.json"
 
