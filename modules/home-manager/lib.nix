@@ -24,4 +24,15 @@ with lib; rec {
         mode = "0600";
       })
     (lib.filterAttrs (_: item: item.onePasswordItem != "") items);
+
+  # Build opnix secrets configuration for arbitrary secrets (not just API keys)
+  # prefix: string prefix for secret names (e.g., "opencode")
+  # items: attrset of secretName -> { reference, path, mode? }
+  mkOpnixSecretsGeneric = prefix: items:
+    lib.mapAttrs' (name: item:
+      lib.nameValuePair "${prefix}${toCamelCase name}" {
+        inherit (item) reference path;
+        mode = item.mode or "0600";
+      })
+    (lib.filterAttrs (_: item: item.reference != "") items);
 }

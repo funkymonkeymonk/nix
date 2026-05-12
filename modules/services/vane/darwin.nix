@@ -17,6 +17,8 @@ with lib; let
     (config._vaneCommon)
     vaneStartScript
     dockerComposeYaml
+    hasOpnixBaseUrl
+    openaiBaseUrlSecretPath
     ;
 
   # Get the primary user for launchd environment
@@ -269,6 +271,19 @@ with lib; let
     export HOME="${darwinHomeDir}"
     export USER="${primaryUser}"
     export PATH="${pkgs.colima}/bin:${pkgs.docker}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
+
+    ${lib.optionalString hasOpnixBaseUrl ''
+      # Read OpenAI base URL from opnix-managed secret file
+      OPENAI_BASE_URL_FILE="$HOME/${openaiBaseUrlSecretPath}"
+      if [[ -f "$OPENAI_BASE_URL_FILE" ]]; then
+        export OPENAI_BASE_URL
+        OPENAI_BASE_URL=$(cat "$OPENAI_BASE_URL_FILE")
+        echo "[vane] Loaded OpenAI base URL from secret file"
+      else
+        echo "[vane] WARNING: openaiBaseUrlOpnixItem is set but secret file not found at $OPENAI_BASE_URL_FILE"
+        echo "[vane] Ensure opnix has run and the 1Password item exists"
+      fi
+    ''}
 
     # Pull configured models first
     echo "[vane] Checking/installing configured models..."

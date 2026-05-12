@@ -12,10 +12,13 @@ with lib; let
   # Filter providers that have 1Password items configured
   providersWithSecrets = lib.filterAttrs (_name: provider: provider.onePasswordItem != "") cfg.providers;
 
+  # Filter providers that have baseURLOpnixItem configured
+  providersWithBaseURLSecrets = lib.filterAttrs (_name: provider: provider.baseURLOpnixItem != "") cfg.providers;
+
   # Filter providers with dynamic models enabled
   providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
 
-  # Build opnix secrets configuration using shared helper
+  # Build opnix secrets configuration using shared helper (API keys)
   opnixSecrets = hmLib.mkOpnixSecrets "opencode" (
     lib.mapAttrs (name: provider: {
       inherit (provider) onePasswordItem;
@@ -23,6 +26,18 @@ with lib; let
     })
     providersWithSecrets
   );
+
+  # Build opnix secrets for base URLs (providers with baseURLOpnixItem)
+  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" (
+    lib.mapAttrs (name: provider: {
+      reference = provider.baseURLOpnixItem;
+      path = ".config/opencode/secrets/${name}-baseurl";
+    })
+    providersWithBaseURLSecrets
+  );
+
+  # Combined opnix secrets (API keys + base URLs)
+  allOpnixSecrets = opnixSecrets // opnixBaseURLSecrets;
 
   # Build provider config with API key references (only if onePasswordItem is set)
   providerConfig =
@@ -113,18 +128,27 @@ with lib; let
   cfg.agents;
 
   # Build the dynamic model config for providers that use it
-  # This is a JSON structure mapping provider name -> {baseURL, apiKeyFile}
+  # This is a JSON structure mapping provider name -> {baseURL, apiKeyFile, baseURLFile?}
   dynamicProvidersConfig =
     lib.mapAttrs (name: provider: {
+      # Use static baseURL if set, otherwise empty (will be read from file at runtime)
       inherit (provider) baseURL;
       apiKeyFile =
         if (provider.onePasswordItem or "") != ""
         then "~/.config/opencode/secrets/${name}-apikey"
         else null;
+      # If baseURLOpnixItem is set, the URL will be read from this file at runtime
+      baseURLFile =
+        if (provider.baseURLOpnixItem or "") != ""
+        then "~/.config/opencode/secrets/${name}-baseurl"
+        else null;
     })
     providersWithDynamicModels;
 
   dynamicProvidersJson = builtins.toJSON dynamicProvidersConfig;
+
+  # Names of providers that use opnix-managed base URLs (for static config patching)
+  providersWithBaseURLSecretNames = lib.attrNames providersWithBaseURLSecrets;
 
   # Script to fetch models from LiteLLM-compatible endpoints and merge into config
   fetchModelsScript = pkgs.writeShellScript "opencode-fetch-models" ''
@@ -144,6 +168,21 @@ with lib; let
     else
       echo "{}" > "$DYNAMIC_CONFIG"
     fi
+
+    # Patch baseURLs from opnix-managed secret files
+    # This allows provider base URLs to be stored in 1Password instead of the Nix store
+    ${lib.optionalString (providersWithBaseURLSecretNames != []) ''
+      for provider_name in ${lib.concatStringsSep " " providersWithBaseURLSecretNames}; do
+        url_file="$HOME/.config/opencode/secrets/''${provider_name}-baseurl"
+        if [[ -f "$url_file" ]]; then
+          url=$(cat "$url_file")
+          ${pkgs.jq}/bin/jq --arg p "$provider_name" --arg url "$url" \
+            '.provider[$p].options.baseURL = $url' "$DYNAMIC_CONFIG" > "$DYNAMIC_CONFIG.tmp" \
+            && mv "$DYNAMIC_CONFIG.tmp" "$DYNAMIC_CONFIG"
+          echo "Patched baseURL for provider $provider_name from secret file" >&2
+        fi
+      done
+    ''}
 
     # Function to fetch models from a provider
     fetch_provider_models() {
@@ -174,7 +213,15 @@ with lib; let
     }
 
     # Process each dynamic provider
-    echo "$DYNAMIC_PROVIDERS" | ${pkgs.jq}/bin/jq -r 'to_entries[] | "\(.key)|\(.value.baseURL)|\(.value.apiKeyFile // "")"' | while IFS='|' read -r provider_name base_url api_key_file; do
+    echo "$DYNAMIC_PROVIDERS" | ${pkgs.jq}/bin/jq -r 'to_entries[] | "\(.key)|\(.value.baseURL)|\(.value.apiKeyFile // "")|\(.value.baseURLFile // "")"' | while IFS='|' read -r provider_name base_url api_key_file base_url_file; do
+      # If a baseURLFile is specified, read the URL from it (overrides static baseURL)
+      if [[ -n "$base_url_file" ]]; then
+        resolved_url_file="''${base_url_file/#\~/$HOME}"
+        if [[ -f "$resolved_url_file" ]]; then
+          base_url=$(cat "$resolved_url_file")
+        fi
+      fi
+
       if [[ -z "$base_url" ]]; then
         continue
       fi
@@ -317,10 +364,10 @@ in {
           // {instructions = instructionFiles;};
       };
 
-      # Configure opnix secrets for providers with 1Password items
-      onepassword-secrets = mkIf (providersWithSecrets != {} && osConfig.myConfig.onepassword.enable) {
+      # Configure opnix secrets for providers with 1Password items (API keys + base URLs)
+      onepassword-secrets = mkIf ((allOpnixSecrets != {}) && osConfig.myConfig.onepassword.enable) {
         enable = true;
-        secrets = opnixSecrets;
+        secrets = allOpnixSecrets;
       };
     };
   };

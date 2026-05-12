@@ -502,4 +502,58 @@ in {
       echo "Vane darwin autoStart=true verified"
       touch $out
     '';
+
+  # Test vane openaiBaseUrlOpnixItem option default and custom value
+  vaneOpnixUrlOptionsTest = let
+    vaneOpnixDefaultEval =
+      (lib.evalModules {
+        modules =
+          stubModules
+          ++ [
+            {
+              config.myConfig.vane.enable = false;
+            }
+          ];
+      }).config.myConfig.vane;
+
+    vaneOpnixCustomEval =
+      (lib.evalModules {
+        modules =
+          stubModules
+          ++ [
+            {
+              config.myConfig.vane = {
+                enable = true;
+                openaiBaseUrlOpnixItem = "op://Vault/Item/field";
+              };
+            }
+          ];
+      }).config.myConfig.vane;
+  in
+    pkgs.runCommand "test-vane-opnix-url-options"
+    {}
+    ''
+      echo "=== Testing Vane openaiBaseUrlOpnixItem Options ==="
+
+      ${
+        if vaneOpnixDefaultEval.openaiBaseUrlOpnixItem == null
+        then ''echo "  openaiBaseUrlOpnixItem default = null: OK"''
+        else ''echo "  openaiBaseUrlOpnixItem should default to null!"; exit 1''
+      }
+
+      ${
+        if vaneOpnixCustomEval.openaiBaseUrlOpnixItem == "op://Vault/Item/field"
+        then ''echo "  openaiBaseUrlOpnixItem custom value: OK"''
+        else ''echo "  openaiBaseUrlOpnixItem should be op://Vault/Item/field!"; exit 1''
+      }
+
+      ${
+        if vaneOpnixCustomEval.openaiBaseUrl == null
+        then ''echo "  openaiBaseUrl can be null when opnix item is set: OK"''
+        else ''echo "  openaiBaseUrl should default to null!"; exit 1''
+      }
+
+      echo "All vane opnix URL option tests verified"
+      touch $out
+    '';
 }

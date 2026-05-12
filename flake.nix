@@ -436,11 +436,13 @@
             ollama-custom-options
             vane-options
             vane-custom-options
+            vane-opnix-url-options
             openclaw-options
             jj-autosync-options
             jj-autosync-custom-options
             opencode-options
             opencode-custom-options
+            opencode-provider-opnix-url
             shell-aliases
             workspace-switch
             fjj-options
