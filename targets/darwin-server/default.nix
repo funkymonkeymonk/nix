@@ -36,6 +36,14 @@
       };
     };
 
+  # Passwordless sudo for deploy-rs
+  # deploy-rs needs to activate without interactive password prompt
+  # timestamp_timeout=0 requires password for each sudo command (security)
+  security.sudo.extraConfig = ''
+    Defaults timestamp_timeout=0
+    monkey ALL=(ALL) NOPASSWD: ALL
+  '';
+
   # Enable SSH server for remote access
   # Note: SSH agent forwarding is enabled by default on macOS
   services.openssh.enable = true;

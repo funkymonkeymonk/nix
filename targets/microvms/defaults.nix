@@ -7,7 +7,8 @@
   lib,
   ...
 }: {
-  nixpkgs.hostPlatform = "x86_64-linux";
+  # Don't set hostPlatform here - it should come from the system parameter in mkMicrovm
+  # This allows different architectures (x86_64-linux, aarch64-linux)
   myConfig = lib.mkMerge [
     {
       skills = {

@@ -1,4 +1,4 @@
-# OpenClaw AI Assistant Service Module
+# OpenClaw AI Assistant Service Module - NixOS (Linux) version
 # https://github.com/openclaw/openclaw
 {
   config,
@@ -173,19 +173,26 @@ in {
   };
 
   config = mkIf cfg.enable {
+    # Install openclaw CLI wrapper system-wide
+    environment.systemPackages = [openclawCli];
+
+    # Write configuration file
+    environment.etc."openclaw/config.json" = mkIf (cfg.extraConfig != {}) {
+      text = builtins.toJSON cfg.extraConfig;
+      mode = "0640";
+      inherit (cfg) user group;
+    };
+
     # Create user and group if needed
-    users.users.${cfg.user} = lib.mkIf (cfg.user != "dev") {
+    users.users.${cfg.user} = mkIf (cfg.user != "root") {
       isSystemUser = true;
       inherit (cfg) group;
       home = cfg.dataDir;
       createHome = true;
-      description = "OpenClaw AI Assistant service user";
+      description = "OpenClaw service user";
     };
 
-    users.groups.${cfg.group} = lib.mkIf (cfg.user != "dev") {};
-
-    # Install openclaw CLI wrapper system-wide
-    environment.systemPackages = [openclawCli];
+    users.groups.${cfg.group} = mkIf (cfg.user != "root") {};
 
     # Create data directory structure
     systemd.tmpfiles.rules = [
@@ -195,14 +202,7 @@ in {
       "d ${cfg.dataDir}/.npm-global 0750 ${cfg.user} ${cfg.group} -"
     ];
 
-    # Write configuration file
-    environment.etc."openclaw/config.json" = mkIf (cfg.extraConfig != {}) {
-      text = builtins.toJSON cfg.extraConfig;
-      mode = "0640";
-      inherit (cfg) user group;
-    };
-
-    # OpenClaw Gateway service
+    # OpenClaw Gateway service (systemd)
     systemd.services.openclaw-gateway = {
       description = "OpenClaw AI Assistant Gateway";
       after = ["network.target"];
@@ -218,7 +218,7 @@ in {
           # Setup script - ensures openclaw is installed
           ExecStartPre = pkgs.writeShellScript "openclaw-setup" (
             ''
-              export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${pkgs.npm}/bin:$PATH"
+              export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:$PATH"
               export HOME="${cfg.dataDir}"
               export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
 
@@ -226,12 +226,12 @@ in {
               mkdir -p "${cfg.dataDir}/.npm-global"
 
               # Configure npm to use local prefix
-              ${pkgs.npm}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
+              ${cfg.nodePackage}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
 
               # Check if we need to install openclaw
               if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
                 echo "Installing OpenClaw..."
-                ${pkgs.npm}/bin/npm install -g openclaw@latest
+                ${cfg.nodePackage}/bin/npm install -g openclaw@latest
               fi
 
               # Link config if provided
@@ -242,7 +242,7 @@ in {
 
               echo "OpenClaw setup complete"
             ''
-            + lib.optionalString (cfg.environmentFile != null) ''
+            + optionalString (cfg.environmentFile != null) ''
               # Load environment file
               set -a
               source ${cfg.environmentFile}
@@ -285,16 +285,16 @@ in {
           PrivateDevices = cfg.hardening.privateDevices;
           RestrictNamespaces = cfg.hardening.restrictNamespaces;
         }
-        // lib.optionalAttrs (cfg.hardening.restrictAddressFamilies != null) {
+        // optionalAttrs (cfg.hardening.restrictAddressFamilies != null) {
           RestrictAddressFamilies = cfg.hardening.restrictAddressFamilies;
         }
-        // lib.optionalAttrs (cfg.hardening.systemCallFilter != null) {
+        // optionalAttrs (cfg.hardening.systemCallFilter != null) {
           SystemCallFilter = cfg.hardening.systemCallFilter;
         }
-        // lib.optionalAttrs cfg.hardening.memoryDenyWriteExecute {
+        // optionalAttrs cfg.hardening.memoryDenyWriteExecute {
           MemoryDenyWriteExecute = true;
         }
-        // lib.optionalAttrs cfg.hardening.lockPersonality {
+        // optionalAttrs cfg.hardening.lockPersonality {
           LockPersonality = true;
         };
 
