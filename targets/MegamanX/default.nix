@@ -142,7 +142,7 @@
           ## Tools
           - Read existing modules in modules/ for examples
           - Use lib.optionalAttrs for platform-specific config
-          - Check bundles.nix for role definitions
+          - Check modules/roles/ for role definitions
         '';
       };
     };

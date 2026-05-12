@@ -1,82 +1,159 @@
 #!/usr/bin/env bash
-# jj-update: Update an existing PR (squash changes into parent and push)
-# Usage: jj-update [commit-message]
-# Example: jj-update "Fix review comments"
+# jj-update: Update an existing PR by creating ONE new commit on top of the
+# remote tip. Never rewrites pushed commits. Never force-pushes.
+#
+# Usage: jj-update --message "<conventional commit message>"
+#
+# See SKILL.md ("Updating a PR") for the design rationale.
 
 set -euo pipefail
 
-# Source shared library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/jj-workspace-lib"
 
 usage() {
     cat <<EOF
-Usage: jj-update [commit-message]
+Usage: jj-update --message "<message>"
 
-Update an existing PR by squashing current changes into parent commit.
-Works in jj workspaces (including child workspaces separate from the parent repo).
+Append a single new commit on top of the PR's remote tip, containing the
+combined diff of all local commits since the last push. Pushed commits are
+NEVER rewritten.
 
-This script:
-1. Checks that you have changes to squash
-2. Optionally updates the commit message
-3. Squashes changes into parent
-4. Pushes to remote
+Required:
+  -m, --message MSG   Conventional commit message describing the full diff
+                      between the remote tip and your current @ (i.e. what
+                      this update round ADDS to the PR).
 
-Arguments:
-  commit-message - Optional new commit message (keeps existing if not provided)
+Options:
+  --base BRANCH       Base branch to use if no PR exists yet (default: main).
+                      Only used in first-push fallback mode.
+  -h, --help          Show this help.
+
+Behavior:
+  1. jj git fetch
+  2. If current @ has no bookmark, or bookmark has no remote tracking,
+     fall back to jj-pr (initial push flow) — user must have run jj-pr
+     once already OR we'll error out asking for one.
+  3. If there are no changes between <bookmark>@origin and @, and the
+     working copy is clean, exit cleanly.
+  4. Create a new empty commit on top of <bookmark>@origin with --message.
+  5. Restore the tree from the old @ into the new commit.
+  6. Move the bookmark to the new commit.
+  7. jj git push (fast-forward only).
+  8. Print reminder to run 'jj new' before continuing work.
 
 Examples:
-  jj-update                           # Squash and push, keep existing message
-  jj-update "Add error handling"      # Squash with new message
+  jj-update -m "fix: address review feedback on error handling"
+  jj-update --message "feat: add pagination to user list"
 EOF
-    exit 1
+    exit "${1:-1}"
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+MESSAGE=""
+BASE="main"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--message)
+            MESSAGE="${2:-}"
+            shift 2
+            ;;
+        --base)
+            BASE="${2:-main}"
+            shift 2
+            ;;
+        -h|--help)
+            usage 0
+            ;;
+        *)
+            echo -e "${JJ_RED}Error: Unknown argument: $1${JJ_NC}" >&2
+            usage
+            ;;
+    esac
+done
+
+if [[ -z "$MESSAGE" ]]; then
+    echo -e "${JJ_RED}Error: --message is required.${JJ_NC}" >&2
+    echo "jj-update deliberately does not reuse or auto-generate messages." >&2
+    echo "The calling agent should generate a conventional-commit message" >&2
+    echo "describing the full diff between the remote tip and @." >&2
+    echo "" >&2
     usage
 fi
 
-MESSAGE="${1:-}"
-
-# Check we're in a jj repo
 if ! jj_in_repo; then
-    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}" >&2
     exit 1
 fi
 
 echo -e "${JJ_YELLOW}Updating PR...${JJ_NC}"
 
-# Check current state
-echo -e "\n${JJ_GREEN}1. Checking status...${JJ_NC}"
-jj status
+# 1. Fetch to refresh remote bookmark pointers.
+echo -e "\n${JJ_GREEN}1. Fetching from remote...${JJ_NC}"
+jj git fetch
 
-# Check if we have changes
-if ! jj diff --stat | grep -q .; then
-    echo -e "${JJ_RED}Error: No changes in working copy to squash${JJ_NC}"
-    echo "Make some changes first, then run jj-update"
+# 2. Determine bookmark on current @.
+BOOKMARK=$(jj_get_current_bookmark)
+if [[ -z "$BOOKMARK" ]]; then
+    echo -e "${JJ_RED}Error: No bookmark on @.${JJ_NC}" >&2
+    echo "Run jj-pr first to create a PR, or set a bookmark on @ manually." >&2
     exit 1
 fi
+echo -e "   Bookmark: ${JJ_BLUE}${BOOKMARK}${JJ_NC}"
 
-# Show what will be squashed
-echo -e "\n${JJ_GREEN}2. Changes to squash:${JJ_NC}"
-jj diff --stat
+# 3. Determine remote tip. If the bookmark has no remote tracking, this is
+#    the initial push — fall back to jj-pr-style flow (push onto base).
+REMOTE_TIP_REVSET="${BOOKMARK}@origin"
+if ! jj log -r "$REMOTE_TIP_REVSET" --no-graph -T 'commit_id' &>/dev/null; then
+    echo -e "${JJ_YELLOW}   No remote tracking for ${BOOKMARK} — running initial push flow.${JJ_NC}"
+    REMOTE_TIP_REVSET="${BASE}@origin"
+    # If base@origin doesn't exist either, fall back to local base.
+    if ! jj log -r "$REMOTE_TIP_REVSET" --no-graph -T 'commit_id' &>/dev/null; then
+        REMOTE_TIP_REVSET="$BASE"
+    fi
+fi
+echo -e "   Remote tip: ${JJ_BLUE}${REMOTE_TIP_REVSET}${JJ_NC}"
 
-# Squash into parent
-echo -e "\n${JJ_GREEN}3. Squashing into parent commit...${JJ_NC}"
-jj squash
+# 4. Check if there is anything to push. The range is (remote_tip, @].
+#    If the range is empty AND the working copy is clean, nothing to do.
+RANGE_COUNT=$(jj log -r "${REMOTE_TIP_REVSET}..@" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null | grep -c . || true)
+HAS_WC_CHANGES=$(jj diff --stat 2>/dev/null | grep -c . || true)
 
-# Update message if provided
-if [[ -n "$MESSAGE" ]]; then
-    echo -e "\n${JJ_GREEN}4. Updating commit message...${JJ_NC}"
-    jj describe -m "$MESSAGE"
+if [[ "$RANGE_COUNT" -eq 0 && "$HAS_WC_CHANGES" -eq 0 ]]; then
+    echo -e "\n${JJ_GREEN}Nothing to push — @ is already at the remote tip with no local changes.${JJ_NC}"
+    exit 0
 fi
 
-# Push to remote
-echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
-jj git push
+echo -e "\n${JJ_GREEN}2. Changes to publish:${JJ_NC}"
+jj diff --stat -r "${REMOTE_TIP_REVSET}..@" 2>/dev/null || jj diff --stat
+
+# 5. Capture current @ so we can restore its tree.
+OLD_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
+echo -e "\n${JJ_GREEN}3. Current @ snapshot: ${OLD_COMMIT:0:12}${JJ_NC}"
+
+# 6. Create a new empty commit on top of the remote tip with the given message.
+echo -e "\n${JJ_GREEN}4. Creating new commit on top of ${REMOTE_TIP_REVSET}...${JJ_NC}"
+jj new "$REMOTE_TIP_REVSET" -m "$MESSAGE"
+
+# 7. Restore the tree from the old @ into our new commit.
+echo -e "\n${JJ_GREEN}5. Restoring tree from ${OLD_COMMIT:0:12}...${JJ_NC}"
+jj restore --from "$OLD_COMMIT" --to @
+
+# 8. Move the bookmark to the new commit.
+echo -e "\n${JJ_GREEN}6. Moving bookmark ${BOOKMARK} to new commit...${JJ_NC}"
+jj bookmark set "$BOOKMARK" -r @
+
+# 9. Push (fast-forward only; jj refuses to rewrite without --allow-backwards).
+echo -e "\n${JJ_GREEN}7. Pushing to remote (fast-forward)...${JJ_NC}"
+jj_push_bookmark "$BOOKMARK"
+
+NEW_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
 
 echo -e "\n${JJ_GREEN}Done! PR updated.${JJ_NC}"
-
-# Show final state
-echo -e "\n${JJ_YELLOW}Current state:${JJ_NC}"
-jj log -r '@-::@' --no-graph
+echo -e "   Pushed commit: ${JJ_BLUE}${NEW_COMMIT:0:12}${JJ_NC}"
+echo ""
+echo -e "${JJ_YELLOW}Next step:${JJ_NC} Run ${JJ_BLUE}jj new${JJ_NC} before making more changes."
+echo -e "   Your previous local commits (${OLD_COMMIT:0:12} and ancestors back to the"
+echo -e "   old remote tip) are now orphaned. They're recoverable via ${JJ_BLUE}jj op log${JJ_NC}"
+echo -e "   but you should NOT continue working from them — the pushed commit is the"
+echo -e "   new source of truth."
