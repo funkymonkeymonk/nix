@@ -117,7 +117,7 @@
   # Jujutsu (jj) version control skill
   # Based on @coreyja/jj from https://github.com/coreyja/dotfiles/tree/main/.claude/skills/jj
   "jj" = {
-    description = "Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, stacked PRs, and workspaces for multi-project isolation";
+    description = "Use Jujutsu (jj) for version control. Treats pushed commits as immutable; every PR update adds a single new commit on top of the remote tip (no force pushes). Covers workflow, commits, bookmarks with Conventional Branch naming, pushing to GitHub, merge-based sync, stacked PRs, and workspaces for multi-project isolation";
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
