@@ -5,18 +5,26 @@ agent: build
 
 Manage jj workspaces for isolating work.
 
-Use the jj skill for reference. The script is at `jj-workspace` in PATH.
+Workspaces live in `~/workspaces/` — never as sibling directories inside the repo.
 
-Run: `jj-workspace $ARGUMENTS`
+Use `fjj` to create and manage workspaces:
 
-Commands:
-- `create <type/topic> [base]` - Create new workspace (e.g., feat/user-auth)
-- `list` - Show all workspaces
-- `remove <name>` - Remove a workspace
-- `clean` - Remove all workspaces  
-- `status` - Status of all workspaces
+```bash
+fjj feat/my-topic              # Create workspace from main
+fjj fix/bug-name develop       # Create workspace from develop branch
+fjj list                       # Show all workspaces
+fjj clean                      # Remove merged/stale workspaces
+```
 
 Naming convention: `<type>/<topic>-<date>-<id>`
 Types: feat, fix, hotfix, chore, release
+
+**Agent naming**: `feat/agent-<agent-id>-<topic>` (e.g. `feat/agent-openclaw-auth-fix`)
+
+After PR is merged, clean up:
+```bash
+jj workspace forget <workspace-name>
+rm -rf ~/workspaces/<workspace-name>
+```
 
 If no arguments, show workspace list and ask what they want to do.
