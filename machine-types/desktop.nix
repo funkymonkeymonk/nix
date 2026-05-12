@@ -29,7 +29,7 @@
 
   # Networking
   networking.networkmanager.enable = true;
-  networking.firewall.enable = true;
+  networking.firewall.enable = lib.mkDefault true;
 
   # Desktop environment
   services = {
