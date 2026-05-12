@@ -95,7 +95,8 @@
 
           agents = {
             defaults = {
-              # Use local Ollama with Qwen 7B
+              # Use local Ollama with Qwen 7B (auto-discovery mode)
+              # Ollama must be running and OLLAMA_API_KEY env var set
               model = "ollama/qwen2.5:7b";
             };
           };
@@ -104,6 +105,8 @@
         # Environment for Ollama connection
         environment = {
           OLLAMA_HOST = "127.0.0.1:11434";
+          # Required for local Ollama auth (not a real API key, just a marker)
+          OLLAMA_API_KEY = "ollama-local";
         };
       };
     };
