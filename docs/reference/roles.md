@@ -74,6 +74,8 @@ Local model hosting.
 
 ### microvm-host
 
+### openclaw-server
+
 ### opencode
 
 OpenCode AI assistant with rtk token optimization.
