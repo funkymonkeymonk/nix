@@ -1,78 +1,136 @@
 #!/usr/bin/env bash
-# jj-sync: Fetch latest and rebase current work onto main
-# Usage: jj-sync [base-branch]
-# Example: jj-sync main
+# jj-sync: Bring the latest main (or specified base) into the current branch
+# by MERGING, not rebasing. This preserves the immutability of pushed commits.
+#
+# Usage: jj-sync [--base main] [--message "msg"]
+#
+# See SKILL.md ("Syncing with main") for the design rationale.
 
 set -euo pipefail
 
-# Source shared library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/jj-workspace-lib"
 
 usage() {
     cat <<EOF
-Usage: jj-sync [base-branch]
+Usage: jj-sync [--base BRANCH] [--message "MSG"]
 
-Fetch latest from remote and rebase current work onto base branch.
-Works in jj workspaces (including child workspaces separate from the parent repo).
+Merge the latest base branch into the current branch. Creates a merge commit
+with two parents: the PR's remote tip and base@origin. Never rewrites pushed
+commits.
 
-This script:
-1. Fetches latest from remote
-2. Rebases current commit (or stack) onto base branch
-3. Shows the new state
+Options:
+  --base BRANCH       Base branch to merge in (default: main).
+  -m, --message MSG   Merge commit message
+                      (default: "merge <base> into <current-bookmark>").
+  -h, --help          Show this help.
 
-Arguments:
-  base-branch - Branch to rebase onto (default: main)
+Behavior:
+  1. jj git fetch.
+  2. If base@origin is already an ancestor of @, exit cleanly — nothing to
+     sync.
+  3. Create a new merge commit with parents (current-bookmark@origin,
+     base@origin). NOTE: if @ has local-only work that hasn't been pushed,
+     that work is NOT included in this sync commit. Push your local work
+     first with jj-update if you want it to be part of the sync.
+  4. Move bookmark to merge commit.
+  5. jj git push.
 
 Examples:
-  jj-sync              # Rebase onto main
-  jj-sync develop      # Rebase onto develop
+  jj-sync
+  jj-sync --base develop
+  jj-sync -m "merge main (release v2.1)"
 EOF
-    exit 1
+    exit "${1:-1}"
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    usage
-fi
+BASE="main"
+MESSAGE=""
 
-BASE="${1:-main}"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --base)
+            BASE="${2:-main}"
+            shift 2
+            ;;
+        -m|--message)
+            MESSAGE="${2:-}"
+            shift 2
+            ;;
+        -h|--help)
+            usage 0
+            ;;
+        *)
+            echo -e "${JJ_RED}Error: Unknown argument: $1${JJ_NC}" >&2
+            usage
+            ;;
+    esac
+done
 
-# Check we're in a jj repo
 if ! jj_in_repo; then
-    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}" >&2
     exit 1
 fi
 
 echo -e "${JJ_YELLOW}Syncing with ${BASE}...${JJ_NC}"
 
-# Show current state
-echo -e "\n${JJ_GREEN}1. Current state:${JJ_NC}"
-jj log -r '@-::@' --no-graph
-
-# Fetch latest
-echo -e "\n${JJ_GREEN}2. Fetching from remote...${JJ_NC}"
+# 1. Fetch.
+echo -e "\n${JJ_GREEN}1. Fetching from remote...${JJ_NC}"
 jj git fetch
 
-# Check if we're already on base
-CURRENT_PARENT=$(jj log -r '@-' --no-graph -T 'change_id' 2>/dev/null || echo "")
-BASE_ID=$(jj log -r "$BASE" --no-graph -T 'change_id' 2>/dev/null || echo "")
-
-if [[ "$CURRENT_PARENT" == "$BASE_ID" ]]; then
-    echo -e "\n${JJ_GREEN}Already up to date with ${BASE}${JJ_NC}"
-else
-    # Rebase onto base
-    echo -e "\n${JJ_GREEN}3. Rebasing onto ${BASE}...${JJ_NC}"
-    jj rebase -r @ -d "$BASE"
+# 2. Determine current bookmark.
+BOOKMARK=$(jj_get_current_bookmark)
+if [[ -z "$BOOKMARK" ]]; then
+    echo -e "${JJ_RED}Error: No bookmark on @.${JJ_NC}" >&2
+    echo "jj-sync works on an existing PR branch. Run jj-pr first." >&2
+    exit 1
 fi
 
-# Show new state
-echo -e "\n${JJ_GREEN}4. New state:${JJ_NC}"
-jj log -r "${BASE}::@" --no-graph
-
-# Check if push is needed
-if jj log -r '@' --no-graph | grep -q '\*'; then
-    echo -e "\n${JJ_YELLOW}Note: Bookmark needs pushing (marked with *)${JJ_NC}"
-    echo "Run 'jj git push' to update remote"
+BOOKMARK_REMOTE="${BOOKMARK}@origin"
+if ! jj log -r "$BOOKMARK_REMOTE" --no-graph -T 'commit_id' &>/dev/null; then
+    echo -e "${JJ_RED}Error: ${BOOKMARK} has no remote tracking.${JJ_NC}" >&2
+    echo "Push the branch first with jj-pr or jj-update." >&2
+    exit 1
 fi
 
-echo -e "\n${JJ_GREEN}Done! Synced with ${BASE}${JJ_NC}"
+# 3. Resolve base.
+BASE_REMOTE="${BASE}@origin"
+if ! jj log -r "$BASE_REMOTE" --no-graph -T 'commit_id' &>/dev/null; then
+    echo -e "${JJ_RED}Error: ${BASE_REMOTE} not found.${JJ_NC}" >&2
+    exit 1
+fi
+
+# 4. Check whether base is already an ancestor.
+if jj log -r "${BASE_REMOTE}::${BOOKMARK_REMOTE}" --no-graph -T 'commit_id' &>/dev/null \
+   && [[ -n "$(jj log -r "${BASE_REMOTE}::${BOOKMARK_REMOTE}" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null | head -1)" ]]; then
+    # base@origin is reachable from bookmark@origin => already merged in.
+    echo -e "\n${JJ_GREEN}Already up to date: ${BASE_REMOTE} is an ancestor of ${BOOKMARK_REMOTE}.${JJ_NC}"
+    exit 0
+fi
+
+# 5. Default message.
+if [[ -z "$MESSAGE" ]]; then
+    MESSAGE="merge ${BASE} into ${BOOKMARK}"
+fi
+
+echo -e "\n${JJ_GREEN}2. Current state:${JJ_NC}"
+jj log -r "${BASE_REMOTE} | ${BOOKMARK_REMOTE}" --no-graph
+
+# 6. Create merge commit with two parents.
+echo -e "\n${JJ_GREEN}3. Creating merge commit...${JJ_NC}"
+jj new "$BOOKMARK_REMOTE" "$BASE_REMOTE" -m "$MESSAGE"
+
+# 7. Move bookmark.
+echo -e "\n${JJ_GREEN}4. Moving bookmark ${BOOKMARK} to merge commit...${JJ_NC}"
+jj bookmark set "$BOOKMARK" -r @
+
+# 8. Push.
+echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
+jj_push_bookmark "$BOOKMARK"
+
+NEW_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
+
+echo -e "\n${JJ_GREEN}Done! ${BASE} merged into ${BOOKMARK}.${JJ_NC}"
+echo -e "   Merge commit: ${JJ_BLUE}${NEW_COMMIT:0:12}${JJ_NC}"
+echo ""
+echo -e "${JJ_YELLOW}Next step:${JJ_NC} Run ${JJ_BLUE}jj new${JJ_NC} before making more changes."

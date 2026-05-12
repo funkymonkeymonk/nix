@@ -1,135 +1,187 @@
 #!/usr/bin/env bash
-# jj-pr: Create a new PR with conventional branch naming
-# Usage: jj-pr <type> <description> [commit-message]
-# Example: jj-pr feat user-auth "Add user authentication flow"
+# jj-pr: Create a new PR by creating ONE new commit on top of the base branch's
+# remote tip, containing the net diff of all local work.
+#
+# Usage: jj-pr <type> <description> --message "<msg>" [--base main]
+#
+# See SKILL.md ("Creating a PR") for the design rationale.
 
 set -euo pipefail
 
-# Source shared library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/jj-workspace-lib"
 
 usage() {
     cat <<EOF
-Usage: jj-pr <type> <description> [commit-message]
+Usage: jj-pr <type> <description> --message "<message>" [--base BRANCH]
 
-Create a new PR with conventional branch naming.
-Works in jj workspaces (including child workspaces separate from the parent repo).
-
-Types:
-  feat, feature  - New features
-  fix, bugfix    - Bug fixes
-  hotfix         - Urgent fixes
-  release        - Release preparation
-  chore          - Non-code tasks (deps, docs)
+Create a new PR. Collapses all local work into a single commit on top of the
+base branch's remote tip, then pushes and opens a PR.
 
 Arguments:
-  type           - Branch type prefix
-  description    - Branch description (kebab-case)
-  commit-message - Optional commit message (uses description if not provided)
+  type           Branch type prefix. One of: feat, feature, fix, bugfix,
+                 hotfix, release, chore. (feature -> feat, bugfix -> fix.)
+  description    Branch description (kebab-case, e.g. user-auth).
+
+Required:
+  -m, --message MSG   Conventional commit message for the single commit that
+                      will represent the whole PR.
+
+Options:
+  --base BRANCH       Base branch (default: main).
+  -h, --help          Show this help.
 
 Examples:
-  jj-pr feat user-auth "Add user authentication flow"
-  jj-pr fix null-pointer
-  jj-pr chore deps-update "Update dependencies to latest versions"
+  jj-pr feat user-auth -m "feat: add user authentication flow"
+  jj-pr fix null-pointer -m "fix: guard against null user in auth callback"
+  jj-pr chore deps-update -m "chore: bump dependencies to latest patch versions"
 EOF
-    exit 1
+    exit "${1:-1}"
 }
 
-# Validate type
 validate_type() {
-    local type="$1"
-    case "$type" in
-        feat|feature|fix|bugfix|hotfix|release|chore)
-            return 0
-            ;;
+    case "$1" in
+        feat|feature|fix|bugfix|hotfix|release|chore) return 0 ;;
         *)
-            echo -e "${JJ_RED}Error: Invalid type '$type'${JJ_NC}"
-            echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore"
+            echo -e "${JJ_RED}Error: Invalid type '$1'${JJ_NC}" >&2
+            echo "Valid types: feat, feature, fix, bugfix, hotfix, release, chore" >&2
             exit 1
             ;;
     esac
 }
 
-# Normalize type (feature -> feat, bugfix -> fix)
 normalize_type() {
-    local type="$1"
-    case "$type" in
+    case "$1" in
         feature) echo "feat" ;;
-        bugfix) echo "fix" ;;
-        *) echo "$type" ;;
+        bugfix)  echo "fix" ;;
+        *)       echo "$1" ;;
     esac
 }
 
-# Validate description (kebab-case, no special chars)
 validate_description() {
-    local desc="$1"
-    if [[ ! "$desc" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-        echo -e "${JJ_RED}Error: Description must be kebab-case (lowercase, hyphens only)${JJ_NC}"
-        echo "Got: $desc"
-        echo "Example: user-auth, fix-null-pointer, gh-123-add-feature"
+    if [[ ! "$1" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+        echo -e "${JJ_RED}Error: Description must be kebab-case (lowercase, hyphens only).${JJ_NC}" >&2
+        echo "Got: $1" >&2
+        echo "Example: user-auth, fix-null-pointer, gh-123-add-feature" >&2
         exit 1
     fi
 }
 
-# Main
-if [[ $# -lt 2 ]]; then
+TYPE=""
+DESC=""
+MESSAGE=""
+BASE="main"
+
+# Positional + flag parsing.
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--message)
+            MESSAGE="${2:-}"
+            shift 2
+            ;;
+        --base)
+            BASE="${2:-main}"
+            shift 2
+            ;;
+        -h|--help)
+            usage 0
+            ;;
+        -*)
+            echo -e "${JJ_RED}Error: Unknown flag: $1${JJ_NC}" >&2
+            usage
+            ;;
+        *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ ${#POSITIONAL[@]} -lt 2 ]]; then
     usage
 fi
 
-TYPE="$1"
-DESC="$2"
-MESSAGE="${3:-$DESC}"
+TYPE="${POSITIONAL[0]}"
+DESC="${POSITIONAL[1]}"
+
+if [[ -z "$MESSAGE" ]]; then
+    echo -e "${JJ_RED}Error: --message is required.${JJ_NC}" >&2
+    echo "The agent should generate a conventional-commit message describing" >&2
+    echo "the full diff between the base branch and @." >&2
+    echo "" >&2
+    usage
+fi
 
 validate_type "$TYPE"
 validate_description "$DESC"
-
 TYPE=$(normalize_type "$TYPE")
 BRANCH="${TYPE}/${DESC}"
 
-# Check we're in a jj repo
 if ! jj_in_repo; then
-    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}"
+    echo -e "${JJ_RED}Error: Not in a jj repository${JJ_NC}" >&2
     exit 1
 fi
 
-# Get GitHub repo
 GH_REPO=$(jj_get_gh_repo)
 
 echo -e "${JJ_YELLOW}Creating PR with branch: ${BRANCH}${JJ_NC}"
-echo -e "GitHub repo: ${JJ_BLUE}${GH_REPO}${JJ_NC}"
+echo -e "   GitHub repo: ${JJ_BLUE}${GH_REPO}${JJ_NC}"
+echo -e "   Base:        ${JJ_BLUE}${BASE}${JJ_NC}"
 
-# Check current state
-echo -e "\n${JJ_GREEN}1. Checking status...${JJ_NC}"
-jj status
+# 1. Fetch to make sure base@origin is current.
+echo -e "\n${JJ_GREEN}1. Fetching from remote...${JJ_NC}"
+jj git fetch
 
-# Check if we have changes
-if jj diff --stat | grep -q .; then
-    echo -e "\n${JJ_GREEN}2. Changes detected in working copy${JJ_NC}"
-else
-    echo -e "\n${JJ_YELLOW}Warning: No changes in working copy${JJ_NC}"
-    read -p "Continue anyway? [y/N] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+# 2. Resolve base: prefer base@origin, fall back to local base.
+BASE_REVSET="${BASE}@origin"
+if ! jj log -r "$BASE_REVSET" --no-graph -T 'commit_id' &>/dev/null; then
+    echo -e "${JJ_YELLOW}   ${BASE}@origin not found; falling back to local ${BASE}.${JJ_NC}"
+    BASE_REVSET="$BASE"
 fi
 
-# Describe the commit
-echo -e "\n${JJ_GREEN}3. Setting commit message...${JJ_NC}"
-jj describe -m "$MESSAGE"
+# 3. Check for anything to publish.
+RANGE_COUNT=$(jj log -r "${BASE_REVSET}..@" --no-graph -T 'commit_id ++ "\n"' 2>/dev/null | grep -c . || true)
+HAS_WC_CHANGES=$(jj diff --stat 2>/dev/null | grep -c . || true)
+if [[ "$RANGE_COUNT" -eq 0 && "$HAS_WC_CHANGES" -eq 0 ]]; then
+    echo -e "\n${JJ_RED}Error: No changes between ${BASE_REVSET} and @. Nothing to push.${JJ_NC}" >&2
+    exit 1
+fi
 
-# Create bookmark
-echo -e "\n${JJ_GREEN}4. Creating bookmark: ${BRANCH}${JJ_NC}"
+echo -e "\n${JJ_GREEN}2. Changes to publish:${JJ_NC}"
+jj diff --stat -r "${BASE_REVSET}..@" 2>/dev/null || jj diff --stat
+
+# 4. Capture old @ for tree restore.
+OLD_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
+echo -e "\n${JJ_GREEN}3. Current @ snapshot: ${OLD_COMMIT:0:12}${JJ_NC}"
+
+# 5. Create new empty commit on top of base@origin with the real message.
+echo -e "\n${JJ_GREEN}4. Creating new commit on top of ${BASE_REVSET}...${JJ_NC}"
+jj new "$BASE_REVSET" -m "$MESSAGE"
+
+# 6. Restore tree.
+echo -e "\n${JJ_GREEN}5. Restoring tree from ${OLD_COMMIT:0:12}...${JJ_NC}"
+jj restore --from "$OLD_COMMIT" --to @
+
+# 7. Set bookmark.
+echo -e "\n${JJ_GREEN}6. Creating bookmark: ${BRANCH}${JJ_NC}"
 jj bookmark set "$BRANCH" -r @
 
-# Push to remote
-echo -e "\n${JJ_GREEN}5. Pushing to remote...${JJ_NC}"
+# 8. Push.
+echo -e "\n${JJ_GREEN}7. Pushing to remote...${JJ_NC}"
 jj_push_bookmark "$BRANCH"
 
-# Create PR
-echo -e "\n${JJ_GREEN}6. Creating PR...${JJ_NC}"
+# 9. Open PR.
+echo -e "\n${JJ_GREEN}8. Creating PR...${JJ_NC}"
 jj_create_pr "$GH_REPO" "$BRANCH"
 
 PR_URL=$(jj_get_pr_url "$GH_REPO" "$BRANCH")
+NEW_COMMIT=$(jj log -r @ --no-graph -T 'commit_id')
+
 echo -e "\n${JJ_GREEN}Done! PR created: ${JJ_BLUE}${PR_URL}${JJ_NC}"
+echo -e "   Pushed commit: ${JJ_BLUE}${NEW_COMMIT:0:12}${JJ_NC}"
+echo ""
+echo -e "${JJ_YELLOW}Next step:${JJ_NC} Run ${JJ_BLUE}jj new${JJ_NC} before making more changes."
+echo -e "   Your previous local commits (${OLD_COMMIT:0:12} and ancestors back to ${BASE_REVSET})"
+echo -e "   are now orphaned. They're recoverable via ${JJ_BLUE}jj op log${JJ_NC} but you should"
+echo -e "   NOT continue working from them."
