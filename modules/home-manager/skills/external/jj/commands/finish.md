@@ -1,63 +1,52 @@
 ---
-description: Orchestrate complete PR workflow by composing individual skills
+description: End-to-end PR workflow — publish, watch CI, optionally merge
 agent: build
 ---
 
-Run the complete PR workflow by composing specialized skills.
+Orchestrates the full PR workflow: publish (create OR update), watch CI, and
+optionally merge. In the new immutable-history model, this script always
+requires a `--message`, because every push adds exactly one new commit on top
+of the remote tip.
 
-## Overview
+See the `jj` skill for the full design.
 
-`/finish` is an orchestrator that combines multiple standalone skills. Each skill can be used independently for more control.
+## What you must do before calling the script
 
-## Workflow
+1. **Generate a conventional-commit message** describing what this round
+   publishes. Same rules as `/pr` or `/update`:
+   - For a new PR: the message describes the whole PR.
+   - For an existing PR: the message describes what this update round ADDS.
 
-This command runs these skills in sequence:
+2. Decide whether you're creating or updating:
+   - **New PR** (no bookmark on `@` yet): also pass `--type` and
+     `--description`.
+   - **Update PR** (bookmark already tracks a remote): just `--message`.
 
-1. **[push skill]** - Push bookmark to origin
-2. **[pr skill]** - Create PR if one doesn't exist
-3. **[watch-ci-jobs skill]** - Monitor CI with intelligent polling
+3. Run one of:
+   ```bash
+   # New PR
+   jj-finish --type feat --description user-auth \
+             --message "feat: add user authentication flow"
 
-Stop here - human merges the PR.
+   # Update existing PR
+   jj-finish --message "fix: address review feedback"
 
-## Usage
+   # With auto-merge on CI success
+   jj-finish --message "chore: bump deps" --merge
+   ```
 
-```bash
-jj-finish [--max-retries N] [--dry-run]
-```
+## After success
 
-## Options
+**Always run `jj new`** before making more changes. The script publishes a
+commit at `@`; if you start editing without `jj new`, you'll end up trying
+to modify a pushed commit (and `immutable_heads()` will block you).
 
-- `--max-retries N` - Maximum retry attempts on failure (default: 5)
-- `--dry-run` - Show what would be done without executing
+## On CI failure
 
-## Examples
+The script pauses and tells you to:
+1. Fix the issues locally.
+2. Run `jj-update -m "fix: ..."` to push the fix.
+3. Press Enter to re-check CI.
 
-```bash
-jj-finish              # Push, create PR, watch CI
-jj-finish --dry-run    # Preview workflow without executing
-```
-
-## Individual Skills
-
-Use these skills independently for more control:
-
-| Skill | Command | Purpose |
-|-------|---------|---------|
-| push | `/push` or `jj-push` | Push bookmark to origin |
-| pr | `/pr` or `jj-pr` | Create PR with conventional naming |
-| update | `/update` or `jj-update` | Update existing PR |
-| sync | `/sync` or `jj-sync` | Sync with main branch |
-| ci-watch | `watch-ci-jobs` | Monitor CI (standalone tool) |
-
-## Testing
-
-Preview the workflow without making changes:
-```bash
-jj-finish --dry-run
-```
-
-Run individual steps with --dry-run:
-```bash
-jj-push --dry-run
-jj-pr --dry-run
-```
+Do NOT try to amend the failed commit in place — it's already immutable on
+the remote.
