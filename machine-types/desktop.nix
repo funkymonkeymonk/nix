@@ -32,11 +32,10 @@
   networking.firewall.enable = lib.mkDefault true;
 
   # Desktop environment
+  # Note: Display manager is configured by modules/nixos/desktop.nix via myConfig.desktop
   services = {
     xserver = {
       enable = true;
-      displayManager.gdm.enable = true;
-      desktopManager.gnome.enable = true;
     };
 
     # Audio
