@@ -1,15 +1,12 @@
 # openclaw.nix - OpenClaw AI Assistant MicroVM
-# Uses shared openclaw-server role for consistency with Lume VMs
+# Uses official nix-openclaw module with shared configuration
+# https://github.com/openclaw/openclaw
 {
   config,
   lib,
   pkgs,
   ...
 }: {
-  imports = [
-    ../../modules/roles/openclaw-server.nix
-  ];
-
   networking.hostName = "openclaw";
 
   system.autoUpgrade.enable = lib.mkForce false;
@@ -21,44 +18,29 @@
     gateway = "192.168.83.1";
   };
 
-  # Use the shared OpenClaw server role
-  myConfig.roles.openclawServer = {
+  # Enable OpenClaw with shared configuration
+  myConfig.openclaw = {
     enable = true;
+    user = "agent";
     port = 18789;
-    # Use default openclaw user to avoid conflicts with myConfig.users "dev"
-    # The openclaw-server role creates this user with isSystemUser = true
-    agentModel = "zen/default";
+    openFirewall = true;
 
-    # Enable Discord channel
-    discordChannel = {
-      enable = true;
-      tokenFile = "/run/secrets/openclaw-discord-bot-token";
-      allowFrom = ["279110923438915586"]; # Your Discord user ID
-    };
-
-    # Enable Matrix channel for microvm environment (optional, can disable if only using Discord)
-    matrixChannel = {
+    # Matrix integration - connects to the Matrix microvm
+    matrix = {
       enable = true;
       homeserver = "http://192.168.83.15:8008";
       userId = "@openclaw:matrix.local";
+      # Access token will be loaded from secrets
+      accessTokenFile = "/run/secrets/openclaw-matrix-access-token";
     };
 
-    # Secrets via opnix
-    secrets = {
-      zenApiKeyFile = "/run/secrets/openclaw-zen-api-key";
-      matrixTokenFile = "/run/secrets/openclaw-matrix-access-token";
-    };
+    model = "zen/default";
 
-    extraConfig = {
-      gateway = {
-        bind = "0.0.0.0";
-        verbose = true;
-      };
-      channels.discord.dmPolicy = "pairing";
-    };
+    # Additional environment file for API keys
+    environmentFiles = [];
   };
 
-  # Opnix secrets configuration
+  # Opnix secrets configuration for Matrix token and Zen API key
   services.onepassword-secrets = {
     enable = true;
     tokenFile = "/etc/opnix-token";
@@ -68,7 +50,7 @@
         reference = "op://Homelab/OpenClaw/zen-api-key";
         path = "/run/secrets/openclaw-zen-api-key";
         mode = "0600";
-        owner = "dev";
+        owner = "agent";
         services = ["openclaw-generate-env" "openclaw-gateway"];
       };
 
@@ -76,34 +58,19 @@
         reference = "op://Homelab/OpenClaw/matrix-access-token";
         path = "/run/secrets/openclaw-matrix-access-token";
         mode = "0600";
-        owner = "dev";
-        services = ["openclaw-generate-env" "openclaw-gateway"];
-      };
-
-      openclawDiscordToken = {
-        reference = "op://Homelab/OpenClaw/discord-bot-token";
-        path = "/run/secrets/openclaw-discord-bot-token";
-        mode = "0600";
-        owner = "dev";
+        owner = "agent";
         services = ["openclaw-generate-env" "openclaw-gateway"];
       };
     };
   };
 
-  # Configure microvm for vfkit compatibility when using vfkit hypervisor
-  microvm = lib.mkIf (config.microvm.hypervisor == "vfkit") {
-    # Use virtiofs for shares on macOS (9p doesn't work)
-    shares = lib.mkDefault [
-      {
-        source = "/nix/store";
-        mountPoint = "/nix/.ro-store";
-        tag = "ro-store";
-        proto = "virtiofs";
-      }
-    ];
-
-    # Note: forwardPorts only works with qemu, not vfkit
-    # The vfkit runner handles networking differently
+  # Add Zen API key to environment
+  systemd.services.openclaw-generate-env = lib.mkIf config.myConfig.openclaw.enable {
+    script = lib.mkAfter ''
+      # Append Zen API key to generated env file
+      ZEN_KEY=$(cat /run/secrets/openclaw-zen-api-key 2>/dev/null || echo "zen_placeholder")
+      echo "ZEN_API_KEY=$ZEN_KEY" >> /run/openclaw/generated-env
+    '';
   };
 
   environment.systemPackages = with pkgs; [

@@ -36,13 +36,22 @@
       };
     };
 
-  # Passwordless sudo for deploy-rs
-  # deploy-rs needs to activate without interactive password prompt
-  # timestamp_timeout=0 requires password for each sudo command (security)
-  security.sudo.extraConfig = ''
-    Defaults timestamp_timeout=0
-    monkey ALL=(ALL) NOPASSWD: ALL
-  '';
+  # Enable OpenClaw via official nix-openclaw home-manager module
+  # The module is loaded via homeManagerModules.openclaw in flake.nix
+  # Note: Darwin uses home-manager module, NixOS uses system module
+  home-manager.users.monkey = {
+    programs.openclaw = {
+      enable = true;
+      # Matrix integration (defaults to localhost if not configured)
+      config = {
+        agent.model = "zen/default";
+        gateway = {
+          bind = "0.0.0.0";
+          verbose = true;
+        };
+      };
+    };
+  };
 
   # Enable SSH server for remote access
   # Note: SSH agent forwarding is enabled by default on macOS

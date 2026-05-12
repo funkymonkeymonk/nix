@@ -76,4 +76,9 @@
 
   # System state version
   system.stateVersion = "25.05";
+
+  # OpenClaw - disabled by default, enable via per-machine config
+  myConfig.openclaw = {
+    enable = lib.mkDefault false;
+  };
 }
