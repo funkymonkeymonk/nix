@@ -169,9 +169,29 @@ Rules:
 
 ## Workspaces (OpenCode sessions)
 
-Workspaces let you isolate work and enable fast background sync.
+Workspaces isolate work in flight and enable fast background sync.
+**All workspaces live in `~/workspaces/`** — never as sibling directories inside the repo.
 
-### Starting a session
+### Workspace location
+
+```
+~/workspaces/
+  feat-auth-20260512-a1b2/     ← workspace directory
+  fix-bug-20260512-c3d4/       ← another workspace
+```
+
+### Creating a workspace
+
+Use `fjj` (Fast JJ) from any directory:
+
+```bash
+fjj feat/my-topic              # Create workspace from main
+fjj fix/bug-name develop       # Create workspace from develop branch
+fjj list                       # Show all workspaces
+fjj clean                      # Remove merged/stale workspaces
+```
+
+Or with the `/workspace` slash command in OpenCode:
 
 ```
 /workspace feat/user-auth        # Create workspace from main
@@ -179,20 +199,16 @@ Workspaces let you isolate work and enable fast background sync.
 /workspace                       # Enable fast sync in current workspace
 ```
 
-Or CLI:
-```bash
-jj-workspace-session start feat/auth
-jj-workspace-session start
+### Agent workspace naming
+
+Agent workspace names encode agent identity:
+
+```
+feat/agent-<agent-id>-<topic>     # e.g. feat/agent-openclaw-auth-fix
+fix/agent-<agent-id>-<topic>      # e.g. fix/agent-openclaw-lint
 ```
 
-### What happens
-
-1. **Workspace created**: `feat/auth-20260223-a1b2` (type/topic-date-id).
-2. **Fast sync enabled**: repository syncs every 5 minutes (vs hourly).
-3. **Main stays clean**: your work is isolated, main auto-syncs with upstream.
-4. **Session TTL**: auto-expires after 30 minutes of inactivity (resets on each sync).
-
-### Session commands
+### Session commands (fast sync)
 
 ```bash
 jj-workspace-session start [type/topic] [base]
@@ -203,22 +219,38 @@ jj-workspace-session sync      # Manual sync
 jj-workspace-session prune     # Remove expired sessions
 ```
 
-### Ending a session
+### What happens when a session starts
+
+1. **Workspace created**: `feat/auth-20260223-a1b2` (type/topic-date-id).
+2. **Fast sync enabled**: repository syncs every 5 minutes (vs hourly).
+3. **Main stays clean**: your work is isolated, main auto-syncs with upstream.
+4. **Session TTL**: auto-expires after 30 minutes of inactivity (resets on each sync).
+
+### Full workflow: Create → Work → Finish → Clean
 
 ```bash
-jj-workspace-session stop
-jj-workspace remove <name>     # When fully done
-```
+# 1. Create workspace
+fjj feat/agent-openclaw-my-feature
 
-### Workspace commands
+# 2. cd into workspace
+cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
 
-```bash
-jj-workspace create feat/user-auth      # Creates feat/user-auth-<date>-<id>
-jj-workspace create fix/bug develop
-jj-workspace list
-jj-workspace remove <name>
-jj-workspace clean                       # Remove all
-jj-workspace status
+# 3. Work and commit (working copy IS a commit)
+# ... make changes ...
+jj describe -m "feat: add my feature"
+
+# 4. Validate (devenv tasks run from repo root)
+cd /path/to/repo && devenv tasks run check:lint
+
+# 5. Push and create PR
+cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+jj bookmark set feat/my-feature -r @
+jj git push --bookmark feat/my-feature
+gh pr create --head feat/my-feature
+
+# 6. Clean up after merge
+jj workspace forget feat-agent-openclaw-my-feature-<date>-<id>
+rm -rf ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
 ```
 
 ## Background Auto-Sync
