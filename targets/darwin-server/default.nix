@@ -129,15 +129,7 @@
       TOKEN_FILE="/Users/monkey/.config/openclaw/secrets/discord-token-raw"
       SECRETS_JSON="/Users/monkey/.config/openclaw/secrets.json"
 
-      # Wait for token file to exist (1Password may still be syncing)
-      for i in {1..30}; do
-        if [[ -f "$TOKEN_FILE" ]]; then
-          break
-        fi
-        echo "Waiting for Discord token file..."
-        sleep 1
-      done
-
+      # Check if token file exists (created by 1Password/opnix)
       if [[ -f "$TOKEN_FILE" ]]; then
         TOKEN=$(cat "$TOKEN_FILE")
         # Create/update JSON secrets file
@@ -145,35 +137,13 @@
         chmod 600 "$SECRETS_JSON"
         echo "OpenClaw secrets.json created/updated"
       else
-        echo "Warning: Discord token file not found, secrets.json not created"
+        echo "Note: Discord token file not found (1Password not configured). Run: op signin && opnix sync"
       fi
     '';
 
-    # Activation script to inject Discord token and fix plugin dependencies
-    # This runs on EVERY activation (not just first install) to ensure token persists
-    home.activation.injectDiscordToken = lib.mkForce ''
-      TOKEN_FILE="/Users/monkey/.config/openclaw/secrets/discord-bot-token"
-      CONFIG_FILE="/Users/monkey/.openclaw-wadsworth/openclaw.json"
-
-      # Always inject the token (config may have been overwritten by OpenClaw reloads)
-      if [[ -f "$TOKEN_FILE" && -f "$CONFIG_FILE" ]]; then
-        TOKEN=$(cat "$TOKEN_FILE")
-        # Check if token is already correct to avoid unnecessary writes
-        CURRENT_TOKEN=$(${pkgs.jq}/bin/jq -r '.channels.discord.token // empty' "$CONFIG_FILE" 2>/dev/null)
-        if [[ "$CURRENT_TOKEN" != "$TOKEN" ]]; then
-          TMP_CONFIG=$(mktemp)
-          ${pkgs.jq}/bin/jq --arg token "$TOKEN" '.channels.discord.token = $token' "$CONFIG_FILE" > "$TMP_CONFIG"
-          mv "$TMP_CONFIG" "$CONFIG_FILE"
-          chmod 600 "$CONFIG_FILE"
-          echo "Discord token (re-)injected into OpenClaw config"
-        else
-          echo "Discord token already present in config"
-        fi
-      else
-        echo "Warning: Could not inject Discord token - file not found"
-        echo "  Token file: $TOKEN_FILE"
-        echo "  Config file: $CONFIG_FILE"
-      fi
+    # Activation script to fix OpenClaw plugin dependencies
+    # This runs on EVERY activation to ensure symlinks exist
+    home.activation.fixOpenclawDeps = lib.mkForce ''
 
       # Workaround for nix-openclaw Discord plugin missing 'openclaw' package
       # See yak: openclaw-discord-missing-dependency
