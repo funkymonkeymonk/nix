@@ -651,14 +651,14 @@
           echo "Checking disk-configs/$config.nix..."
           # Use nix build --dry-run to validate disko config without triggering
           # type-system recursion that can cause stack overflow with newer nixpkgs
-          if nix build .#nixosConfigurations.type-desktop.config.system.build.diskoScript \
+          if nix build .#nixosConfigurations.zero.config.system.build.diskoScript \
               --no-link --dry-run --quiet 2>/dev/null; then
             echo "  disk-configs/$config.nix: valid"
           else
             echo "  disk-configs/$config.nix: INVALID"
             echo ""
             echo "Running build with verbose output:"
-            nix build .#nixosConfigurations.type-desktop.config.system.build.diskoScript \
+            nix build .#nixosConfigurations.zero.config.system.build.diskoScript \
               --no-link --dry-run --show-trace
             exit 1
           fi
