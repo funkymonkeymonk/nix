@@ -18,6 +18,7 @@
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testZero = import ./test-zero.nix {inherit pkgs;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -126,5 +127,12 @@ in
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
+
+    # Zero target tests
+    zero-tailscale-opnix-dep = testZero.zeroTailscaleOpnixDepTest;
+    zero-tailscale-no-env-var = testZero.zeroTailscaleNoEnvVarTest;
+    zero-tailscale-secret-file = testZero.zeroTailscaleSecretFileTest;
+    zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
+    zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
   }
   // vmTests
