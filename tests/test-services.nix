@@ -167,7 +167,7 @@
   openclawEval =
     (lib.evalModules {
       modules = [
-        ../modules/services/openclaw/default.nix
+        ../modules/services/openclaw/legacy.nix
         {
           options.nixpkgs.hostPlatform = lib.mkOption {
             type = lib.types.anything;
@@ -189,10 +189,6 @@
             default = {};
           };
           options.systemd = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          options.launchd = lib.mkOption {
             type = lib.types.anything;
             default = {};
           };
