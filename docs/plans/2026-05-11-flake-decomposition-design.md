@@ -67,9 +67,12 @@ github:funkymonkeymonk/nix
 │   ├── flake-module.nix
 │   ├── modules/                 # (current modules/ moves here)
 │   ├── archetypes/              # machine-type bundles
-│   │   ├── developer-laptop.nix
-│   │   ├── headless-server.nix
-│   │   └── microvm-guest.nix
+│   │   ├── developer-laptop-darwin.nix
+│   │   ├── headless-server-darwin.nix
+│   │   ├── headless-server-nixos.nix
+│   │   ├── desktop-nixos.nix
+│   │   ├── microvm-guest.nix
+│   │   └── nas.nix              # deferred — added after Phase 0
 │   └── lib/                     # mkDarwinSystem, mkNixosSystem, helpers
 ├── profiles/                    # optional: hosted profiles
 │   └── wweaver/
@@ -238,7 +241,7 @@ wweaver/nix-inventory (private)
 # machines/wweaver.nix
 {
   platform  = "aarch64-darwin";
-  archetype = "developer-laptop";
+  archetype = "developer-laptop-darwin";
   profile   = "github:wweaver/nix-profile";
   hostname  = "wweaver";
 
@@ -492,7 +495,42 @@ Phase 6  MegamanX (Darwin daily driver — second to last)
 Phase 7  wweaver (primary machine — absolute last)
 ```
 
-### Phase 0: Foundation (no machine impact)
+### Archetype Naming Convention
+
+Archetypes use role-based names. Platform suffix is added only when the archetype
+is inherently platform-specific and a cross-platform equivalent could exist:
+
+- **Platform-agnostic**: just the role — `nas`, `microvm-guest`
+- **Platform-specific**: role + platform — `developer-laptop-darwin`, `headless-server-nixos`
+
+`type-server-arm` collapses into `headless-server-nixos` — the `system` parameter
+to `mkNixosSystem` handles the architecture difference.
+
+| Current name | New archetype name |
+|---|---|
+| `type-server` | `headless-server-nixos` |
+| `type-server-arm` | `headless-server-nixos` (system param handles arch) |
+| `type-desktop` | `desktop-nixos` |
+| `darwin-server` target | `headless-server-darwin` |
+| microvms | `microvm-guest` |
+| wweaver, MegamanX targets | `developer-laptop-darwin` |
+| type-nas (deferred) | `nas` |
+
+---
+
+### Open PR Decisions
+
+**PR #284 (deploy-rs + protoman)**: Merge as-is. Protoman is a `darwin-server`
+instance — same archetype as `darwin-server`. Deploy-rs is a temporary workaround
+because nix-darwin `system.autoUpgrade` doesn't exist yet (PR #1682). When #1682
+lands, protoman moves to pull-based auto-upgrade and deploy-rs is removed.
+
+**PR #283 (type-nas)**: Defer until after Phase 0. Since type-nas is new
+infrastructure that doesn't exist anywhere yet, write it natively as
+`library/archetypes/nas.nix` from the start rather than migrating it later.
+PR stays open, rebases onto Phase 0 output.
+
+---
 
 1. Add `flake-parts` input
 2. Create `schema/` with profile type + `mkProfile`
