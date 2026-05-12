@@ -436,6 +436,76 @@ If `.jj/` directory exists:
 4. Use `jj describe` for commit messages
 5. Never mix git and jj commands
 
+### Workspace Workflow (Agents Must Use Workspaces)
+
+Workspaces isolate each change in flight. **Agents MUST use workspaces for all non-trivial changes.**
+
+#### Workspace Location
+
+Workspaces live in `~/workspaces/` (not inside the repository as sibling directories):
+
+```
+~/workspaces/
+  feat-auth-20260512-a1b2/     ← workspace directory
+  fix-bug-20260512-c3d4/       ← another workspace
+```
+
+Use `fjj` to create workspaces from any directory:
+
+```bash
+fjj feat/my-topic              # Create workspace from main
+fjj fix/bug-name develop       # Create workspace from develop
+fjj list                       # Show all workspaces
+fjj clean                      # Remove merged/stale workspaces
+```
+
+#### Agent Workspace Naming
+
+Agent workspace names encode agent identity and purpose:
+
+```
+feat/agent-<agent-id>-<topic>     # e.g. feat/agent-openclaw-hostid-fix
+fix/agent-<agent-id>-<topic>      # e.g. fix/agent-openclaw-lint-error
+```
+
+This lets humans distinguish agent workspaces from human workspaces at a glance.
+
+#### Example Workflow: Create → Work → Finish → Clean
+
+```bash
+# 1. Create workspace (stored in ~/workspaces/, NOT in repo)
+fjj feat/agent-openclaw-my-feature
+
+# 2. cd into the workspace
+cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+
+# 3. Work and commit (the working copy IS a commit — no git add needed)
+# ... make changes ...
+jj describe -m "feat: add my feature"
+
+# 4. Validate from repo root (devenv tasks require repo root)
+cd /path/to/repo && devenv tasks run check:lint
+
+# 5. Push and create PR (from workspace dir)
+cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+jj bookmark set feat/my-feature -r @
+jj git push --bookmark feat/my-feature
+gh pr create --head feat/my-feature
+
+# 6. After PR is merged: clean up
+jj workspace forget feat-agent-openclaw-my-feature-<date>-<id>
+rm -rf ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+```
+
+#### Session TTL
+
+`jj-workspace-session` manages fast sync (every 5 min) during active sessions. Sessions auto-expire after 30 minutes of inactivity. Prune expired sessions with:
+
+```bash
+jj-workspace-session prune
+jj-workspace-session status   # Show active sessions
+```
+
 ### Commit-First Workflow (Required)
 
 **This repository does NOT use `allow-dirty`** - Nix flakes require a clean git state.
