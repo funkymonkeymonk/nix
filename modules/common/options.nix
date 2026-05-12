@@ -372,7 +372,8 @@ with lib; {
             };
             baseURL = mkOption {
               type = types.str;
-              description = "Base URL for the provider API";
+              default = "";
+              description = "Base URL for the provider API. Can be empty when baseURLOpnixItem is set.";
             };
             models = mkOption {
               type = types.attrsOf (types.submodule {
@@ -397,6 +398,12 @@ with lib; {
               type = types.str;
               default = "";
               description = "1Password item reference (e.g., 'op://vault/item/field') to retrieve API key from 1Password CLI";
+            };
+
+            baseURLOpnixItem = mkOption {
+              type = types.str;
+              default = "";
+              description = "1Password item reference (e.g., 'op://vault/item/field') to retrieve the base URL. When set, baseURL can be left empty.";
             };
           };
         });
@@ -822,6 +829,12 @@ with lib; {
         type = types.nullOr types.str;
         default = null;
         description = "Custom OpenAI-compatible API base URL (e.g., LiteLLM endpoint). Leave null for official OpenAI API.";
+      };
+
+      openaiBaseUrlOpnixItem = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "1Password item reference (e.g., 'op://vault/item/field') to retrieve the OpenAI base URL. When set, openaiBaseUrl can be left null.";
       };
 
       anthropicApiKey = mkOption {

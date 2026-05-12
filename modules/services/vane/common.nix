@@ -12,6 +12,29 @@
 with lib; let
   cfg = config.myConfig.vane;
 
+  # When openaiBaseUrlOpnixItem is set, the URL comes from an opnix-managed file
+  # rather than being hardcoded. The Darwin service script reads the file and
+  # exports OPENAI_BASE_URL before starting Docker containers.
+  # Docker Compose with a null value for an env var inherits from the host process.
+  hasOpnixBaseUrl = cfg.openaiBaseUrlOpnixItem != null;
+
+  # Path to the opnix-managed URL file (relative to home dir)
+  openaiBaseUrlSecretPath = ".config/vane/secrets/openai-base-url";
+
+  # Build the OPENAI_BASE_URL entry for service environment:
+  # - null: not set (no base URL configured)
+  # - string: explicit value from openaiBaseUrl
+  # - null via attrset: opnix case — Docker Compose inherits from host env
+  openaiBaseUrlEnvAttr =
+    if hasOpnixBaseUrl
+    # When opnix manages the URL, set to null so Docker Compose reads from host env
+    # (the service start script must export OPENAI_BASE_URL from the secret file)
+    then {OPENAI_BASE_URL = null;}
+    else
+      optionalAttrs (cfg.openaiBaseUrl != null) {
+        OPENAI_BASE_URL = cfg.openaiBaseUrl;
+      };
+
   # Environment variables for the service
   serviceEnvironment =
     {
@@ -24,9 +47,7 @@ with lib; let
     // optionalAttrs (cfg.openaiApiKey != null) {
       OPENAI_API_KEY = cfg.openaiApiKey;
     }
-    // optionalAttrs (cfg.openaiBaseUrl != null) {
-      OPENAI_BASE_URL = cfg.openaiBaseUrl;
-    }
+    // openaiBaseUrlEnvAttr
     // optionalAttrs (cfg.anthropicApiKey != null) {
       ANTHROPIC_API_KEY = cfg.anthropicApiKey;
     }
@@ -50,7 +71,7 @@ with lib; let
     [API_ENDPOINTS]
     SEARXNG = "${cfg.searxngUrl}"
     OLLAMA = "${cfg.ollamaUrl}"
-    ${optionalString (cfg.openaiBaseUrl != null) ''OPENAI = "${cfg.openaiBaseUrl}"''}
+    ${optionalString (cfg.openaiBaseUrl != null && !hasOpnixBaseUrl) ''OPENAI = "${cfg.openaiBaseUrl}"''}
   '';
 
   # Docker compose configuration for Vane + SearxNG + optional Ollama
@@ -277,6 +298,8 @@ in {
       vaneStartScript
       vaneStopScript
       vaneStatusScript
+      hasOpnixBaseUrl
+      openaiBaseUrlSecretPath
       ;
   };
 }

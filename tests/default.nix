@@ -90,12 +90,14 @@ in
     openclaw-options = testServices.openclawOptionsTest;
     vane-darwin-autostart-default = testServices.vaneDarwinAutoStartDefaultTest;
     vane-darwin-autostart-true = testServices.vaneDarwinAutoStartTrueTest;
+    vane-opnix-url-options = testServices.vaneOpnixUrlOptionsTest;
 
     # Home-manager module tests
     jj-autosync-options = testHomeManager.jjAutosyncOptionsTest;
     jj-autosync-custom-options = testHomeManager.jjAutosyncCustomOptionsTest;
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
+    opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
 
     # Workspace-aware switch shell function tests
