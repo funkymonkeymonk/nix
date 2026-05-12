@@ -25,6 +25,8 @@
     pkgs.optnix
     # Cachix CLI for pushing to binary cache
     pkgs.cachix
+    # Deployment tools
+    pkgs.deploy-rs
     # IDE tools
     pkgs.zellij
     pkgs.yazi
@@ -482,6 +484,27 @@
 
         echo ""
         echo "All quick validation checks passed"
+      '';
+    };
+
+    "deploy:protoman" = {
+      description = "Show deploy command for protoman (run directly for interactive sudo)";
+      exec = ''
+        echo "=== Deploy to Protoman ==="
+        echo ""
+        echo "Target: protoman (192.168.1.192)"
+        echo "Method: deploy-rs with remote build"
+        echo "Sudo: interactive (you will be prompted for password)"
+        echo ""
+        echo "Run this command directly (not as a devenv task):"
+        echo ""
+        echo "  deploy .#protoman --skip-checks"
+        echo ""
+        echo "Note: Devenv tasks don't support interactive input."
+        echo "Running deploy directly allows password prompt for sudo."
+        echo ""
+        echo "Manual activation if needed:"
+        echo "  ssh -t monkey@192.168.1.192 'sudo /nix/var/nix/profiles/system/activate'"
       '';
     };
 
