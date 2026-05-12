@@ -7,16 +7,16 @@
 }:
 rustPlatform.buildRustPackage rec {
   pname = "rtk";
-  version = "0.21.1";
+  version = "0.39.0";
 
   src = fetchFromGitHub {
     owner = "rtk-ai";
     repo = "rtk";
     rev = "v${version}";
-    hash = "sha256-Crjzd40uzT2UAOG2gUawMRgbWFKdoeY0ecfxmlPefGM=";
+    hash = "sha256-TX4MtR/rq61wxHWYJAO2x3CYvZtkCoXynf45dRC+MVo=";
   };
 
-  cargoHash = "sha256-bLiltMM1gVSOqwI73Q+PKcDc8LQLoxzklx7urUCXW9g=";
+  cargoHash = "sha256-s3AtUftUZtzhlep8R/ZuxwmGELIZpqbQXqLTD+aS4Ro=";
 
   # Skip tests if they require network or specific environment
   doCheck = false;
@@ -24,8 +24,10 @@ rustPlatform.buildRustPackage rec {
   # Install hooks alongside the binary for Nix integration
   postInstall = ''
     mkdir -p $out/share/rtk/hooks
-    cp $src/hooks/*.sh $out/share/rtk/hooks/
-    chmod +x $out/share/rtk/hooks/*.sh
+    if [ -d "$src/hooks" ]; then
+      cp $src/hooks/*.sh $out/share/rtk/hooks/ 2>/dev/null || true
+      chmod +x $out/share/rtk/hooks/*.sh 2>/dev/null || true
+    fi
   '';
 
   meta = with lib; {

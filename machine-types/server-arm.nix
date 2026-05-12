@@ -16,7 +16,7 @@
 
   # REQUIRED: Configure at least one user with SSH access
   users.users.root.openssh.authorizedKeys.keys = [];
-  users.users.monkey = {
+  users.users.admin = {
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
@@ -52,13 +52,14 @@
   # No desktop environment
   services.xserver.enable = false;
 
-  # SSH - hardened
+  # SSH - hardened with agent forwarding support
   services.openssh = {
     enable = true;
     settings = {
       PermitRootLogin = "no";
       PubkeyAuthentication = true;
       PasswordAuthentication = false;
+      AllowAgentForwarding = true; # Enable SSH agent forwarding for 1Password
     };
   };
 

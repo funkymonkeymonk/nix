@@ -37,6 +37,7 @@
     };
 
   # Enable SSH server for remote access
+  # Note: SSH agent forwarding is enabled by default on macOS
   services.openssh.enable = true;
 
   # Add MegamanX SSH key for passwordless login

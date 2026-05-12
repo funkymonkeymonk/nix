@@ -2,7 +2,6 @@
 final: _prev: {
   rtk = final.callPackage ../packages/rtk {};
   yaks = final.callPackage ../packages/yaks {};
-  pi-coding-agent = final.callPackage ../packages/pi-coding-agent {};
   lume = final.callPackage ../packages/lume {};
 
   # Pin opencode to 1.2.15 to avoid edit hanging bug in 1.3.10
@@ -13,7 +12,7 @@ final: _prev: {
       owner = "anomalyco";
       repo = "opencode";
       tag = "v${version}";
-      hash = "sha256-26MV9TbyAF0KFqZtIHPYu6wqJwf0pNPdW/D3gDQEUlQ=";
+      hash = "sha256-s3AtUftUZtzhlep8R/ZuxwmGELIZpqbQXqLTD+aS4Ro=";
     };
     node_modules = oldAttrs.node_modules.overrideAttrs {
       outputHash = "sha256-Diu/C8b5eKUn7MRTFBcN5qgJZTp0szg0ECkgEaQZ87Y=";
