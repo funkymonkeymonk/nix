@@ -38,11 +38,11 @@
         # Pre-pull macOS Tahoe vanilla image
         prePullImages = ["macos-tahoe-vanilla:latest"];
       };
-      # Enable Ollama with Qwen 7B for wadsworth
+      # Enable Ollama with Qwen3 14B for wadsworth
       ollama = {
         enable = true;
         acceleration = "metal"; # Use Apple Silicon GPU
-        models = ["qwen2.5:7b"];
+        models = ["qwen3:14b"];
       };
     };
 
@@ -95,9 +95,9 @@
 
           agents = {
             defaults = {
-              # Use local Ollama with Qwen 7B (auto-discovery mode)
+              # Use local Ollama with Qwen3 14B (auto-discovery mode)
               # Ollama must be running and OLLAMA_API_KEY env var set
-              model = "ollama/qwen2.5:7b";
+              model = "ollama/qwen3:14b";
             };
           };
         };
