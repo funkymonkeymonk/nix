@@ -26,6 +26,9 @@
         }
       ];
       onepassword.enable = lib.mkForce false;
+      # MicroVMs are static once deployed - they are replaced rather than upgraded.
+      # Leaving flakeUrl empty disables auto-upgrade in the auto-upgrade module.
+      autoUpgrade.flakeUrl = lib.mkForce "";
     }
     roleEnables
   ];
