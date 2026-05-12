@@ -16,7 +16,7 @@
 
   # REQUIRED: Configure at least one user with SSH access
   users.users.root.openssh.authorizedKeys.keys = [];
-  users.users.monkey = {
+  users.users.admin = {
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
