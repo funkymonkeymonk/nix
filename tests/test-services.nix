@@ -192,6 +192,14 @@
             type = lib.types.anything;
             default = {};
           };
+          options.launchd = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
+          options.system = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
           options.networking = lib.mkOption {
             type = lib.types.anything;
             default = {};

@@ -40,6 +40,10 @@
 
     zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
 
+    # deploy-rs - Multi-platform Nix deployment tool
+    deploy-rs.url = "github:serokell/deploy-rs";
+    deploy-rs.inputs.nixpkgs.follows = "nixpkgs";
+
     # External skill repositories (Option 2: Pure Nix approach)
     vercel-skills.url = "github:vercel-labs/skills";
     vercel-skills.flake = false;
@@ -57,6 +61,7 @@
     nix-homebrew,
     opnix,
     microvm,
+    deploy-rs,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -126,25 +131,41 @@
 
     # Helper to create microvm configuration
     # Secrets come from 1Password via opnix (host and guest both use it)
-    mkMicrovm = name: roleEnables:
+    # Now supports both x86_64-linux and aarch64-linux
+    mkMicrovm = system: name: roleEnables: let
+      # For vfkit on Darwin, we need Darwin host packages
+      isVfkit = name == "openclaw-vfkit";
+      darwinPkgs =
+        if isVfkit
+        then nixpkgs.legacyPackages.aarch64-darwin
+        else null;
+    in
       nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+        inherit system;
         specialArgs = inputs // {inherit roleEnables;};
-        modules = [
-          microvm.nixosModules.microvm
-          home-manager.nixosModules.home-manager
-          opnix.nixosModules.default
-          configuration
-          ./modules
-          ./modules/nixos/base.nix
-          ./modules/services/ollama/nixos.nix
-          ./modules/services/openclaw
-          ./os/microvm.nix
-          ./modules/microvm
-          ./targets/microvms/defaults.nix
-          ./targets/microvms/${name}.nix
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-        ];
+        modules =
+          [
+            # Explicitly set hostPlatform to ensure it matches the system parameter
+            # This prevents architecture mismatches when building vfkit MicroVMs on Darwin
+            {nixpkgs.hostPlatform = nixpkgs.lib.mkForce system;}
+            microvm.nixosModules.microvm
+            home-manager.nixosModules.home-manager
+            opnix.nixosModules.default
+            configuration
+            ./modules
+            ./modules/nixos/base.nix
+            ./modules/services/ollama/nixos.nix
+            ./modules/services/openclaw
+            ./os/microvm.nix
+            ./modules/microvm
+            ./targets/microvms/defaults.nix
+            ./targets/microvms/${name}.nix
+            {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          ]
+          ++ nixpkgs.lib.optional isVfkit {
+            # vfkit requires Darwin host packages for the runner
+            microvm.vmHostPackages = darwinPkgs;
+          };
       };
   in {
     packages = forAllSystems (
@@ -162,11 +183,19 @@
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
           # ISO installer only for x86_64-linux
           iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
-          # MicroVM declaration runners
-          microvm-dev-vm = self.microvm.nixosConfigurations.dev-vm.config.microvm.declaredRunner;
-          microvm-openclaw = self.microvm.nixosConfigurations.openclaw.config.microvm.declaredRunner;
-          microvm-matrix = self.microvm.nixosConfigurations.matrix.config.microvm.declaredRunner;
-          microvm-media-center = self.microvm.nixosConfigurations.media-center.config.microvm.declaredRunner;
+          # MicroVM declaration runners (x86_64)
+          microvm-dev-vm = self.microvm.nixosConfigurations."dev-vm-x86_64".config.microvm.declaredRunner;
+          microvm-openclaw = self.microvm.nixosConfigurations."openclaw-x86_64".config.microvm.declaredRunner;
+          microvm-matrix = self.microvm.nixosConfigurations."matrix-x86_64".config.microvm.declaredRunner;
+          microvm-media-center = self.microvm.nixosConfigurations."media-center-x86_64".config.microvm.declaredRunner;
+        }
+        // nixpkgs.lib.optionalAttrs (system == "aarch64-darwin") {
+          # MicroVM declaration runners (aarch64 - for Apple Silicon hosts)
+          microvm-dev-vm-aarch64 = self.microvm.nixosConfigurations."dev-vm-aarch64".config.microvm.declaredRunner;
+          microvm-openclaw-aarch64 = self.microvm.nixosConfigurations."openclaw-aarch64".config.microvm.declaredRunner;
+          microvm-matrix-aarch64 = self.microvm.nixosConfigurations."matrix-aarch64".config.microvm.declaredRunner;
+          # vfkit MicroVM for macOS (runs on protoman without Lume)
+          microvm-openclaw-vfkit = self.microvm.nixosConfigurations."openclaw-vfkit".config.microvm.declaredRunner;
         }
     );
 
@@ -234,6 +263,22 @@
         ];
       };
 
+      # type-darwin-server - Generic reusable Darwin server configuration
+      # Cattle pattern: can be deployed to any M-series Mac
+      # Minimal host with Lume for VM isolation
+      "type-darwin-server" = nix-darwin.lib.darwinSystem {
+        specialArgs = {inherit inputs mkUser;};
+        modules = [
+          configuration
+          ./modules
+          ./modules/services/lume/darwin.nix
+          ./os/darwin.nix
+          ./targets/type-darwin-server
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+        ];
+      };
+
       # Core configuration - absolute minimum for bootstrap/recovery
       # Uses only core.nix (git, curl, vim) - no foundation, no user config
       "core" = nix-darwin.lib.darwinSystem {
@@ -258,6 +303,21 @@
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
+          home-manager.darwinModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+        ];
+      };
+
+      # openclaw-vm - Darwin VM for OpenClaw AI Gateway
+      # Runs inside Lume on protoman for isolation
+      # Deploy with: deploy .#openclaw-vm
+      "openclaw-vm" = nix-darwin.lib.darwinSystem {
+        specialArgs = {inherit inputs mkUser;};
+        modules = [
+          configuration
+          ./modules
+          ./os/darwin.nix
+          ./targets/lume-vms/openclaw-vm
           home-manager.darwinModules.home-manager
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
         ];
@@ -374,12 +434,149 @@
     };
 
     microvm.nixosConfigurations = {
-      dev-vm = mkMicrovm "dev-vm" {
+      # x86_64-linux MicroVMs (for Intel/AMD hosts with KVM)
+      "dev-vm-x86_64" = mkMicrovm "x86_64-linux" "dev-vm" {
         roles.opencode.enable = true;
       };
-      openclaw = mkMicrovm "openclaw" {};
-      matrix = mkMicrovm "matrix" {};
-      media-center = mkMicrovm "media-center" {};
+      "openclaw-x86_64" = mkMicrovm "x86_64-linux" "openclaw" {};
+      "matrix-x86_64" = mkMicrovm "x86_64-linux" "matrix" {};
+      "media-center-x86_64" = mkMicrovm "x86_64-linux" "media-center" {};
+
+      # aarch64-linux MicroVMs (for Apple Silicon hosts with vfkit)
+      "dev-vm-aarch64" = mkMicrovm "aarch64-linux" "dev-vm" {
+        roles.opencode.enable = true;
+      };
+      "openclaw-aarch64" = mkMicrovm "aarch64-linux" "openclaw" {};
+      "matrix-aarch64" = mkMicrovm "aarch64-linux" "matrix" {};
+
+      # vfkit MicroVM for macOS (runs on protoman)
+      # Minimal configuration that works on Darwin hosts
+      "openclaw-vfkit" = let
+        darwinPkgs = nixpkgs.legacyPackages.aarch64-darwin;
+      in
+        nixpkgs.lib.nixosSystem {
+          system = "aarch64-linux";
+          specialArgs =
+            inputs
+            // {
+              roleEnables = {};
+              inherit darwinPkgs;
+            };
+          modules = [
+            {nixpkgs.hostPlatform = nixpkgs.lib.mkForce "aarch64-linux";}
+            microvm.nixosModules.microvm
+            opnix.nixosModules.default
+            # Minimal modules - avoid importing full ./modules which has Linux-specific packages
+            ./modules/common/options.nix
+            ./modules/roles/openclaw-server.nix
+            ./modules/services/openclaw
+            ./targets/microvms/openclaw.nix
+            # vfkit-specific configuration
+            {
+              nixpkgs.config.allowUnfree = true;
+              system.stateVersion = "25.05";
+
+              microvm = {
+                hypervisor = "vfkit";
+                vmHostPackages = darwinPkgs;
+                interfaces = [
+                  {
+                    type = "user";
+                    id = "usernet";
+                    mac = "02:00:00:01:01:01";
+                  }
+                ];
+                # Use virtiofs for shares (9p doesn't work on macOS)
+                shares = [
+                  {
+                    source = "/nix/store";
+                    mountPoint = "/nix/.ro-store";
+                    tag = "ro-store";
+                    proto = "virtiofs";
+                  }
+                ];
+              };
+
+              # Minimal user setup for vfkit
+              users.users.root.password = "";
+              services.openssh.enable = true;
+              services.openssh.settings.PermitRootLogin = "yes";
+            }
+          ];
+        };
+    };
+
+    # deploy-rs configuration
+    # Multi-platform deployment tool supporting NixOS, Darwin, and custom profiles
+    # Usage: deploy .#nodename
+    deploy = {
+      nodes = {
+        # Protoman - Darwin server (Mac Mini M4)
+        # Deploy with: deploy .#protoman
+        protoman = {
+          hostname = "192.168.1.192";
+          sshUser = "monkey";
+          remoteBuild = true; # Build on protoman instead of locally
+          interactiveSudo = true; # Prompt for sudo password interactively
+
+          profiles.system = {
+            user = "root";
+            path =
+              deploy-rs.lib.aarch64-darwin.activate.darwin
+              self.darwinConfigurations."type-darwin-server";
+          };
+        };
+
+        # Zero - Gaming desktop (NixOS)
+        # Deploy with: deploy .#zero
+        zero = {
+          hostname = "zero.local";
+          sshUser = "monkey";
+
+          profiles.system = {
+            user = "root";
+            path =
+              deploy-rs.lib.x86_64-linux.activate.nixos
+              self.nixosConfigurations.zero;
+          };
+        };
+
+        # OpenClaw VM - Darwin VM for AI Gateway (runs inside Lume on protoman)
+        # Deploy with: deploy .#openclaw-vm
+        # Note: Ensure the VM is running via Lume first (see targets/type-darwin-server)
+        openclaw-vm = {
+          hostname = "openclaw-vm.local"; # Or use IP if .local doesn't resolve
+          sshUser = "openclaw";
+          remoteBuild = true; # Build on the VM (or protoman if same arch)
+          interactiveSudo = true;
+
+          profiles.system = {
+            user = "root";
+            path =
+              deploy-rs.lib.aarch64-darwin.activate.darwin
+              self.darwinConfigurations."openclaw-vm";
+          };
+        };
+
+        # Example: type-server deployments
+        # Uncomment and configure for your servers
+        # server-01 = {
+        #   hostname = "192.168.1.10";
+        #   sshUser = "monkey";
+        #   remoteBuild = true;
+        #
+        #   profiles.system = {
+        #     user = "root";
+        #     path = deploy-rs.lib.x86_64-linux.activate.nixos
+        #       self.nixosConfigurations."type-server";
+        #   };
+        # };
+      };
+
+      # Global deploy-rs settings
+      # sshOpts = [ "-o" "StrictHostKeyChecking=no" ];
+      # autoRollback = true;
+      # magicRollback = true;
     };
 
     # Flake checks for CI - run on Linux and Darwin
@@ -395,6 +592,7 @@
           inherit (nixpkgs) lib;
         };
         inherit (pkgs.stdenv.hostPlatform) isLinux;
+        deployChecks = deploy-rs.lib.${system}.deployChecks self.deploy;
       in
         {
           inherit
@@ -478,6 +676,8 @@
             vm-packages
             ;
         }
+        # Include deploy-rs checks
+        // deployChecks
     );
   };
 }
