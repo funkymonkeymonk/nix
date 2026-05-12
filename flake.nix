@@ -659,6 +659,11 @@
             llm-client-no-ai-roles
             entertainment-nixos
             typed-attrs-options
+            zero-tailscale-opnix-dep
+            zero-tailscale-no-env-var
+            zero-tailscale-secret-file
+            zero-tailscale-fail-loud
+            zero-tailscale-secret-config
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
