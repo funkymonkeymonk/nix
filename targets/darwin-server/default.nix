@@ -64,11 +64,8 @@
         config = {
           gateway = {
             mode = "local";
-            # Fixed auth token so CLI can connect to gateway
-            # Set OPENCLAW_GATEWAY_TOKEN env var to this value for CLI access
-            auth = {
-              token = "wadsworth-local-token-2026";
-            };
+            # Auth token will be auto-generated on first run
+            # CLI can connect using: export OPENCLAW_GATEWAY_TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw-wadsworth/openclaw.json)
           };
 
           # Secrets provider configuration
@@ -245,6 +242,15 @@
   users.users.monkey.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
+
+  # Shell alias for OpenClaw gateway authentication
+  # Usage: eval $(openclaw-auth) or add to .zshrc
+  environment.shellAliases = {
+    openclaw-auth = ''export OPENCLAW_GATEWAY_TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw-wadsworth/openclaw.json 2>/dev/null || echo "")'';
+    openclaw-deploy = ''sudo darwin-rebuild switch --flake github:funkymonkeymonk/nix/feat/openclaw-nix-module#darwin-server --impure --refresh'';
+    openclaw-restart = ''launchctl kickstart -k gui/$(id - u)/com.steipete.openclaw.gateway.wadsworth'';
+    openclaw-logs = ''tail -f /var/folders/*/T/openclaw-*/openclaw-*.log'';
+  };
 
   # OpenClaw plugin dependency fix - runs before OpenClaw starts
   # This ensures the 'openclaw' package symlink exists in plugin runtime deps
