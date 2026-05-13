@@ -205,6 +205,75 @@
         echo "  launchctl kickstart -k gui/$(id - u)/com.steipete.openclaw.gateway.wadsworth"
       '';
     };
+
+    # Create a script to fix the launchd plist (workaround for nix-openclaw wait4path bug)
+    home.file.".local/bin/fix-openclaw-plist" = {
+      executable = true;
+      text = ''
+        #!/bin/bash
+        # Fix OpenClaw launchd plist (workaround for nix-openclaw wait4path bug)
+        # The nix-openclaw module generates incorrect wait4path syntax that causes exit 78
+
+        PLIST="$HOME/Library/LaunchAgents/com.steipete.openclaw.gateway.wadsworth.plist"
+        LOG_DIR="$HOME/.openclaw-wadsworth/logs"
+
+        if [[ ! -f "$PLIST" ]]; then
+          echo "Error: Plist not found at $PLIST"
+          exit 1
+        fi
+
+        # Create log directory
+        mkdir -p "$LOG_DIR"
+
+        # Make plist writable
+        chmod 644 "$PLIST" 2>/dev/null || true
+
+        # Update plist with correct settings
+        /usr/libexec/PlistBuddy -c "Set :StandardOutPath $LOG_DIR/openclaw-gateway-wadsworth.log" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Add :StandardOutPath string $LOG_DIR/openclaw-gateway-wadsworth.log" "$PLIST"
+
+        /usr/libexec/PlistBuddy -c "Set :StandardErrorPath $LOG_DIR/openclaw-gateway-wadsworth.log" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Add :StandardErrorPath string $LOG_DIR/openclaw-gateway-wadsworth.log" "$PLIST"
+
+        # Fix the ProgramArguments to use bash from nix instead of /bin/sh for proper wait4path handling
+        # The issue is that /bin/sh doesn't handle the wait4path && exec pattern correctly
+        PROGRAM_ARGS="/nix/store/in4yc03diyvs2n2wgf3nva4hbvml8v1j-bash-interactive-5.3p9/bin/bash"
+        /usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 $PROGRAM_ARGS" "$PLIST"
+
+        echo "OpenClaw plist fixed. Reload the service with:"
+        echo "  launchctl unload $PLIST"
+        echo "  launchctl load $PLIST"
+      '';
+    };
+
+    # Activation script to fix the launchd plist after each rebuild
+    # This works around the nix-openclaw module bug with wait4path
+    home.activation.fixOpenclawPlist = lib.mkForce ''
+      export PATH="/usr/bin:/bin:$PATH"
+
+      PLIST="/Users/monkey/Library/LaunchAgents/com.steipete.openclaw.gateway.wadsworth.plist"
+      LOG_DIR="/Users/monkey/.openclaw-wadsworth/logs"
+
+      if [[ -f "$PLIST" ]]; then
+        # Create log directory
+        mkdir -p "$LOG_DIR"
+
+        # Make plist writable and fix it
+        chmod 644 "$PLIST" 2>/dev/null || true
+
+        # Fix log paths using PlistBuddy
+        /usr/libexec/PlistBuddy -c "Set :StandardOutPath /Users/monkey/.openclaw-wadsworth/logs/openclaw-gateway-wadsworth.log" "$PLIST" 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Set :StandardErrorPath /Users/monkey/.openclaw-wadsworth/logs/openclaw-gateway-wadsworth.log" "$PLIST" 2>/dev/null || true
+
+        # Fix the shell path to use nix bash for proper wait4path handling
+        /usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 /nix/store/in4yc03diyvs2n2wgf3nva4hbvml8v1j-bash-interactive-5.3p9/bin/bash" "$PLIST" 2>/dev/null || true
+
+        # Make plist read-only again
+        chmod 444 "$PLIST" 2>/dev/null || true
+
+        echo "OpenClaw plist fixed (workaround for nix-openclaw wait4path bug)"
+      fi
+    '';
   };
 
   # Enable SSH server for remote access
