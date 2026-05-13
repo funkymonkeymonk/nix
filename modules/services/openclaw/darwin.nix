@@ -61,6 +61,12 @@ in {
       description = "Port for the OpenClaw Gateway WebSocket";
     };
 
+    host = mkOption {
+      type = types.str;
+      default = "0.0.0.0";
+      description = "Host address to bind the OpenClaw Gateway WebSocket (0.0.0.0 for all interfaces)";
+    };
+
     openFirewall = mkOption {
       type = types.bool;
       default = true;
@@ -146,7 +152,7 @@ in {
             ''}
 
             # Start the gateway
-            exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --verbose
+            exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --host ${cfg.host} --verbose
           ''
         ];
         RunAtLoad = true;
