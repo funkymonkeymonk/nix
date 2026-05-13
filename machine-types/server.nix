@@ -10,6 +10,7 @@
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+    roles.tailscale.enable = true;
   };
 
   hardware.facter.reportPath = "/etc/nixos/facter.json";
