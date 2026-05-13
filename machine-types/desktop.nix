@@ -1,7 +1,11 @@
 # Generic desktop configuration for gaming/workstations
 # Uses nixos-facter for automatic hardware detection
 # No hardware-configuration.nix required!
-{inputs, ...}: {
+{
+  inputs,
+  lib,
+  ...
+}: {
   imports = [
     # Hardware detection - replaces hardware-configuration.nix
     # This is populated automatically during installation
@@ -10,7 +14,7 @@
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
-    autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
+    autoUpgrade.flakeUrl = lib.mkDefault "github:funkymonkeymonk/nix#type-desktop";
   };
 
   # Allow unfree packages (Steam, NVIDIA drivers, etc.)
@@ -25,14 +29,13 @@
 
   # Networking
   networking.networkmanager.enable = true;
-  networking.firewall.enable = true;
+  networking.firewall.enable = lib.mkDefault true;
 
   # Desktop environment
+  # Note: Display manager is configured by modules/nixos/desktop.nix via myConfig.desktop
   services = {
     xserver = {
       enable = true;
-      displayManager.gdm.enable = true;
-      desktopManager.gnome.enable = true;
     };
 
     # Audio

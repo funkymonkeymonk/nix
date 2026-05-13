@@ -651,14 +651,14 @@
           echo "Checking disk-configs/$config.nix..."
           # Use nix build --dry-run to validate disko config without triggering
           # type-system recursion that can cause stack overflow with newer nixpkgs
-          if nix build .#nixosConfigurations.type-desktop.config.system.build.diskoScript \
+          if nix build .#nixosConfigurations.zero.config.system.build.diskoScript \
               --no-link --dry-run --quiet 2>/dev/null; then
             echo "  disk-configs/$config.nix: valid"
           else
             echo "  disk-configs/$config.nix: INVALID"
             echo ""
             echo "Running build with verbose output:"
-            nix build .#nixosConfigurations.type-desktop.config.system.build.diskoScript \
+            nix build .#nixosConfigurations.zero.config.system.build.diskoScript \
               --no-link --dry-run --show-trace
             exit 1
           fi
@@ -1574,7 +1574,65 @@
           echo "✓ All Darwin configurations evaluated successfully"
           exit 0
         else
-          echo "✗ $FAILED configuration(s) failed evaluation"
+           echo "✗ $FAILED configuration(s) failed evaluation"
+          exit 1
+        fi
+      '';
+    };
+
+    "test:darwin-build" = {
+      description = "Build Darwin configs to catch home-manager errors (slower)";
+      exec = ''
+        echo "=== Testing Darwin Configuration Build ==="
+        echo ""
+        echo "This test actually builds Darwin configurations to catch errors that"
+        echo "evaluation alone won't catch, such as:"
+        echo "  - Invalid home-manager activation scripts"
+        echo "  - Missing hm.dag references"
+        echo "  - Build-time dependency issues"
+        echo ""
+        echo "Note: This is slower than test:darwin-eval but catches more errors"
+        echo ""
+
+        echo "Testing Darwin configurations..."
+        FAILED=0
+
+        # Get list of all Darwin configurations
+        CONFIGS=$(nix eval --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+
+        if [ -z "$CONFIGS" ]; then
+          echo "⚠ No Darwin configurations found"
+          exit 0
+        fi
+
+        echo "Found configurations:"
+        echo "$CONFIGS" | sed 's/^/  - /'
+        echo ""
+
+        # Test each configuration by building the system derivation
+        for CONFIG in $CONFIGS; do
+          echo -n "Building $CONFIG... "
+
+          # Build the system configuration (catches home-manager errors)
+          if nix build .#darwinConfigurations."$CONFIG".config.system.build.toplevel \
+              --no-link --dry-run 2>/dev/null; then
+            echo "✓"
+          else
+            echo "✗ FAILED"
+            echo ""
+            echo "Error output:"
+            nix build .#darwinConfigurations."$CONFIG".config.system.build.toplevel \
+              --no-link --show-trace 2>&1 | head -60
+            FAILED=$((FAILED + 1))
+          fi
+        done
+
+        echo ""
+        if [ $FAILED -eq 0 ]; then
+          echo "✓ All Darwin configurations built successfully"
+          exit 0
+        else
+          echo "✗ $FAILED configuration(s) failed to build"
           exit 1
         fi
       '';
