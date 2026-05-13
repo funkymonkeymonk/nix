@@ -26,7 +26,7 @@ in {
     (mkIf isDarwin {
       environment.systemPackages = [pkgs._1password-cli];
     })
-    (optionalAttrs hasOpnix {
+    (optionalAttrs (hasOpnix && cfg.secrets != {}) {
       # Enable opnix secrets service when the module is available (NixOS only).
       # This makes the infrastructure available but requires a token file to function.
       # To get a token: https://developer.1password.com/docs/service-accounts/get-started/

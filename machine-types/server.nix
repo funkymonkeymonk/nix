@@ -10,7 +10,11 @@
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
-    roles.tailscale.enable = true;
+    onepassword.tokenFile = "/etc/opnix/token";
+    roles.tailscale = {
+      enable = true;
+      authKeyOpnixItem = "op://Homelab/Tailscale Auth Key/credential";
+    };
   };
 
   hardware.facter.reportPath = "/etc/nixos/facter.json";
@@ -26,6 +30,9 @@
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
     ];
   };
+
+  # Passwordless sudo for wheel (headless server, SSH key auth only)
+  security.sudo.wheelNeedsPassword = false;
 
   # Boot configuration
   boot = {

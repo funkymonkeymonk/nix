@@ -24,7 +24,7 @@ in {
     # NixOS-specific config (only on NixOS)
     (lib.optionalAttrs isNixOS {
       services.tailscale.enable = true;
-      myConfig.onepassword.secrets.tailscale-auth-key = {
+      myConfig.onepassword.secrets.tailscaleAuthKey = {
         reference = cfg.authKeyOpnixItem;
         path = "/run/secrets/tailscale-auth-key";
         mode = "0400";
