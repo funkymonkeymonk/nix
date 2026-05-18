@@ -64,6 +64,8 @@
         config = {
           gateway = {
             mode = "local";
+            # Bind to LAN for network access (dashboard available at http://192.168.1.229:18789)
+            bind = "lan";
             # Auth token will be auto-generated on first run
             # CLI can connect using: export OPENCLAW_GATEWAY_TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw-wadsworth/openclaw.json)
           };
@@ -247,12 +249,13 @@
     };
 
     # Activation script to fix the launchd plist after each rebuild
-    # This works around the nix-openclaw module bug with wait4path
+    # This works around the nix-openclaw module bug with wait4path and missing --host flag
     home.activation.fixOpenclawPlist = lib.mkForce ''
       export PATH="/usr/bin:/bin:$PATH"
 
       PLIST="/Users/monkey/Library/LaunchAgents/com.steipete.openclaw.gateway.wadsworth.plist"
       LOG_DIR="/Users/monkey/.openclaw-wadsworth/logs"
+      NEEDS_RESTART=false
 
       if [[ -f "$PLIST" ]]; then
         # Create log directory
@@ -268,10 +271,36 @@
         # Fix the shell path to use nix bash for proper wait4path handling
         /usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 /nix/store/in4yc03diyvs2n2wgf3nva4hbvml8v1j-bash-interactive-5.3p9/bin/bash" "$PLIST" 2>/dev/null || true
 
+        # Fix the gateway command to bind to all interfaces (not just localhost)
+        # This reads the current ProgramArguments:2 value and adds --host 0.0.0.0 if missing
+        CURRENT_CMD=$(/usr/libexec/PlistBuddy -c "Print :ProgramArguments:2" "$PLIST" 2>/dev/null || echo "")
+        if [[ -n "$CURRENT_CMD" ]] && [[ "$CURRENT_CMD" != *"--host"* ]]; then
+          # Add --host 0.0.0.0 before the port argument
+          FIXED_CMD=$(echo "$CURRENT_CMD" | sed 's/gateway --port/gateway --host 0.0.0.0 --port/')
+          /usr/libexec/PlistBuddy -c "Set :ProgramArguments:2 $FIXED_CMD" "$PLIST" 2>/dev/null || true
+          echo "OpenClaw gateway bind fixed: added --host 0.0.0.0 for network access"
+          NEEDS_RESTART=true
+        fi
+
         # Make plist read-only again
         chmod 444 "$PLIST" 2>/dev/null || true
 
-        echo "OpenClaw plist fixed (workaround for nix-openclaw wait4path bug)"
+        # Restart the service if we made changes and it's running
+        if [[ "$NEEDS_RESTART" == "true" ]]; then
+          # Check if service is currently running
+          if launchctl list | grep -q "com.steipete.openclaw.gateway.wadsworth"; then
+            echo "Restarting OpenClaw gateway to apply changes..."
+            launchctl unload "$PLIST" 2>/dev/null || true
+            sleep 1
+            launchctl load "$PLIST" 2>/dev/null || true
+            echo "OpenClaw gateway restarted"
+          else
+            echo "OpenClaw gateway not running, loading..."
+            launchctl load "$PLIST" 2>/dev/null || true
+          fi
+        fi
+
+        echo "OpenClaw plist fixed (workaround for nix-openclaw bugs)"
       fi
     '';
   };
@@ -284,15 +313,6 @@
   users.users.monkey.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
-
-  # Shell alias for OpenClaw gateway authentication
-  # Usage: eval $(openclaw-auth) or add to .zshrc
-  environment.shellAliases = {
-    openclaw-auth = ''export OPENCLAW_GATEWAY_TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw-wadsworth/openclaw.json 2>/dev/null || echo "")'';
-    openclaw-deploy = ''sudo darwin-rebuild switch --flake github:funkymonkeymonk/nix/feat/openclaw-nix-module#darwin-server --impure --refresh'';
-    openclaw-restart = ''launchctl kickstart -k gui/$(id - u)/com.steipete.openclaw.gateway.wadsworth'';
-    openclaw-logs = ''tail -f /var/folders/*/T/openclaw-*/openclaw-*.log'';
-  };
 
   # OpenClaw plugin dependency fix - runs before OpenClaw starts
   # This ensures the 'openclaw' package symlink exists in plugin runtime deps

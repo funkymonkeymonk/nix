@@ -32,6 +32,16 @@
     deps = [];
   };
 
+  openclaw = {
+    description = "Guidelines for working with OpenClaw AI assistant configuration and deployment";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/openclaw;
+    };
+    deps = [];
+  };
+
   "writing-plans" = {
     description = "Create detailed implementation plans from specs and requirements";
     roles = ["developer"];
