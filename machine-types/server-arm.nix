@@ -10,6 +10,7 @@
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+    onepassword.tokenFile = "/etc/opnix/token";
   };
 
   hardware.facter.reportPath = "/etc/nixos/facter.json";

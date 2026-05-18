@@ -28,10 +28,11 @@ in {
     })
     (optionalAttrs hasOpnix {
       # Enable opnix secrets service when the module is available (NixOS only).
-      # This makes the infrastructure available but requires a token file to function.
+      # Defaults to disabled — roles that need 1Password secrets (e.g. tailscale)
+      # must explicitly enable this by setting services.onepassword-secrets.enable = true.
       # To get a token: https://developer.1password.com/docs/service-accounts/get-started/
       services.onepassword-secrets = {
-        enable = true;
+        enable = mkDefault false;
         inherit (cfg) tokenFile secrets;
       };
     })

@@ -340,7 +340,8 @@
         specialArgs = inputs // {inherit inputs;};
         modules = [
           configuration
-          microvm.nixosModules.microvm
+          microvm.nixosModules.host
+          opnix.nixosModules.default
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
@@ -368,7 +369,8 @@
         specialArgs = inputs // {inherit inputs;};
         modules = [
           configuration
-          microvm.nixosModules.microvm
+          microvm.nixosModules.host
+          opnix.nixosModules.default
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager
