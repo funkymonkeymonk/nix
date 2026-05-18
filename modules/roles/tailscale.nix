@@ -8,6 +8,8 @@
   cfg = config.myConfig.roles.tailscale;
   # Check if this is NixOS by looking for NixOS-specific options
   isNixOS = builtins.hasAttr "boot" options;
+  # Check if the opnix module is available
+  hasOpnix = builtins.hasAttr "onepassword-secrets" (options.services or {});
 
   # Build tailscale up command flags
   tailscaleUpFlags = lib.concatStringsSep " " (
@@ -53,6 +55,10 @@ in {
           fi
         '';
       };
+    })
+    # Enable opnix secrets fetching when the opnix module is available
+    (lib.optionalAttrs hasOpnix {
+      services.onepassword-secrets.enable = true;
     })
   ]);
 }
