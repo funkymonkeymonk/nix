@@ -10,9 +10,11 @@
   ...
 }: {
   nixpkgs.hostPlatform = "aarch64-darwin";
-  nixpkgs.config.permittedInsecurePackages = [
-    "openclaw-2026.4.22"
-  ];
+  nixpkgs.config.allowInsecurePredicate = attrs:
+    let pname = attrs.pname or attrs.name or "";
+        fullName = "${pname}-${attrs.version or ""}";
+    in pname == "openclaw"
+       || builtins.elem fullName ["olm-3.2.16"];
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
