@@ -152,6 +152,10 @@
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
         ];
       };
+    # Library helpers from the new modular library
+    inherit (nixpkgs) lib;
+    libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
+
     # Phase 1: MicroVM v2 helper using new library mkNixosSystem
     _mkMicrovmV2 = name: roleEnables:
       nixpkgs.lib.nixosSystem {
@@ -427,6 +431,71 @@
       "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
       "matrix-v2" = _mkMicrovmV2 "matrix" {};
       "media-center-v2" = _mkMicrovmV2 "media-center" {};
+
+      # Phase 2: Cattle NixOS v2 configs using new library mkNixosSystem
+      # Runs in parallel with type-server and type-server-arm until verified.
+      "type-server-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-server";
+        modules = [
+          microvm.nixosModules.host
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./library/archetypes/headless-server-nixos.nix
+          ./disk-configs/single-disk-ext4.nix
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          {
+            users.users.admin.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-v2";
+        };
+      };
+
+      "type-server-arm-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-server-arm";
+        system = "aarch64-linux";
+        modules = [
+          microvm.nixosModules.host
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./library/archetypes/headless-server-nixos.nix
+          ./disk-configs/single-disk-ext4.nix
+          {
+            users.users.admin.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm-v2";
+          roles.tailscale.enable = false;
+        };
+      };
+
+      "type-desktop-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-desktop";
+        modules = [
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./modules/nixos/desktop.nix
+          ./modules/nixos/ghostty-terminfo.nix
+          ./library/archetypes/desktop-nixos.nix
+          {
+            users.users.root.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop-v2";
+        };
+      };
     };
 
     microvm.nixosConfigurations = {
@@ -517,6 +586,7 @@
             llm-client-no-ai-roles
             entertainment-nixos
             typed-attrs-options
+            phase2-cattle
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
