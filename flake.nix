@@ -76,6 +76,7 @@
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
+            "openclaw-2026.4.22"
           ];
         };
         overlays = [
@@ -175,9 +176,6 @@
           # users from myConfig.users. When a VM target also sets shell for the
           # same user, both definitions at default priority conflict. Force the
           # VM target's shell to take precedence for the dev user.
-          {
-            nixpkgs.config.permittedInsecurePackages = ["openclaw"];
-          }
           ({
             lib,
             pkgs,
