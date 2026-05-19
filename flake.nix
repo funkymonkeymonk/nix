@@ -171,12 +171,6 @@
           ./targets/microvms/defaults.nix
           ./targets/microvms/${name}.nix
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-          # Resolve pre-existing shell conflict: users.nix sets useDefaultShell
-          # via myConfig.users, and dev-vm.nix also sets shell. Give priority
-          # to the target file's explicit shell.
-          ({lib, ...}: {
-            users.users.dev.useDefaultShell = lib.mkForce false;
-          })
         ];
       };
   in {
@@ -412,11 +406,13 @@
       };
 
       # Phase 1: MicroVM v2 configs using new library mkNixosSystem
-      # Runs in parallel with microvm.nixosConfigurations until verified
-      "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
-        roles.opencode.enable = true;
-      };
-      "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
+      # Runs in parallel with microvm.nixosConfigurations until verified.
+      # NOTE: dev-vm-v2 and openclaw-v2 deferred — pre-existing shell/
+      # agent-user conflicts surface when built via nixosConfigurations.
+      # "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
+      #   roles.opencode.enable = true;
+      # };
+      # "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
       "matrix-v2" = _mkMicrovmV2 "matrix" {};
       "media-center-v2" = _mkMicrovmV2 "media-center" {};
     };
