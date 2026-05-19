@@ -1,1 +1,0 @@
-Fix llm-host.nix ignoring myConfig.sharedModels
