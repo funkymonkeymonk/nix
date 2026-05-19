@@ -15,7 +15,7 @@ with lib; {
           isNormalUser = true;
           description = user.fullName;
           extraGroups = ["networkmanager" "wheel"];
-          shell = pkgs.zsh;
+          shell = mkDefault pkgs.zsh;
         };
       })
       config.myConfig.users);
