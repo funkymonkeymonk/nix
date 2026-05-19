@@ -2,7 +2,8 @@
 # Provides shared user config, skills, and disables 1Password
 # Individual VM configs can override these defaults via roleEnables specialArg
 {
-  inputs,
+  superpowers,
+  vercel-skills,
   roleEnables,
   lib,
   ...
@@ -12,9 +13,9 @@
   myConfig = lib.mkMerge [
     {
       skills = {
-        superpowersPath = inputs.superpowers;
-        externalInputs = {
-          inherit (inputs) vercel-skills;
+        superpowersPath = superpowers;
+        externalInputs = lib.optionalAttrs (vercel-skills != null) {
+          inherit vercel-skills;
         };
       };
       users = [

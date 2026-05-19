@@ -151,6 +151,28 @@
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
         ];
       };
+    # Phase 1: MicroVM v2 helper using new library mkNixosSystem
+    _mkMicrovmV2 = name: roleEnables:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs // {inherit roleEnables;};
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nixosModules.home-manager
+          opnix.nixosModules.default
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/defaults.nix
+          ./targets/microvms/${name}.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+        ];
+      };
   in {
     packages = forAllSystems (
       system: let
@@ -382,6 +404,17 @@
           ./machine-types/server-arm.nix
         ];
       };
+
+      # Phase 1: MicroVM v2 configs using new library mkNixosSystem
+      # Runs in parallel with microvm.nixosConfigurations until verified.
+      # NOTE: dev-vm-v2 and openclaw-v2 deferred — pre-existing shell/
+      # agent-user conflicts surface when built via nixosConfigurations.
+      # "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
+      #   roles.opencode.enable = true;
+      # };
+      # "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
+      "matrix-v2" = _mkMicrovmV2 "matrix" {};
+      "media-center-v2" = _mkMicrovmV2 "media-center" {};
     };
 
     microvm.nixosConfigurations = {
