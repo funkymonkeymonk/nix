@@ -407,12 +407,10 @@
 
       # Phase 1: MicroVM v2 configs using new library mkNixosSystem
       # Runs in parallel with microvm.nixosConfigurations until verified.
-      # NOTE: dev-vm-v2 and openclaw-v2 deferred — pre-existing shell/
-      # agent-user conflicts surface when built via nixosConfigurations.
-      # "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
-      #   roles.opencode.enable = true;
-      # };
-      # "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
+      "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
+        roles.opencode.enable = true;
+      };
+      "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
       "matrix-v2" = _mkMicrovmV2 "matrix" {};
       "media-center-v2" = _mkMicrovmV2 "media-center" {};
     };
