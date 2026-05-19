@@ -171,6 +171,19 @@
           ./targets/microvms/defaults.nix
           ./targets/microvms/${name}.nix
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          # Resolve pre-existing shell conflict: base.nix sets shell for all
+          # users from myConfig.users. When a VM target also sets shell for the
+          # same user, both definitions at default priority conflict. Force the
+          # VM target's shell to take precedence for the dev user.
+          ({
+            lib,
+            pkgs,
+            ...
+          }: {
+            users.users = lib.optionalAttrs (name == "dev-vm") {
+              dev.shell = lib.mkForce pkgs.zsh;
+            };
+          })
         ];
       };
   in {
