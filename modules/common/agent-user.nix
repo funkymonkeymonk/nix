@@ -43,7 +43,7 @@
 
       users.users.${cfg.name} = {
         isSystemUser = true;
-        inherit (cfg) home;
+        home = lib.mkDefault cfg.home;
         createHome = true;
         group = cfg.name;
         uid = lib.mkIf (cfg.uid != null) cfg.uid;
