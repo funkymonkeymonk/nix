@@ -96,6 +96,8 @@ Pi coding agent with rtk token optimization.
 
 **Enables:** `agent-skills`, `pi` config management
 
+### tailscale
+
 ### workstation
 
 Work-related tools.

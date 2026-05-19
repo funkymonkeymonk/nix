@@ -161,6 +161,28 @@ with lib; {
           description = "Homebrew integration for macOS (requires Homebrew to be installed)";
         };
       };
+      tailscale = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Tailscale VPN with auto-connect via 1Password secrets";
+        };
+        authKeyOpnixItem = mkOption {
+          type = types.str;
+          default = "op://Personal/Tailscale/auth-key";
+          description = "1Password item reference for Tailscale auth key (default: op://Personal/Tailscale/auth-key)";
+        };
+        exitNode = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Advertise this machine as a Tailscale exit node";
+        };
+        advertiseRoutes = mkOption {
+          type = types.listOf types.str;
+          default = [];
+          description = "Additional routes to advertise (CIDR notation, e.g. [\"10.0.0.0/24\"])";
+        };
+      };
     };
 
     email-agent = {
