@@ -15,10 +15,12 @@ with lib; {
           isNormalUser = true;
           description = user.fullName;
           extraGroups = ["networkmanager" "wheel"];
-          shell = mkDefault pkgs.zsh;
         };
       })
       config.myConfig.users);
+
+    # Default user shell (beats NixOS default at mkDefault 1500)
+    users.defaultUserShell = mkOverride 1000 pkgs.zsh;
 
     # Ensure zsh and ghostty terminfo are available system-wide
     environment.systemPackages = [pkgs.zsh pkgs.ghostty];
