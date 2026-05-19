@@ -175,6 +175,9 @@
           # users from myConfig.users. When a VM target also sets shell for the
           # same user, both definitions at default priority conflict. Force the
           # VM target's shell to take precedence for the dev user.
+          {
+            nixpkgs.config.permittedInsecurePackages = ["openclaw"];
+          }
           ({
             lib,
             pkgs,
