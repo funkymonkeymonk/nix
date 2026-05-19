@@ -171,6 +171,12 @@
           ./targets/microvms/defaults.nix
           ./targets/microvms/${name}.nix
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          # Resolve pre-existing shell conflict: users.nix sets useDefaultShell
+          # via myConfig.users, and dev-vm.nix also sets shell. Give priority
+          # to the target file's explicit shell.
+          ({lib, ...}: {
+            users.users.dev.useDefaultShell = lib.mkForce false;
+          })
         ];
       };
   in {

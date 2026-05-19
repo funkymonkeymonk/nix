@@ -48,9 +48,7 @@
         group = cfg.name;
         uid = lib.mkIf (cfg.uid != null) cfg.uid;
         description = "Service automation agent account (no sudo access)";
+        extraGroups = lib.mkForce [];
       };
-
-      # Ensure agent is NOT in wheel/sudo groups
-      users.users.${cfg.name}.extraGroups = lib.mkForce [];
     };
 }
