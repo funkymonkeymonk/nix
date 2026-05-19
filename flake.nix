@@ -155,7 +155,7 @@
     _mkMicrovmV2 = name: roleEnables:
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        specialArgs = inputs // {inherit inputs roleEnables;};
+        specialArgs = inputs // {inherit roleEnables;};
         modules = [
           microvm.nixosModules.microvm
           home-manager.nixosModules.home-manager
