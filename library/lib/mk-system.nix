@@ -1,0 +1,85 @@
+{lib}: rec {
+  mkDarwinSystem = {
+    inputs,
+    hostname,
+    system ? "aarch64-darwin",
+    modules ? [],
+    overrides ? {},
+  }: let
+    inherit (inputs) nix-darwin;
+  in
+    nix-darwin.lib.darwinSystem {
+      inherit system;
+      specialArgs = {inherit inputs;};
+      modules =
+        [
+          {
+            networking.hostName = hostname;
+            system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
+            nixpkgs = {
+              config = {
+                allowUnfree = true;
+                permittedInsecurePackages = [
+                  "google-chrome-144.0.7559.97"
+                  "olm-3.2.16"
+                ];
+              };
+              overlays = [(import ../../overlays)];
+            };
+          }
+          (import ../../modules)
+        ]
+        ++ modules
+        ++ lib.optional (overrides != {}) {
+          myConfig = lib.mkMerge [
+            overrides
+            (lib.mkForce {})
+          ];
+        };
+    };
+
+  mkNixosSystem = {
+    inputs,
+    hostname,
+    system ? "x86_64-linux",
+    modules ? [],
+    overrides ? {},
+  }: let
+    inherit (inputs) nixpkgs;
+  in
+    nixpkgs.lib.nixosSystem {
+      inherit system;
+      specialArgs = inputs // {inherit inputs;};
+      modules =
+        [
+          {
+            networking.hostName = hostname;
+            system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
+            nixpkgs = {
+              config = {
+                allowUnfree = true;
+                permittedInsecurePackages = [
+                  "google-chrome-144.0.7559.97"
+                  "olm-3.2.16"
+                ];
+              };
+              hostPlatform = system;
+              overlays = [(import ../../overlays)];
+            };
+          }
+          (import ../../modules)
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.sharedModules = [
+              inputs.opnix.homeManagerModules.default
+            ];
+          }
+        ]
+        ++ modules
+        ++ lib.optional (overrides != {}) {
+          myConfig = lib.mkMerge [
+            (lib.mkOverride 50 overrides)
+          ];
+        };
+    };
+}
