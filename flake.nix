@@ -76,6 +76,7 @@
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
+            "openclaw-2026.4.22"
           ];
         };
         overlays = [
@@ -171,6 +172,19 @@
           ./targets/microvms/defaults.nix
           ./targets/microvms/${name}.nix
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          # Resolve pre-existing shell conflict: base.nix sets shell for all
+          # users from myConfig.users. When a VM target also sets shell for the
+          # same user, both definitions at default priority conflict. Force the
+          # VM target's shell to take precedence for the dev user.
+          ({
+            lib,
+            pkgs,
+            ...
+          }: {
+            users.users = lib.optionalAttrs (name == "dev-vm") {
+              dev.shell = lib.mkForce pkgs.zsh;
+            };
+          })
         ];
       };
   in {
@@ -407,12 +421,10 @@
 
       # Phase 1: MicroVM v2 configs using new library mkNixosSystem
       # Runs in parallel with microvm.nixosConfigurations until verified.
-      # NOTE: dev-vm-v2 and openclaw-v2 deferred — pre-existing shell/
-      # agent-user conflicts surface when built via nixosConfigurations.
-      # "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
-      #   roles.opencode.enable = true;
-      # };
-      # "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
+      "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
+        roles.opencode.enable = true;
+      };
+      "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
       "matrix-v2" = _mkMicrovmV2 "matrix" {};
       "media-center-v2" = _mkMicrovmV2 "media-center" {};
     };
