@@ -152,6 +152,10 @@
           {home-manager.sharedModules = [opnix.homeManagerModules.default];}
         ];
       };
+    # Library helpers from the new modular library
+    inherit (nixpkgs) lib;
+    libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
+
     # Phase 1: MicroVM v2 helper using new library mkNixosSystem
     _mkMicrovmV2 = name: roleEnables:
       nixpkgs.lib.nixosSystem {
@@ -427,6 +431,43 @@
       "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
       "matrix-v2" = _mkMicrovmV2 "matrix" {};
       "media-center-v2" = _mkMicrovmV2 "media-center" {};
+
+      # Phase 3: Real-machine migration — zero desktop/workstation
+      # Parallel v2 config using new library mkNixosSystem + archetype.
+      # Old nixosConfigurations.zero remains unchanged.
+      "zero-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "zero";
+        extraSpecialArgs = {inherit mkUser;};
+        modules = [
+          ./modules/nixos/base.nix
+          ./modules/nixos/desktop.nix
+          ./modules/nixos/gaming.nix
+          ./modules/nixos/streaming.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/nixos.nix
+          ./library/archetypes/desktop-nixos.nix
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+          ./modules/nixos/ghostty-terminfo.nix
+          {
+            home-manager.sharedModules = [
+              inputs.nix-openclaw.homeManagerModules.openclaw
+            ];
+          }
+          {
+            nixpkgs.config.permittedInsecurePackages = [
+              "openclaw-2026.4.22"
+            ];
+          }
+          ./targets/zero
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero-v2";
+        };
+      };
     };
 
     microvm.nixosConfigurations = {
@@ -517,6 +558,7 @@
             llm-client-no-ai-roles
             entertainment-nixos
             typed-attrs-options
+            phase3-zero
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

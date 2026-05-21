@@ -44,12 +44,13 @@
     system ? "x86_64-linux",
     modules ? [],
     overrides ? {},
+    extraSpecialArgs ? {},
   }: let
     inherit (inputs) nixpkgs;
   in
     nixpkgs.lib.nixosSystem {
       inherit system;
-      specialArgs = inputs // {inherit inputs;};
+      specialArgs = inputs // {inherit inputs;} // extraSpecialArgs;
       modules =
         [
           {
@@ -64,7 +65,20 @@
                 ];
               };
               hostPlatform = system;
-              overlays = [(import ../../overlays)];
+              overlays = [
+                (import ../../overlays)
+                (final: _prev: {
+                  stable = import inputs.nixpkgs-stable {
+                    inherit (final) system config;
+                  };
+                })
+                (final: _prev: {
+                  inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+                })
+                (final: _prev: {
+                  zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
+                })
+              ];
             };
           }
           (import ../../modules)
