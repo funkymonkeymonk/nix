@@ -1,6 +1,6 @@
 ---
 name: yak-shaving
-description: Use when tracking, planning, implementing, or reviewing work using yx (yaks), or when a human wants to triage @needs-human yaks interactively
+description: Use when tracking, planning, implementing, or reviewing work using yx (yaks) with the autonomous /shave loop, or when multiple agents need to coordinate on shared tasks
 ---
 
 # Yak Shaving
@@ -10,6 +10,8 @@ description: Use when tracking, planning, implementing, or reviewing work using 
 Use `yx` (yaks) for shared task tracking across agents and humans. Yaks syncs via hidden git refs (`refs/notes/yaks`) using CRDTs -- multiple agents update simultaneously with zero conflicts.
 
 **Key mental model:** `yx` owns **what** to do. Everything else owns **how** to do it.
+
+**Dependency model:** Use `## Prerequisites` in context for dependencies (not deep nesting). Keep yaks flat under a story. Children block parents. Work leaves first, then their parents. The `@blocked` tag prevents triage from picking blocked yaks.
 
 ## Quick Reference
 
@@ -24,11 +26,41 @@ Use `yx` (yaks) for shared task tracking across agents and humans. Yaks syncs vi
 | Mark done | `yx done "task name"` (alias: `yd`) |
 | Set/read context | `yx context "task name"` (stdin) / `yx context --show "task name"` |
 | Custom fields | `yx field "task name" progress` (stdin) / `yx field --show "task name" progress` |
+| Tag management | `yx tag add/rm "task name" "@tag"` |
 | Sync with remote | `yx sync` (alias: `ys`) |
 | Move yak | `yx move "yak" --under "parent"` / `yx move "yak" --to-root` |
 | Remove yak | `yx rm "task name"` |
 | Prune done yaks | `yx prune` |
 | JSON output | `yx ls --format json` / `yx show "name" --format json` |
+
+## Dependency Model
+
+Use flat hierarchies (story → tasks) with `## Prerequisites` in each task's context:
+
+```
+○ Story name  (top level)
+  ├─ ○ Task A  (@blocked)  — has ## Prerequisites: Task B
+  ├─ ○ Task B              — no prerequisites, actionable
+  ╰─ ○ Task C  (@blocked)  — has ## Prerequisites: Task A
+```
+
+- **Story at top level**, all tasks as **flat children**
+- Each task has `## Prerequisites` in its context listing dependencies
+- Tasks with unmet prereqs get tagged `@blocked`
+- When a task completes, remove `@blocked` from its dependents
+- The triage script auto-resolves `## Prerequisites` — a yak is blocked if any prereq isn't `done`
+
+**Context format:**
+```markdown
+## Prerequisites
+- Task A must be done
+```
+
+**When completing a task that unblocks others:**
+```bash
+yx tag rm "Dependent Task" "@blocked"
+yx sync
+```
 
 ## The Claim Protocol
 
@@ -43,7 +75,19 @@ yx sync                    # 4. Push your claim so others see it
 
 **Never skip sync.** Without it, two agents can claim the same yak simultaneously.
 
-## Four Workflows
+## Scripts
+
+All scripts live in `scripts/` relative to this skill:
+
+| Script | Purpose |
+|--------|---------|
+| `yak-triage.sh` | Find actionable (todo, leaf, unblocked) yaks |
+| `yak-claim.sh "name"` | Safely claim a yak (sync → check → start → sync) |
+| `yak-needs-refinement.sh "name"` | Test if yak has enough context to implement |
+| `yak-worker-prompt.sh "name"` | Generate full subagent implementation prompt |
+| `yak-mark-refinement.sh "name" "reason"` | Tag yak @needs-human with reason |
+
+## Five Workflows
 
 ### /map -- Discover work structure
 
@@ -53,35 +97,28 @@ Use when: starting a new goal, need to find what blocks what.
 
 ```bash
 yx add "goal name"
-yx ls                              # THE IRON LAW: yx ls after EVERY yx add
-yx add "blocker" --under "goal"    # Nesting = "goal is BLOCKED BY blocker"
-yx ls                              # Always show the map
+yx add "task" --under "goal"   # Flat children under story
+yx tag add "task" "@blocked"   # If it depends on another task
+yx ls                          # THE IRON LAW: yx ls after EVERY yx add
+yx context "task"              # Add ## Prerequisites and acceptance criteria
 ```
 
 **Iron Law:** Run `yx ls` after every `yx add` or `yx move`. No exceptions.
 
-**Scope first:** After adding the top-level goal, discuss scope with the human before adding children. Don't create yaks for everything you can think of.
-
-**Nesting means dependency:** Children block parents. Work leaves first (deepest nodes), then their parents.
-
 ### /review -- Human-in-the-loop backlog refinement
 
-Use when: a human wants to work through `@needs-human` yaks interactively — deciding what's real, what's stale, and what's ready to implement.
+Use when: a human wants to work through `@needs-human` yaks interactively.
 
 **Step 1: Pick a topic cluster**
-
 ```bash
-yx ls   # Show clusters; pick one with @needs-human children to focus on
+yx ls
 ```
 
 **Step 2: For each yak — verify the code before deciding**
-
-Never decide based on the title alone. Always inspect first:
-
 ```bash
-yx show "yak name"                           # Read current state and context
-grep -rn "<pattern>" modules/ targets/ os/   # Verify the problem exists in code
-find . -name "<filename>" 2>/dev/null         # Confirm files mentioned actually exist
+yx show "yak name"
+grep -rn "<pattern>" modules/ targets/ os/
+find . -name "<filename>" 2>/dev/null
 ```
 
 **Step 3: Apply one of four verdicts**
@@ -94,17 +131,16 @@ find . -name "<filename>" 2>/dev/null         # Confirm files mentioned actually
 | **Keep** | Genuinely needs human input | Update context with _why_ it's blocked, leave tag |
 
 **Step 4: Write full context before unblocking**
-
-A yak needs all three before `@needs-human` can be removed:
-
 ```bash
 cat <<'EOF' | yx context "yak name"
-# Problem
-[What is wrong and exactly where in the code]
+# Goal
+[What and why]
+
+## Prerequisites
+- [prerequisite task must be done]
 
 # Acceptance Criteria
 - [ ] Specific, verifiable outcome
-- [ ] Another verifiable outcome
 
 # Files
 - path/to/file.nix (what to change)
@@ -113,30 +149,26 @@ EOF
 yx tag rm "yak name" "@needs-human"
 ```
 
-No partial context — if you can write the problem but not the acceptance criteria, keep `@needs-human`.
-
-**Step 5: Sync once at the end**
-
-```bash
-yx sync
-```
-
-**Batching tip:** Inspect all yaks in the cluster first, propose all verdicts to the human, then execute decisions in one pass before syncing.
-
 ### /prepare -- Spec out a yak
 
 Use when: yak exists but needs detail before implementation.
 
 1. `yx show "yak"` -- read existing state
 2. `yx start "yak"` -- claim it
-3. Brainstorm spec with user, store as context:
+3. Brainstorm spec with user:
    ```bash
    cat <<'EOF' | yx context "yak name"
    # Goal
    [What and why]
+
+   ## Prerequisites
+   - [dependencies]
+
    # Acceptance Criteria
    - [ ] Criterion 1
-   - [ ] Criterion 2
+
+   # Files
+   - path/to/file.nix
    EOF
    ```
 4. Break into sub-yaks if too large (iron law applies)
@@ -146,31 +178,120 @@ Use when: yak exists but needs detail before implementation.
 
 Use when: a yak is claimed and ready to implement.
 
-#### Step 1: Claim
-
 ```bash
 yx sync
-yx show "yak name"               # Verify state is todo, not wip
+yx show "yak name"               # Verify state is todo
 yx start "yak name"
 yx sync
-```
-
-#### Step 2: Implement
-
-Do the work. Use whatever version control workflow this repo requires.
-
-#### Step 3: Store progress
-
-```bash
-echo "Implemented X, Y, Z. Tests pass." | yx field "yak name" progress
-```
-
-#### Step 4: Ship and mark done
-
-Open a PR using the repo's normal workflow, then:
-
-```bash
+# Implement (TDD first)
+echo "Progress notes" | yx field "yak name" progress
+# Ship and mark done
 yx done "yak name"
+yx sync
+```
+
+### /shave -- Autonomous backlog processing
+
+Use when: you want to autonomously work through the entire backlog.
+
+**The /shave Loop:**
+```
+WHILE actionable yaks exist:
+  1. yx sync                          — pull latest state
+  2. yak-triage.sh                    — find actionable yaks
+  3. FOR EACH batch of compatible yaks (no file conflicts):
+     a. yak-needs-refinement.sh       — test clarity
+        → unclear: yak-mark-refinement.sh, skip
+        → clear:   yak-claim.sh, dispatch subagent
+  4. WAIT for all subagents to complete
+  5. On completion: remove @blocked from dependents
+  6. yx sync                          — push done state
+```
+
+**Setup:**
+```bash
+SKILL_DIR="$HOME/.config/opencode/skills/yak-shaving/scripts"
+```
+
+**When completing a yak that unblocks others:**
+```bash
+yx done "completed yak"
+yx tag rm "dependent yak" "@blocked"
+yx sync
+```
+
+## TDD/BDD Requirements
+
+Every subagent MUST follow this order — no exceptions:
+
+```
+RED:   Write failing test first
+         → Nix: pkgs.runCommand that exits 1 without the fix
+         → Shell: bash test with mock structures
+         → CI: check verifying file structure
+GREEN: Write minimal implementation to pass the test
+REFACTOR: Clean up while keeping tests green
+```
+
+Acceptance criteria in yak context → test cases. Each `- [ ] criterion` becomes a test assertion.
+
+**BDD style:** Tests describe outcomes, not mechanisms.
+```nix
+# ❌ Mechanism: "module sets this attribute"
+if config.services.foo.package == pkgs.foo
+# ✅ Outcome: "foo service uses the configured package"
+if config.services.foo.package == configuredPkg
+```
+
+## Deciding: Implement vs Refine
+
+```
+Has context?           → No  → Mark @needs-human: "No context defined"
+Has acceptance criteria? → No  → Mark @needs-human: "No checkboxes/criteria"
+Has specific files?    → No  → Mark @needs-human: "No file paths mentioned"
+All yes?               → Implement
+```
+
+Use `yak-needs-refinement.sh` to automate this check.
+
+## Parallelism Rules
+
+**Safe to parallelize:** Yaks touching different files/modules (checked via context file paths)
+
+**Must serialize:**
+- Two yaks editing the same Nix file
+- Yaks that both modify `flake.nix` or `tests/default.nix` (high conflict surface)
+
+**Practical limit:** 2-3 parallel subagents.
+
+## PR Workflow per Yak
+
+Each subagent runs the full cycle:
+
+```bash
+# 1. Workspace (isolated, off current main)
+jj git fetch
+jj workspace add --name <type>-<slug> .workspaces/<type>-<slug>
+
+# 2. Implement (TDD first)
+
+# 3. Validate
+devenv tasks run check:lint
+devenv tasks run test:darwin-eval
+git add -A && nix build --impire ".#checks.aarch64-darwin.<test>" --no-link
+
+# 4. Commit + push + PR
+jj describe -m "<type>: <what and why>"
+jj bookmark set <branch> -r @
+jj git push --bookmark <branch>
+gh pr create ...
+
+# 5. Watch CI
+# 6. Stop here - human merges the PR
+
+# 7. Mark done + unblock next
+yx done "<yak name>"
+yx tag rm "<next yak>" "@blocked"  # if applicable
 yx sync
 ```
 
@@ -179,15 +300,12 @@ yx sync
 Yaks syncs via git refs, so all agents in the same repo share the same task state.
 
 ### Claiming prevents conflicts
-
 - `yx sync` before claiming pulls others' claims
 - `yx start` sets wip state
 - `yx sync` after claiming pushes your claim
 - Other agents see wip and skip that yak
 
 ### @needs-human convention
-
-When stuck or need a decision:
 ```bash
 yx tag add "yak name" "@needs-human"
 cat <<'EOF' | yx context "yak name"
@@ -202,11 +320,14 @@ yx sync
 ## Common Mistakes
 
 | Mistake | Fix |
-|---------|-----|
+|---------|------|
 | Skipping `yx sync` before/after claiming | Sync is mandatory -- other agents can't see your claim without it |
 | Not checking state before `yx start` | Always `yx show` first to verify it's not already wip |
 | Forgetting `yx ls` after adding yaks | Iron Law: `yx add` then `yx ls`, always |
-| Touching `.yaks/` directory directly | Use `yx` CLI only -- never `rm`, `mkdir`, `cat` on `.yaks/` |
-| Not syncing yaks after marking done | Others won't see completion without `yx sync` |
-| Deciding to delete/unblock based on yak title alone | Always grep the actual code first during /review |
-| Unblocking without acceptance criteria | A yak without checkboxes will be re-flagged @needs-human by the next /shave |
+| Using deep nesting for dependencies | Use flat structure + `## Prerequisites` + `@blocked` tags |
+| Forgetting to unblock dependents | After completing a yak, remove `@blocked` from dependents |
+| Not syncing after marking done | Others won't see completion without `yx sync` |
+| Implementing a vague yak | Run `yak-needs-refinement.sh` first; flag if unclear |
+| Two subagents editing the same file | Check context file paths before parallelizing |
+| Forgetting `git add -A` before `nix build --impure` | Staged files must be visible for impure eval |
+| Implementation before test | RED phase is mandatory; delete any code written before tests |
