@@ -5,12 +5,13 @@
     system ? "aarch64-darwin",
     modules ? [],
     overrides ? {},
+    extraSpecialArgs ? {},
   }: let
     inherit (inputs) nix-darwin;
   in
     nix-darwin.lib.darwinSystem {
       inherit system;
-      specialArgs = {inherit inputs;};
+      specialArgs = {inherit inputs;} // extraSpecialArgs;
       modules =
         [
           {

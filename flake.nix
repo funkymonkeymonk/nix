@@ -301,6 +301,33 @@
         ];
       };
 
+      # Phase 4: darwin-server v2 using new library mkDarwinSystem + headless-server-darwin archetype
+      # Runs in parallel with darwin-server until verified.
+      "darwin-server-v2" = libraryLib.mkDarwinSystem {
+        inherit inputs;
+        hostname = "darwin-server";
+        extraSpecialArgs = {inherit mkUser;};
+        modules = [
+          ./library/archetypes/headless-server-darwin.nix
+          ./modules/services/lume/darwin.nix
+          ./modules/services/ollama/darwin.nix
+          ./os/darwin.nix
+          ./targets/darwin-server
+          home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+              inputs.nix-openclaw.homeManagerModules.openclaw
+            ];
+          }
+          {
+            nixpkgs.config.permittedInsecurePackages = [
+              "olm-3.2.16"
+            ];
+          }
+        ];
+      };
+
       # MegamanX - personal desktop/workstation
       "MegamanX" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
@@ -559,6 +586,7 @@
             entertainment-nixos
             typed-attrs-options
             phase3-zero
+            phase4-darwin-server
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

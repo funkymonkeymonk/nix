@@ -7,11 +7,11 @@
 
   services.openssh = {
     enable = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = false;
-      AllowAgentForwarding = true;
-    };
+    extraConfig = ''
+      PermitRootLogin no
+      PasswordAuthentication no
+      AllowAgentForwarding yes
+    '';
   };
 
   time.timeZone = "America/New_York";
