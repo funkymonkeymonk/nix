@@ -24,7 +24,20 @@
                   "olm-3.2.16"
                 ];
               };
-              overlays = [(import ../../overlays)];
+              overlays = [
+                (final: _prev: {
+                  stable = import inputs.nixpkgs-stable {
+                    inherit (final) system config;
+                  };
+                })
+                (final: _prev: {
+                  inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+                })
+                (final: _prev: {
+                  zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
+                })
+                (import ../../overlays)
+              ];
             };
           }
           (import ../../modules)
@@ -64,7 +77,20 @@
                 ];
               };
               hostPlatform = system;
-              overlays = [(import ../../overlays)];
+              overlays = [
+                (final: _prev: {
+                  stable = import inputs.nixpkgs-stable {
+                    inherit (final) system config;
+                  };
+                })
+                (final: _prev: {
+                  inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+                })
+                (final: _prev: {
+                  zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
+                })
+                (import ../../overlays)
+              ];
             };
           }
           (import ../../modules)
