@@ -491,6 +491,12 @@
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
             ];
           }
+          {
+            fileSystems."/" = {
+              device = "/dev/null";
+              fsType = "ext4";
+            };
+          }
         ];
         overrides = {
           autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop-v2";
