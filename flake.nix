@@ -297,6 +297,31 @@
         ];
       };
 
+      # Phase 5: Core v2 — minimal config using raw darwinSystem
+      # Uses raw nix-darwin.lib.darwinSystem (NOT mkDarwinSystem) intentionally.
+      # Core is minimal — no home-manager, no opnix, no modules/ import.
+      "core-v2" = nix-darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        modules = [
+          {
+            networking.hostName = "core";
+            system.configurationRevision = self.rev or self.dirtyRev or null;
+            nixpkgs.hostPlatform = "aarch64-darwin";
+            system.stateVersion = 4;
+            nix.enable = false;
+            myConfig = {
+              users = [];
+              roles = {};
+              onepassword.enable = false;
+              opencode.enable = false;
+              agent-skills.enable = false;
+            };
+          }
+          ./modules/common/core.nix
+          ./modules/common/options.nix
+        ];
+      };
+
       # MegamanX - personal desktop/workstation
       "MegamanX" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
@@ -328,6 +353,22 @@
           {
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
+
+            # Phase 5: Bootstrap v2 — minimal config using raw nixosSystem
+            # Uses raw nixpkgs.lib.nixosSystem (NOT mkNixosSystem) intentionally.
+            # Bootstrap is intentionally minimal — no home-manager, no opnix, no disko.
+            "bootstrap-v2" = nixpkgs.lib.nixosSystem {
+              system = "x86_64-linux";
+              modules = [
+                ./modules/common/core.nix
+                ./targets/bootstrap
+                ./modules/common/options.nix
+                {
+                  nixpkgs.hostPlatform = "x86_64-linux";
+                  system.stateVersion = "25.05";
+                }
+              ];
+            };
           }
         ];
       };
@@ -517,6 +558,7 @@
             llm-client-no-ai-roles
             entertainment-nixos
             typed-attrs-options
+            phase5-core-bootstrap
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
