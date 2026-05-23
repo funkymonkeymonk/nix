@@ -27,6 +27,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
@@ -74,6 +75,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
@@ -152,6 +154,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
