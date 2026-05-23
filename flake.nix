@@ -359,9 +359,9 @@
             ];
           }
 
-          # Disk layout
+          # Disk layout (zero-specific: NVMe, 1G ESP, 17G swap)
           inputs.disko.nixosModules.disko
-          ./disk-configs/single-disk-ext4.nix
+          ./disk-configs/zero.nix
 
           # Machine type configuration (includes myConfig defaults and SSH keys)
           ./machine-types/desktop.nix
@@ -417,6 +417,11 @@
 
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
+
+          {
+            hardware.cpu.intel.updateMicrocode = nixpkgs.lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = nixpkgs.lib.mkForce false;
+          }
 
           # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
           ./machine-types/server-arm.nix
