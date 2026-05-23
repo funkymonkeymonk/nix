@@ -415,8 +415,8 @@
           ./disk-configs/single-disk-ext4.nix
 
           {
-            hardware.cpu.intel.updateMicrocode = nixpkgs.lib.mkDefault false;
-            hardware.cpu.amd.updateMicrocode = nixpkgs.lib.mkDefault false;
+            hardware.cpu.intel.updateMicrocode = nixpkgs.lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = nixpkgs.lib.mkForce false;
           }
 
           # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
