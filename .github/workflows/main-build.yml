@@ -6,6 +6,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+env:
+  NIX_ACCESS_TOKENS: github.com=${{ github.token }} api.github.com=${{ github.token }} codeload.github.com=${{ github.token }}
 permissions:
   contents: read
 concurrency:
@@ -27,7 +29,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
@@ -75,7 +77,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
@@ -154,7 +156,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix

@@ -5,6 +5,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+env:
+  NIX_ACCESS_TOKENS: github.com=${{ github.token }} api.github.com=${{ github.token }} codeload.github.com=${{ github.token }}
 permissions:
   contents: read
   pull-requests: read
@@ -25,7 +27,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -88,7 +90,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -260,7 +262,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -298,7 +300,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -339,7 +341,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -533,7 +535,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -569,7 +571,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
-            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
