@@ -388,6 +388,13 @@ jobs:
             (needs.validate-auxiliary.result == 'success' ||
              needs.validate-auxiliary.result == 'skipped')
           }}
+        run: |
+          echo "Builds succeeded - committing new derivation hashes to cache"
+          mkdir -p .drv-cache
+          if [ -d .drv-cache-new ]; then
+            cp -r .drv-cache-new/* .drv-cache/
+            echo "Cache updated with new derivation hashes"
+          fi
       - name: Save derivation cache
         if: >
           ${{
@@ -402,13 +409,10 @@ jobs:
             (needs.validate-auxiliary.result == 'success' ||
              needs.validate-auxiliary.result == 'skipped')
           }}
-        run: |
-          echo "Builds succeeded - committing new derivation hashes to cache"
-          mkdir -p .drv-cache
-          if [ -d .drv-cache-new ]; then
-            cp -r .drv-cache-new/* .drv-cache/
-            echo "Cache updated with new derivation hashes"
-          fi
+        uses: actions/cache@v4
+        with:
+          path: .drv-cache
+          key: drv-${{ github.ref }}-${{ github.sha }}
       - name: Save derivation cache
         if: >
           ${{
