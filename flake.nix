@@ -76,11 +76,8 @@
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
+            "openclaw-2026.4.22"
           ];
-          allowInsecurePredicate = attrs: let
-            pname = attrs.pname or attrs.name or "";
-          in
-            pname == "openclaw";
         };
         overlays = [
           (final: _prev: {
@@ -478,6 +475,10 @@
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
             ];
           }
+          ({lib, ...}: {
+            hardware.cpu.intel.updateMicrocode = lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+          })
         ];
         overrides = {
           autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm-v2";
@@ -498,6 +499,12 @@
             users.users.root.openssh.authorizedKeys.keys = [
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
             ];
+          }
+          {
+            fileSystems."/" = {
+              device = "/dev/null";
+              fsType = "ext4";
+            };
           }
         ];
         overrides = {

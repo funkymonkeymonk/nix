@@ -4,21 +4,22 @@
 # Outputs one yak per line (JSON objects) that:
 #   - Are in state "todo"
 #   - Have no children of their own (leaf nodes)
-#   - Are not tagged with any blocking tag (e.g. @needs-human, @needs-e2e-vm)
+#   - Are not tagged with any blocking tag (e.g. @needs-human, @blocked, @wip)
 #   - Are not already wip (claimed by another agent)
-#   - Do not have a non-empty "## Blocked By" section in their context markdown
+#   - Do not have unmet prerequisites in their "## Prerequisites" section
+#   - Do not have a non-empty "## Blocked By" section in context
 #
-# Context is parsed directly from the JSON returned by `yx ls --format json`;
-# no extra `yx context` calls are needed. A yak is considered semantically
-# blocked if its context contains "## Blocked By" followed by non-whitespace
-# content on the next line.
+# Dependencies are resolved via the "## Prerequisites" section in each yak's
+# context. A yak with prerequisites where at least one is not "done" is treated
+# as blocked. This means @blocked tags are informational for humans -- triage
+# always resolves the dependency graph from context.
 #
 # Usage:
 #   ./yak-triage.sh                   # Print actionable yaks as JSON array
 #   ./yak-triage.sh --names           # Print just the names, one per line
 #   ./yak-triage.sh --count           # Print count only
 #   ./yak-triage.sh --max N           # Limit output to N yaks (default: unlimited)
-#   ./yak-triage.sh --include-blocked # Include yaks blocked by "## Blocked By" (debug)
+#   ./yak-triage.sh --include-blocked # Include blocked yaks (debug)
 #
 # Exit codes:
 #   0 - found actionable yaks
@@ -53,9 +54,8 @@ BLOCKING_TAGS=(
 # Get all yaks as flat JSON
 all_yaks=$(yx ls --format json 2>/dev/null)
 
-# Filter to actionable leaf yaks using Python (available everywhere).
-# Also filters out semantically blocked yaks (## Blocked By in context)
-# unless INCLUDE_BLOCKED is "true".
+# Filter to actionable leaf yaks using Python.
+# Resolves ## Prerequisites and ## Blocked By sections in context.
 actionable=$(python3 - "$all_yaks" "$INCLUDE_BLOCKED" "${BLOCKING_TAGS[@]}" <<'PYEOF'
 import json, sys, re
 
@@ -65,55 +65,73 @@ blocking_tags = set(sys.argv[3:])
 
 yaks = json.loads(raw)
 
-def has_blocked_by(context):
-    """Return True if context has a non-empty '## Blocked By' section."""
+def flatten(items):
+    """Recursively flatten yak tree into list (arbitrary depth)."""
+    result = []
+    for item in items:
+        result.append(item)
+        for child in item.get("children", []):
+            result.append(child)
+            result.extend(flatten(child.get("children", [])))
+    return result
+
+def build_name_state_map(flat_yaks):
+    """Build name -> state lookup from flat yak list."""
+    return {y["name"]: y.get("state", "todo") for y in flat_yaks}
+
+def parse_section_items(context, section_name):
+    """Extract list items from a named ## Section in context."""
     if not context:
-        return False
+        return []
     lines = context.splitlines()
-    for i, line in enumerate(lines):
-        if re.match(r'^## Blocked By\s*$', line, re.IGNORECASE):
-            # Look at the next non-empty line
-            for j in range(i + 1, len(lines)):
-                next_line = lines[j].strip()
-                if next_line and not next_line.startswith("#"):
-                    return True
-                elif next_line.startswith("##"):
-                    # Hit the next section header with no content
-                    break
+    items = []
+    in_section = False
+    for line in lines:
+        if re.match(r'^## ' + re.escape(section_name) + r'\s*$', line, re.IGNORECASE):
+            in_section = True
+            continue
+        if in_section:
+            if line.startswith("## "):
+                break
+            stripped = line.strip()
+            if stripped.startswith("- ") or stripped.startswith("* "):
+                items.append(stripped[2:].strip())
+    return items
+
+def has_unmet_prerequisites(yak, name_to_state):
+    """Check if any prerequisite in ## Prerequisites is not 'done'."""
+    items = parse_section_items(yak.get("context"), "Prerequisites")
+    for item in items:
+        prereq_name = re.sub(r'\s*must be done\s*$', '', item)
+        if prereq_name in name_to_state and name_to_state[prereq_name] != "done":
+            return True
     return False
 
-def is_actionable(yak, include_blocked):
-    # Must be todo state
+def has_blocked_by(context):
+    """Return True if context has a non-empty '## Blocked By' section."""
+    return len(parse_section_items(context, "Blocked By")) > 0
+
+def is_actionable(yak, include_blocked, name_to_state):
     if yak.get("state") != "todo":
         return False
-    # Must be a leaf (no children, or all children are done)
     children = yak.get("children", [])
     if children:
         non_done = [c for c in children if c.get("state") != "done"]
         if non_done:
             return False
-    # Must not have blocking tags
     tags = set(yak.get("tags", []))
     if tags & blocking_tags:
         return False
-    # Must not have a non-empty "## Blocked By" section in context
-    if not include_blocked and has_blocked_by(yak.get("context")):
-        return False
+    if not include_blocked:
+        if has_unmet_prerequisites(yak, name_to_state):
+            return False
+        if has_blocked_by(yak.get("context")):
+            return False
     return True
 
-def flatten(yaks):
-    """Recursively flatten yak tree into list."""
-    result = []
-    for y in yaks:
-        result.append(y)
-        for child in y.get("children", []):
-            result.append(child)
-            for grandchild in child.get("children", []):
-                result.append(grandchild)
-    return result
-
 flat = flatten(yaks)
-actionable = [y for y in flat if is_actionable(y, include_blocked)]
+name_to_state = build_name_state_map(flat)
+actionable = [y for y in flat if is_actionable(y, include_blocked, name_to_state)]
 print(json.dumps(actionable, indent=2))
 PYEOF
 )
