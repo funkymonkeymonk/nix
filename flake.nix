@@ -475,6 +475,10 @@
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
             ];
           }
+          ({lib, ...}: {
+            hardware.cpu.intel.updateMicrocode = lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+          })
         ];
         overrides = {
           autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm-v2";
