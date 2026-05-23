@@ -25,6 +25,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -77,6 +78,7 @@ jobs:
       nixos-count: ${{ steps.discover.outputs.nixos-count }}
       darwin-changed: ${{ steps.check-changes.outputs.darwin-changed }}
       nixos-changed: ${{ steps.check-changes.outputs.nixos-changed }}
+      nixos-arm-changed: ${{ steps.check-changes.outputs.nixos-arm-changed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,6 +88,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -185,14 +188,20 @@ jobs:
           echo "Darwin configs needing rebuild: $DARWIN_CHANGED"
           # Check NixOS configs
           NIXOS_CHANGED="[]"
+          NIXOS_ARM_CHANGED="[]"
           if [ -f .drv-cache/nixos-configs ]; then
             NIXOS_CHANGED_CONFIGS=()
+            NIXOS_ARM_CHANGED_CONFIGS=()
             for config in $(cat .drv-cache/nixos-configs | jq -r '.[]'); do
               OLD_HASH=$(cat .drv-cache/nixos-${config}.hash 2>/dev/null || echo "")
               NEW_HASH=$(compute_drv_hash "$config" "nixos")
               if [ "$OLD_HASH" != "$NEW_HASH" ]; then
                 echo "NixOS config '$config' changed ($OLD_HASH -> $NEW_HASH)"
-                NIXOS_CHANGED_CONFIGS+=("$config")
+                if echo "$config" | grep -qE -- '-arm(-|$)'; then
+                  NIXOS_ARM_CHANGED_CONFIGS+=("$config")
+                else
+                  NIXOS_CHANGED_CONFIGS+=("$config")
+                fi
               else
                 echo "NixOS config '$config' unchanged"
               fi
@@ -202,17 +211,26 @@ jobs:
             if [ ${#NIXOS_CHANGED_CONFIGS[@]} -gt 0 ]; then
               NIXOS_CHANGED=$(printf '%s\n' "${NIXOS_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
+            if [ ${#NIXOS_ARM_CHANGED_CONFIGS[@]} -gt 0 ]; then
+              NIXOS_ARM_CHANGED=$(printf '%s\n' "${NIXOS_ARM_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
+            fi
           else
-            # No cache exists, discover configs dynamically (exclude ARM - can't build on x86_64)
+             # No cache exists, discover configs dynamically
             echo "No cache found, discovering NixOS configs dynamically..."
             ALL_NIXOS=$(nix eval --impure .#nixosConfigurations \
               --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-            NIXOS_CHANGED=$(echo "$ALL_NIXOS" | jq '[.[] | select(test("-arm$") | not)]')
+            # ARM configs build on ubuntu-24.04-arm, x86_64 configs on ubuntu-latest
+            NIXOS_ARM_CHANGED=$(echo "$ALL_NIXOS" | jq '[.[] | select(test("-arm(-|$)"))]')
+            NIXOS_CHANGED=$(echo "$ALL_NIXOS" | jq '[.[] | select(test("-arm(-|$)") | not)]')
           fi
           echo "nixos-changed<<EOF" >> $GITHUB_OUTPUT
           echo "$NIXOS_CHANGED" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "NixOS configs needing rebuild: $NIXOS_CHANGED"
+          echo "nixos-arm-changed<<EOF" >> $GITHUB_OUTPUT
+          echo "$NIXOS_ARM_CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "NixOS configs needing rebuild (x86_64): $NIXOS_CHANGED"
+          echo "NixOS configs needing rebuild (ARM): $NIXOS_ARM_CHANGED"
           # Save current config lists to staging
           echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
           echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache-staging/nixos-configs
@@ -242,6 +260,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -260,7 +279,7 @@ jobs:
             echo "✗ Build failed"
             exit 1
           fi
-  # Build all NixOS configurations that changed
+  # Build all NixOS configurations that changed (x86_64)
   build-nixos:
     name: Build NixOS - ${{ matrix.config }}
     needs: discover-targets
@@ -279,6 +298,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -300,11 +320,57 @@ jobs:
             echo "✗ Build failed"
             exit 1
           fi
+  # Build all ARM NixOS configurations on native ARM runners
+  build-nixos-arm:
+    name: Build NixOS (ARM) - ${{ matrix.config }}
+    needs: discover-targets
+    runs-on: ubuntu-24.04-arm
+    if: ${{ needs.discover-targets.outputs.nixos-arm-changed != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config: ${{ fromJson(needs.discover-targets.outputs.nixos-arm-changed) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          skipPush: true
+      - name: Create stub facter.json
+        run: bash .github/scripts/create-facter-stub.sh
+      - name: Build ${{ matrix.config }}
+        id: build
+        run: |
+          echo "Building NixOS ARM configuration: ${{ matrix.config }}"
+          if nix build .#nixosConfigurations.${{ matrix.config }}.config.system.build.toplevel \
+              --dry-run --quiet --impure 2>&1; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "✓ Build plan validated"
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "✗ Build failed"
+            exit 1
+          fi
   # Collect all build results and report
   build-report:
     name: Build Report
     runs-on: ubuntu-latest
-    needs: [build-darwin, build-nixos, discover-targets, test-foundation, validate-auxiliary]
+    needs:
+      - build-darwin
+      - build-nixos
+      - build-nixos-arm
+      - discover-targets
+      - test-foundation
+      - validate-auxiliary
     if: always()
     steps:
       - name: Download staging cache
@@ -320,6 +386,8 @@ jobs:
              needs.build-darwin.result == 'skipped') &&
             (needs.build-nixos.result == 'success' ||
              needs.build-nixos.result == 'skipped') &&
+            (needs.build-nixos-arm.result == 'success' ||
+             needs.build-nixos-arm.result == 'skipped') &&
             (needs.test-foundation.result == 'success' ||
              needs.test-foundation.result == 'skipped') &&
             (needs.validate-auxiliary.result == 'success' ||
@@ -332,6 +400,24 @@ jobs:
             cp -r .drv-cache-new/* .drv-cache/
             echo "Cache updated with new derivation hashes"
           fi
+      - name: Save derivation cache
+        if: >
+          ${{
+            (needs.build-darwin.result == 'success' ||
+             needs.build-darwin.result == 'skipped') &&
+            (needs.build-nixos.result == 'success' ||
+             needs.build-nixos.result == 'skipped') &&
+            (needs.build-nixos-arm.result == 'success' ||
+             needs.build-nixos-arm.result == 'skipped') &&
+            (needs.test-foundation.result == 'success' ||
+             needs.test-foundation.result == 'skipped') &&
+            (needs.validate-auxiliary.result == 'success' ||
+             needs.validate-auxiliary.result == 'skipped')
+          }}
+        uses: actions/cache@v4
+        with:
+          path: .drv-cache
+          key: drv-${{ github.ref }}-${{ github.sha }}
       - name: Save derivation cache
         if: >
           ${{
@@ -354,10 +440,12 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           DARWIN_RESULT="${{ needs.build-darwin.result }}"
           NIXOS_RESULT="${{ needs.build-nixos.result }}"
+          NIXOS_ARM_RESULT="${{ needs.build-nixos-arm.result }}"
           TEST_FOUNDATION_RESULT="${{ needs.test-foundation.result }}"
           VALIDATE_AUX_RESULT="${{ needs.validate-auxiliary.result }}"
           DARWIN_CHANGED='${{ needs.discover-targets.outputs.darwin-changed }}'
           NIXOS_CHANGED='${{ needs.discover-targets.outputs.nixos-changed }}'
+          NIXOS_ARM_CHANGED='${{ needs.discover-targets.outputs.nixos-arm-changed }}'
           # Count configs
           DARWIN_TOTAL=$(echo '${{ needs.discover-targets.outputs.darwin-configs }}' \
             | jq 'length')
@@ -365,9 +453,12 @@ jobs:
             | jq 'length')
           DARWIN_CHANGED_COUNT=$(echo "$DARWIN_CHANGED" | jq 'length')
           NIXOS_CHANGED_COUNT=$(echo "$NIXOS_CHANGED" | jq 'length')
+          NIXOS_ARM_CHANGED_COUNT=$(echo "$NIXOS_ARM_CHANGED" | jq 'length')
           SUMMARY="**Darwin:** $DARWIN_CHANGED_COUNT of $DARWIN_TOTAL"
           echo "$SUMMARY configs changed" >> $GITHUB_STEP_SUMMARY
-          SUMMARY="**NixOS:** $NIXOS_CHANGED_COUNT of $NIXOS_TOTAL"
+          SUMMARY="**NixOS (x86_64):** $NIXOS_CHANGED_COUNT of $NIXOS_TOTAL"
+          echo "$SUMMARY configs changed" >> $GITHUB_STEP_SUMMARY
+          SUMMARY="**NixOS (ARM):** $NIXOS_ARM_CHANGED_COUNT of $NIXOS_TOTAL"
           echo "$SUMMARY configs changed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           # Report validation results
@@ -401,7 +492,11 @@ jobs:
             ALL_SUCCESS=false
           fi
           if [ "$NIXOS_RESULT" != "success" ] && [ "$NIXOS_RESULT" != "skipped" ]; then
-            echo "❌ NixOS builds failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ NixOS (x86_64) builds failed" >> $GITHUB_STEP_SUMMARY
+            ALL_SUCCESS=false
+          fi
+          if [ "$NIXOS_ARM_RESULT" != "success" ] && [ "$NIXOS_ARM_RESULT" != "skipped" ]; then
+            echo "❌ NixOS (ARM) builds failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
           if [ "$TEST_FOUNDATION_RESULT" != "success" ] \
@@ -438,6 +533,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
@@ -473,6 +569,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:

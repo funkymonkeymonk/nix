@@ -27,6 +27,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
@@ -74,6 +75,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Setup Cachix
@@ -91,13 +93,21 @@ jobs:
           # (arm configs can't build on x86_64 runners)
           ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          # ARM configs build on native ARM runners; x86_64 on ubuntu-latest
+          ARM_CONFIGS=$(echo "$ALL_CONFIGS" | jq \
+            '[.[] | select(test("^(installer-|bootstrap)") | not)
+                  | select(test("-arm(-|$)"))]')
           CONFIGS=$(echo "$ALL_CONFIGS" | jq \
             '[.[] | select(test("^(installer-|bootstrap)") | not)
-                  | select(test("-arm$") | not)]')
+                  | select(test("-arm(-|$)") | not)]')
           echo "configs<<EOF" >> $GITHUB_OUTPUT
           echo "$CONFIGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          echo "Found NixOS configurations: $CONFIGS"
+          echo "arm-configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$ARM_CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Found NixOS configurations (x86_64): $CONFIGS"
+          echo "Found NixOS configurations (ARM): $ARM_CONFIGS"
       - name: Build Linux configurations (push to Cachix)
         id: build
         run: |
@@ -129,10 +139,76 @@ jobs:
             exit 1
           fi
           echo "All NixOS configurations built and pushed to Cachix"
+  build-linux-arm:
+    name: Build ARM Linux Configurations
+    runs-on: ubuntu-24.04-arm
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = github.com=${{ github.token }} api.github.com=${{ github.token }}
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Discover ARM NixOS configurations
+        id: discover
+        run: |
+          echo "Discovering ARM NixOS configurations..."
+          ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
+            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
+          ARM_CONFIGS=$(echo "$ALL_CONFIGS" | jq \
+            '[.[] | select(test("-arm(-|$)"))]')
+          echo "arm-configs<<EOF" >> $GITHUB_OUTPUT
+          echo "$ARM_CONFIGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Found ARM NixOS configurations: $ARM_CONFIGS"
+      - name: Build ARM Linux configurations (push to Cachix)
+        id: build
+        run: |
+          echo "Building ARM NixOS configurations and pushing to Cachix..."
+          CONFIGS='${{ steps.discover.outputs.arm-configs }}'
+          FAILED=0
+          BUILT=0
+          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
+            echo ""
+            echo "========================================"
+            echo "Building $config configuration..."
+            echo "========================================"
+            if nix build \
+                ".#nixosConfigurations.$config.config.system.build.toplevel" \
+                --no-link --impure 2>&1; then
+              echo "$config build complete"
+              BUILT=$((BUILT + 1))
+            else
+              echo "WARNING: $config build failed"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+          echo ""
+          echo "Built: $BUILT, Failed: $FAILED"
+          echo "built=$BUILT" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          if [ "$FAILED" -gt 0 ]; then
+            echo "Some ARM NixOS configurations failed to build"
+            exit 1
+          fi
+          echo "All ARM NixOS configurations built and pushed to Cachix"
   cache-health:
     name: Verify Cache Population
     runs-on: ubuntu-latest
-    needs: [build-darwin, build-linux]
+    needs: [build-darwin, build-linux, build-linux-arm]
     if: always()
     steps:
       - name: Check build results
@@ -142,6 +218,7 @@ jobs:
 
           DARWIN="${{ needs.build-darwin.result }}"
           LINUX="${{ needs.build-linux.result }}"
+          LINUX_ARM="${{ needs.build-linux-arm.result }}"
 
           if [ "$DARWIN" = "success" ]; then
             echo "- Darwin builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
@@ -150,14 +227,20 @@ jobs:
           fi
 
           if [ "$LINUX" = "success" ]; then
-            echo "- NixOS builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
+            echo "- NixOS (x86_64) builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "- NixOS builds: **FAILED** ($LINUX)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- NixOS (x86_64) builds: **FAILED** ($LINUX)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$LINUX_ARM" = "success" ]; then
+            echo "- NixOS (ARM) builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- NixOS (ARM) builds: **FAILED** ($LINUX_ARM)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$DARWIN" != "success" ] || [ "$LINUX" != "success" ]; then
+          if [ "$DARWIN" != "success" ] || [ "$LINUX" != "success" ] || [ "$LINUX_ARM" != "success" ]; then
             echo "**Cache is stale.** Local deploys may need to build from source." \
               >> "$GITHUB_STEP_SUMMARY"
             echo ""
