@@ -19,6 +19,7 @@
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
+  testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -137,5 +138,7 @@ in
     zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
 
+    # Phase 2: Cattle NixOS v2 configs
+    phase2-cattle = testPhase2Cattle.phase2CattleTest;
   }
   // vmTests
