@@ -14,7 +14,7 @@ with lib; let
   mcpServersWithSecrets = lib.filterAttrs (_name: server: server.onePasswordItem != "") cfg.mcpServers;
 
   # Build opnix secrets configuration using shared helper
-  opnixSecrets = hmLib.mkOpnixSecrets "claudeCode" (
+  opnixSecrets = hmLib.mkOpnixSecrets "claudeCode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: server: {
       inherit (server) onePasswordItem;
       secretPath = ".config/claude-code/secrets/${name}-apikey";

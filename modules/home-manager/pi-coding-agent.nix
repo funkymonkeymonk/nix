@@ -14,7 +14,7 @@ with lib; let
   modelsWithSecrets = lib.filterAttrs (_name: model: model.onePasswordItem != "") cfg.models;
 
   # Build opnix secrets configuration
-  opnixSecrets = hmLib.mkOpnixSecrets "pi" (
+  opnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: model: {
       inherit (model) onePasswordItem;
       secretPath = ".pi/agent/secrets/${name}-apikey";

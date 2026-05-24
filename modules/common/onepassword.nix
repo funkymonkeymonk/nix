@@ -33,7 +33,19 @@ in {
       # To get a token: https://developer.1password.com/docs/service-accounts/get-started/
       services.onepassword-secrets = {
         enable = mkDefault false;
-        inherit (cfg) tokenFile secrets;
+        inherit (cfg) tokenFile;
+        secrets =
+          lib.mapAttrs (
+            _name: secret:
+              secret
+              // {
+                reference =
+                  if lib.hasPrefix "op://" secret.reference
+                  then secret.reference
+                  else "op://${cfg.defaultVault}/${secret.reference}";
+              }
+          )
+          cfg.secrets;
       };
     })
   ]);

@@ -10,10 +10,13 @@
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers or null;
-    onepassword.tokenFile = "/etc/opnix/token";
+    onepassword = {
+      tokenFile = "/etc/opnix/token";
+      defaultVault = "Homelab";
+    };
     roles.tailscale = {
       enable = true;
-      authKeyOpnixItem = "op://Homelab/Tailscale Auth Key/credential";
+      authKeyOpnixItem = "Tailscale Auth Key/credential";
     };
   };
 

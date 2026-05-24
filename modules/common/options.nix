@@ -169,8 +169,8 @@ with lib; {
         };
         authKeyOpnixItem = mkOption {
           type = types.str;
-          default = "op://Personal/Tailscale/auth-key";
-          description = "1Password item reference for Tailscale auth key (default: op://Personal/Tailscale/auth-key)";
+          default = "Tailscale/auth-key";
+          description = "1Password item reference for Tailscale auth key. If the value does not start with 'op://', it is treated as 'Item/Field' and the default vault is prepended.";
         };
         exitNode = mkOption {
           type = types.bool;
@@ -567,6 +567,12 @@ with lib; {
           Override this for machines with different vault or item names,
           e.g. "op://Employee/wweaver Sudo Password/password".
         '';
+      };
+
+      defaultVault = mkOption {
+        type = types.str;
+        default = "Personal";
+        description = "Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references.";
       };
 
       tokenFile = mkOption {
