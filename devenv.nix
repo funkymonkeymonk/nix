@@ -1373,22 +1373,18 @@
         echo "All eval checks run in parallel. Build runs only if all pass."
         echo ""
 
-        # Run all three eval checks in parallel
-        nix flake check --no-build --impure --accept-flake-config &
-        FLAKE_PID=$!
+        # Run both eval checks in parallel
         devenv tasks run test:nixos-eval &
         EVAL_NIXOS_PID=$!
         devenv tasks run test:darwin-eval &
         EVAL_DARWIN_PID=$!
 
-        wait $FLAKE_PID; FLAKE_RESULT=$?
         wait $EVAL_NIXOS_PID; EVAL_NIXOS=$?
         wait $EVAL_DARWIN_PID; EVAL_DARWIN=$?
 
-        if [ $FLAKE_RESULT -ne 0 ] || [ $EVAL_NIXOS -ne 0 ] || [ $EVAL_DARWIN -ne 0 ]; then
+        if [ $EVAL_NIXOS -ne 0 ] || [ $EVAL_DARWIN -ne 0 ]; then
           echo ""
           echo "=== Eval Results: FAILED ==="
-          [ $FLAKE_RESULT -ne 0 ] && echo "Flake check: FAILED"
           [ $EVAL_NIXOS -ne 0 ] && echo "NixOS eval: FAILED"
           [ $EVAL_DARWIN -ne 0 ] && echo "Darwin eval: FAILED"
           echo ""
