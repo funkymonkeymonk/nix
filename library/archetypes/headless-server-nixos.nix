@@ -32,7 +32,7 @@
   boot = {
     loader.systemd-boot.enable = lib.mkDefault true;
     loader.efi.canTouchEfiVariables = lib.mkDefault true;
-    kernelModules = ["kvm-intel" "kvm-amd"];
+    kernelModules = lib.optionals pkgs.stdenv.hostPlatform.isx86_64 ["kvm-intel" "kvm-amd"];
   };
 
   nix.settings.experimental-features = ["nix-command" "flakes"];

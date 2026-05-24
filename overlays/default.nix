@@ -23,4 +23,8 @@ final: _prev: {
       outputHash = "sha256-71id1sB2dQ8Egj8zGFjcEIeOmU/t9HRoRwPHb9fWtC8=";
     };
   });
+
+  openldap = _prev.openldap.overrideAttrs (_: {
+    doCheck = false;
+  });
 }

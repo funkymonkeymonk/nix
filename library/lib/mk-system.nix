@@ -23,8 +23,28 @@
                   "google-chrome-144.0.7559.97"
                   "olm-3.2.16"
                 ];
+                allowInsecurePredicate = attrs: let
+                  pname = attrs.pname or attrs.name or "";
+                  fullName = "${pname}-${attrs.version or ""}";
+                in
+                  pname
+                  == "openclaw"
+                  || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
               };
-              overlays = [(import ../../overlays)];
+              overlays = [
+                (final: _prev: {
+                  stable = import inputs.nixpkgs-stable {
+                    inherit (final) system config;
+                  };
+                })
+                (final: _prev: {
+                  inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+                })
+                (final: _prev: {
+                  zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
+                })
+                (import ../../overlays)
+              ];
             };
           }
           (import ../../modules)
@@ -63,10 +83,16 @@
                   "google-chrome-144.0.7559.97"
                   "olm-3.2.16"
                 ];
+                allowInsecurePredicate = attrs: let
+                  pname = attrs.pname or attrs.name or "";
+                  fullName = "${pname}-${attrs.version or ""}";
+                in
+                  pname
+                  == "openclaw"
+                  || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
               };
               hostPlatform = system;
               overlays = [
-                (import ../../overlays)
                 (final: _prev: {
                   stable = import inputs.nixpkgs-stable {
                     inherit (final) system config;
@@ -78,6 +104,7 @@
                 (final: _prev: {
                   zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
                 })
+                (import ../../overlays)
               ];
             };
           }
