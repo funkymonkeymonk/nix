@@ -19,7 +19,7 @@ with lib; let
   providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
 
   # Build opnix secrets configuration using shared helper (API keys)
-  opnixSecrets = hmLib.mkOpnixSecrets "opencode" (
+  opnixSecrets = hmLib.mkOpnixSecrets "opencode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: provider: {
       inherit (provider) onePasswordItem;
       secretPath = ".config/opencode/secrets/${name}-apikey";
@@ -28,7 +28,7 @@ with lib; let
   );
 
   # Build opnix secrets for base URLs (providers with baseURLOpnixItem)
-  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" (
+  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: provider: {
       reference = provider.baseURLOpnixItem;
       path = ".config/opencode/secrets/${name}-baseurl";

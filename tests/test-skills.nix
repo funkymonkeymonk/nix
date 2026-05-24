@@ -36,7 +36,12 @@
       name: skill: let
         skillMd =
           if skill.source.type == "internal"
-          then builtins.readFile "${skill.source.path}/SKILL.md"
+          then let
+            skillPath = skill.source.path + "/SKILL.md";
+          in
+            if builtins.pathExists skillPath
+            then builtins.readFile skillPath
+            else "# ${name}\n\n${skill.description}"
           else "# ${name}\n\n${skill.description}";
       in
         skillMd
