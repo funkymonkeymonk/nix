@@ -10,6 +10,11 @@
   isNixOS = builtins.hasAttr "boot" options;
   # Check if the opnix module is available
   hasOpnix = builtins.hasAttr "onepassword-secrets" (options.services or {});
+  # Build vault-aware reference for the auth key
+  authKeyRef =
+    if lib.hasPrefix "op://" cfg.authKeyOpnixItem
+    then cfg.authKeyOpnixItem
+    else "op://${config.myConfig.onepassword.defaultVault}/${cfg.authKeyOpnixItem}";
 
   # Build tailscale up command flags
   tailscaleUpFlags = lib.concatStringsSep " " (
@@ -27,7 +32,7 @@ in {
     (lib.optionalAttrs isNixOS {
       services.tailscale.enable = true;
       myConfig.onepassword.secrets.tailscaleAuthKey = {
-        reference = cfg.authKeyOpnixItem;
+        reference = authKeyRef;
         path = "/run/secrets/tailscale-auth-key";
         mode = "0400";
         services = ["tailscale-autoconnect"];
