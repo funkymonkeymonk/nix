@@ -1369,18 +1369,14 @@
     "test:all" = {
       description = "Run all tests (eval gates build, optimized for parallel CI)";
       exec = ''
-        echo "=== Phase 1: Evaluation Checks (parallel gate) ==="
-        echo "All eval checks run in parallel. Build runs only if all pass."
+        echo "=== Phase 1: Evaluation Checks ==="
+        echo "Eval checks gate the build. Build runs only if all pass."
         echo ""
 
-        # Run both eval checks in parallel
-        devenv tasks run test:nixos-eval &
-        EVAL_NIXOS_PID=$!
-        devenv tasks run test:darwin-eval &
-        EVAL_DARWIN_PID=$!
-
-        wait $EVAL_NIXOS_PID; EVAL_NIXOS=$?
-        wait $EVAL_DARWIN_PID; EVAL_DARWIN=$?
+        devenv tasks run test:nixos-eval
+        EVAL_NIXOS=$?
+        devenv tasks run test:darwin-eval
+        EVAL_DARWIN=$?
 
         if [ $EVAL_NIXOS -ne 0 ] || [ $EVAL_DARWIN -ne 0 ]; then
           echo ""
