@@ -21,6 +21,7 @@
   testZero = import ./test-zero.nix {inherit pkgs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
   testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
+  testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -144,5 +145,8 @@ in
 
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
+
+    # Phase 2: Cattle NixOS v2 configs
+    phase2-cattle = testPhase2Cattle.phase2CattleTest;
   }
   // vmTests

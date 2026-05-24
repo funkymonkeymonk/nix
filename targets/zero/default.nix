@@ -1,20 +1,16 @@
-# Zero - Gaming/desktop NixOS machine
-# Desktop, gaming, and streaming config come from modules via extraConfig
+# Zero - Gaming/desktop NixOS machine (NVMe + NVIDIA + AMD CPU)
 {
   config,
   pkgs,
   lib,
   mkUser,
   inputs,
+  modulesPath,
   ...
 }: {
-  imports =
-    lib.optionals (builtins.pathExists /etc/nixos/hardware-configuration.nix) [
-      /etc/nixos/hardware-configuration.nix
-    ]
-    ++ lib.optionals (!builtins.pathExists /etc/nixos/hardware-configuration.nix) [
-      ../hardware-stub.nix
-    ];
+  imports = [
+    (modulesPath + "/installer/scan/not-detected.nix")
+  ];
 
   nixpkgs.hostPlatform = "x86_64-linux";
   system.stateVersion = "25.05";
@@ -56,6 +52,17 @@
   environment.systemPackages = with pkgs; [
     discord
   ];
+
+  # Hardware: NVMe, AMD CPU, NVIDIA GPU
+  boot.initrd.availableKernelModules = [
+    "nvme"
+    "xhci_pci"
+    "ahci"
+    "usbhid"
+    "usb_storage"
+    "sd_mod"
+  ];
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
   # Disable sleep/hibernate (always-on machine)
   systemd.sleep.settings.Sleep = {

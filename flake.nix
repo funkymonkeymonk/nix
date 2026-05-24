@@ -76,8 +76,14 @@
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
-            "openclaw-2026.4.22"
           ];
+          allowInsecurePredicate = attrs: let
+            pname = attrs.pname or attrs.name or "";
+            fullName = "${pname}-${attrs.version or ""}";
+          in
+            pname
+            == "openclaw"
+            || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
         };
         overlays = [
           (final: _prev: {
@@ -368,6 +374,7 @@
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          opnix.nixosModules.default
           ./modules
           ./modules/nixos/base.nix
           ./modules/nixos/desktop.nix
@@ -386,9 +393,9 @@
             ];
           }
 
-          # Disk layout
+          # Disk layout (zero-specific: NVMe, 1G ESP, 17G swap)
           inputs.disko.nixosModules.disko
-          ./disk-configs/single-disk-ext4.nix
+          ./disk-configs/zero.nix
 
           # Machine type configuration (includes myConfig defaults and SSH keys)
           ./machine-types/desktop.nix
@@ -445,6 +452,11 @@
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
 
+          {
+            hardware.cpu.intel.updateMicrocode = nixpkgs.lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = nixpkgs.lib.mkForce false;
+          }
+
           # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
           ./machine-types/server-arm.nix
         ];
@@ -493,6 +505,81 @@
         ];
         overrides = {
           autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero-v2";
+        };
+      };
+
+      # Phase 2: Cattle NixOS v2 configs using new library mkNixosSystem
+      # Runs in parallel with type-server and type-server-arm until verified.
+      "type-server-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-server";
+        modules = [
+          microvm.nixosModules.host
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./library/archetypes/headless-server-nixos.nix
+          ./disk-configs/single-disk-ext4.nix
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          {
+            users.users.admin.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-v2";
+        };
+      };
+
+      "type-server-arm-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-server-arm";
+        system = "aarch64-linux";
+        modules = [
+          microvm.nixosModules.host
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./library/archetypes/headless-server-nixos.nix
+          ./disk-configs/single-disk-ext4.nix
+          {
+            users.users.admin.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+          ({lib, ...}: {
+            hardware.cpu.intel.updateMicrocode = lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+          })
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm-v2";
+          roles.tailscale.enable = false;
+        };
+      };
+
+      "type-desktop-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-desktop";
+        modules = [
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./modules/nixos/desktop.nix
+          ./modules/nixos/ghostty-terminfo.nix
+          ./library/archetypes/desktop-nixos.nix
+          {
+            users.users.root.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
+          {
+            fileSystems."/" = {
+              device = "/dev/null";
+              fsType = "ext4";
+            };
+          }
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop-v2";
         };
       };
     };
@@ -587,6 +674,7 @@
             typed-attrs-options
             phase3-zero
             phase4-darwin-server
+            phase2-cattle
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
