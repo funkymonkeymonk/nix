@@ -183,26 +183,16 @@
   };
 
   "yak-shaving" = {
-    description = "Use when tracking, planning, or implementing work using yx (yaks) in a repository with jj workspaces, or when multiple agents need to coordinate on shared tasks";
+    description = "Use when tracking, planning, implementing, or reviewing work using yx (yaks) with the autonomous /shave loop, or when multiple agents need to coordinate on shared tasks";
     roles = ["developer" "opencode" "claude" "pi"];
     source = {
       type = "internal";
       path = ./internal/yak-shaving;
     };
-    deps = [];
+    deps = ["jj" "watch-ci-jobs"];
     autoLoad = true;
-  };
-
-  "shave-yaks" = {
-    description = "Use when you want to autonomously work through a yak backlog end-to-end — triaging, implementing, testing, and shipping PRs until all yaks are done or flagged for refinement";
-    roles = ["developer" "opencode" "claude"];
-    source = {
-      type = "internal";
-      path = ./internal/shave-yaks;
-    };
-    deps = ["yak-shaving" "jj" "watch-ci-jobs"];
     commands = {
-      path = ./internal/shave-yaks/commands;
+      path = ./internal/yak-shaving/commands;
       list = ["shave"];
     };
   };

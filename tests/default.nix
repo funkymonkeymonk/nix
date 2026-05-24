@@ -20,6 +20,7 @@
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
+  testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -140,5 +141,8 @@ in
 
     # Phase 5: Core and bootstrap v2 configs
     phase5-core-bootstrap = testPhase5CoreBootstrap;
+
+    # Phase 2: Cattle NixOS v2 configs
+    phase2-cattle = testPhase2Cattle.phase2CattleTest;
   }
   // vmTests
