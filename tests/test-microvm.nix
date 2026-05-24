@@ -36,19 +36,32 @@
           };
         }
         {
-          options = builtins.listToAttrs (map (option: lib.nameValuePair option (lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          })) [
-            "i18n" "documentation" "environment" "system" "systemd"
-            "programs" "networking" "users" "nix" "services"
-            "time" "virtualisation" "nixpkgs"
-          ]) // {
-            myConfig.openclaw = lib.mkOption {
-              type = lib.types.anything;
-              default = {};
+          options =
+            builtins.listToAttrs (map (option:
+              lib.nameValuePair option (lib.mkOption {
+                type = lib.types.anything;
+                default = {};
+              })) [
+              "i18n"
+              "documentation"
+              "environment"
+              "system"
+              "systemd"
+              "programs"
+              "networking"
+              "users"
+              "nix"
+              "services"
+              "time"
+              "virtualisation"
+              "nixpkgs"
+            ])
+            // {
+              myConfig.openclaw = lib.mkOption {
+                type = lib.types.anything;
+                default = {};
+              };
             };
-          };
           config = {};
         }
       ];
