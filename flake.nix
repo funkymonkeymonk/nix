@@ -347,6 +347,7 @@
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          opnix.nixosModules.default
           ./modules
           ./modules/nixos/base.nix
           ./modules/nixos/desktop.nix
