@@ -79,8 +79,11 @@
           ];
           allowInsecurePredicate = attrs: let
             pname = attrs.pname or attrs.name or "";
+            fullName = "${pname}-${attrs.version or ""}";
           in
-            pname == "openclaw";
+            pname
+            == "openclaw"
+            || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
         };
         overlays = [
           (final: _prev: {
@@ -344,6 +347,7 @@
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          opnix.nixosModules.default
           ./modules
           ./modules/nixos/base.nix
           ./modules/nixos/desktop.nix
