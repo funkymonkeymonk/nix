@@ -135,11 +135,20 @@
       in
         if skill.source.type == "internal"
         then
-          # Internal: link the directory
-          lib.nameValuePair skillDir {
-            source = skill.source.path;
-            recursive = true;
-          }
+          # Internal: link the directory if it exists, fall back to placeholder
+          let
+            src = skill.source.path;
+          in
+            if builtins.pathExists src
+            then
+              lib.nameValuePair skillDir {
+                source = src;
+                recursive = true;
+              }
+            else
+              lib.nameValuePair "${skillDir}/SKILL.md" {
+                text = "# ${name}\n\n${skill.description}";
+              }
         else if skill.source.type == "superpowers" && superpowersPath != null
         then
           # Superpowers: link from the flake input
