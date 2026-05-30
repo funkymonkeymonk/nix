@@ -1,4 +1,8 @@
-{lib, ...}: {
+{
+  lib,
+  pkgs,
+  ...
+}: {
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [
@@ -6,6 +10,8 @@
     ];
 
   nix.enable = false;
+
+  fonts.packages = [pkgs.nerd-fonts.jetbrains-mono];
 
   # Require password for each sudo command
   security.sudo.extraConfig = ''

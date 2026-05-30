@@ -79,7 +79,7 @@
       window-padding-x = 10
       window-padding-y = 6
       background-opacity = 0.95
-      font-family = "JetBrains Mono"
+      font-family = "JetBrainsMono Nerd Font Mono"
       cursor-style = block
       shell-integration = zsh
       keybind = global:ctrl+shift+alt+t=toggle_quick_terminal
