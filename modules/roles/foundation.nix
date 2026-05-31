@@ -29,6 +29,7 @@ in {
 
           # Navigation and search
           entr
+          ncdu
           tree
           zoxide
           fzf
