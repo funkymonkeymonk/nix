@@ -14,7 +14,10 @@ in {
         {
           environment.systemPackages = with pkgs; [
             logseq
-            super-productivity
+            # super-productivity disabled: Electron 41 kqueue assertion crash on macOS
+            # during electron-builder. Existing installed version (18.5.0) works fine.
+            # Tracked: libuv kqueue.c:279 errno == EINTR
+            # super-productivity
           ];
         }
         (lib.mkIf (!isDarwin) {

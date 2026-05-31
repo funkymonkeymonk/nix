@@ -206,4 +206,14 @@
     };
     deps = [];
   };
+
+  zellij = {
+    description = "Zellij terminal multiplexer — creating KDL layouts, managing sessions via CLI, and running commands without disrupting the user's workspace";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/zellij;
+    };
+    deps = [];
+  };
 }
