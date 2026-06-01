@@ -58,10 +58,16 @@ buildNpmPackage rec {
     runHook preInstall
     mkdir -p $out/lib/vane $out/bin
 
+    # Copy standalone server output (includes server.js, node_modules, package.json)
     cp -r .next/standalone/* $out/lib/vane/
+
+    # Copy the full .next/ directory (buildId, manifests, server chunks, etc.)
+    cp -r .next $out/lib/vane/.next
+    # Remove cache (not needed at runtime)
+    rm -rf $out/lib/vane/.next/cache
+
+    # Copy public assets
     cp -r public $out/lib/vane/
-    mkdir -p $out/lib/vane/.next
-    cp -r .next/static $out/lib/vane/.next/static
 
     makeWrapper ${nodejs}/bin/node $out/bin/vane \
       --add-flags "$out/lib/vane/server.js" \

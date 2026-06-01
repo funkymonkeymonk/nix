@@ -31,10 +31,10 @@ with lib; let
     set -euo pipefail
     export HOME="${darwinHomeDir}"
     export PATH="${pkgs.nodejs}/bin:/usr/local/bin:/usr/bin:/bin"
+    export DATA_DIR="${dataDir}/vane"
 
-    mkdir -p "${dataDir}/vane" "${dataDir}/logs"
+    mkdir -p "${dataDir}/vane" "${dataDir}/vane/data" "${dataDir}/logs"
 
-    cd "${dataDir}/vane"
     exec ${pkgs.vane}/bin/vane
   '';
 in {
