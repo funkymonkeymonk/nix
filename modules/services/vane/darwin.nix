@@ -31,9 +31,9 @@ with lib; let
     set -euo pipefail
     export HOME="${darwinHomeDir}"
     export PATH="${pkgs.nodejs}/bin:/usr/local/bin:/usr/bin:/bin"
-    export DATA_DIR="${dataDir}/vane"
+    export DATA_DIR="${dataDir}"
 
-    mkdir -p "${dataDir}/vane" "${dataDir}/vane/data" "${dataDir}/logs"
+    mkdir -p "${dataDir}/data" "${dataDir}/logs"
 
     exec ${pkgs.vane}/bin/vane
   '';
@@ -55,7 +55,7 @@ in {
     };
 
     system.activationScripts.postActivation.text = mkAfter ''
-      mkdir -p "${dataDir}/vane" "${dataDir}/logs"
+      mkdir -p "${dataDir}/data" "${dataDir}/logs"
     '';
   };
 }
