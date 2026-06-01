@@ -44,8 +44,8 @@
         autoStart = true;
         # Local Ollama for fast local models
         ollamaUrl = "http://host.docker.internal:11434";
-        # LiteLLM base URL (hardcoded - not sensitive)
-        openaiBaseUrl = "https://litellm.justworksai.net";
+        # LiteLLM base URL via 1Password (not hardcoded)
+        openaiBaseUrlOpnixItem = "op://Justworks/LiteLLM/baseURL";
         # Embedded SearxNG for web search
         embeddedSearxng = true;
         # Chat model (balanced speed/quality)
@@ -122,7 +122,8 @@
           just-llms = {
             npm = "@ai-sdk/openai-compatible";
             name = "Just LLMs";
-            baseURL = "https://litellm.justworksai.net";
+            baseURL = "";
+            baseURLOpnixItem = "op://Justworks/LiteLLM/baseURL";
             onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
             dynamicModels = true;
             models = {

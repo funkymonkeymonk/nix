@@ -64,13 +64,12 @@
     system ? "x86_64-linux",
     modules ? [],
     overrides ? {},
-    extraSpecialArgs ? {},
   }: let
     inherit (inputs) nixpkgs;
   in
     nixpkgs.lib.nixosSystem {
       inherit system;
-      specialArgs = inputs // {inherit inputs;} // extraSpecialArgs;
+      specialArgs = inputs // {inherit inputs;};
       modules =
         [
           {
