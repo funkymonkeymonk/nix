@@ -39,9 +39,10 @@ with lib; let
   '';
 in {
   config = mkIf cfg.enable {
-    launchd.user.agents.searxng = {
+    launchd.daemons.searxng = {
       serviceConfig = {
         Label = "com.searxng.service";
+        UserName = primaryUser;
         ProgramArguments = [
           "${pkgs.searxng}/bin/searxng-run"
         ];

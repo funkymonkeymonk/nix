@@ -14,7 +14,6 @@
   lib,
   ...
 }:
-
 buildNpmPackage rec {
   pname = "vane";
   version = "1.12.2";
@@ -68,6 +67,9 @@ buildNpmPackage rec {
 
     # Copy public assets
     cp -r public $out/lib/vane/
+
+    # Copy database migration files
+    cp -r drizzle $out/lib/vane/drizzle
 
     makeWrapper ${nodejs}/bin/node $out/bin/vane \
       --add-flags "$out/lib/vane/server.js" \
