@@ -76,6 +76,7 @@
           permittedInsecurePackages = [
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
+            "electron-39.8.10"
           ];
           allowInsecurePredicate = attrs: let
             pname = attrs.pname or attrs.name or "";
@@ -83,7 +84,7 @@
           in
             pname
             == "openclaw"
-            || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
+            || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16" "electron-39.8.10"];
         };
         overlays = [
           (final: _prev: {

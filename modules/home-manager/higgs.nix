@@ -60,7 +60,7 @@ with lib; let
   );
 
   # Providers with apiKeyFile (read at build time, embed in config)
-  providersConfig = mapAttrs (name: p:
+  providersConfig = mapAttrs (_: p:
     clean (
       {
         url = p.url;

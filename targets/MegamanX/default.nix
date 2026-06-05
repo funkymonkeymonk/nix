@@ -83,9 +83,9 @@
       };
       vane = {
         enable = true;
-        # Higgs is the unified gateway (runs outside Docker, accessed via host.docker.internal)
+        # Higgs is the unified gateway — Vane runs natively now, so use localhost
         # Embeddings are generated natively by Higgs from loaded MLX models
-        openaiBaseUrl = "http://host.docker.internal:8000/v1";
+        openaiBaseUrl = "http://localhost:8000/v1";
         # Models are served by Higgs at the OpenAI endpoint, discovered at runtime
         defaultModel = null;
         embeddingModel = null;

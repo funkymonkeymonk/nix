@@ -586,5 +586,5 @@ jobs:
             "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Run foundation tests
         run: |
-          echo "Running foundation test suite..."
-          devenv tasks run test:all
+            echo "Running foundation test suite..."
+            devenv tasks run test:eval test:checks

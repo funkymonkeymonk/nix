@@ -385,7 +385,7 @@ dtl
 | Task | Description |
 |------|-------------|
 | `flake:update` | Update flake inputs |
-| `devenv:update` | Update devenv lock file |
+| `devenv update` | Update devenv lock file |
 
 ### Development
 
