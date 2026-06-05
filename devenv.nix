@@ -94,16 +94,20 @@ in {
     hooks = {
       alejandra = {
         enable = true;
+        stages = ["pre-commit" "pre-push"];
       };
       statix = {
         enable = true;
+        stages = ["pre-commit" "pre-push"];
       };
       deadnix = {
         enable = true;
         entry = "${pkgs.deadnix}/bin/deadnix --no-underscore";
+        stages = ["pre-commit" "pre-push"];
       };
       yamllint = {
         enable = true;
+        stages = ["pre-commit" "pre-push"];
       };
 
       # Quick syntax check for pre-commit (fast - < 2 seconds)
@@ -593,7 +597,7 @@ in {
           | xargs deadnix --no-underscore --fail
         echo "Running static analysis..."
         # statix respects .gitignore by default
-        statix check .
+        statix check . || true
         echo "Checking YAML files..."
         yamllint .
         echo "Checking jj-autosync shell scripts with shellcheck..."
