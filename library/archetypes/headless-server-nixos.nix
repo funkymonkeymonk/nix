@@ -20,7 +20,7 @@
     };
   };
 
-  hardware.facter.reportPath = "/etc/nixos/facter.json";
+  hardware.facter.reportPath = lib.mkIf (builtins.pathExists /etc/nixos/facter.json) "/etc/nixos/facter.json";
 
   users.users.root.openssh.authorizedKeys.keys = [];
   users.users.admin = {

@@ -616,8 +616,7 @@ in {
         HAS_FACTER=false
         if [ -f /etc/nixos/facter.json ]; then
           HAS_FACTER=true
-        elif [[ "$(uname)" != "Darwin" ]]; then
-          sudo mkdir -p /etc/nixos
+        elif sudo -n mkdir -p /etc/nixos 2>/dev/null; then
           sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
         {
           "version": 1,
