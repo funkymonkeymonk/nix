@@ -16,6 +16,10 @@ with lib; let
     else "monkey";
   darwinHomeDir = "/Users/${primaryUser}";
   dataDir = cfg.dataDir;
+  resolvedBaseUrl =
+    if cfg.openaiBaseUrl != null
+    then cfg.openaiBaseUrl
+    else "http://localhost:8000/v1";
 
   # Environment for Vane
   # OPENAI_BASE_URL is omitted — it triggers Vane to auto-create a duplicate provider.
@@ -61,7 +65,7 @@ with lib; let
           ],
           "config": {
             "apiKey": "higgs-local",
-            "baseURL": "${cfg.openaiBaseUrl}"
+            "baseURL": "${resolvedBaseUrl}"
           }
         }
       ],

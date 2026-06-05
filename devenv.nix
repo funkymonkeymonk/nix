@@ -715,8 +715,8 @@ in {
           exit 0
         fi
 
-        # Exclude VM tests (need Linux + KVM)
-        FILTERED=$(echo "$ALL_CHECKS" | jq -r '.[] | select(startswith("vm-") | not)')
+        # Exclude VM and microVM tests (need Linux + KVM)
+        FILTERED=$(echo "$ALL_CHECKS" | jq -r '.[] | select(startswith("vm-") or startswith("microvm-") | not)')
         TARGETS=$(echo "$FILTERED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
 
         if [ -z "$TARGETS" ]; then
