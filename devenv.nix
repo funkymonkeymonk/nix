@@ -1404,12 +1404,7 @@
           ".#checks.''${CURRENT_SYSTEM}.foundation-packages" \
           ".#checks.''${CURRENT_SYSTEM}.foundation-options" \
           ".#checks.''${CURRENT_SYSTEM}.config-validation" \
-          ".#checks.''${CURRENT_SYSTEM}.role-evaluation" \
-          ".#checks.''${CURRENT_SYSTEM}.role-composition" \
-          ".#checks.''${CURRENT_SYSTEM}.role-packages" \
-          ".#checks.''${CURRENT_SYSTEM}.role-cascades" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-host-shared-models" \
-          ".#checks.''${CURRENT_SYSTEM}.no-dead-development-option" \
+          ".#checks.''${CURRENT_SYSTEM}.all-role-tests" \
           ".#checks.''${CURRENT_SYSTEM}.zsh-enable-single-location" \
           ".#checks.''${CURRENT_SYSTEM}.skills-manifest" \
           ".#checks.''${CURRENT_SYSTEM}.skills-autoload-filtering" \
