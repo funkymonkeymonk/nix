@@ -553,6 +553,7 @@
             core-packages
             foundation-packages
             config-validation
+            all-role-tests
             role-evaluation
             role-composition
             role-packages

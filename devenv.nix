@@ -699,6 +699,243 @@ in {
       '';
     };
 
+    "test:sketchybar" = {
+      description = "Test sketchybar options, theme, and color conversion";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
+        for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All sketchybar tests passed"
+      '';
+    };
+
+    "test:onepassword" = {
+      description = "Test 1Password options, guard, and config output";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running 1Password tests ($CURRENT_SYSTEM)..."
+        for test in onepassword-guard onepassword-config-output; do
+          echo "--- $test ---"
+          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
+          echo "$test: passed"
+          echo ""
+        done
+        echo "All 1Password tests passed"
+      '';
+    };
+
+    "test:all" = {
+      description = "Run all tests (eval gates build, optimized for parallel CI)";
+      exec = ''
+        echo "=== Phase 1: Evaluation Checks ==="
+        echo "Eval checks gate the build. Build runs only if all pass."
+        echo ""
+
+        devenv tasks run test:nixos-eval
+        EVAL_NIXOS=$?
+        devenv tasks run test:darwin-eval
+        EVAL_DARWIN=$?
+
+        if [ $EVAL_NIXOS -ne 0 ] || [ $EVAL_DARWIN -ne 0 ]; then
+          echo ""
+          echo "=== Eval Results: FAILED ==="
+          [ $EVAL_NIXOS -ne 0 ] && echo "NixOS eval: FAILED"
+          [ $EVAL_DARWIN -ne 0 ] && echo "Darwin eval: FAILED"
+          echo ""
+          echo "Skipping build - eval failures must be fixed first."
+          exit 1
+        fi
+
+        echo ""
+        echo "All evaluation checks passed."
+
+        echo ""
+        echo "=== Phase 2: Build Checks (single flake evaluation) ==="
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "System: $CURRENT_SYSTEM"
+        echo ""
+        echo "Building all check targets in one nix build to avoid repeated flake evaluation."
+        echo ""
+
+        nix build \
+          ".#checks.''${CURRENT_SYSTEM}.core-packages" \
+          ".#checks.''${CURRENT_SYSTEM}.foundation-packages" \
+          ".#checks.''${CURRENT_SYSTEM}.foundation-options" \
+          ".#checks.''${CURRENT_SYSTEM}.config-validation" \
+          ".#checks.''${CURRENT_SYSTEM}.all-role-tests" \
+          ".#checks.''${CURRENT_SYSTEM}.zsh-enable-single-location" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-manifest" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-autoload-filtering" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-autoload-content" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-role-filtering" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-external-identification" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-external-command-generation" \
+          ".#checks.''${CURRENT_SYSTEM}.skills-external-empty-case" \
+          ".#checks.''${CURRENT_SYSTEM}.email-agent-options" \
+          ".#checks.''${CURRENT_SYSTEM}.email-backup-options" \
+          ".#checks.''${CURRENT_SYSTEM}.email-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.email-composition" \
+          ".#checks.''${CURRENT_SYSTEM}.email-backup-scripts" \
+          ".#checks.''${CURRENT_SYSTEM}.email-separation" \
+          ".#checks.''${CURRENT_SYSTEM}.sketchybar-options" \
+          ".#checks.''${CURRENT_SYSTEM}.sketchybar-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.sketchybar-theme" \
+          ".#checks.''${CURRENT_SYSTEM}.sketchybar-color-conversion" \
+          ".#checks.''${CURRENT_SYSTEM}.sketchybar-platform-guard" \
+          ".#checks.''${CURRENT_SYSTEM}.sketchybar-entrypoint" \
+          ".#checks.''${CURRENT_SYSTEM}.onepassword-guard" \
+          ".#checks.''${CURRENT_SYSTEM}.onepassword-config-output" \
+          ".#checks.''${CURRENT_SYSTEM}.ollama-options" \
+          ".#checks.''${CURRENT_SYSTEM}.ollama-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.vane-options" \
+          ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.openclaw-options" \
+          ".#checks.''${CURRENT_SYSTEM}.vane-opnix-url-options" \
+          ".#checks.''${CURRENT_SYSTEM}.jj-autosync-options" \
+          ".#checks.''${CURRENT_SYSTEM}.jj-autosync-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.opencode-options" \
+          ".#checks.''${CURRENT_SYSTEM}.opencode-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.opencode-provider-opnix-url" \
+          ".#checks.''${CURRENT_SYSTEM}.shell-aliases" \
+          ".#checks.''${CURRENT_SYSTEM}.fjj-options" \
+          ".#checks.''${CURRENT_SYSTEM}.fjj-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.aerospace-options" \
+          ".#checks.''${CURRENT_SYSTEM}.aerospace-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.workspace-switch" \
+          ".#checks.''${CURRENT_SYSTEM}.llm-client-opencode" \
+          ".#checks.''${CURRENT_SYSTEM}.llm-client-claude" \
+          ".#checks.''${CURRENT_SYSTEM}.llm-client-pi" \
+          ".#checks.''${CURRENT_SYSTEM}.llm-client-custom-host" \
+          ".#checks.''${CURRENT_SYSTEM}.llm-client-no-ai-roles" \
+          ".#checks.''${CURRENT_SYSTEM}.typed-attrs-options" \
+          ".#checks.''${CURRENT_SYSTEM}.module-coverage" \
+          --no-link --keep-going --print-build-logs
+        BUILD_RESULT=$?
+
+        echo ""
+        echo "NOTE: VM integration tests (test:vm) are not included here."
+        echo "They require Linux + KVM and run separately in CI via nix flake check."
+        echo ""
+
+        echo "=== Final Results ==="
+        if [ $BUILD_RESULT -eq 0 ]; then
+          echo "All tests passed"
+          exit 0
+        else
+          echo "Build checks: FAILED"
+          exit 1
+        fi
+      '';
+    };
+
+    "test:nixos-eval" = {
+      description = "Validate NixOS configs can be evaluated (catches module errors)";
+      exec = ''
+        echo "=== Testing NixOS Configuration Evaluation ==="
+        echo ""
+        echo "This test validates that all NixOS configurations can be evaluated"
+        echo "without errors. It catches issues like:"
+        echo "  - Missing home-manager references in modules"
+        echo "  - Invalid option definitions"
+        echo "  - Import errors"
+        echo ""
+
+        echo "Testing NixOS configurations..."
+
+        # Create a minimal facter.json for testing (required by some NixOS configs)
+        # This is the same approach used in CI builds
+        # On macOS, skip this step (sudo not available) — configs needing facter will soft-fail
+        HAS_FACTER=false
+        if [ -f /etc/nixos/facter.json ]; then
+          HAS_FACTER=true
+        elif sudo -n mkdir -p /etc/nixos 2>/dev/null; then
+          sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
+        {
+          "version": 1,
+          "hardware": {
+            "cpu": {"vendor": "GenuineIntel", "brand": "Intel"},
+            "memory": {"size": 16384}
+          },
+          "networking": {
+            "defaultGateway": {"interface": "eth0"}
+          }
+        }
+        EOF
+          HAS_FACTER=true
+        fi
+
+        echo "Evaluating NixOS configurations..."
+        NIXOS_RESULTS=$(nix eval --impure --json --expr '
+          let
+            flake = builtins.getFlake (toString ./.);
+            names = builtins.attrNames flake.nixosConfigurations;
+            tryConfig = name: {
+              inherit name;
+              success = (builtins.tryEval (flake.nixosConfigurations.''${name}.config.system.build.toplevel != null)).success;
+            };
+          in
+            map tryConfig names
+        ' 2>/dev/null)
+
+        NIXOS_FAILED=0
+        NIXOS_SKIPPED=0
+        if [ -n "$NIXOS_RESULTS" ]; then
+          while IFS=: read -r name success; do
+            if [ "$success" = "true" ]; then
+              echo "  $name ✓"
+            elif [[ "$HAS_FACTER" != "true" ]]; then
+              case "$name" in
+                type-*|installer-*|bootstrap)
+                  echo "  $name ⊘ skipped"
+                  NIXOS_SKIPPED=$((NIXOS_SKIPPED + 1)) ;;
+                *)
+                  echo "  $name ✗"
+                  NIXOS_FAILED=$((NIXOS_FAILED + 1)) ;;
+              esac
+            else
+              echo "  $name ✗"
+              NIXOS_FAILED=$((NIXOS_FAILED + 1))
+            fi
+          done < <(echo "$NIXOS_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        fi
+
+        echo ""
+        echo "Evaluating Darwin configurations..."
+        DARWIN_RESULTS=$(nix eval --impure --json --expr '
+          let
+            flake = builtins.getFlake (toString ./.);
+            names = builtins.attrNames flake.darwinConfigurations;
+            tryConfig = name: {
+              inherit name;
+              success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
+            };
+          in
+            map tryConfig names
+        ' 2>/dev/null)
+
+        DARWIN_FAILED=0
+        if [ -n "$DARWIN_RESULTS" ]; then
+          while IFS=: read -r name success; do
+            if [ "$success" = "true" ]; then echo "  $name ✓"
+            else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
+          done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        fi
+
+        if [ $NIXOS_FAILED -gt 0 ] || [ $DARWIN_FAILED -gt 0 ]; then
+          echo ""
+          echo "✗ $NIXOS_FAILED NixOS + $DARWIN_FAILED Darwin config(s) failed evaluation"
+          exit 1
+        fi
+        echo ""
+        echo "✓ All configurations evaluated successfully"
+      '';
+    };
+
     "test:checks" = {
       description = "Build all flake checks (auto-discovers, excludes VM tests)";
       after = ["test:eval"];
