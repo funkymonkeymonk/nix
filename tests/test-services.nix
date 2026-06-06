@@ -1,5 +1,5 @@
 # Service module option tests using evalModules
-# Tests ollama, vane, and openclaw options without requiring platform-specific modules
+# Tests vane and openclaw options without requiring platform-specific modules
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
@@ -16,36 +16,6 @@
       config._module.args = {inherit pkgs;};
     }
   ];
-
-  # Evaluate ollama options with defaults
-  ollamaDefaultEval =
-    (lib.evalModules {
-      modules =
-        stubModules
-        ++ [
-          {
-            config.myConfig.ollama.enable = false;
-          }
-        ];
-    }).config.myConfig.ollama;
-
-  # Evaluate ollama with custom values
-  ollamaCustomEval =
-    (lib.evalModules {
-      modules =
-        stubModules
-        ++ [
-          {
-            config.myConfig.ollama = {
-              enable = true;
-              host = "0.0.0.0";
-              port = 12345;
-              models = ["llama3.2" "qwen3:4b"];
-              acceleration = "metal";
-            };
-          }
-        ];
-    }).config.myConfig.ollama;
 
   # Evaluate vane options with defaults
   vaneDefaultEval =
@@ -207,94 +177,6 @@
       ];
     }).config.services.openclaw;
 in {
-  # Test ollama option defaults
-  ollamaOptionsTest =
-    pkgs.runCommand "test-ollama-options"
-    {}
-    ''
-      echo "=== Testing Ollama Option Defaults ==="
-
-      ${
-        if !ollamaDefaultEval.enable
-        then ''echo "  enable default = false: OK"''
-        else ''echo "  enable should default to false!"; exit 1''
-      }
-
-      ${
-        if ollamaDefaultEval.host == "127.0.0.1"
-        then ''echo "  host default = 127.0.0.1: OK"''
-        else ''echo "  host should default to 127.0.0.1!"; exit 1''
-      }
-
-      ${
-        if ollamaDefaultEval.port == 11434
-        then ''echo "  port default = 11434: OK"''
-        else ''echo "  port should default to 11434!"; exit 1''
-      }
-
-      ${
-        if ollamaDefaultEval.models == []
-        then ''echo "  models default = []: OK"''
-        else ''echo "  models should default to empty list!"; exit 1''
-      }
-
-      ${
-        if ollamaDefaultEval.acceleration == null
-        then ''echo "  acceleration default = null: OK"''
-        else ''echo "  acceleration should default to null!"; exit 1''
-      }
-
-      ${
-        if ollamaDefaultEval.environmentFile == null
-        then ''echo "  environmentFile default = null: OK"''
-        else ''echo "  environmentFile should default to null!"; exit 1''
-      }
-
-      echo "All ollama option defaults verified"
-      touch $out
-    '';
-
-  # Test ollama custom option values
-  ollamaCustomOptionsTest =
-    pkgs.runCommand "test-ollama-custom-options"
-    {}
-    ''
-      echo "=== Testing Ollama Custom Options ==="
-
-      ${
-        if ollamaCustomEval.enable
-        then ''echo "  enable = true: OK"''
-        else ''echo "  enable should be true!"; exit 1''
-      }
-
-      ${
-        if ollamaCustomEval.host == "0.0.0.0"
-        then ''echo "  host = 0.0.0.0: OK"''
-        else ''echo "  host should be 0.0.0.0!"; exit 1''
-      }
-
-      ${
-        if ollamaCustomEval.port == 12345
-        then ''echo "  port = 12345: OK"''
-        else ''echo "  port should be 12345!"; exit 1''
-      }
-
-      ${
-        if builtins.length ollamaCustomEval.models == 2
-        then ''echo "  models count = 2: OK"''
-        else ''echo "  models should have 2 entries!"; exit 1''
-      }
-
-      ${
-        if ollamaCustomEval.acceleration == "metal"
-        then ''echo "  acceleration = metal: OK"''
-        else ''echo "  acceleration should be metal!"; exit 1''
-      }
-
-      echo "All ollama custom options verified"
-      touch $out
-    '';
-
   # Test vane option defaults
   vaneOptionsTest =
     pkgs.runCommand "test-vane-options"

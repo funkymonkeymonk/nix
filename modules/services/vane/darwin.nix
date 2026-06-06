@@ -57,8 +57,9 @@ with lib; let
           "name": "Higgs Gateway (local)",
           "type": "openai",
           "chatModels": [
-            {"name": "qwen-coder", "key": "qwen-coder"},
-            {"name": "qwen-35b", "key": "qwen-35b"}
+            {"name": "glm47-flash-4bit", "key": "glm47-flash-4bit"},
+            {"name": "glm47-flash-6bit", "key": "glm47-flash-6bit"},
+            {"name": "glm47-flash-8bit", "key": "glm47-flash-8bit"}
           ],
           "embeddingModels": [
             {"name": "qwen-embed", "key": "qwen-embed"}

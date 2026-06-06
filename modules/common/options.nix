@@ -126,13 +126,6 @@ with lib; {
           description = "Pi coding agent with rtk";
         };
       };
-      llm-host = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Local LLM hosting (ollama)";
-        };
-      };
 
       assistant = {
         enable = mkOption {
@@ -483,7 +476,7 @@ with lib; {
             model = mkOption {
               type = types.nullOr types.str;
               default = null;
-              description = "Model for this agent (e.g., ollama/qwen3.5:2b)";
+              description = "Model for this agent (e.g., higgs/glm47-flash-4bit)";
             };
             prompt = mkOption {
               type = types.str;
@@ -752,44 +745,6 @@ with lib; {
         type = types.str;
         default = "~/workspaces";
         description = "Root directory for per-agent workspaces";
-      };
-    };
-
-    ollama = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Enable Ollama local LLM service";
-      };
-
-      host = mkOption {
-        type = types.str;
-        default = "127.0.0.1";
-        description = "Host address for Ollama to bind to (use 0.0.0.0 for network access)";
-      };
-
-      port = mkOption {
-        type = types.port;
-        default = 11434;
-        description = "Port for Ollama API";
-      };
-
-      models = mkOption {
-        type = types.listOf types.str;
-        default = [];
-        description = "List of models to pre-pull on service start";
-      };
-
-      acceleration = mkOption {
-        type = types.nullOr (types.enum ["cuda" "rocm" "metal"]);
-        default = null;
-        description = "GPU acceleration type (null for auto-detection)";
-      };
-
-      environmentFile = mkOption {
-        type = types.nullOr types.path;
-        default = null;
-        description = "Path to environment file with additional Ollama configuration";
       };
     };
 
@@ -1204,7 +1159,7 @@ with lib; {
             };
             provider = mkOption {
               type = types.str;
-              description = "Provider ID (e.g., 'anthropic', 'openai', 'ollama')";
+              description = "Provider ID (e.g., 'anthropic', 'openai', 'higgs')";
             };
             modelId = mkOption {
               type = types.str;

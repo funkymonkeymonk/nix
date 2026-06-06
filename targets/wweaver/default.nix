@@ -1,6 +1,5 @@
 # wweaver (work laptop) target configuration
 {
-  lib,
   mkUser,
   inputs,
   ...
@@ -28,22 +27,14 @@
         desktop.enable = true;
         workstation.enable = true;
         entertainment.enable = true;
-        llm-host.enable = true;
         opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
       };
-      ollama = {
-        # Bind to all interfaces so Docker containers can access Ollama
-        host = "0.0.0.0";
-        # Smaller/faster models for quick tasks, LiteLLM handles heavy workloads
-        models = lib.mkForce ["qwen3.5:2b" "qwen3.5"];
-      };
+
       vane = {
         enable = true;
         autoStart = true;
-        # Local Ollama for fast local models
-        ollamaUrl = "http://host.docker.internal:11434";
         # LiteLLM base URL via 1Password (not hardcoded)
         openaiBaseUrlOpnixItem = "op://Justworks/LiteLLM/baseURL";
         # Embedded SearxNG for web search
@@ -130,15 +121,6 @@
               "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
                 name = "Claude Opus 4.5 (Bedrock)";
               };
-            };
-          };
-          ollama = {
-            npm = "@ai-sdk/openai-compatible";
-            name = "Ollama (local)";
-            baseURL = "http://localhost:11434/v1";
-            models = {
-              "qwen3.5:latest" = {name = "Qwen 3.5 (7B)";};
-              "qwen3.5:2b" = {name = "Qwen 3.5 (2B)";};
             };
           };
         };

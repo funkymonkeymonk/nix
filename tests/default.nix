@@ -49,7 +49,6 @@ in
     role-composition = testRoles.allRoleTests;
     role-packages = testRoles.allRoleTests;
     role-cascades = testRoles.allRoleTests;
-    llm-host-shared-models = testRoles.allRoleTests;
     no-dead-development-option = testRoles.allRoleTests;
     entertainment-nixos = testRoles.allRoleTests;
 
@@ -89,8 +88,6 @@ in
     sketchybar-entrypoint = testSketchybar.sketchybarEntryPointTest;
 
     # Service module tests
-    ollama-options = testServices.ollamaOptionsTest;
-    ollama-custom-options = testServices.ollamaCustomOptionsTest;
     vane-options = testServices.vaneOptionsTest;
     vane-custom-options = testServices.vaneCustomOptionsTest;
     openclaw-options = testServices.openclawOptionsTest;
