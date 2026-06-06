@@ -435,6 +435,17 @@
               inputs.nix-openclaw.homeManagerModules.openclaw
             ];
           }
+
+          # Disk layout (zero-specific: NVMe, 1G ESP, 17G swap)
+          inputs.disko.nixosModules.disko
+          ./disk-configs/zero.nix
+
+          # Machine type configuration (includes myConfig defaults and SSH keys)
+          ./machine-types/desktop.nix
+
+          # Ghostty terminfo for SSH support
+          # https://github.com/ghostty-org/ghostty/discussions/5753
+          ./modules/nixos/ghostty-terminfo.nix
         ];
       };
 
