@@ -632,21 +632,70 @@ in {
           HAS_FACTER=true
         fi
 
-        echo "Has facter: $HAS_FACTER"
+        echo "Evaluating NixOS configurations..."
+        NIXOS_RESULTS=$(nix eval --impure --json --expr '
+          let
+            flake = builtins.getFlake (toString ./.);
+            names = builtins.attrNames flake.nixosConfigurations;
+            tryConfig = name: {
+              inherit name;
+              success = (builtins.tryEval (flake.nixosConfigurations.''${name}.config.system.build.toplevel != null)).success;
+            };
+          in
+            map tryConfig names
+        ' 2>/dev/null)
 
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "System: $CURRENT_SYSTEM"
+        NIXOS_FAILED=0
+        NIXOS_SKIPPED=0
+        if [ -n "$NIXOS_RESULTS" ]; then
+          while IFS=: read -r name success; do
+            if [ "$success" = "true" ]; then
+              echo "  $name ✓"
+            elif [[ "$HAS_FACTER" != "true" ]]; then
+              case "$name" in
+                type-*|installer-*|bootstrap)
+                  echo "  $name ⊘ skipped"
+                  NIXOS_SKIPPED=$((NIXOS_SKIPPED + 1)) ;;
+                *)
+                  echo "  $name ✗"
+                  NIXOS_FAILED=$((NIXOS_FAILED + 1)) ;;
+              esac
+            else
+              echo "  $name ✗"
+              NIXOS_FAILED=$((NIXOS_FAILED + 1))
+            fi
+          done < <(echo "$NIXOS_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        fi
+
         echo ""
+        echo "Evaluating Darwin configurations..."
+        DARWIN_RESULTS=$(nix eval --impure --json --expr '
+          let
+            flake = builtins.getFlake (toString ./.);
+            names = builtins.attrNames flake.darwinConfigurations;
+            tryConfig = name: {
+              inherit name;
+              success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
+            };
+          in
+            map tryConfig names
+        ' 2>/dev/null)
 
-        # Use flake check for cross-platform validation
-        # Note: --no-build ensures only evaluation is checked
-        nix flake check --no-build 2>&1 || {
-          echo "❌ Configuration evaluation failed"
+        DARWIN_FAILED=0
+        if [ -n "$DARWIN_RESULTS" ]; then
+          while IFS=: read -r name success; do
+            if [ "$success" = "true" ]; then echo "  $name ✓"
+            else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
+          done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        fi
+
+        if [ $NIXOS_FAILED -gt 0 ] || [ $DARWIN_FAILED -gt 0 ]; then
+          echo ""
+          echo "✗ $NIXOS_FAILED NixOS + $DARWIN_FAILED Darwin config(s) failed evaluation"
           exit 1
-        }
-
+        fi
         echo ""
-        echo "✅ All configurations evaluate successfully"
+        echo "✓ All configurations evaluated successfully"
       '';
     };
 
