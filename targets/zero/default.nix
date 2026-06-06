@@ -1,20 +1,16 @@
-# Zero - Gaming/desktop NixOS machine
-# Desktop, gaming, and streaming config come from modules via extraConfig
+# Zero - Gaming/desktop NixOS machine (NVMe + NVIDIA + AMD CPU)
 {
   config,
   pkgs,
   lib,
   mkUser,
   inputs,
+  modulesPath,
   ...
 }: {
-  imports =
-    lib.optionals (builtins.pathExists /etc/nixos/hardware-configuration.nix) [
-      /etc/nixos/hardware-configuration.nix
-    ]
-    ++ lib.optionals (!builtins.pathExists /etc/nixos/hardware-configuration.nix) [
-      ../hardware-stub.nix
-    ];
+  imports = [
+    (modulesPath + "/installer/scan/not-detected.nix")
+  ];
 
   nixpkgs.hostPlatform = "x86_64-linux";
   system.stateVersion = "25.05";
@@ -23,10 +19,15 @@
     mkUser "monkey" "me@willweaver.dev"
     // {
       skills.superpowersPath = inputs.superpowers;
+      autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
       roles = {
         developer.enable = true;
         desktop.enable = true;
         opencode.enable = true;
+        tailscale = {
+          enable = true;
+          authKeyOpnixItem = "Tailscale Auth Key/credential";
+        };
       };
       desktop = {
         enable = true;
@@ -40,6 +41,10 @@
           port = "4000";
         };
       };
+      onepassword = {
+        enable = true;
+        defaultVault = "Homelab";
+      };
     };
 
   networking = {
@@ -52,8 +57,18 @@
 
   environment.systemPackages = with pkgs; [
     discord
-    tailscale
   ];
+
+  # Hardware: NVMe, AMD CPU, NVIDIA GPU
+  boot.initrd.availableKernelModules = [
+    "nvme"
+    "xhci_pci"
+    "ahci"
+    "usbhid"
+    "usb_storage"
+    "sd_mod"
+  ];
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
   # Disable sleep/hibernate (always-on machine)
   systemd.sleep.settings.Sleep = {
@@ -71,27 +86,5 @@
       open = false;
       package = config.boot.kernelPackages.nvidiaPackages.stable;
     };
-  };
-
-  # Tailscale with auto-connect
-  services.tailscale.enable = true;
-  systemd.services.tailscale-autoconnect = {
-    description = "Automatic connection to Tailscale";
-    after = ["network-pre.target" "tailscale.service"];
-    wants = ["network-pre.target" "tailscale.service"];
-    wantedBy = ["multi-user.target"];
-    serviceConfig.Type = "oneshot";
-    script = ''
-      sleep 2
-      status="$(${pkgs.tailscale}/bin/tailscale status -json | ${pkgs.jq}/bin/jq -r .BackendState)"
-      if [ "$status" = "Running" ]; then
-        exit 0
-      fi
-      if [ -n "$TAILSCALE_AUTH_KEY" ]; then
-        ${pkgs.tailscale}/bin/tailscale up -authkey "$TAILSCALE_AUTH_KEY"
-      else
-        echo "Warning: TAILSCALE_AUTH_KEY not set, skipping auto-connect"
-      fi
-    '';
   };
 }

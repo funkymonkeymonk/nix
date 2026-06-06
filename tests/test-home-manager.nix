@@ -488,4 +488,77 @@ in {
       echo "All aerospace custom options verified"
       touch $out
     '';
+
+  # Test opencode provider baseURLOpnixItem option default and custom value
+  opencodeProviderOpnixUrlTest = let
+    providerOpnixDefaultEval =
+      (lib.evalModules {
+        modules =
+          stubModules
+          ++ [
+            {
+              config.myConfig.opencode = {
+                enable = true;
+                providers = {
+                  test-provider = {
+                    name = "Test Provider";
+                    baseURL = "https://api.example.com/v1";
+                  };
+                };
+              };
+            }
+          ];
+      }).config.myConfig.opencode.providers;
+
+    providerOpnixCustomEval =
+      (lib.evalModules {
+        modules =
+          stubModules
+          ++ [
+            {
+              config.myConfig.opencode = {
+                enable = true;
+                providers = {
+                  secret-provider = {
+                    name = "Secret Provider";
+                    baseURLOpnixItem = "op://Vault/LiteLLM/baseURL";
+                  };
+                };
+              };
+            }
+          ];
+      }).config.myConfig.opencode.providers;
+  in
+    pkgs.runCommand "test-opencode-provider-opnix-url"
+    {}
+    ''
+      echo "=== Testing OpenCode Provider baseURLOpnixItem Options ==="
+
+      ${
+        if providerOpnixDefaultEval.test-provider.baseURLOpnixItem == ""
+        then ''echo "  baseURLOpnixItem default = empty string: OK"''
+        else ''echo "  baseURLOpnixItem should default to empty string!"; exit 1''
+      }
+
+      ${
+        if providerOpnixDefaultEval.test-provider.baseURL == "https://api.example.com/v1"
+        then ''echo "  baseURL can still be set directly: OK"''
+        else ''echo "  baseURL should be settable directly!"; exit 1''
+      }
+
+      ${
+        if providerOpnixCustomEval.secret-provider.baseURLOpnixItem == "op://Vault/LiteLLM/baseURL"
+        then ''echo "  baseURLOpnixItem custom value: OK"''
+        else ''echo "  baseURLOpnixItem should be op://Vault/LiteLLM/baseURL!"; exit 1''
+      }
+
+      ${
+        if providerOpnixCustomEval.secret-provider.baseURL == ""
+        then ''echo "  baseURL defaults to empty when using opnix: OK"''
+        else ''echo "  baseURL should default to empty string!"; exit 1''
+      }
+
+      echo "All opencode provider opnix URL option tests verified"
+      touch $out
+    '';
 }

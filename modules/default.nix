@@ -13,6 +13,7 @@
     ./common/cachix.nix
     ./common/motd.nix
     ./common/llm-client.nix
+    ./common/agent-user.nix
 
     # Home-manager shared settings
     ./home-manager

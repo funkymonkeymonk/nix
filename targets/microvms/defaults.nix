@@ -2,18 +2,20 @@
 # Provides shared user config, skills, and disables 1Password
 # Individual VM configs can override these defaults via roleEnables specialArg
 {
-  inputs,
+  superpowers,
+  vercel-skills,
   roleEnables,
   lib,
   ...
 }: {
-  nixpkgs.hostPlatform = "x86_64-linux";
+  # Don't set hostPlatform here - it should come from the system parameter in mkMicrovm
+  # This allows different architectures (x86_64-linux, aarch64-linux)
   myConfig = lib.mkMerge [
     {
       skills = {
-        superpowersPath = inputs.superpowers;
-        externalInputs = {
-          inherit (inputs) vercel-skills;
+        superpowersPath = superpowers;
+        externalInputs = lib.optionalAttrs (vercel-skills != null) {
+          inherit vercel-skills;
         };
       };
       users = [
@@ -26,6 +28,9 @@
         }
       ];
       onepassword.enable = lib.mkForce false;
+      # MicroVMs are static once deployed - they are replaced rather than upgraded.
+      # Leaving flakeUrl empty disables auto-upgrade in the auto-upgrade module.
+      autoUpgrade.flakeUrl = lib.mkForce "";
     }
     roleEnables
   ];

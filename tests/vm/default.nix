@@ -15,6 +15,7 @@
         imports =
           [
             ../../modules/common/options.nix
+            ../../modules/common/shell.nix
             ../../modules/roles/default.nix
             ../../modules/nixos/base.nix
           ]

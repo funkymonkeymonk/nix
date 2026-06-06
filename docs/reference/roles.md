@@ -12,6 +12,8 @@ AI agent skills management.
 
 Automatically enabled by `opencode` or `claude` roles.
 
+### assistant
+
 ### claude
 
 Claude Code AI assistant with rtk token optimization.
@@ -46,6 +48,8 @@ Development tools and environment.
 
 **Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj
 
+### email-backup
+
 ### entertainment
 
 Entertainment applications.
@@ -70,6 +74,8 @@ Local model hosting.
 
 ### microvm-host
 
+### openclaw-server
+
 ### opencode
 
 OpenCode AI assistant with rtk token optimization.
@@ -89,6 +95,8 @@ Pi coding agent with rtk token optimization.
 **Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`, `pi` config management
+
+### tailscale
 
 ### workstation
 

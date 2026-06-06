@@ -133,6 +133,7 @@ with lib; {
           description = "Local LLM hosting (ollama)";
         };
       };
+
       assistant = {
         enable = mkOption {
           type = types.bool;
@@ -159,6 +160,28 @@ with lib; {
           type = types.bool;
           default = false;
           description = "Homebrew integration for macOS (requires Homebrew to be installed)";
+        };
+      };
+      tailscale = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Tailscale VPN with auto-connect via 1Password secrets";
+        };
+        authKeyOpnixItem = mkOption {
+          type = types.str;
+          default = "Tailscale/auth-key";
+          description = "1Password item reference for Tailscale auth key. If the value does not start with 'op://', it is treated as 'Item/Field' and the default vault is prepended.";
+        };
+        exitNode = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Advertise this machine as a Tailscale exit node";
+        };
+        advertiseRoutes = mkOption {
+          type = types.listOf types.str;
+          default = [];
+          description = "Additional routes to advertise (CIDR notation, e.g. [\"10.0.0.0/24\"])";
         };
       };
     };
@@ -372,7 +395,8 @@ with lib; {
             };
             baseURL = mkOption {
               type = types.str;
-              description = "Base URL for the provider API";
+              default = "";
+              description = "Base URL for the provider API. Can be empty when baseURLOpnixItem is set.";
             };
             models = mkOption {
               type = types.attrsOf (types.submodule {
@@ -397,6 +421,12 @@ with lib; {
               type = types.str;
               default = "";
               description = "1Password item reference (e.g., 'op://vault/item/field') to retrieve API key from 1Password CLI";
+            };
+
+            baseURLOpnixItem = mkOption {
+              type = types.str;
+              default = "";
+              description = "1Password item reference (e.g., 'op://vault/item/field') to retrieve the base URL. When set, baseURL can be left empty.";
             };
           };
         });
@@ -538,6 +568,12 @@ with lib; {
           Override this for machines with different vault or item names,
           e.g. "op://Employee/wweaver Sudo Password/password".
         '';
+      };
+
+      defaultVault = mkOption {
+        type = types.str;
+        default = "Personal";
+        description = "Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references.";
       };
 
       tokenFile = mkOption {
@@ -782,22 +818,16 @@ with lib; {
         description = "URL for Ollama API. For Docker on macOS, use host.docker.internal";
       };
 
+      searxngUrl = mkOption {
+        type = types.str;
+        default = "http://localhost:${toString config.myConfig.searxng.port}";
+        description = "URL for SearxNG API. Defaults to localhost:searxngPort";
+      };
+
       embeddedSearxng = mkOption {
         type = types.bool;
         default = true;
         description = "Run embedded SearxNG instance for web search. Disable if using external SearxNG";
-      };
-
-      searxngUrl = mkOption {
-        type = types.str;
-        default = "http://searxng:8080";
-        description = "URL for SearxNG API. Use 'http://searxng:8080' for embedded, or external URL";
-      };
-
-      searxngPort = mkOption {
-        type = types.port;
-        default = 8080;
-        description = "Port for embedded SearxNG (only used if embeddedSearxng is true)";
       };
 
       embeddedOllama = mkOption {
@@ -822,6 +852,12 @@ with lib; {
         type = types.nullOr types.str;
         default = null;
         description = "Custom OpenAI-compatible API base URL (e.g., LiteLLM endpoint). Leave null for official OpenAI API.";
+      };
+
+      openaiBaseUrlOpnixItem = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "1Password item reference (e.g., 'op://vault/item/field') to retrieve the OpenAI base URL. When set, openaiBaseUrl can be left null.";
       };
 
       anthropicApiKey = mkOption {
@@ -872,6 +908,26 @@ with lib; {
           default = 60;
           description = "Disk space in GB for Vane's dedicated Colima VM";
         };
+      };
+    };
+
+    searxng = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable SearXNG privacy-respecting metasearch engine";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 8080;
+        description = "Port for SearXNG web interface";
+      };
+
+      secretKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Secret key for SearXNG. Auto-generated if empty. Set a stable value to avoid session resets.";
       };
     };
 
@@ -1282,6 +1338,282 @@ with lib; {
         type = types.lines;
         default = "";
         description = "Extra Lua configuration to append to sketchybarrc";
+      };
+    };
+
+    higgs = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Higgs LLM inference server config management";
+      };
+
+      server = {
+        host = mkOption {
+          type = types.str;
+          default = "0.0.0.0";
+          description = "Bind address for the Higgs server";
+        };
+        port = mkOption {
+          type = types.port;
+          default = 8000;
+          description = "Bind port for the Higgs server";
+        };
+        maxTokens = mkOption {
+          type = types.nullOr types.ints.unsigned;
+          default = null;
+          description = "Maximum generation tokens";
+        };
+        timeout = mkOption {
+          type = types.nullOr types.number;
+          default = null;
+          description = "Request timeout in seconds";
+        };
+        maxBodySize = mkOption {
+          type = types.nullOr types.ints.unsigned;
+          default = null;
+          description = "Maximum request body size in bytes";
+        };
+        apiKeyFile = mkOption {
+          type = types.nullOr types.path;
+          default = null;
+          description = "Path to file containing the API key (read at runtime)";
+        };
+        rateLimit = mkOption {
+          type = types.nullOr types.ints.unsigned;
+          default = null;
+          description = "Requests per minute per client (0 = unlimited)";
+        };
+      };
+
+      local = {
+        mlxProfile = mkOption {
+          type = types.enum ["auto" "latency" "balanced" "throughput"];
+          default = "auto";
+          description = "Default MLX tuning profile for local models";
+        };
+        raiseWiredLimit = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Allow MLX to raise the process wired-memory limit";
+        };
+      };
+
+      models = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            path = mkOption {
+              type = types.str;
+              description = "Model path or HuggingFace ID";
+            };
+            name = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Short name for the model (used in routing)";
+            };
+            mlxProfile = mkOption {
+              type = types.nullOr (types.enum ["auto" "latency" "balanced" "throughput"]);
+              default = null;
+              description = "Per-model MLX profile override";
+            };
+            batch = mkOption {
+              type = types.nullOr types.bool;
+              default = null;
+              description = "Enable continuous batching for this model";
+            };
+            kvCache = mkOption {
+              type = types.nullOr (types.enum ["off" "turboquant"]);
+              default = null;
+              description = "KV cache mode";
+            };
+            kvBits = mkOption {
+              type = types.nullOr types.ints.unsigned;
+              default = null;
+              description = "Default TurboQuant KV bit width";
+            };
+            kvKeyBits = mkOption {
+              type = types.nullOr types.ints.unsigned;
+              default = null;
+              description = "Override TurboQuant key bit width";
+            };
+            kvValueBits = mkOption {
+              type = types.nullOr types.ints.unsigned;
+              default = null;
+              description = "Override TurboQuant value bit width";
+            };
+            kvNormCorrection = mkOption {
+              type = types.nullOr types.bool;
+              default = null;
+              description = "Disable TurboQuant norm correction";
+            };
+            kvAdaptiveDenseLayers = mkOption {
+              type = types.nullOr types.ints.unsigned;
+              default = null;
+              description = "Keep the last N KV cache layers dense";
+            };
+            kvSeed = mkOption {
+              type = types.nullOr types.ints.unsigned;
+              default = null;
+              description = "TurboQuant seed";
+            };
+          };
+        });
+        default = [];
+        description = "List of local MLX models to serve";
+      };
+
+      providers = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            url = mkOption {
+              type = types.str;
+              description = "Base URL of the upstream API";
+            };
+            format = mkOption {
+              type = types.enum ["openai" "anthropic"];
+              default = "openai";
+              description = "API format the provider speaks";
+            };
+            apiKeyFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = "Path to file containing the API key (read at build time, content embedded in config)";
+            };
+            apiKeyOpnixItem = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "1Password item reference for the API key (e.g., 'op://vault/item/field'). The key is resolved at runtime via opnix.";
+            };
+            stripAuth = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Remove the client's Authorization header before proxying";
+            };
+            stubCountTokens = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Return a stub for /v1/messages/count_tokens";
+            };
+          };
+        });
+        default = {};
+        description = "Remote provider configurations (keyed by provider name)";
+        example = {
+          anthropic = {
+            url = "https://api.anthropic.com";
+            format = "anthropic";
+          };
+          openai = {
+            url = "https://api.openai.com";
+            format = "openai";
+          };
+        };
+      };
+
+      routes = mkOption {
+        type = types.listOf (types.submodule {
+          options = {
+            pattern = mkOption {
+              type = types.str;
+              description = "Regex pattern to match against the model field in requests";
+            };
+            provider = mkOption {
+              type = types.str;
+              description = "Provider name to forward to";
+            };
+            model = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Rewrite the model field before forwarding";
+            };
+            name = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Human label used by the auto-router";
+            };
+            description = mkOption {
+              type = types.nullOr types.str;
+              default = null;
+              description = "Route description used for auto-router classification";
+            };
+          };
+        });
+        default = [];
+        description = "List of routing rules (first match wins)";
+        example = [
+          {
+            pattern = "claude-.*";
+            provider = "anthropic";
+          }
+          {
+            pattern = "gpt-.*";
+            provider = "openai";
+          }
+        ];
+      };
+
+      default = {
+        provider = mkOption {
+          type = types.str;
+          default = "higgs";
+          description = "Default provider when no route or local model matches";
+        };
+      };
+
+      autoRouter = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable the auto-router for smart request classification";
+        };
+        model = mkOption {
+          type = types.str;
+          default = "";
+          description = "Name of the local model to use for classification (must match a [[models]] name)";
+        };
+        timeoutMs = mkOption {
+          type = types.ints.unsigned;
+          default = 2000;
+          description = "Timeout for auto-router classification in milliseconds";
+        };
+      };
+
+      retention = {
+        enable = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Enable retention of metrics in memory for the TUI dashboard";
+        };
+        minutes = mkOption {
+          type = types.ints.unsigned;
+          default = 60;
+          description = "How many minutes to retain metrics in memory";
+        };
+      };
+
+      logging = {
+        metrics = {
+          enable = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Enable appending request metrics to a JSONL file";
+          };
+          path = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Path to the metrics JSONL file (default: ~/.config/higgs/logs/metrics.jsonl)";
+          };
+          maxSizeMb = mkOption {
+            type = types.ints.unsigned;
+            default = 50;
+            description = "Maximum size of the metrics log file in MB before rotation";
+          };
+          maxFiles = mkOption {
+            type = types.ints.unsigned;
+            default = 5;
+            description = "Maximum number of rotated log files to keep";
+          };
+        };
       };
     };
   };

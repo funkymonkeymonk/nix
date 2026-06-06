@@ -17,7 +17,13 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
+  testHiggs = import ./test-higgs.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testZero = import ./test-zero.nix {inherit pkgs;};
+  testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
+  testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
+  testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
+  testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -37,14 +43,15 @@ in
     # Option validation tests
     foundation-options = testPackages.foundationOptionsTest;
 
-    # Per-role tests
-    role-evaluation = testRoles.roleEvaluationTest;
-    role-composition = testRoles.allRolesCompositionTest;
-    role-packages = testRoles.rolePackageInclusionTest;
-    role-cascades = testRoles.roleCascadeTest;
-    llm-host-shared-models = testRoles.llmHostSharedModelsTest;
-    no-dead-development-option = testRoles.noDeadDevelopmentOptionTest;
-    entertainment-nixos = testRoles.entertainmentNixosTest;
+    # Per-role tests (all combined into one derivation for CI speed)
+    all-role-tests = testRoles.allRoleTests;
+    role-evaluation = testRoles.allRoleTests;
+    role-composition = testRoles.allRoleTests;
+    role-packages = testRoles.allRoleTests;
+    role-cascades = testRoles.allRoleTests;
+    llm-host-shared-models = testRoles.allRoleTests;
+    no-dead-development-option = testRoles.allRoleTests;
+    entertainment-nixos = testRoles.allRoleTests;
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;
@@ -89,12 +96,14 @@ in
     openclaw-options = testServices.openclawOptionsTest;
     vane-darwin-autostart-default = testServices.vaneDarwinAutoStartDefaultTest;
     vane-darwin-autostart-true = testServices.vaneDarwinAutoStartTrueTest;
+    vane-opnix-url-options = testServices.vaneOpnixUrlOptionsTest;
 
     # Home-manager module tests
     jj-autosync-options = testHomeManager.jjAutosyncOptionsTest;
     jj-autosync-custom-options = testHomeManager.jjAutosyncCustomOptionsTest;
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
+    opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
 
     # Workspace-aware switch shell function tests
@@ -126,5 +135,27 @@ in
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
+
+    # Zero target tests
+    zero-tailscale-opnix-dep = testZero.zeroTailscaleOpnixDepTest;
+    zero-tailscale-no-env-var = testZero.zeroTailscaleNoEnvVarTest;
+    zero-tailscale-secret-file = testZero.zeroTailscaleSecretFileTest;
+    zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
+    zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
+
+    # Phase 5: Core and bootstrap v2 configs
+    phase5-core-bootstrap = testPhase5CoreBootstrap.phase5CoreBootstrapTest;
+
+    # Phase 3: Real-machine migration — zero v2
+    phase3-zero = testPhase3Zero.phase3ZeroTest;
+
+    # Phase 4: darwin-server v2 migration
+    phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
+
+    # Higgs module tests
+    higgs-options = testHiggs.higgsOptionsTest;
+
+    # Phase 2: Cattle NixOS v2 configs
+    phase2-cattle = testPhase2Cattle.phase2CattleTest;
   }
   // vmTests

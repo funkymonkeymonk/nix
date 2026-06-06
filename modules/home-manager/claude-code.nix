@@ -14,7 +14,7 @@ with lib; let
   mcpServersWithSecrets = lib.filterAttrs (_name: server: server.onePasswordItem != "") cfg.mcpServers;
 
   # Build opnix secrets configuration using shared helper
-  opnixSecrets = hmLib.mkOpnixSecrets "claudeCode" (
+  opnixSecrets = hmLib.mkOpnixSecrets "claudeCode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: server: {
       inherit (server) onePasswordItem;
       secretPath = ".config/claude-code/secrets/${name}-apikey";
@@ -66,7 +66,12 @@ with lib; let
       name: skill: let
         skillMd =
           if skill.source.type == "internal"
-          then builtins.readFile "${skill.source.path}/SKILL.md"
+          then let
+            skillPath = skill.source.path + "/SKILL.md";
+          in
+            if builtins.pathExists skillPath
+            then builtins.readFile skillPath
+            else "# ${name}\n\n${skill.description}"
           else if skill.source.type == "superpowers" && superpowersPath != null
           then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
           else "# ${name}\n\n${skill.description}";

@@ -32,6 +32,16 @@
     deps = [];
   };
 
+  openclaw = {
+    description = "Guidelines for working with OpenClaw AI assistant configuration and deployment";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/openclaw;
+    };
+    deps = [];
+  };
+
   "writing-plans" = {
     description = "Create detailed implementation plans from specs and requirements";
     roles = ["developer"];
@@ -102,6 +112,36 @@
     deps = [];
   };
 
+  "nix-opnix-secrets" = {
+    description = "Use when managing 1Password secrets via Nix on nix-darwin. Covers mkOpnixSecretsGeneric, programs.onepassword-secrets, activation script ordering, and runtime patching of config files";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-opnix-secrets;
+    };
+    deps = [];
+  };
+
+  "nix-adding-services" = {
+    description = "Use when adding a new service to this Nix flake. Covers the full lifecycle: package from source (Node/Rust/Python), service module, options, secrets, home-manager config, tests, target wiring, and validation";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-adding-services;
+    };
+    deps = [];
+  };
+
+  "nix-darwin-launchd-debugging" = {
+    description = "Use when debugging nix-darwin launchd services that fail to start, exit with non-zero, or don't reload on switch. Covers EX_CONFIG, $HOME expansion trap, daemon vs user.agent, and manual plist reloading";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-darwin-launchd-debugging;
+    };
+    deps = [];
+  };
+
   # External skills - fetched from other repositories
   # Example: Uncomment and modify when you want to add external skills
   # "spec-driven-workflow" = {
@@ -117,7 +157,7 @@
   # Jujutsu (jj) version control skill
   # Based on @coreyja/jj from https://github.com/coreyja/dotfiles/tree/main/.claude/skills/jj
   "jj" = {
-    description = "Use Jujutsu (jj) for version control. Covers workflow, commits, bookmarks, pushing to GitHub, absorb, squash, stacked PRs, and workspaces for multi-project isolation";
+    description = "Use Jujutsu (jj) for version control. Treats pushed commits as immutable; every PR update adds a single new commit on top of the remote tip (no force pushes). Covers workflow, commits, bookmarks with Conventional Branch naming, pushing to GitHub, merge-based sync, stacked PRs, and workspaces for multi-project isolation";
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
@@ -173,26 +213,16 @@
   };
 
   "yak-shaving" = {
-    description = "Use when tracking, planning, or implementing work using yx (yaks) in a repository with jj workspaces, or when multiple agents need to coordinate on shared tasks";
+    description = "Use when tracking, planning, implementing, or reviewing work using yx (yaks) with the autonomous /shave loop, or when multiple agents need to coordinate on shared tasks";
     roles = ["developer" "opencode" "claude" "pi"];
     source = {
       type = "internal";
       path = ./internal/yak-shaving;
     };
-    deps = [];
+    deps = ["jj" "watch-ci-jobs"];
     autoLoad = true;
-  };
-
-  "shave-yaks" = {
-    description = "Use when you want to autonomously work through a yak backlog end-to-end — triaging, implementing, testing, and shipping PRs until all yaks are done or flagged for refinement";
-    roles = ["developer" "opencode" "claude"];
-    source = {
-      type = "internal";
-      path = ./internal/shave-yaks;
-    };
-    deps = ["yak-shaving" "jj" "watch-ci-jobs"];
     commands = {
-      path = ./internal/shave-yaks/commands;
+      path = ./internal/yak-shaving/commands;
       list = ["shave"];
     };
   };
@@ -203,6 +233,16 @@
     source = {
       type = "internal";
       path = ./internal/iterating-nix-embedded-scripts;
+    };
+    deps = [];
+  };
+
+  zellij = {
+    description = "Zellij terminal multiplexer — creating KDL layouts, managing sessions via CLI, and running commands without disrupting the user's workspace";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/zellij;
     };
     deps = [];
   };

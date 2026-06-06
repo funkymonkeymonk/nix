@@ -10,13 +10,21 @@
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+    onepassword = {
+      tokenFile = "/etc/opnix/token";
+      defaultVault = "Homelab";
+    };
+    roles.tailscale = {
+      enable = true;
+      authKeyOpnixItem = "Tailscale Auth Key/credential";
+    };
   };
 
-  hardware.facter.reportPath = "/etc/nixos/facter.json";
+  hardware.facter.reportPath = lib.mkIf (builtins.pathExists /etc/nixos/facter.json) "/etc/nixos/facter.json";
 
   # REQUIRED: Configure at least one user with SSH access
   users.users.root.openssh.authorizedKeys.keys = []; # Root SSH disabled
-  users.users.monkey = {
+  users.users.admin = {
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
@@ -25,6 +33,9 @@
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
     ];
   };
+
+  # Passwordless sudo for wheel (headless server, SSH key auth only)
+  security.sudo.wheelNeedsPassword = false;
 
   # Boot configuration
   boot = {
@@ -55,13 +66,14 @@
   # No desktop environment
   services.xserver.enable = false;
 
-  # SSH - hardened
+  # SSH - hardened with agent forwarding support
   services.openssh = {
     enable = true;
     settings = {
       PermitRootLogin = "no"; # Disable root SSH entirely
       PubkeyAuthentication = true; # Keys only
       PasswordAuthentication = false; # No passwords
+      AllowAgentForwarding = true; # Enable SSH agent forwarding for 1Password
     };
   };
 

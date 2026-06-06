@@ -17,10 +17,8 @@ Guide for AI agents working with this Nix system configuration repository.
 | Task | Command |
 |------|---------|
 | Run lint check | `devenv tasks run check:lint` |
-| Test Darwin configs | `devenv tasks run test:darwin-eval` |
-| Test NixOS configs | `devenv tasks run test:nixos-eval` |
-| Run all tests | `devenv tasks run test:all` |
-| Full validation | `devenv tasks run check:all` |
+| Run all tests | `devenv tasks run test` |
+| Apply config | `devenv tasks run system:switch` |
 
 ---
 
@@ -69,10 +67,8 @@ devenv tasks run <task>        # Run a task
 
 | Task | Description |
 |------|-------------|
-| `check:all` | Run all checks (lint + platform builds) |
 | `check:lint` | Lint only |
-| `build:darwin` | Build Darwin configurations (dry-run) |
-| `build:nixos` | Build NixOS configurations (dry-run) |
+| `test` | Run all foundation checks (eval + build) |
 | `system:switch` | Apply configuration |
 
 ### Shell Aliases
@@ -80,9 +76,6 @@ devenv tasks run <task>        # Run a task
 | Alias | Task |
 |-------|------|
 | `s` | `system:switch` |
-| `q` | `check:all` |
-| `b` | `build:all` |
-| `i` | `dev:ide` |
 
 ### JJ Workspace Support
 
@@ -122,16 +115,8 @@ This solves the Nix flake "untracked files" error when running from workspaces.
 # 1. Fast lint check (catches formatting and syntax errors)
 devenv tasks run check:lint
 
-# 2. Test Darwin configs can be evaluated (catches module errors)
-# Run this on macOS - it validates all Darwin configurations without building
-devenv tasks run test:darwin-eval
-
-# 3. Test NixOS configs can be evaluated (catches module errors)
-# Run this on any platform - validates module structure without full builds
-devenv tasks run test:nixos-eval
-
-# 4. Run all foundation tests
-devenv tasks run test:all
+# 2. Run all foundation tests (eval + build checks, single flake evaluation)
+devenv tasks run test
 ```
 
 #### What These Tests Catch
@@ -139,9 +124,7 @@ devenv tasks run test:all
 | Test | Catches |
 |------|---------|
 | `check:lint` | Formatting errors, dead code, syntax issues |
-| `test:darwin-eval` | Missing options on Darwin (e.g., `programs.zoxide`), module import errors |
-| `test:nixos-eval` | Missing options on NixOS (e.g., `home-manager.users`), module import errors |
-| `test:all` | Package availability, option definitions |
+| `test` | Eval errors on all platforms + package availability, option definitions |
 
 #### Common Module Errors to Avoid
 
@@ -169,14 +152,12 @@ devenv tasks run test:all
 
 ### Before Changes
 1. Run `devenv tasks run check:lint` for fast feedback
-2. Run platform-specific eval tests (`test:darwin-eval` or `test:nixos-eval`)
-3. Use `devenv shell` for proper tooling
+2. Use `devenv shell` for proper tooling
 
 ### Making Changes
 1. Modify files as needed
-2. Run local tests (lint + platform eval tests)
-3. Run `devenv tasks run check:all` for validation
-4. Commit with conventional commit messages
+2. Run local tests (lint + foundation tests)
+3. Commit with conventional commit messages
 
 ---
 
@@ -257,7 +238,7 @@ nix build .#checks.x86_64-linux.my-microvm-config
 | **Service Test** | `tests/test-*.nix` | Before enabling services | Test `services.x.enable = true` |
 | **Firewall Test** | `tests/test-*.nix` | Before opening ports | Test `allowedTCPPorts` contains expected ports |
 | **Integration Test** | `tests/vm/*.nix` | Before full feature | Boot VM, test actual service behavior |
-| **Eval Test** | `devenv task` | Always | `test:nixos-eval`, `test:darwin-eval` |
+| **Eval Test** | `devenv task` | Always | `test` |
 
 ### Test Helper Functions
 
@@ -287,10 +268,7 @@ nix flake check
 nix build .#checks.x86_64-linux.microvm-config --no-link
 
 # Run all tests via devenv
-devenv tasks run test:all
-
-# Run eval tests only
-devenv tasks run test:nixos-eval
+devenv tasks run test
 ```
 
 ### TDD Checklist
@@ -302,7 +280,7 @@ Before marking a task complete:
 - [ ] Minimal implementation to make test pass (GREEN phase)
 - [ ] Refactoring complete without breaking tests
 - [ ] All existing tests still pass
-- [ ] CI checks pass (`check:lint`, `test:all`)
+- [ ] CI checks pass (`check:lint`, `test`)
 
 ### Adding Features
 
@@ -436,6 +414,76 @@ If `.jj/` directory exists:
 4. Use `jj describe` for commit messages
 5. Never mix git and jj commands
 
+### Workspace Workflow (Agents Must Use Workspaces)
+
+Workspaces isolate each change in flight. **Agents MUST use workspaces for all non-trivial changes.**
+
+#### Workspace Location
+
+Workspaces live in `~/workspaces/` (not inside the repository as sibling directories):
+
+```
+~/workspaces/
+  feat-auth-20260512-a1b2/     ← workspace directory
+  fix-bug-20260512-c3d4/       ← another workspace
+```
+
+Use `fjj` to create workspaces from any directory:
+
+```bash
+fjj feat/my-topic              # Create workspace from main
+fjj fix/bug-name develop       # Create workspace from develop
+fjj list                       # Show all workspaces
+fjj clean                      # Remove merged/stale workspaces
+```
+
+#### Agent Workspace Naming
+
+Agent workspace names encode agent identity and purpose:
+
+```
+feat/agent-<agent-id>-<topic>     # e.g. feat/agent-openclaw-hostid-fix
+fix/agent-<agent-id>-<topic>      # e.g. fix/agent-openclaw-lint-error
+```
+
+This lets humans distinguish agent workspaces from human workspaces at a glance.
+
+#### Example Workflow: Create → Work → Finish → Clean
+
+```bash
+# 1. Create workspace (stored in ~/workspaces/, NOT in repo)
+fjj feat/agent-openclaw-my-feature
+
+# 2. cd into the workspace
+cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+
+# 3. Work and commit (the working copy IS a commit — no git add needed)
+# ... make changes ...
+jj describe -m "feat: add my feature"
+
+# 4. Validate from repo root (devenv tasks require repo root)
+cd /path/to/repo && devenv tasks run check:lint
+
+# 5. Push and create PR (from workspace dir)
+cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+jj bookmark set feat/my-feature -r @
+jj git push --bookmark feat/my-feature
+gh pr create --head feat/my-feature
+
+# 6. After PR is merged: clean up
+jj workspace forget feat-agent-openclaw-my-feature-<date>-<id>
+rm -rf ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+```
+
+#### Session TTL
+
+`jj-workspace-session` manages fast sync (every 5 min) during active sessions. Sessions auto-expire after 30 minutes of inactivity. Prune expired sessions with:
+
+```bash
+jj-workspace-session prune
+jj-workspace-session status   # Show active sessions
+```
+
 ### Commit-First Workflow (Required)
 
 **This repository does NOT use `allow-dirty`** - Nix flakes require a clean git state.
@@ -451,7 +499,7 @@ jj describe -m "feat: your changes"
 # 3. NOW run nix commands
 nix build .#target
 # or
-devenv tasks run check:all
+devenv tasks run test
 ```
 
 **If you must test before committing**, use `--impure`:

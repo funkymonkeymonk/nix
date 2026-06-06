@@ -17,12 +17,13 @@
   };
 
   # Minimal filesystems for evaluation
-  fileSystems."/" = {
+  # Use mkDefault to allow disko or other modules to override
+  fileSystems."/" = lib.mkDefault {
     device = "/dev/null";
     fsType = "ext4";
   };
 
-  fileSystems."/boot" = {
+  fileSystems."/boot" = lib.mkDefault {
     device = "/dev/null";
     fsType = "vfat";
     options = [
