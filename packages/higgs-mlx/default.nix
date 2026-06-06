@@ -22,11 +22,11 @@ in {
     stdenvNoCC.mkDerivation {
       pname = name;
       version = "0";
-      src = builtins.toFile "src" "dummy";
       nativeBuildInputs = [huggingface-hub];
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
       inherit outputHash;
+      phases = ["buildPhase" "installPhase"];
       buildPhase = ''
         export HF_HOME="$PWD/.cache"
         ${huggingface-hub}/bin/huggingface-cli download "${modelPath}"
