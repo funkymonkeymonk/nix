@@ -7,6 +7,7 @@
   jq,
   gnugrep,
   gnused,
+  cacert,
   ...
 }: let
   inherit (builtins) replaceStrings;
@@ -24,7 +25,8 @@ in {
     stdenvNoCC.mkDerivation {
       pname = name;
       version = "0";
-      nativeBuildInputs = [curl jq gnugrep gnused];
+      nativeBuildInputs = [curl jq gnugrep gnused cacert];
+      SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
       inherit outputHash;
