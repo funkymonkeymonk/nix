@@ -28,6 +28,7 @@ in {
         ];
         RunAtLoad = true;
         KeepAlive = true;
+        WatchPaths = ["${darwinHomeDir}/.config/higgs/config.toml"];
         StandardOutPath = "/tmp/higgs.log";
         StandardErrorPath = "/tmp/higgs.err";
         EnvironmentVariables = {
