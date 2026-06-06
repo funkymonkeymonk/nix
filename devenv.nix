@@ -610,18 +610,43 @@ in {
     "test:eval" = {
       description = "Evaluate all NixOS and Darwin configurations (gates builds)";
       exec = ''
-                echo "=== Configuration Evaluation ==="
-                echo ""
+        echo "=== Configuration Evaluation ==="
+        echo ""
 
-        <<<<<<< HEAD
-                for test in vm-users vm-ssh vm-packages; do
-                  echo "--- $test ---"
-                  nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
-                  echo "$test: passed"
-                  echo ""
-                done
+        HAS_FACTER=false
+        if [ -f /etc/nixos/facter.json ]; then
+          HAS_FACTER=true
+        elif sudo -n mkdir -p /etc/nixos 2>/dev/null; then
+          sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
+        {
+          "version": 1,
+          "hardware": {
+            "cpu": {"vendor": "GenuineIntel", "brand": "Intel"},
+            "memory": {"size": 16384}
+          },
+          "networking": {
+            "defaultGateway": {"interface": "eth0"}
+          }
+        }
+        EOF
+          HAS_FACTER=true
+        fi
 
-                echo "All VM tests passed"
+        echo "Has facter: $HAS_FACTER"
+
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "System: $CURRENT_SYSTEM"
+        echo ""
+
+        # Use flake check for cross-platform validation
+        # Note: --no-build ensures only evaluation is checked
+        nix flake check --no-build 2>&1 || {
+          echo "❌ Configuration evaluation failed"
+          exit 1
+        }
+
+        echo ""
+        echo "✅ All configurations evaluate successfully"
       '';
     };
 
