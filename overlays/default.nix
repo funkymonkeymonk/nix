@@ -4,6 +4,25 @@ final: _prev: {
   yaks = final.callPackage ../packages/yaks {};
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
+  higgs-mlx = final.callPackage ../packages/higgs-mlx {
+    inherit (final) lib stdenv python313Packages;
+  };
+
+  glm47-flash-4bit = final.higgs-mlx.fetchModel {
+    name = "glm47-flash-4bit";
+    modelPath = "mlx-community/GLM-4.7-Flash-4bit";
+    outputHash = final.lib.fakeHash;
+  };
+  glm47-flash-6bit = final.higgs-mlx.fetchModel {
+    name = "glm47-flash-6bit";
+    modelPath = "mlx-community/GLM-4.7-Flash-6bit";
+    outputHash = final.lib.fakeHash;
+  };
+  glm47-flash-8bit = final.higgs-mlx.fetchModel {
+    name = "glm47-flash-8bit";
+    modelPath = "mlx-community/GLM-4.7-Flash-8bit";
+    outputHash = final.lib.fakeHash;
+  };
 
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation

@@ -33,7 +33,10 @@ with lib; let
 
   modelsConfig = map (m:
     clean {
-      path = m.path;
+      path =
+        if m.package != null
+        then "${m.package}"
+        else m.path;
       name = m.name;
       mlx_profile = m.mlxProfile;
       batch = m.batch;
@@ -147,27 +150,8 @@ with lib; let
       '')
       providerNames)}
   '';
-  modelPaths = map (m: m.path) cfg.models;
-
-  # Script that downloads models not yet in HuggingFace cache
-  downloadScript = pkgs.writeShellScript "download-higgs-models" ''
-    set -euo pipefail
-    CACHE_DIR="$HOME/.cache/huggingface/hub"
-    HUGGINGFACE_CLI="${pkgs.huggingface_hub}/bin/huggingface-cli"
-    ${concatStringsSep "\n" (map (path: ''
-        MODEL_PATH='${path}'
-        CACHE_NAME="models--$(echo "$MODEL_PATH" | tr '/' '--')"
-        if [ ! -d "$CACHE_DIR/$CACHE_NAME" ]; then
-          echo "  Downloading $MODEL_PATH..."
-          $HUGGINGFACE_CLI download "$MODEL_PATH"
-        fi
-      '')
-      modelPaths)}
-  '';
 in {
   config = mkIf cfg.enable {
-    home.packages = [pkgs.huggingface_hub];
-
     xdg.configFile."higgs/config.toml" = {
       source = tomlFormat.generate "config.toml" tomlConfig;
       force = true;
@@ -185,12 +169,6 @@ in {
         ${patchScript}
       ''
     );
-
-    # Download missing models to HuggingFace cache before Higgs starts
-    home.activation.downloadHiggsModels = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      echo "Checking Higgs model cache..."
-      ${downloadScript}
-    '';
 
     # Add higgs shell integration
     programs.zsh.initContent = mkAfter ''
