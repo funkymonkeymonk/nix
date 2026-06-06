@@ -2,12 +2,13 @@
 # Each model is a fixed-output derivation for reproducibility and caching.
 {
   lib,
-  stdenv,
+  stdenvNoCC,
   python313Packages,
   ...
 }: let
   huggingface-hub = python313Packages.huggingface-hub;
-
+  inherit (builtins) replaceStrings;
+in {
   # Fetch an MLX model from HuggingFace as a fixed-output derivation.
   # To compute outputHash:
   #   1. Set outputHash = lib.fakeHash and build
@@ -18,10 +19,10 @@
     modelPath,
     outputHash,
   }:
-    stdenv.mkDerivation {
+    stdenvNoCC.mkDerivation {
       pname = name;
       version = "0";
-      src = null;
+      src = builtins.toFile "src" "dummy";
       nativeBuildInputs = [huggingface-hub];
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
@@ -38,6 +39,4 @@
         platforms = lib.platforms.darwin;
       };
     };
-in {
-  inherit fetchModel;
 }
