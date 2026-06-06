@@ -21,6 +21,7 @@
               config = {
                 allowUnfree = true;
                 permittedInsecurePackages = [
+                  "electron-39.8.10"
                   "google-chrome-144.0.7559.97"
                   "olm-3.2.16"
                 ];
@@ -30,7 +31,7 @@
                 in
                   pname
                   == "openclaw"
-                  || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
+                  || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
               };
               overlays = [
                 (final: _prev: {
@@ -81,6 +82,7 @@
               config = {
                 allowUnfree = true;
                 permittedInsecurePackages = [
+                  "electron-39.8.10"
                   "google-chrome-144.0.7559.97"
                   "olm-3.2.16"
                 ];
@@ -90,7 +92,7 @@
                 in
                   pname
                   == "openclaw"
-                  || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
+                  || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
               };
               hostPlatform = system;
               overlays = [

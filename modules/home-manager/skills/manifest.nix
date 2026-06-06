@@ -112,6 +112,36 @@
     deps = [];
   };
 
+  "nix-opnix-secrets" = {
+    description = "Use when managing 1Password secrets via Nix on nix-darwin. Covers mkOpnixSecretsGeneric, programs.onepassword-secrets, activation script ordering, and runtime patching of config files";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-opnix-secrets;
+    };
+    deps = [];
+  };
+
+  "nix-adding-services" = {
+    description = "Use when adding a new service to this Nix flake. Covers the full lifecycle: package from source (Node/Rust/Python), service module, options, secrets, home-manager config, tests, target wiring, and validation";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-adding-services;
+    };
+    deps = [];
+  };
+
+  "nix-darwin-launchd-debugging" = {
+    description = "Use when debugging nix-darwin launchd services that fail to start, exit with non-zero, or don't reload on switch. Covers EX_CONFIG, $HOME expansion trap, daemon vs user.agent, and manual plist reloading";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-darwin-launchd-debugging;
+    };
+    deps = [];
+  };
+
   # External skills - fetched from other repositories
   # Example: Uncomment and modify when you want to add external skills
   # "spec-driven-workflow" = {
@@ -203,6 +233,16 @@
     source = {
       type = "internal";
       path = ./internal/iterating-nix-embedded-scripts;
+    };
+    deps = [];
+  };
+
+  zellij = {
+    description = "Zellij terminal multiplexer — creating KDL layouts, managing sessions via CLI, and running commands without disrupting the user's workspace";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/zellij;
     };
     deps = [];
   };

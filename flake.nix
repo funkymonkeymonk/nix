@@ -74,6 +74,7 @@
               "claude-code"
             ];
           permittedInsecurePackages = [
+            "electron-39.8.10"
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
           ];
@@ -83,7 +84,7 @@
           in
             pname
             == "openclaw"
-            || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
+            || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
         };
         overlays = [
           (final: _prev: {
@@ -206,7 +207,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks;
+          inherit (pkgs) rtk yaks vane;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
@@ -344,6 +345,8 @@
           ./modules/roles/homebrew.nix
           ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
+          ./modules/services/searxng/darwin.nix
+          ./modules/services/higgs/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
@@ -614,6 +617,7 @@
             core-packages
             foundation-packages
             config-validation
+            all-role-tests
             role-evaluation
             role-composition
             role-packages
@@ -643,15 +647,19 @@
             sketchybar-color-conversion
             sketchybar-platform-guard
             sketchybar-entrypoint
+            aerospace-options
+            aerospace-custom-options
             ollama-options
             ollama-custom-options
             vane-options
             vane-custom-options
+            vane-opnix-url-options
             openclaw-options
             jj-autosync-options
             jj-autosync-custom-options
             opencode-options
             opencode-custom-options
+            opencode-provider-opnix-url
             shell-aliases
             workspace-switch
             fjj-options
@@ -665,6 +673,7 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
+            higgs-options
             llm-client-opencode
             llm-client-claude
             llm-client-pi

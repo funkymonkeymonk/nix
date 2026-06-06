@@ -17,7 +17,11 @@ in {
   config = lib.mkIf cfg.enable (lib.mkMerge [
     # nix-homebrew settings (only if module is available)
     (lib.optionalAttrs hasNixHomebrew {
-      nix-homebrew.autoMigrate = mkDefault true;
+      nix-homebrew = {
+        enable = true;
+        user = (builtins.head config.myConfig.users).name;
+        autoMigrate = mkDefault true;
+      };
     })
     # homebrew casks (only if homebrew option exists)
     (lib.optionalAttrs hasHomebrew {
@@ -27,6 +31,12 @@ in {
           autoUpdate = false;
           cleanup = "uninstall";
         };
+        taps = [
+          "panbanda/brews"
+        ];
+        brews = [
+          "panbanda/brews/higgs"
+        ];
         casks = [
           "raycast"
           "zed"

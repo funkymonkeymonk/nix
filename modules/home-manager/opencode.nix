@@ -19,7 +19,7 @@ with lib; let
   providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
 
   # Build opnix secrets configuration using shared helper (API keys)
-  opnixSecrets = hmLib.mkOpnixSecrets "opencode" (
+  opnixSecrets = hmLib.mkOpnixSecrets "opencode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: provider: {
       inherit (provider) onePasswordItem;
       secretPath = ".config/opencode/secrets/${name}-apikey";
@@ -28,7 +28,7 @@ with lib; let
   );
 
   # Build opnix secrets for base URLs (providers with baseURLOpnixItem)
-  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" (
+  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: provider: {
       reference = provider.baseURLOpnixItem;
       path = ".config/opencode/secrets/${name}-baseurl";
@@ -160,14 +160,17 @@ with lib; let
     PRIVATE_CONFIG="$HOME/.config/opencode/opencode-private.json"
 
     # Start with the base config
+    # Use --no-preserve=mode to avoid inheriting read-only permissions from nix store
     if [[ -L "$BASE_CONFIG" ]]; then
       # It's a symlink (from nix store), read it
-      cp "$(readlink -f "$BASE_CONFIG")" "$DYNAMIC_CONFIG"
+      cp --no-preserve=mode "$(readlink -f "$BASE_CONFIG")" "$DYNAMIC_CONFIG"
     elif [[ -f "$BASE_CONFIG" ]]; then
-      cp "$BASE_CONFIG" "$DYNAMIC_CONFIG"
+      cp --no-preserve=mode "$BASE_CONFIG" "$DYNAMIC_CONFIG"
     else
       echo "{}" > "$DYNAMIC_CONFIG"
     fi
+    # Ensure the dynamic config is writable for subsequent runs
+    chmod u+w "$DYNAMIC_CONFIG" 2>/dev/null || true
 
     # Patch baseURLs from opnix-managed secret files
     # This allows provider base URLs to be stored in 1Password instead of the Nix store

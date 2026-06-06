@@ -1,0 +1,25 @@
+ide() {
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+  export FILE_MANAGER="${FILE_MANAGER:-yazi}"
+  export AGENT="${AGENT:-opencode}"
+  export EDITOR="${EDITOR:-hx}"
+  export PWD="$repo_root"
+
+  local guid
+  guid=$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -d'-' -f1)
+  local session_name="ide-$(basename "$PWD")-${guid}"
+  local layout_file
+  layout_file=$(mktemp)
+
+  if [[ -n "${WITH_PR}" ]]; then
+    local template="$PWD/configs/ide/layout-with-pr.kdl.template"
+  else
+    local template="$PWD/configs/ide/layout.kdl.template"
+  fi
+
+  envsubst < "$template" > "$layout_file"
+  zellij -s "$session_name" -n "$layout_file"
+  rm -f "$layout_file"
+}
