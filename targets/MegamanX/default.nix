@@ -56,6 +56,7 @@
             path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
             name = "qwen-embed";
             mlxProfile = "latency";
+            package = pkgs.qwen-embed;
           }
         ];
         providers = {
