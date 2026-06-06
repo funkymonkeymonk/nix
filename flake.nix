@@ -205,7 +205,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks vane;
+          inherit (pkgs) rtk yaks vane glm47-flash-4bit glm47-flash-6bit glm47-flash-8bit;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }

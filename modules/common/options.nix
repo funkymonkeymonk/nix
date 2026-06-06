@@ -1361,6 +1361,11 @@ with lib; {
               type = types.str;
               description = "Model path or HuggingFace ID";
             };
+            package = mkOption {
+              type = types.nullOr types.package;
+              default = null;
+              description = "Nix package providing the model (overrides path with store path)";
+            };
             name = mkOption {
               type = types.nullOr types.str;
               default = null;
