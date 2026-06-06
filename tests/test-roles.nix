@@ -59,7 +59,7 @@
     }
   ];
 
-  # Evaluate llm-host role with default sharedModels
+  # Helper: evaluate modules with a specific role enabled
   evalWithRole = roleName:
     (lib.evalModules {
       modules =
@@ -112,7 +112,6 @@
                 opencode.enable = true;
                 claude.enable = true;
                 pi.enable = true;
-                llm-host.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
                 microvm-host.enable = true;
@@ -136,7 +135,6 @@
     "opencode"
     "claude"
     "pi"
-    "llm-host"
     "assistant"
     "email-backup"
     "microvm-host"
@@ -148,14 +146,14 @@
     developer = ["clang" "python3" "nodejs" "yarn" "k9s" "gh-dash" "yaks"];
     creative = ["ffmpeg" "imagemagick" "pandoc"];
     gaming = ["moonlight-qt"];
-    desktop = []; # logseq removed due to electron-forge build hangs
+    desktop = ["logseq"];
     workstation = ["slack" "trippy" "unar"];
     # entertainment: NixOS packages (obs-studio, discord) are tested separately
     # in entertainmentNixosTest using linuxPkgs; they only appear on NixOS (isDarwin=false)
     opencode = ["opencode" "rtk"];
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
-    llm-host = []; # ollama now installed via homebrew, not nixpkgs
+
     assistant = ["himalaya" "gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
     # microvm-host packages are NixOS-only (guarded by isNixOS check).
@@ -174,7 +172,7 @@
       "agent-skills.enable" = true;
       "pi.enable" = true;
     };
-    # llm-host no longer cascades to ollama.enable (service option removed)
+
     assistant = {"email-agent.enable" = true;};
     email-backup = {"email-backup.enable" = true;};
     foundation = {
@@ -423,6 +421,5 @@ in {
   rolePackageInclusionTest = allRoleTests;
   roleCascadeTest = allRoleTests;
   noDeadDevelopmentOptionTest = allRoleTests;
-  llmHostSharedModelsTest = allRoleTests;
   entertainmentNixosTest = allRoleTests;
 }

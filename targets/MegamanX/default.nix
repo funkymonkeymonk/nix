@@ -1,5 +1,6 @@
 # MegamanX (personal desktop) target configuration
 {
+  lib,
   mkUser,
   inputs,
   ...
@@ -17,102 +18,145 @@
         desktop.enable = true;
         workstation.enable = true;
         entertainment.enable = true;
+
+        opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
       };
-      # vllm-mlx disabled — use Ollama instead. Config preserved for easy re-enable.
-      vllmMlx = {
-        enable = false;
+      higgs = {
+        enable = true;
         server = {
           host = "0.0.0.0";
-          port = 8300;
+          port = 8000;
         };
-        memoryBudgetGb = 90;
-        contention = "preempt";
-        models = {
-          "qwen3.6-27b" = {
-            path = "mlx-community/Qwen3.6-27B-4bit";
-            type = "lm";
-            estimatedMemoryGb = 16;
+        local = {
+          mlxProfile = "auto";
+          raiseWiredLimit = false;
+        };
+        models = [
+          {
+            path = "mlx-community/GLM-4.7-Flash-4bit";
+            name = "glm47-flash-4bit";
+          }
+          {
+            path = "mlx-community/GLM-4.7-Flash-6bit";
+            name = "glm47-flash-6bit";
+            mlxProfile = "balanced";
+          }
+          {
+            path = "mlx-community/GLM-4.7-Flash-8bit";
+            name = "glm47-flash-8bit";
+            mlxProfile = "throughput";
+          }
+          {
+            path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
+            name = "qwen-embed";
+            mlxProfile = "latency";
+          }
+        ];
+        providers = {
+          opencode-go = {
+            url = "https://opencode.ai/zen/go/v1";
+            format = "openai";
+            apiKeyOpnixItem = "op://Opnix/OpenCode Go API/credential";
           };
         };
-        enableAutoToolChoice = true;
-        toolCallParser = "qwen";
-        timeout = 120;
-        logLevel = "INFO";
+        routes = [
+          # Frontier models proxied through Higgs → OpenCode Go
+          {
+            pattern = "kimi-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "gpt-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "claude-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "gemini-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "opencode-go/.*";
+            provider = "opencode-go";
+          }
+        ];
+        default.provider = "higgs";
       };
-
-      ollama = {
-        enable = true;
-        host = "127.0.0.1";
-        port = 11434;
-      };
-
       vane = {
         enable = true;
-        openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "qwen3.6:27b";
-        embeddingModel = "nomic-embed-text:latest";
-        ollamaUrl = "http://localhost:11434";
-      };
-      bifrost = {
-        enable = true;
-        logLevel = "debug";
-        upstreams = {
-          # vllm-mlx disabled — preserved for easy re-enable
-          vllm-mlx-local = {
-            url = "http://localhost:8300";
-            type = "openai";
-            requestTimeout = 120;
-            models = [
-              "qwen3.6-27b"
-            ];
-          };
-          ollama-local = {
-            url = "http://localhost:11434";
-            type = "openai";
-            requestTimeout = 600;
-            models = [];
-          };
-        };
+        # Higgs is the unified gateway — Vane runs natively now, so use localhost
+        # Embeddings are generated natively by Higgs from loaded MLX models
+        openaiBaseUrl = "http://localhost:8000/v1";
+        # Models are served by Higgs at the OpenAI endpoint, discovered at runtime
+        defaultModel = null;
+        embeddingModel = null;
       };
       searxng.enable = true;
-      caddy.enable = true;
-      llmClient = {
-        serverHost = "bifrost.internal";
-        serverPort = "80";
-      };
-      pi = {
-        npmPackages = {
-          "pi-opencode-provider" = "^0.7.3";
-          "pi-web-access" = "^0.10.7";
-          "pi-subagents" = "^0.33.1";
+      opencode = {
+        enable = true;
+        # Default model - glm47-flash-4bit for fast coding/chat
+        model = lib.mkForce "higgs/glm47-flash-4bit";
+
+        # Configure Higgs as the unified provider
+        providers.higgs = {
+          npm = "@ai-sdk/openai-compatible";
+          name = "Higgs Gateway";
+          baseURL = "http://localhost:8000/v1";
+          onePasswordItem = "";
+          models = {
+            "glm47-flash-4bit" = {
+              name = "GLM-4.7-Flash 4bit (Fast)";
+            };
+            "glm47-flash-6bit" = {
+              name = "GLM-4.7-Flash 6bit (Balanced)";
+            };
+            "glm47-flash-8bit" = {
+              name = "GLM-4.7-Flash 8bit (Quality)";
+            };
+            "qwen-embed" = {
+              name = "Qwen3 Embedding 4B (Local MLX)";
+            };
+          };
         };
 
+        # Configure OpenCode Go provider for frontier models
+        providers.opencode-go = {
+          name = "OpenCode Go";
+          baseURL = "https://opencode.ai/zen/go/v1";
+          onePasswordItem = "op://Opnix/OpenCode Go API/credential";
+        };
+
+        # Define agents
+        agents = {
+          plan = {
+            description = "Analysis and planning without making changes";
+            mode = "primary";
+            model = "higgs/glm47-flash-8bit";
+            prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
+            permission = {
+              edit = "deny";
+              bash = "ask";
+            };
+          };
+
+          frontier = {
+            description = "Frontier model for maximum capability";
+            mode = "primary";
+            model = "opencode-go/kimi-k2.5";
+            prompt = "You are a frontier AI assistant with maximum capability for challenging tasks.";
+          };
+        };
+      };
+      pi = {
         settings = {
           theme = "dark";
           editor = {
             vimMode = true;
           };
-          compaction = {
-            enabled = true;
-            # Trigger compaction earlier so each summarization is smaller
-            reserveTokens = 24576;
-            keepRecentTokens = 16000;
-          };
-          retry = {
-            enabled = true;
-            # More retries and longer timeout for large summarizations
-            maxRetries = 5;
-            baseDelayMs = 3000;
-            provider = {
-              # Summarizing large contexts can take minutes; SDK default is too aggressive
-              timeoutMs = 600000; # 10 min
-              maxRetries = 0;
-              maxRetryDelayMs = 60000;
-            };
-          };
-          httpIdleTimeoutMs = 300000; # 5 minutes - needed for slow first-token latency with local models
         };
 
         agentsMd = ''
@@ -124,21 +168,11 @@
           - Follow the conventional commit style
         '';
 
-        models.bifrost = {
-          name = "Bifrost AI Gateway";
+        models.local-higgs = {
+          name = "Higgs Gateway (GLM-4.7-Flash)";
           provider = "openai";
-          modelId = "ollama-local/qwen3.6:27b";
-          baseUrl = "http://bifrost.internal/v1";
-          reasoning = true;
-          maxTokens = 131072;
-        };
-        models.local-ollama = {
-          name = "Local LLM (Ollama via Bifrost)";
-          provider = "openai";
-          modelId = "ollama-local/qwen3.6:27b";
-          baseUrl = "http://bifrost.internal/v1";
-          reasoning = true;
-          maxTokens = 131072;
+          modelId = "glm47-flash-4bit";
+          baseUrl = "http://localhost:8000/v1";
         };
 
         prompts.review = ''
@@ -152,9 +186,7 @@
         '';
 
         skills.nix = ''
-          ---
-          description: Nix development skill for working with flakes, modules, and configurations
-          ---
+          # Nix Development Skill
 
           Use this skill when working with Nix flakes, modules, or configurations.
 

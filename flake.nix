@@ -50,21 +50,6 @@
     # Official OpenClaw flake for declarative OpenClaw installation
     nix-openclaw.url = "github:openclaw/nix-openclaw";
     nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
-
-    # Bifrost AI Gateway - high-performance LLM gateway
-    bifrost.url = "github:maximhq/bifrost";
-
-    # Pi plugins - extensions and skills for pi coding agent
-    pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
-    # Flake-parts (incremental migration — used for testing infrastructure first)
-    flake-parts.url = "github:hercules-ci/flake-parts";
-
-    # nix-unit: Eval-time unit testing framework
-    nix-unit.url = "github:nix-community/nix-unit";
-    nix-unit.flake = false;
-
-    # Himalaya TUI - terminal UI for email (companion to himalaya CLI)
-    himalaya-tui.url = "github:pimalaya/himalaya-tui";
   };
 
   outputs = {
@@ -115,11 +100,7 @@
           (final: _prev: {
             zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
           })
-          # himalaya-tui from upstream Pimalaya flake
-          (final: _prev: {
-            himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
-          })
-          (import ./overlays {inherit inputs;})
+          (import ./overlays)
         ];
       };
     };
@@ -220,7 +201,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [(import ./overlays {inherit inputs;})];
+          overlays = [(import ./overlays)];
         };
       in
         {
@@ -243,7 +224,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [(import ./overlays {inherit inputs;})];
+          overlays = [(import ./overlays)];
         };
       in {
         installer = {
@@ -279,7 +260,6 @@
           ./modules
           ./modules/roles/homebrew.nix
           ./modules/services/vane/darwin.nix
-          ./modules/services/bifrost/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/wweaver
@@ -383,11 +363,8 @@
           ./modules
           ./modules/roles/homebrew.nix
           ./modules/services/vane/darwin.nix
-          ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
-          ./modules/services/caddy/darwin.nix
-          ./modules/services/vllm-mlx/darwin.nix
-          ./modules/services/ollama/darwin.nix
+          ./modules/services/higgs/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
@@ -707,7 +684,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          overlays = [(import ./overlays {inherit inputs;})];
+          overlays = [(import ./overlays)];
         };
         tests = import ./tests {
           inherit pkgs self;
@@ -723,6 +700,11 @@
             foundation-packages
             config-validation
             all-role-tests
+            role-evaluation
+            role-composition
+            role-packages
+            role-cascades
+            no-dead-development-option
             module-coverage
             skills-manifest
             skills-autoload-filtering
@@ -770,15 +752,14 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
-            vllm-mlx-options
-            megamanx-vllm
+            higgs-options
             llm-client-opencode
             llm-client-claude
             llm-client-pi
             llm-client-custom-host
             llm-client-no-ai-roles
+            entertainment-nixos
             typed-attrs-options
-            stack-integration
             phase5-core-bootstrap
             phase3-zero
             phase4-darwin-server
