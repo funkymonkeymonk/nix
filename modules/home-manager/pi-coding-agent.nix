@@ -14,7 +14,7 @@ with lib; let
   modelsWithSecrets = lib.filterAttrs (_name: model: model.onePasswordItem != "") cfg.models;
 
   # Build opnix secrets configuration
-  opnixSecrets = hmLib.mkOpnixSecrets "pi" (
+  opnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: model: {
       inherit (model) onePasswordItem;
       secretPath = ".pi/agent/secrets/${name}-apikey";
@@ -52,7 +52,12 @@ with lib; let
       name: skill: let
         skillMd =
           if skill.source.type == "internal"
-          then builtins.readFile "${skill.source.path}/SKILL.md"
+          then let
+            skillPath = skill.source.path + "/SKILL.md";
+          in
+            if builtins.pathExists skillPath
+            then builtins.readFile skillPath
+            else "# ${name}\n\n${skill.description}"
           else if skill.source.type == "superpowers" && superpowersPath != null
           then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
           else "# ${name}\n\n${skill.description}";

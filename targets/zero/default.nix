@@ -24,7 +24,10 @@
         developer.enable = true;
         desktop.enable = true;
         opencode.enable = true;
-        tailscale.enable = true;
+        tailscale = {
+          enable = true;
+          authKeyOpnixItem = "Tailscale Auth Key/credential";
+        };
       };
       desktop = {
         enable = true;
@@ -38,7 +41,10 @@
           port = "4000";
         };
       };
-      onepassword.enable = true;
+      onepassword = {
+        enable = true;
+        defaultVault = "Homelab";
+      };
     };
 
   networking = {

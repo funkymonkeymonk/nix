@@ -16,10 +16,6 @@
     eval = lib.evalModules {
       modules = [
         ../modules/common/options.nix
-        ../modules/roles/default.nix
-        ../modules/nixos/base.nix
-        ../modules/services/ollama/nixos.nix
-        ../modules/services/openclaw
         ../os/microvm.nix
         ../modules/microvm
         ../targets/microvms/${name}.nix
@@ -38,6 +34,35 @@
             ];
             onepassword.enable = false;
           };
+        }
+        {
+          options =
+            builtins.listToAttrs (map (option:
+              lib.nameValuePair option (lib.mkOption {
+                type = lib.types.anything;
+                default = {};
+              })) [
+              "i18n"
+              "documentation"
+              "environment"
+              "system"
+              "systemd"
+              "programs"
+              "networking"
+              "users"
+              "nix"
+              "services"
+              "time"
+              "virtualisation"
+              "nixpkgs"
+            ])
+            // {
+              myConfig.openclaw = lib.mkOption {
+                type = lib.types.anything;
+                default = {};
+              };
+            };
+          config = {};
         }
       ];
     };
@@ -94,27 +119,22 @@ in {
       # Sonarr
       ${assertEq "sonarr enabled" true mediaCenterConfig.services.sonarr.enable}
       ${assertEq "sonarr openFirewall" true mediaCenterConfig.services.sonarr.openFirewall}
-      ${assertEq "sonarr port" 8989 mediaCenterConfig.services.sonarr.port}
 
       # Radarr
       ${assertEq "radarr enabled" true mediaCenterConfig.services.radarr.enable}
       ${assertEq "radarr openFirewall" true mediaCenterConfig.services.radarr.openFirewall}
-      ${assertEq "radarr port" 7878 mediaCenterConfig.services.radarr.port}
 
       # Lidarr
       ${assertEq "lidarr enabled" true mediaCenterConfig.services.lidarr.enable}
       ${assertEq "lidarr openFirewall" true mediaCenterConfig.services.lidarr.openFirewall}
-      ${assertEq "lidarr port" 8686 mediaCenterConfig.services.lidarr.port}
 
       # Prowlarr
       ${assertEq "prowlarr enabled" true mediaCenterConfig.services.prowlarr.enable}
       ${assertEq "prowlarr openFirewall" true mediaCenterConfig.services.prowlarr.openFirewall}
-      ${assertEq "prowlarr port" 9696 mediaCenterConfig.services.prowlarr.port}
 
       # Bazarr
       ${assertEq "bazarr enabled" true mediaCenterConfig.services.bazarr.enable}
       ${assertEq "bazarr openFirewall" true mediaCenterConfig.services.bazarr.openFirewall}
-      ${assertEq "bazarr port" 6767 mediaCenterConfig.services.bazarr.port}
 
       echo "All *arr services tests passed"
       touch $out

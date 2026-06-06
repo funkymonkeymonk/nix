@@ -74,6 +74,7 @@
               "claude-code"
             ];
           permittedInsecurePackages = [
+            "electron-39.8.10"
             "google-chrome-144.0.7559.97"
             "olm-3.2.16"
           ];
@@ -83,7 +84,7 @@
           in
             pname
             == "openclaw"
-            || builtins.elem fullName ["google-chrome-144.0.7559.97" "olm-3.2.16"];
+            || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
         };
         overlays = [
           (final: _prev: {
@@ -206,7 +207,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks;
+          inherit (pkgs) rtk yaks vane;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
@@ -332,6 +333,33 @@
         ];
       };
 
+      # Phase 4: darwin-server v2 using new library mkDarwinSystem + headless-server-darwin archetype
+      # Runs in parallel with darwin-server until verified.
+      "darwin-server-v2" = libraryLib.mkDarwinSystem {
+        inherit inputs;
+        hostname = "darwin-server";
+        extraSpecialArgs = {inherit mkUser;};
+        modules = [
+          ./library/archetypes/headless-server-darwin.nix
+          ./modules/services/lume/darwin.nix
+          ./modules/services/ollama/darwin.nix
+          ./os/darwin.nix
+          ./targets/darwin-server
+          home-manager.darwinModules.home-manager
+          {
+            home-manager.sharedModules = [
+              opnix.homeManagerModules.default
+              inputs.nix-openclaw.homeManagerModules.openclaw
+            ];
+          }
+          {
+            nixpkgs.config.permittedInsecurePackages = [
+              "olm-3.2.16"
+            ];
+          }
+        ];
+      };
+
       # MegamanX - personal desktop/workstation
       "MegamanX" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
@@ -342,6 +370,8 @@
           ./modules/roles/homebrew.nix
           ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
+          ./modules/services/searxng/darwin.nix
+          ./modules/services/higgs/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
@@ -363,22 +393,22 @@
           {
             nixpkgs.hostPlatform = "x86_64-linux";
             system.stateVersion = "25.05";
+          }
+        ];
+      };
 
-            # Phase 5: Bootstrap v2 — minimal config using raw nixosSystem
-            # Uses raw nixpkgs.lib.nixosSystem (NOT mkNixosSystem) intentionally.
-            # Bootstrap is intentionally minimal — no home-manager, no opnix, no disko.
-            "bootstrap-v2" = nixpkgs.lib.nixosSystem {
-              system = "x86_64-linux";
-              modules = [
-                ./modules/common/core.nix
-                ./targets/bootstrap
-                ./modules/common/options.nix
-                {
-                  nixpkgs.hostPlatform = "x86_64-linux";
-                  system.stateVersion = "25.05";
-                }
-              ];
-            };
+      # Phase 5: Bootstrap v2 — minimal config using raw nixosSystem
+      # Uses raw nixpkgs.lib.nixosSystem (NOT mkNixosSystem) intentionally.
+      # Bootstrap is intentionally minimal — no home-manager, no opnix, no disko.
+      "bootstrap-v2" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./modules/common/core.nix
+          ./targets/bootstrap
+          ./modules/common/options.nix
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            system.stateVersion = "25.05";
           }
         ];
       };
@@ -484,6 +514,43 @@
       "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
       "matrix-v2" = _mkMicrovmV2 "matrix" {};
       "media-center-v2" = _mkMicrovmV2 "media-center" {};
+
+      # Phase 3: Real-machine migration — zero desktop/workstation
+      # Parallel v2 config using new library mkNixosSystem + archetype.
+      # Old nixosConfigurations.zero remains unchanged.
+      "zero-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "zero";
+        extraSpecialArgs = {inherit mkUser;};
+        modules = [
+          ./modules/nixos/base.nix
+          ./modules/nixos/desktop.nix
+          ./modules/nixos/gaming.nix
+          ./modules/nixos/streaming.nix
+          ./modules/services/ollama/nixos.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/nixos.nix
+          ./library/archetypes/desktop-nixos.nix
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
+          ./modules/nixos/ghostty-terminfo.nix
+          {
+            home-manager.sharedModules = [
+              inputs.nix-openclaw.homeManagerModules.openclaw
+            ];
+          }
+          {
+            nixpkgs.config.permittedInsecurePackages = [
+              "openclaw-2026.4.22"
+            ];
+          }
+          ./targets/zero
+        ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero-v2";
+        };
+      };
 
       # Phase 2: Cattle NixOS v2 configs using new library mkNixosSystem
       # Runs in parallel with type-server and type-server-arm until verified.
@@ -591,6 +658,7 @@
             core-packages
             foundation-packages
             config-validation
+            all-role-tests
             role-evaluation
             role-composition
             role-packages
@@ -620,15 +688,19 @@
             sketchybar-color-conversion
             sketchybar-platform-guard
             sketchybar-entrypoint
+            aerospace-options
+            aerospace-custom-options
             ollama-options
             ollama-custom-options
             vane-options
             vane-custom-options
+            vane-opnix-url-options
             openclaw-options
             jj-autosync-options
             jj-autosync-custom-options
             opencode-options
             opencode-custom-options
+            opencode-provider-opnix-url
             shell-aliases
             workspace-switch
             fjj-options
@@ -642,6 +714,7 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
+            higgs-options
             llm-client-opencode
             llm-client-claude
             llm-client-pi
@@ -650,6 +723,8 @@
             entertainment-nixos
             typed-attrs-options
             phase5-core-bootstrap
+            phase3-zero
+            phase4-darwin-server
             phase2-cattle
             ;
         }

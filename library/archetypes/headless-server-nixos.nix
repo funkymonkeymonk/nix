@@ -10,14 +10,17 @@
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers or null;
-    onepassword.tokenFile = "/etc/opnix/token";
+    onepassword = {
+      tokenFile = "/etc/opnix/token";
+      defaultVault = "Homelab";
+    };
     roles.tailscale = {
       enable = true;
-      authKeyOpnixItem = "op://Homelab/Tailscale Auth Key/credential";
+      authKeyOpnixItem = "Tailscale Auth Key/credential";
     };
   };
 
-  hardware.facter.reportPath = "/etc/nixos/facter.json";
+  hardware.facter.reportPath = lib.mkIf (builtins.pathExists /etc/nixos/facter.json) "/etc/nixos/facter.json";
 
   users.users.root.openssh.authorizedKeys.keys = [];
   users.users.admin = {

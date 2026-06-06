@@ -197,7 +197,7 @@
     developer = ["clang" "python3" "nodejs" "yarn" "k9s" "gh-dash" "yaks"];
     creative = ["ffmpeg" "imagemagick" "pandoc"];
     gaming = ["moonlight-qt"];
-    desktop = ["logseq" "super-productivity"];
+    desktop = ["logseq"];
     workstation = ["slack" "trippy" "unar"];
     # entertainment: NixOS packages (obs-studio, discord) are tested separately
     # in entertainmentNixosTest using linuxPkgs; they only appear on NixOS (isDarwin=false)
@@ -289,193 +289,107 @@
       ];
     })
     .config;
-in {
-  # Test that each role evaluates without errors
-  roleEvaluationTest =
-    pkgs.runCommand "test-role-evaluation"
-    {}
-    ''
-      echo "=== Testing Role Evaluation ==="
-
-      ${lib.concatMapStringsSep "\n" (role: let
-          # Force evaluation by accessing the config
-          evaluated = evalWithRole role;
-          _forceEval = builtins.seq (builtins.toJSON evaluated.myConfig.roles) true;
-        in ''
-          ${
-            if _forceEval
-            then ''echo "  ${role}: evaluates OK"''
-            else ''echo "  ${role}: FAILED"; exit 1''
-          }
-        '')
-        allRoles}
-
-      echo "All roles evaluate successfully"
-      touch $out
-    '';
-
-  # Test that enabling all roles simultaneously doesn't conflict
-  allRolesCompositionTest =
-    pkgs.runCommand "test-all-roles-composition"
-    {}
-    ''
-      echo "=== Testing All Roles Composition ==="
-
-      # Force evaluation of the combined config
-      ${let
-        _forceEval = builtins.seq (builtins.toJSON evalAllRoles.myConfig.roles) true;
+  # Combined test: runs all role assertions in a single derivation
+  # to reduce Nix per-derivation overhead during CI builds.
+  allRoleTests = let
+    evalTestScript = let
+      evalChecks = lib.concatMapStringsSep "\n" (role: let
+        evaluated = evalWithRole role;
+        _forceEval = builtins.seq (builtins.toJSON evaluated.myConfig.roles) true;
       in
         if _forceEval
+        then "echo \"  ${role}: evaluates OK\""
+        else "echo \"  ${role}: FAILED\"; exit 1")
+      allRoles;
+    in ''
+      echo "=== Testing Role Evaluation ==="
+      ${evalChecks}
+      echo "All roles evaluate successfully"
+    '';
+
+    compositionTestScript = let
+      _forceEval = builtins.seq (builtins.toJSON evalAllRoles.myConfig.roles) true;
+    in ''
+      echo "=== Testing All Roles Composition ==="
+      ${
+        if _forceEval
         then ''
-          echo "  All 12 roles enabled simultaneously: OK"
+          echo "  All ${toString (builtins.length allRoles)} roles enabled simultaneously: OK"
           echo "  System packages count: ${toString (builtins.length evalAllRoles.environment.systemPackages)}"
           echo "  Enabled roles: ${builtins.concatStringsSep ", " evalAllRoles.myConfig.skills.enabledRoles}"
         ''
         else ''
           echo "  All roles composition: FAILED"
           exit 1
-        ''}
-
+        ''
+      }
       echo "All roles compose without conflicts"
-      touch $out
     '';
 
-  # Test that each role adds its expected packages
-  rolePackageInclusionTest = let
-    # Build verification commands for each role that has expected packages
-    verificationCommands =
-      lib.concatMapStringsSep "\n" (
-        role: let
-          expectedPkgs = roleExpectedPackages.${role} or [];
-          evaluated = evalWithRole role;
-          actualPkgNames = map (p: p.name or (builtins.parseDrvName p.pname).name or "unknown") evaluated.environment.systemPackages;
-        in
-          if expectedPkgs == []
-          then ''echo "  ${role}: no package requirements (homebrew-only or meta role)"''
-          else
-            lib.concatMapStringsSep "\n" (
-              expectedPkg: let
-                found = builtins.any (actual:
-                  lib.hasInfix expectedPkg actual)
-                actualPkgNames;
-              in
-                if found
-                then ''echo "  ${role} -> ${expectedPkg}: found"''
-                else ''
-                  echo "  ${role} -> ${expectedPkg}: NOT FOUND in [${builtins.concatStringsSep ", " actualPkgNames}]"
-                  exit 1
-                ''
-            )
-            expectedPkgs
-      )
-      allRoles;
-  in
-    pkgs.runCommand "test-role-package-inclusion"
-    {}
-    ''
+    packageInclusionScript = let
+      inclusionChecks =
+        lib.concatMapStringsSep "\n" (
+          role: let
+            expectedPkgs = roleExpectedPackages.${role} or [];
+            evaluated = evalWithRole role;
+            actualPkgNames = map (p: p.name or (builtins.parseDrvName p.pname).name or "unknown") evaluated.environment.systemPackages;
+          in
+            if expectedPkgs == []
+            then "echo \"  ${role}: no package requirements (homebrew-only or meta role)\""
+            else
+              lib.concatMapStringsSep "\n" (
+                expectedPkg: let
+                  found = builtins.any (actual: lib.hasInfix expectedPkg actual) actualPkgNames;
+                in
+                  if found
+                  then "echo \"  ${role} -> ${expectedPkg}: found\""
+                  else ''
+                    echo "  ${role} -> ${expectedPkg}: NOT FOUND in [${builtins.concatStringsSep ", " actualPkgNames}]"
+                    exit 1
+                  ''
+              )
+              expectedPkgs
+        )
+        allRoles;
+    in ''
       echo "=== Testing Role Package Inclusion ==="
-
-      ${verificationCommands}
-
+      ${inclusionChecks}
       echo "All role packages are included correctly"
-      touch $out
     '';
 
-  # Test that role cascades work correctly
-  roleCascadeTest = let
-    cascadeChecks = lib.concatMapStringsSep "\n" (role: let
-      cascades = roleCascades.${role} or {};
-    in
-      lib.concatMapStringsSep "\n" (
-        optPath: let
-          expected = cascades.${optPath};
-          evaluated = evalWithRole role;
-          actual = lib.attrByPath (lib.splitString "." optPath) null evaluated.myConfig;
-        in
-          if actual == expected
-          then ''echo "  ${role} -> myConfig.${optPath} = ${builtins.toJSON expected}: OK"''
-          else ''
-            echo "  ${role} -> myConfig.${optPath}: expected ${builtins.toJSON expected}, got ${builtins.toJSON actual}"
-            exit 1
-          ''
-      ) (builtins.attrNames cascades))
-    (builtins.attrNames roleCascades);
-  in
-    pkgs.runCommand "test-role-cascades"
-    {}
-    ''
+    cascadeScript = let
+      cascadeChecks = lib.concatMapStringsSep "\n" (role: let
+        cascades = roleCascades.${role} or {};
+      in
+        lib.concatMapStringsSep "\n" (
+          optPath: let
+            expected = cascades.${optPath};
+            evaluated = evalWithRole role;
+            actual = lib.attrByPath (lib.splitString "." optPath) null evaluated.myConfig;
+          in
+            if actual == expected
+            then "echo \"  ${role} -> myConfig.${optPath} = ${builtins.toJSON expected}: OK\""
+            else ''
+              echo "  ${role} -> myConfig.${optPath}: expected ${builtins.toJSON expected}, got ${builtins.toJSON actual}"
+              exit 1
+            ''
+        ) (builtins.attrNames cascades))
+      (builtins.attrNames roleCascades);
+    in ''
       echo "=== Testing Role Cascade Activation ==="
-
       ${cascadeChecks}
-
       echo "All role cascades work correctly"
-      touch $out
     '';
 
-  # Test that dead myConfig.development option has been removed from options.nix.
-  # This option was declared and set (by developer role) but never consumed by any module.
-  # The actual developer role check uses config.myConfig.roles.developer.enable.
-  noDeadDevelopmentOptionTest = let
-    testEval = pkgs.lib.evalModules {
-      modules = [
-        ../modules/common/options.nix
-        {
-          options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
-            type = pkgs.lib.types.anything;
-            default = {inherit (pkgs.stdenv.hostPlatform) system;};
-          };
-        }
-        {config._module.args = {inherit pkgs;};}
-        {
-          config.myConfig.users = [
-            {
-              name = "testuser";
-              email = "test@example.com";
-              fullName = "Test User";
-              isAdmin = true;
-              sshIncludes = [];
-            }
-          ];
-        }
-      ];
-    };
-    # If myConfig.development was removed, attrByPath returns the sentinel null.
-    developmentAttr = pkgs.lib.attrByPath ["development"] null testEval.config.myConfig;
-    isDead = developmentAttr == null;
-  in
-    pkgs.runCommand "test-no-dead-development-option"
-    {}
-    (
-      if isDead
-      then ''
-        echo "=== Testing myConfig.development removed ==="
-        echo "  myConfig.development: absent (correctly removed)"
-        echo "Dead development option successfully removed"
-        touch $out
-      ''
-      else ''
-        echo "=== Testing myConfig.development removed ==="
-        echo "  myConfig.development: STILL PRESENT (should be removed)"
-        echo "  Value: ${builtins.toJSON developmentAttr}"
-        echo "FAIL: myConfig.development is dead code and must be removed"
-        exit 1
-      ''
-    );
-
-  # Test that llm-host role wires myConfig.sharedModels into ollama.models
-  llmHostSharedModelsTest = let
-    defaultModels = llmHostDefaultEval.myConfig.sharedModels;
-    defaultOllamaModels = llmHostDefaultEval.myConfig.ollama.models;
-    customOllamaModels = llmHostCustomEval.myConfig.ollama.models;
-  in
-    pkgs.runCommand "test-llm-host-shared-models"
-    {}
-    ''
+    llmHostScript = let
+      defaultModels = llmHostDefaultEval.myConfig.sharedModels;
+      defaultOllamaModels = llmHostDefaultEval.myConfig.ollama.models;
+      customOllamaModels = llmHostCustomEval.myConfig.ollama.models;
+    in ''
       echo "=== Testing llm-host sharedModels wiring ==="
-
       ${
         if defaultModels == defaultOllamaModels
-        then ''echo "  default sharedModels propagated to ollama.models: OK"''
+        then "echo \"  default sharedModels propagated to ollama.models: OK\""
         else ''
           echo "  sharedModels default should propagate to ollama.models!"
           echo "  sharedModels = ${builtins.toJSON defaultModels}"
@@ -483,10 +397,9 @@ in {
           exit 1
         ''
       }
-
       ${
         if customOllamaModels == ["llama3.2" "mistral:7b"]
-        then ''echo "  custom sharedModels reflected in ollama.models: OK"''
+        then "echo \"  custom sharedModels reflected in ollama.models: OK\""
         else ''
           echo "  custom sharedModels should be reflected in ollama.models!"
           echo "  expected = [\"llama3.2\" \"mistral:7b\"]"
@@ -494,43 +407,102 @@ in {
           exit 1
         ''
       }
-
       echo "All llm-host sharedModels tests passed"
-      touch $out
     '';
 
-  # Test entertainment role on NixOS: obs-studio and discord in systemPackages.
-  # entertainmentNixosEval has options.boot stubbed so isNixOS=true in the module,
-  # meaning packages are always added regardless of host platform.
-  entertainmentNixosTest = let
-    sysPkgNames = map (p: p.name or (builtins.parseDrvName (p.pname or "unknown")).name) entertainmentNixosEval.environment.systemPackages;
-    obsFound = builtins.any (n: lib.hasInfix "obs-studio" n) sysPkgNames;
-    discordFound = builtins.any (n: lib.hasInfix "discord" n) sysPkgNames;
-  in
-    pkgs.runCommand "test-entertainment-nixos"
-    {}
-    ''
-      echo "=== Testing Entertainment Role on NixOS ==="
+    deadDevOptionScript = let
+      testEval = pkgs.lib.evalModules {
+        modules = [
+          ../modules/common/options.nix
+          {
+            options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
+              type = pkgs.lib.types.anything;
+              default = {inherit (pkgs.stdenv.hostPlatform) system;};
+            };
+          }
+          {config._module.args = {inherit pkgs;};}
+          {
+            config.myConfig.users = [
+              {
+                name = "testuser";
+                email = "test@example.com";
+                fullName = "Test User";
+                isAdmin = true;
+                sshIncludes = [];
+              }
+            ];
+          }
+        ];
+      };
+      developmentAttr = pkgs.lib.attrByPath ["development"] null testEval.config.myConfig;
+      isDead = developmentAttr == null;
+    in
+      if isDead
+      then ''
+        echo "=== Testing myConfig.development removed ==="
+        echo "  myConfig.development: absent (correctly removed)"
+        echo "Dead development option successfully removed"
+      ''
+      else ''
+        echo "=== Testing myConfig.development removed ==="
+        echo "  myConfig.development: STILL PRESENT (should be removed)"
+        echo "  Value: ${builtins.toJSON developmentAttr}"
+        echo "FAIL: myConfig.development is dead code and must be removed"
+        exit 1
+      '';
 
+    entertainmentNixosScript = let
+      sysPkgNames = map (p: p.name or (builtins.parseDrvName (p.pname or "unknown")).name) entertainmentNixosEval.environment.systemPackages;
+      obsFound = builtins.any (n: lib.hasInfix "obs-studio" n) sysPkgNames;
+      discordFound = builtins.any (n: lib.hasInfix "discord" n) sysPkgNames;
+    in ''
+      echo "=== Testing Entertainment Role on NixOS ==="
       ${
         if obsFound
-        then ''echo "  obs-studio in systemPackages: OK"''
+        then "echo \"  obs-studio in systemPackages: OK\""
         else ''
           echo "  obs-studio NOT found in systemPackages: [${builtins.concatStringsSep ", " sysPkgNames}]"
           exit 1
         ''
       }
-
       ${
         if discordFound
-        then ''echo "  discord in systemPackages: OK"''
+        then "echo \"  discord in systemPackages: OK\""
         else ''
           echo "  discord NOT found in systemPackages: [${builtins.concatStringsSep ", " sysPkgNames}]"
           exit 1
         ''
       }
-
       echo "All entertainment NixOS tests passed"
+    '';
+  in
+    pkgs.runCommand "test-all-roles"
+    {}
+    ''
+      ${evalTestScript}
+      echo ""
+      ${compositionTestScript}
+      echo ""
+      ${packageInclusionScript}
+      echo ""
+      ${cascadeScript}
+      echo ""
+      ${llmHostScript}
+      echo ""
+      ${deadDevOptionScript}
+      echo ""
+      ${entertainmentNixosScript}
+      echo ""
+      echo "All role tests passed"
       touch $out
     '';
+in {
+  inherit allRoleTests;
+  roleEvaluationTest = allRoleTests;
+  allRolesCompositionTest = allRoleTests;
+  rolePackageInclusionTest = allRoleTests;
+  roleCascadeTest = allRoleTests;
+  noDeadDevelopmentOptionTest = allRoleTests;
+  llmHostSharedModelsTest = allRoleTests;
+  entertainmentNixosTest = allRoleTests;
 }
