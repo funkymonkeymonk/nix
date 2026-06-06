@@ -20,6 +20,8 @@
   testHiggs = import ./test-higgs.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
+  testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
+  testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
@@ -140,9 +142,14 @@ in
     zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
 
+    # Phase 3: Real-machine migration — zero v2
+    phase3-zero = testPhase3Zero.phase3ZeroTest;
+
+    # Phase 4: darwin-server v2 migration
+    phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
+
     # Higgs module tests
     higgs-options = testHiggs.higgsOptionsTest;
-
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;
   }

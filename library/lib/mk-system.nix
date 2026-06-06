@@ -5,12 +5,13 @@
     system ? "aarch64-darwin",
     modules ? [],
     overrides ? {},
+    extraSpecialArgs ? {},
   }: let
     inherit (inputs) nix-darwin;
   in
     nix-darwin.lib.darwinSystem {
       inherit system;
-      specialArgs = {inherit inputs;};
+      specialArgs = {inherit inputs;} // extraSpecialArgs;
       modules =
         [
           {
@@ -65,12 +66,13 @@
     system ? "x86_64-linux",
     modules ? [],
     overrides ? {},
+    extraSpecialArgs ? {},
   }: let
     inherit (inputs) nixpkgs;
   in
     nixpkgs.lib.nixosSystem {
       inherit system;
-      specialArgs = inputs // {inherit inputs;};
+      specialArgs = inputs // {inherit inputs;} // extraSpecialArgs;
       modules =
         [
           {
