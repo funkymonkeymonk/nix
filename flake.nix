@@ -359,7 +359,6 @@
           }
         ];
       };
-
       # MegamanX - personal desktop/workstation
       "MegamanX" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
