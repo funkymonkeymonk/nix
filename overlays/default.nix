@@ -23,6 +23,11 @@ final: _prev: {
     modelPath = "mlx-community/GLM-4.7-Flash-8bit";
     outputHash = "sha256-IoyDBLeU63aoDV8/E2lOcHNHmBEIo/uhyHWHlSFuve4=";
   };
+  qwen-embed = final.higgs-mlx.fetchModel {
+    name = "qwen-embed";
+    modelPath = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
+    outputHash = final.lib.fakeHash;
+  };
 
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation
