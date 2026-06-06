@@ -25,7 +25,7 @@
   providers = {
     just-llms = {
       name = "Just LLMs";
-      baseURL = "https://litellm.justworksai.net";
+      baseURLOpnixItem = "op://Justworks/LiteLLM/baseURL";
       onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
       dynamicModels = true;
     };

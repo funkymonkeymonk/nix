@@ -197,7 +197,7 @@
     developer = ["clang" "python3" "nodejs" "yarn" "k9s" "gh-dash" "yaks"];
     creative = ["ffmpeg" "imagemagick" "pandoc"];
     gaming = ["moonlight-qt"];
-    desktop = ["logseq" "super-productivity"];
+    desktop = ["logseq"];
     workstation = ["slack" "trippy" "unar"];
     # entertainment: NixOS packages (obs-studio, discord) are tested separately
     # in entertainmentNixosTest using linuxPkgs; they only appear on NixOS (isDarwin=false)
