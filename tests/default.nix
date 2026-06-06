@@ -144,7 +144,7 @@ in
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
 
     # Phase 5: Core and bootstrap v2 configs
-    phase5-core-bootstrap = testPhase5CoreBootstrap;
+    phase5-core-bootstrap = testPhase5CoreBootstrap.phase5CoreBootstrapTest;
 
     # Phase 3: Real-machine migration — zero v2
     phase3-zero = testPhase3Zero.phase3ZeroTest;

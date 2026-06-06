@@ -3,26 +3,49 @@
   self,
   ...
 }: let
-  assertPass = name: condition:
-    if condition
-    then "${name}: OK"
-    else throw "${name}: FAILED";
-in
-  pkgs.runCommand "test-phase5-core-bootstrap" {
-    buildInputs = [];
-    meta = {
-      description = "Verify Phase 5: core-v2 and bootstrap-v2 exist as parallel configs";
-    };
-    passAsFile = ["results"];
-    results = ''
-      ${assertPass "core-v2 exists" (self ? darwinConfigurations.core-v2)}
-      ${assertPass "bootstrap-v2 exists" (self ? nixosConfigurations.bootstrap-v2)}
-      ${assertPass "old core unchanged" (self ? darwinConfigurations.core)}
-      ${assertPass "old bootstrap unchanged" (self ? nixosConfigurations.bootstrap)}
-    '';
-    phases = ["buildPhase"];
-    buildPhase = ''
-      cat "$resultsFile"
-      touch $out
-    '';
-  } ""
+  hasDarwinConfig = name: builtins.hasAttr name self.darwinConfigurations;
+  hasNixosConfig = name: builtins.hasAttr name self.nixosConfigurations;
+
+  phase5CoreBootstrapTest = pkgs.runCommand "test-phase5-core-bootstrap" {} ''
+    echo "=== Testing Phase 5 Core and Bootstrap v2 Configs ==="
+    echo ""
+
+    # Test core-v2 exists
+    ${
+      if hasDarwinConfig "core-v2"
+      then ""
+      else ''echo "FAIL: core-v2 not found"; exit 1''
+    }
+    echo "  core-v2: defined ✓"
+
+    # Test bootstrap-v2 exists
+    ${
+      if hasNixosConfig "bootstrap-v2"
+      then ""
+      else ''echo "FAIL: bootstrap-v2 not found"; exit 1''
+    }
+    echo "  bootstrap-v2: defined ✓"
+
+    # Test old core unchanged
+    ${
+      if hasDarwinConfig "core"
+      then ""
+      else ''echo "FAIL: core not found"; exit 1''
+    }
+    echo "  core: preserved ✓"
+
+    # Test old bootstrap unchanged
+    ${
+      if hasNixosConfig "bootstrap"
+      then ""
+      else ''echo "FAIL: bootstrap not found"; exit 1''
+    }
+    echo "  bootstrap: preserved ✓"
+
+    echo ""
+    echo "All Phase 5 core and bootstrap tests passed"
+    touch $out
+  '';
+in {
+  inherit phase5CoreBootstrapTest;
+}
