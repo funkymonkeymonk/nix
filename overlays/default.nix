@@ -11,17 +11,17 @@ final: _prev: {
   glm47-flash-4bit = final.higgs-mlx.fetchModel {
     name = "glm47-flash-4bit";
     modelPath = "mlx-community/GLM-4.7-Flash-4bit";
-    outputHash = final.lib.fakeHash;
+    outputHash = "sha256-XxjuAtKsDkGuSROHYvj7Mv7IfgPj++4H3C6Qxhzj/g0=";
   };
   glm47-flash-6bit = final.higgs-mlx.fetchModel {
     name = "glm47-flash-6bit";
     modelPath = "mlx-community/GLM-4.7-Flash-6bit";
-    outputHash = final.lib.fakeHash;
+    outputHash = "sha256-mKtbtBky4Nh3bqFTjo5i8+va4Om8ynS6utIgvUYSJMs=";
   };
   glm47-flash-8bit = final.higgs-mlx.fetchModel {
     name = "glm47-flash-8bit";
     modelPath = "mlx-community/GLM-4.7-Flash-8bit";
-    outputHash = final.lib.fakeHash;
+    outputHash = "sha256-IoyDBLeU63aoDV8/E2lOcHNHmBEIo/uhyHWHlSFuve4=";
   };
 
   # Package Override Registry

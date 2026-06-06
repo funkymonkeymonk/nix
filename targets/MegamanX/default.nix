@@ -1,6 +1,7 @@
 # MegamanX (personal desktop) target configuration
 {
   lib,
+  pkgs,
   mkUser,
   inputs,
   ...
@@ -37,16 +38,19 @@
           {
             path = "mlx-community/GLM-4.7-Flash-4bit";
             name = "glm47-flash-4bit";
+            package = pkgs.glm47-flash-4bit;
           }
           {
             path = "mlx-community/GLM-4.7-Flash-6bit";
             name = "glm47-flash-6bit";
             mlxProfile = "balanced";
+            package = pkgs.glm47-flash-6bit;
           }
           {
             path = "mlx-community/GLM-4.7-Flash-8bit";
             name = "glm47-flash-8bit";
             mlxProfile = "throughput";
+            package = pkgs.glm47-flash-8bit;
           }
           {
             path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
