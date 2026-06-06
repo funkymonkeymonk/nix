@@ -449,6 +449,56 @@
         ];
       };
 
+      # NAS - Network Attached Storage with ZFS and paperless-ngx
+      "type-nas" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs // {inherit inputs;};
+        modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+
+          # Disk layout - ZFS for data redundancy
+          inputs.disko.nixosModules.disko
+          ./disk-configs/zfs-nas.nix
+
+          # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
+          ./machine-types/server.nix
+
+          # NAS-specific services (paperless, ZFS support)
+          ./targets/type-nas
+        ];
+      };
+
+      # CATTLE CONFIGURATIONS - Generic machine types
+      # These require no hardware-configuration.nix!
+      # Use with: ./scripts/install-machine.sh <type> <host> <disk>
+
+      "type-desktop" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs // {inherit inputs;};
+        modules = [
+          configuration
+          ./modules
+          ./modules/nixos/base.nix
+          home-manager.nixosModules.home-manager
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+
+          # Disk layout
+          inputs.disko.nixosModules.disko
+          ./disk-configs/zero.nix
+
+          # Machine type configuration (includes myConfig defaults and SSH keys)
+          ./machine-types/desktop.nix
+
+          # Ghostty terminfo for SSH support
+          # https://github.com/ghostty-org/ghostty/discussions/5753
+          ./modules/nixos/ghostty-terminfo.nix
+        ];
+      };
+
       # Foundation-based server configuration
       # Minimal required fields: system architecture, SSH authorized keys
       "type-server" = nixpkgs.lib.nixosSystem {
