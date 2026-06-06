@@ -3,6 +3,7 @@ final: _prev: {
   rtk = final.callPackage ../packages/rtk {};
   yaks = final.callPackage ../packages/yaks {};
   lume = final.callPackage ../packages/lume {};
+  vane = final.callPackage ../packages/vane {};
 
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation
@@ -27,4 +28,8 @@ final: _prev: {
   openldap = _prev.openldap.overrideAttrs (_: {
     doCheck = false;
   });
+
+  # super-productivity disabled: Electron 41 kqueue assertion crash on macOS.
+  # Existing installed version (18.5.0) continues working.
+  # super-productivity = _prev.super-productivity.overrideAttrs (oldAttrs: { ... });
 }

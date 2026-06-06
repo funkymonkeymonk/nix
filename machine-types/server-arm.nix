@@ -13,7 +13,7 @@
     onepassword.tokenFile = "/etc/opnix/token";
   };
 
-  hardware.facter.reportPath = "/etc/nixos/facter.json";
+  hardware.facter.reportPath = lib.mkIf (builtins.pathExists /etc/nixos/facter.json) "/etc/nixos/facter.json";
 
   # REQUIRED: Configure at least one user with SSH access
   users.users.root.openssh.authorizedKeys.keys = [];

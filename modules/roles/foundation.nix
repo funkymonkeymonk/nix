@@ -6,51 +6,16 @@
 }: let
   cfg = config.myConfig.roles.foundation;
   inherit (config.myConfig) isDarwin;
+  foundationPkgs = import ./foundation-packages.nix {inherit pkgs;};
 in {
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
-        environment.systemPackages = with pkgs; [
-          # Editors and terminals
-          helix
-          htop
-          zellij
-
-          # Data processing
-          jq
-
-          # Security
-          _1password-cli
-
-          # Git and version control
-          gh
-          jujutsu
-          delta
-
-          # Navigation and search
-          entr
-          ncdu
-          tree
-          zoxide
-          fzf
-          ripgrep
-          fd
-          gum
-
-          # Development tools
-          devenv
-          direnv
-          rclone
-          bat
-          jnv
-          docker
-          colima
-
-          # Shell ecosystem
-          zinit
-          zsh
-          antigen
-        ];
+        environment.systemPackages =
+          foundationPkgs.common
+          ++ (with pkgs; [
+            _1password-cli
+          ]);
 
         myConfig.onepassword.enable = true;
         myConfig.syncthing.enable = true;
@@ -98,12 +63,7 @@ in {
         };
       }
       (lib.mkIf isDarwin {
-        environment.systemPackages = with pkgs; [
-          google-chrome
-          hidden-bar
-          alacritty-theme
-          home-manager
-        ];
+        environment.systemPackages = foundationPkgs.darwinOnly;
       })
     ]
   );

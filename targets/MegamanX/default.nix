@@ -23,39 +23,94 @@
         pi.enable = true;
         homebrew.enable = true;
       };
-      ollama = {
-        # Bind to all interfaces so Docker containers can access Ollama
-        host = "0.0.0.0";
+      higgs = {
+        enable = true;
+        server = {
+          host = "0.0.0.0";
+          port = 8000;
+        };
+        local = {
+          mlxProfile = "auto";
+          raiseWiredLimit = false;
+        };
+        models = [
+          {
+            path = "mlx-community/Qwen3-Coder-Next-4bit";
+            name = "qwen-coder";
+          }
+          {
+            path = "mlx-community/Qwen3.6-35B-A3B-8bit";
+            name = "qwen-35b";
+            mlxProfile = "throughput";
+          }
+          {
+            path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
+            name = "qwen-embed";
+            mlxProfile = "latency";
+          }
+        ];
+        providers = {
+          opencode-go = {
+            url = "https://opencode.ai/zen/go/v1";
+            format = "openai";
+            apiKeyOpnixItem = "op://Opnix/OpenCode Go API/credential";
+          };
+        };
+        routes = [
+          # Frontier models proxied through Higgs → OpenCode Go
+          {
+            pattern = "kimi-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "gpt-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "claude-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "gemini-.*";
+            provider = "opencode-go";
+          }
+          {
+            pattern = "opencode-go/.*";
+            provider = "opencode-go";
+          }
+        ];
+        default.provider = "higgs";
       };
       vane = {
         enable = true;
-        # Uses default Ollama URL (host.docker.internal:11434)
-        # Enable embedded SearxNG for web search
-        embeddedSearxng = true;
-        # Chat model - deepseek for reasoning tasks
-        defaultModel = "deepseek-r1:14b";
-        # Embedding model for vector search
-        embeddingModel = "nomic-embed-text";
+        # Higgs is the unified gateway — Vane runs natively now, so use localhost
+        # Embeddings are generated natively by Higgs from loaded MLX models
+        openaiBaseUrl = "http://localhost:8000/v1";
+        # Models are served by Higgs at the OpenAI endpoint, discovered at runtime
+        defaultModel = null;
+        embeddingModel = null;
       };
+      searxng.enable = true;
       opencode = {
-        # Set default model - used by build, devenv, and other agents without specific models
-        model = lib.mkForce "ollama/qwen3.5";
+        enable = true;
+        # Default model - qwen-coder handles both coding and fast chat
+        model = lib.mkForce "higgs/qwen-coder";
 
-        # Configure Ollama as a provider
-        providers.ollama = {
+        # Configure Higgs as the unified provider
+        providers.higgs = {
           npm = "@ai-sdk/openai-compatible";
-          name = "Ollama Local";
-          baseURL = "http://localhost:11434/v1";
+          name = "Higgs Gateway";
+          baseURL = "http://localhost:8000/v1";
           onePasswordItem = "";
           models = {
-            "qwen3.5:2b" = {
-              name = "Qwen 3.5 2B (Fast)";
+            "qwen-coder" = {
+              name = "Qwen3 Coder Next (Local MLX)";
             };
-            "qwen3.5" = {
-              name = "Qwen 3.5 9B (Balanced)";
+            "qwen-35b" = {
+              name = "Qwen3.6 35B A3B (Local MLX)";
             };
-            "qwen3.5:122b" = {
-              name = "Qwen 3.5 122B (Quality)";
+            "qwen-embed" = {
+              name = "Qwen3 Embedding 4B (Local MLX)";
             };
           };
         };
@@ -67,13 +122,12 @@
           onePasswordItem = "op://Opnix/OpenCode Go API/credential";
         };
 
-        # Define agents - only override plan, frontier
-        # build and devenv will use the global model above
+        # Define agents
         agents = {
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "ollama/qwen3.5:122b";
+            model = "higgs/qwen-35b";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -90,7 +144,6 @@
         };
       };
       pi = {
-        # Example settings
         settings = {
           theme = "dark";
           editor = {
@@ -98,7 +151,6 @@
           };
         };
 
-        # Global AGENTS.md context
         agentsMd = ''
           # Global Agent Instructions
 
@@ -108,15 +160,13 @@
           - Follow the conventional commit style
         '';
 
-        # Example custom model pointing to local Ollama
-        models.local-ollama = {
-          name = "Local Ollama (Qwen 3.5)";
+        models.local-higgs = {
+          name = "Higgs Gateway (Qwen Coder)";
           provider = "openai";
-          modelId = "qwen3.5";
-          baseUrl = "http://localhost:11434/v1";
+          modelId = "qwen-coder";
+          baseUrl = "http://localhost:8000/v1";
         };
 
-        # Example prompt template
         prompts.review = ''
           Review this code for:
           1. Bugs and logic errors
@@ -127,7 +177,6 @@
           Provide specific suggestions with line numbers.
         '';
 
-        # Example skill
         skills.nix = ''
           # Nix Development Skill
 
