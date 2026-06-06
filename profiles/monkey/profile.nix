@@ -17,7 +17,7 @@
   };
 
   opencode = {
-    model = "ollama/qwen3.5";
+    model = "higgs/glm47-flash-4bit";
     enableBrowserAgents = false;
   };
 
