@@ -26,7 +26,7 @@ final: _prev: {
   qwen-embed = final.higgs-mlx.fetchModel {
     name = "qwen-embed";
     modelPath = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
-    outputHash = final.lib.fakeHash;
+    outputHash = "sha256-op+yFqs/ZaP8imito9jFYhSpjnFAq2wLMnZy5bo0tXw=";
   };
 
   # Package Override Registry
