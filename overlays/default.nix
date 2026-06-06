@@ -5,7 +5,7 @@ final: _prev: {
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
   higgs-mlx = final.callPackage ../packages/higgs-mlx {
-    inherit (final) lib stdenvNoCC python313Packages;
+    inherit (final) lib stdenvNoCC curl jq gnugrep gnused;
   };
 
   glm47-flash-4bit = final.higgs-mlx.fetchModel {

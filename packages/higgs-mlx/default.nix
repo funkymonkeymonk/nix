@@ -3,10 +3,12 @@
 {
   lib,
   stdenvNoCC,
-  python313Packages,
+  curl,
+  jq,
+  gnugrep,
+  gnused,
   ...
 }: let
-  huggingface-hub = python313Packages.huggingface-hub;
   inherit (builtins) replaceStrings;
 in {
   # Fetch an MLX model from HuggingFace as a fixed-output derivation.
@@ -22,16 +24,25 @@ in {
     stdenvNoCC.mkDerivation {
       pname = name;
       version = "0";
-      nativeBuildInputs = [huggingface-hub];
+      nativeBuildInputs = [curl jq gnugrep gnused];
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
       inherit outputHash;
       phases = ["buildPhase" "installPhase"];
       buildPhase = ''
-        export HF_HOME="$PWD/.cache"
-        ${huggingface-hub}/bin/huggingface-cli download "${modelPath}"
+        echo "Fetching file list for ${modelPath}..."
+        FILES=$(${curl}/bin/curl -sL "https://huggingface.co/api/models/${modelPath}" | \
+          ${jq}/bin/jq -r '.siblings[] | select(.rfilename | test("\\.(safetensors|json)$")) | .rfilename')
+
         mkdir -p $out
-        cp -r "$HF_HOME/hub/models--$(echo "${modelPath}" | tr '/' '--')/snapshots/"*/* "$out/"
+
+        echo "$FILES" | while read -r FILE; do
+          [ -z "$FILE" ] && continue
+          echo "  Downloading $FILE..."
+          ${curl}/bin/curl -sL "https://huggingface.co/${modelPath}/resolve/main/$FILE" \
+            -o "$out/$FILE"
+        done
+        echo "Done."
       '';
       installPhase = "true";
       meta = {
