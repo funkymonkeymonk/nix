@@ -790,8 +790,6 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.sketchybar-entrypoint" \
           ".#checks.''${CURRENT_SYSTEM}.onepassword-guard" \
           ".#checks.''${CURRENT_SYSTEM}.onepassword-config-output" \
-          ".#checks.''${CURRENT_SYSTEM}.ollama-options" \
-          ".#checks.''${CURRENT_SYSTEM}.ollama-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.openclaw-options" \

@@ -42,12 +42,6 @@
         # Pre-pull macOS Tahoe vanilla image
         prePullImages = ["macos-tahoe-vanilla:latest"];
       };
-      # Enable Ollama with Qwen3 14B for wadsworth
-      ollama = {
-        enable = true;
-        acceleration = "metal"; # Use Apple Silicon GPU
-        models = ["qwen3:14b"];
-      };
     };
 
   # Enable OpenClaw via official nix-openclaw home-manager module
@@ -98,21 +92,6 @@
             allowFrom = ["279110923438915586"];
             dmPolicy = "pairing";
           };
-
-          agents = {
-            defaults = {
-              # Use local Ollama with Qwen3 14B (auto-discovery mode)
-              # Ollama must be running and OLLAMA_API_KEY env var set
-              model = "ollama/qwen3:14b";
-            };
-          };
-        };
-
-        # Environment for Ollama connection
-        environment = {
-          OLLAMA_HOST = "127.0.0.1:11434";
-          # Required for local Ollama auth (not a real API key, just a marker)
-          OLLAMA_API_KEY = "ollama-local";
         };
       };
     };

@@ -149,7 +149,6 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/microvm.nix
@@ -175,7 +174,6 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/microvm.nix
@@ -207,7 +205,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks vane;
+          inherit (pkgs) rtk yaks vane glm47-flash-4bit glm47-flash-6bit glm47-flash-8bit qwen-embed;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
@@ -261,7 +259,6 @@
           nix-homebrew.darwinModules.nix-homebrew
           ./modules
           ./modules/roles/homebrew.nix
-          ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
@@ -272,7 +269,7 @@
       };
 
       # Darwin server - headless macOS server for VM hosting
-      # Uses Lume for macOS VMs, with Ollama for local LLMs
+      # Uses Lume for macOS VMs
       "darwin-server" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
@@ -284,7 +281,6 @@
           configuration
           ./modules
           ./modules/services/lume/darwin.nix
-          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -342,7 +338,6 @@
         modules = [
           ./library/archetypes/headless-server-darwin.nix
           ./modules/services/lume/darwin.nix
-          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -367,7 +362,6 @@
           nix-homebrew.darwinModules.nix-homebrew
           ./modules
           ./modules/roles/homebrew.nix
-          ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/searxng/darwin.nix
           ./modules/services/higgs/darwin.nix
@@ -423,7 +417,6 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
@@ -576,7 +569,6 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
@@ -712,7 +704,6 @@
             role-composition
             role-packages
             role-cascades
-            llm-host-shared-models
             no-dead-development-option
             module-coverage
             skills-manifest
@@ -739,8 +730,6 @@
             sketchybar-entrypoint
             aerospace-options
             aerospace-custom-options
-            ollama-options
-            ollama-custom-options
             vane-options
             vane-custom-options
             vane-opnix-url-options

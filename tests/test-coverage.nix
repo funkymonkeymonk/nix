@@ -47,7 +47,6 @@
     "roles/entertainment.nix"
     "roles/foundation.nix"
     "roles/gaming.nix"
-    "roles/llm-host.nix"
     "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
@@ -59,9 +58,6 @@
     "nixos/ghostty-terminfo.nix"
     "nixos/streaming.nix"
     # services/
-    "services/ollama/common.nix"
-    "services/ollama/darwin.nix"
-    "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
     "services/microvm-host/default.nix"
     "services/higgs/darwin.nix"
@@ -90,7 +86,6 @@
     "roles/entertainment.nix"
     "roles/foundation.nix"
     "roles/gaming.nix"
-    "roles/llm-host.nix"
     "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
@@ -112,10 +107,7 @@
     # Tested via test-roles.nix (microvm-host added to allRoles)
     # services/microvm-host tracked via role imports
     "services/microvm-host/default.nix"
-    # Tested via test-services.nix (ollama, vane, openclaw option tests)
-    "services/ollama/common.nix"
-    "services/ollama/darwin.nix"
-    "services/ollama/nixos.nix"
+    # Tested via test-services.nix (vane, openclaw option tests)
     "services/openclaw/default.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"

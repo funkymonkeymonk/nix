@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: let
+{pkgs, ...}: let
   # Create proper executable scripts in the nix store
   switch-nix-script = pkgs.writeShellScriptBin "switch-nix" (builtins.readFile ./scripts/switch-nix);
   nix-cloud-init-script = pkgs.writeShellScriptBin "nix-cloud-init" (builtins.readFile ./scripts/nix-cloud-init);
@@ -16,15 +12,6 @@ in {
   # System-wide zsh init - works on both NixOS and Darwin
   programs.zsh.interactiveShellInit = ''
     export SHELL=${pkgs.zsh}/bin/zsh
-
-    ${
-      if config.myConfig.ollama.enable
-      then ''
-        # Ollama configuration (set because myConfig.ollama is enabled)
-        export OLLAMA_HOST="http://${config.myConfig.ollama.host}:${toString config.myConfig.ollama.port}"
-      ''
-      else ""
-    }
 
     # Source switch-nix function
     if [ -f ${switch-nix-script}/bin/switch-nix ]; then

@@ -1,6 +1,7 @@
 # MegamanX (personal desktop) target configuration
 {
   lib,
+  pkgs,
   mkUser,
   inputs,
   ...
@@ -18,7 +19,7 @@
         desktop.enable = true;
         workstation.enable = true;
         entertainment.enable = true;
-        llm-host.enable = true;
+
         opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
@@ -35,18 +36,27 @@
         };
         models = [
           {
-            path = "mlx-community/Qwen3-Coder-Next-4bit";
-            name = "qwen-coder";
+            path = "mlx-community/GLM-4.7-Flash-4bit";
+            name = "glm47-flash-4bit";
+            package = pkgs.glm47-flash-4bit;
           }
           {
-            path = "mlx-community/Qwen3.6-35B-A3B-8bit";
-            name = "qwen-35b";
+            path = "mlx-community/GLM-4.7-Flash-6bit";
+            name = "glm47-flash-6bit";
+            mlxProfile = "balanced";
+            package = pkgs.glm47-flash-6bit;
+          }
+          {
+            path = "mlx-community/GLM-4.7-Flash-8bit";
+            name = "glm47-flash-8bit";
             mlxProfile = "throughput";
+            package = pkgs.glm47-flash-8bit;
           }
           {
             path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
             name = "qwen-embed";
             mlxProfile = "latency";
+            package = pkgs.qwen-embed;
           }
         ];
         providers = {
@@ -93,8 +103,8 @@
       searxng.enable = true;
       opencode = {
         enable = true;
-        # Default model - qwen-coder handles both coding and fast chat
-        model = lib.mkForce "higgs/qwen-coder";
+        # Default model - glm47-flash-4bit for fast coding/chat
+        model = lib.mkForce "higgs/glm47-flash-4bit";
 
         # Configure Higgs as the unified provider
         providers.higgs = {
@@ -103,11 +113,14 @@
           baseURL = "http://localhost:8000/v1";
           onePasswordItem = "";
           models = {
-            "qwen-coder" = {
-              name = "Qwen3 Coder Next (Local MLX)";
+            "glm47-flash-4bit" = {
+              name = "GLM-4.7-Flash 4bit (Fast)";
             };
-            "qwen-35b" = {
-              name = "Qwen3.6 35B A3B (Local MLX)";
+            "glm47-flash-6bit" = {
+              name = "GLM-4.7-Flash 6bit (Balanced)";
+            };
+            "glm47-flash-8bit" = {
+              name = "GLM-4.7-Flash 8bit (Quality)";
             };
             "qwen-embed" = {
               name = "Qwen3 Embedding 4B (Local MLX)";
@@ -127,7 +140,7 @@
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "higgs/qwen-35b";
+            model = "higgs/glm47-flash-8bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -161,9 +174,9 @@
         '';
 
         models.local-higgs = {
-          name = "Higgs Gateway (Qwen Coder)";
+          name = "Higgs Gateway (GLM-4.7-Flash)";
           provider = "openai";
-          modelId = "qwen-coder";
+          modelId = "glm47-flash-4bit";
           baseUrl = "http://localhost:8000/v1";
         };
 

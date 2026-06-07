@@ -33,7 +33,10 @@ with lib; let
 
   modelsConfig = map (m:
     clean {
-      path = m.path;
+      path =
+        if m.package != null
+        then "${m.package}"
+        else m.path;
       name = m.name;
       mlx_profile = m.mlxProfile;
       batch = m.batch;
