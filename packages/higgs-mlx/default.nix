@@ -10,7 +10,6 @@
   cacert,
   ...
 }: let
-  inherit (builtins) replaceStrings;
 in {
   # Fetch an MLX model from HuggingFace as a fixed-output derivation.
   # To compute outputHash:
