@@ -10,7 +10,7 @@
 
   programs.zsh = {
     enable = true;
-      initContent = ''
+    initContent = ''
         # pipx-installed CLI tools
         export PATH="$PATH:$HOME/.local/bin"
 
