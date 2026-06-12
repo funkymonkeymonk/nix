@@ -21,7 +21,6 @@ in {
     modelPath,
     outputHash,
     includePattern ? "\\.(safetensors|json)$",
-    extraHook ? "",
   }:
     stdenvNoCC.mkDerivation {
       pname = name;
@@ -35,7 +34,7 @@ in {
       buildPhase = ''
         echo "Fetching file list for ${modelPath}..."
         FILES=$(${curl}/bin/curl -sL "https://huggingface.co/api/models/${modelPath}" | \
-          ${jq}/bin/jq --arg pattern "${includePattern}" -r '.siblings[] | select(.rfilename | test($pattern)) | .rfilename')
+          ${jq}/bin/jq -r '.siblings[] | select(.rfilename | test("${includePattern}")) | .rfilename')
 
         mkdir -p $out
 
@@ -46,11 +45,47 @@ in {
             -o "$out/$FILE"
         done
         echo "Done."
-        ${extraHook}
       '';
       installPhase = "true";
       meta = {
         description = "MLX model: ${modelPath}";
+        platforms = lib.platforms.darwin;
+      };
+    };
+
+  # Fetch a GGUF model from HuggingFace (for ds4)
+  fetchGgufModel = {
+    name,
+    modelPath,
+    outputHash,
+  }:
+    stdenvNoCC.mkDerivation {
+      pname = name;
+      version = "0";
+      nativeBuildInputs = [curl jq gnugrep gnused cacert];
+      SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+      outputHashMode = "recursive";
+      outputHashAlgo = "sha256";
+      inherit outputHash;
+      phases = ["buildPhase" "installPhase"];
+      buildPhase = ''
+        echo "Fetching file list for ${modelPath}..."
+        FILES=$(${curl}/bin/curl -sL "https://huggingface.co/api/models/${modelPath}" | \
+          ${jq}/bin/jq -r '.siblings[] | select(.rfilename | test("\\.(gguf)$")) | .rfilename')
+
+        mkdir -p $out
+
+        echo "$FILES" | while read -r FILE; do
+          [ -z "$FILE" ] && continue
+          echo "  Downloading $FILE..."
+          ${curl}/bin/curl -sL "https://huggingface.co/${modelPath}/resolve/main/$FILE" \
+            -o "$out/$FILE"
+        done
+        echo "Done."
+      '';
+      installPhase = "true";
+      meta = {
+        description = "GGUF model: ${modelPath}";
         platforms = lib.platforms.darwin;
       };
     };

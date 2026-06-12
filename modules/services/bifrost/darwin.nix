@@ -40,15 +40,8 @@ with lib; let
     custom_provider_config = {
       base_provider_type = "openai";
       allowed_requests = {
-        list_models = true;
         chat_completion = true;
         chat_completion_stream = true;
-        embedding = true;
-      };
-      request_path_overrides = {
-        chat_completion = "/v1/chat/completions";
-        chat_completion_stream = "/v1/chat/completions";
-        embedding = "/v1/embeddings";
       };
     };
   };
@@ -102,17 +95,6 @@ with lib; let
 
     printf '%s\n' ${lib.escapeShellArg configJson} > "$APP_DIR/config.json"
 
-    # Check port availability before starting
-    PORT=${toString cfg.port}
-    if lsof -tiTCP -sTCP:LISTEN:"$PORT" -P 2>/dev/null; then
-      CONFLICT_PID=$(lsof -tiTCP -sTCP:LISTEN:"$PORT" -P 2>/dev/null | head -1)
-      CONFLICT_NAME=$(ps -p "$CONFLICT_PID" -o comm= 2>/dev/null || echo "unknown")
-      echo "Bifrost: port $PORT is in use by PID $CONFLICT_PID ($CONFLICT_NAME)" >&2
-      echo "Bifrost: launchd should have stopped the previous instance before starting this one." >&2
-      echo "Bifrost: The previous process may be stuck in an uninterruptible state (e.g. GPU operation)." >&2
-      exit 1
-    fi
-
     exec ${pkgs.bifrost-http}/bin/bifrost-http \
       -host ${lib.escapeShellArg cfg.host} \
       -port ${toString cfg.port} \
@@ -123,9 +105,9 @@ with lib; let
 in {
   config = mkIf cfg.enable {
     launchd.daemons.bifrost = {
-      command = bifrostScript;
       serviceConfig = {
         Label = "com.bifrost.service";
+        ProgramArguments = ["${bifrostScript}"];
         RunAtLoad = true;
         KeepAlive = true;
         UserName = primaryUser;
@@ -142,15 +124,5 @@ in {
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${appDir}"
     '';
-
-    # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
-      bifrost = {
-        name = "Bifrost";
-        port = cfg.port;
-        launchdLabel = "com.bifrost.service";
-        errorLog = "/tmp/bifrost.error.log";
-      };
-    };
   };
 }

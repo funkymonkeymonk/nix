@@ -30,29 +30,37 @@ with lib; let
   resolvedProviderId =
     if bifrostEnabled
     then "bifrost"
-    else "vllm-mlx-local";
+    else "vmlx-local";
 
   resolvedProviderName =
     if bifrostEnabled
     then "Bifrost Gateway (local)"
-    else "vllm-mlx Gateway (local)";
+    else "vMLX Gateway (local)";
 
   resolvedProviderApiKey =
     if bifrostEnabled
     then "bifrost"
-    else "vllm-mlx-local";
+    else "vmlx-local";
 
   defaultChatModels = let
     model =
       if cfg.defaultModel != null
       then cfg.defaultModel
       else "deepseek-r1:14b";
-  in [
-    {
-      name = model;
-      key = model;
-    }
-  ];
+  in
+    if bifrostEnabled
+    then [
+      {
+        name = model;
+        key = "vllm/${model}";
+      }
+    ]
+    else [
+      {
+        name = model;
+        key = model;
+      }
+    ];
 
   chatModels =
     if cfg.chatModels != {}
@@ -63,25 +71,17 @@ with lib; let
       }) (builtins.attrValues cfg.chatModels)
     else defaultChatModels;
 
-  modelProvider =
-    {
-      id = resolvedProviderId;
-      name = resolvedProviderName;
-      type = "openai";
-      chatModels = chatModels;
-      config = {
-        apiKey = resolvedProviderApiKey;
-        baseURL = resolvedBaseUrl;
-      };
-    }
-    // optionalAttrs (cfg.embeddingModel != null) {
-      embeddingModels = [
-        {
-          name = cfg.embeddingModel;
-          key = cfg.embeddingModel;
-        }
-      ];
+  modelProvider = {
+    id = resolvedProviderId;
+    name = resolvedProviderName;
+    type = "openai";
+    chatModels = chatModels;
+    embeddingModels = [];
+    config = {
+      apiKey = resolvedProviderApiKey;
+      baseURL = resolvedBaseUrl;
     };
+  };
 
   vaneConfig = builtins.toJSON {
     version = 1;
@@ -92,8 +92,6 @@ with lib; let
     };
   };
 
-  playwrightBrowsers = pkgs.playwright-driver.browsers;
-
   # Environment for Vane
   # OPENAI_BASE_URL is omitted — it triggers Vane to auto-create a duplicate provider.
   # The base URL is set in the pre-created config.json instead.
@@ -101,7 +99,6 @@ with lib; let
     {
       VANE_PORT = toString cfg.port;
       SEARXNG_API_URL = searxngUrl;
-      PLAYWRIGHT_BROWSERS_PATH = "${playwrightBrowsers}";
     }
     // optionalAttrs (cfg.ollamaUrl != null) {
       OLLAMA_API_URL = cfg.ollamaUrl;
@@ -130,9 +127,9 @@ in {
 
   config = mkIf cfg.enable {
     launchd.daemons.vane = {
-      command = vaneServiceScript;
       serviceConfig = {
         Label = "com.vane.service";
+        ProgramArguments = ["${vaneServiceScript}"];
         EnvironmentVariables = vaneEnv;
         RunAtLoad = cfg.autoStart;
         KeepAlive = true;
@@ -146,15 +143,5 @@ in {
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${dataDir}/data" "${dataDir}/logs"
     '';
-
-    # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
-      vane = {
-        name = "Vane";
-        port = cfg.port;
-        launchdLabel = "com.vane.service";
-        errorLog = "/tmp/vane.error.log";
-      };
-    };
   };
 }

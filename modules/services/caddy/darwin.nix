@@ -12,6 +12,8 @@ with lib; let
   searxngCfg = config.myConfig.searxng;
   bifrostCfg = config.myConfig.bifrost;
   vaneCfg = config.myConfig.vane;
+  vmlxCfg = config.myConfig.vmlx;
+  ds4Cfg = config.myConfig.ds4;
 
   primaryUser =
     if config.myConfig.users != []
@@ -34,12 +36,20 @@ with lib; let
     ++ optional (vaneCfg.enable && vaneCfg.port != cfg.port) {
       host = "vane.internal";
       upstream = "localhost:${toString vaneCfg.port}";
+    }
+    ++ optional (vmlxCfg.enable && vmlxCfg.server.port != cfg.port) {
+      host = "vmlx.internal";
+      upstream = "localhost:${toString vmlxCfg.server.port}";
+    }
+    ++ optional (ds4Cfg.enable && ds4Cfg.server.port != cfg.port) {
+      host = "ds4.internal";
+      upstream = "localhost:${toString ds4Cfg.server.port}";
     };
 
   allRoutes = serviceRoutes ++ (mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);
 
   routeBlock = route: ''
-    http://${route.host} {
+    ${route.host} {
       reverse_proxy ${route.upstream}
     }
   '';
@@ -89,9 +99,9 @@ in {
     '';
 
     launchd.daemons.dnsmasq = {
-      command = dnsmasqScript;
       serviceConfig = {
         Label = "com.dnsmasq.service";
+        ProgramArguments = ["${dnsmasqScript}"];
         RunAtLoad = true;
         KeepAlive = true;
         StandardOutPath = "/tmp/dnsmasq.log";
@@ -101,37 +111,23 @@ in {
     };
 
     launchd.daemons.caddy = {
-      command = caddyScript;
       serviceConfig = {
         Label = "com.caddy.service";
+        ProgramArguments = ["${caddyScript}"];
         RunAtLoad = true;
         KeepAlive = true;
+        UserName = primaryUser;
         StandardOutPath = "/tmp/caddy.log";
         StandardErrorPath = "/tmp/caddy.error.log";
         WorkingDirectory = darwinHomeDir;
+        EnvironmentVariables = {
+          HOME = darwinHomeDir;
+        };
       };
     };
 
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${cfg.dataDir}"
     '';
-
-    # Register caddy + dnsmasq in service registry
-    myConfig.serviceRegistry = mkMerge [
-      (optionalAttrs cfg.enable {
-        caddy = {
-          name = "Caddy";
-          port = cfg.port;
-          launchdLabel = "com.caddy.service";
-          errorLog = "/tmp/caddy.error.log";
-        };
-        dnsmasq = {
-          name = "dnsmasq";
-          port = 5353;
-          launchdLabel = "com.dnsmasq.service";
-          errorLog = "/tmp/dnsmasq.error.log";
-        };
-      })
-    ];
   };
 }

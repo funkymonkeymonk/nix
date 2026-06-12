@@ -47,11 +47,9 @@ modules/
 │   ├── opencode.nix
 │   └── skills/       # AI agent skills
 ├── services/         # Daemon service modules
-│   ├── vllm-mlx/     # vllm-mlx inference server
-│   ├── bifrost/      # Bifrost AI gateway
-│   ├── caddy/        # Caddy reverse proxy
-│   ├── dnsmasq/      # Local DNS resolver
-│   └── vane/         # Vane AI search engine
+│   ├── ollama/       # Ollama LLM server
+│   ├── vmlx/         # vMLX inference server
+│   └── vane/         # OpenCode agent gateway
 └── nixos/            # NixOS-specific
     ├── base.nix      # Common NixOS settings
     ├── desktop.nix   # Desktop environment
@@ -92,6 +90,7 @@ Services are launchd system daemons that run on macOS. Each service lives in `mo
 - Run as a specific user via `UserName` (not root)
 - Log to ephemeral `/tmp/<service>.log`
 
+> **How-to:** [Create a Darwin System Daemon](../how-to/create-darwin-daemon.md)
 
 ### Targets (Machine-Specific Settings)
 

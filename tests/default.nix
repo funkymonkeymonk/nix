@@ -17,16 +17,9 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
-
-  testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
-  testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
-  testPi = import ./test-pi.nix {inherit pkgs;};
-  testBifrost = import ./test-bifrost.nix {inherit pkgs;};
-  testCaddy = import ./test-caddy.nix {inherit pkgs;};
-  testSearxng = import ./test-searxng.nix {inherit pkgs;};
-  testLume = import ./test-lume.nix {inherit pkgs;};
+  testDs4 = import ./test-ds4.nix {inherit pkgs;};
+  testVmlx = import ./test-vmlx.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
-  testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
@@ -53,6 +46,13 @@ in
 
     # Per-role tests (all combined into one derivation for CI speed)
     all-role-tests = testRoles.allRoleTests;
+    role-evaluation = testRoles.allRoleTests;
+    role-composition = testRoles.allRoleTests;
+    role-packages = testRoles.allRoleTests;
+    role-cascades = testRoles.allRoleTests;
+    llm-host-shared-models = testRoles.allRoleTests;
+    no-dead-development-option = testRoles.allRoleTests;
+    entertainment-nixos = testRoles.allRoleTests;
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;
@@ -90,7 +90,8 @@ in
     sketchybar-entrypoint = testSketchybar.sketchybarEntryPointTest;
 
     # Service module tests
-
+    ollama-options = testServices.ollamaOptionsTest;
+    ollama-custom-options = testServices.ollamaCustomOptionsTest;
     vane-options = testServices.vaneOptionsTest;
     vane-custom-options = testServices.vaneCustomOptionsTest;
     openclaw-options = testServices.openclawOptionsTest;
@@ -152,38 +153,11 @@ in
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
 
+    # ds4 module tests
+    ds4-options = testDs4.ds4OptionsTest;
+
     # vMLX module tests
-
-    # vllm-mlx module tests
-    vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
-    megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
-
-    # Claude Code module tests
-    claude-code-options = testClaudeCode.claudeCodeOptionsTest;
-    claude-code-custom-options = testClaudeCode.claudeCodeCustomOptionsTest;
-
-    # Pi coding agent module tests
-    pi-options = testPi.piOptionsTest;
-    pi-custom-options = testPi.piCustomOptionsTest;
-
-    # Bifrost AI gateway module tests
-    bifrost-options = testBifrost.bifrostOptionsTest;
-    bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
-
-    # Caddy reverse proxy module tests
-    caddy-options = testCaddy.caddyOptionsTest;
-    caddy-custom-options = testCaddy.caddyCustomOptionsTest;
-
-    # SearXNG module tests
-    searxng-options = testSearxng.searxngOptionsTest;
-    searxng-custom-options = testSearxng.searxngCustomOptionsTest;
-
-    # Lume module tests
-    lume-options = testLume.lumeOptionsTest;
-    lume-custom-options = testLume.lumeCustomOptionsTest;
-
-    # LLM stack integration test
-    stack-integration = testStackIntegration.stackIntegrationTest;
+    vmlx-options = testVmlx.vmlxOptionsTest;
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;

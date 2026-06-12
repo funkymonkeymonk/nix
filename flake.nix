@@ -53,18 +53,6 @@
 
     # Bifrost AI Gateway - high-performance LLM gateway
     bifrost.url = "github:maximhq/bifrost";
-
-    # Pi plugins - extensions and skills for pi coding agent
-    pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
-    # Flake-parts (incremental migration — used for testing infrastructure first)
-    flake-parts.url = "github:hercules-ci/flake-parts";
-
-    # nix-unit: Eval-time unit testing framework
-    nix-unit.url = "github:nix-community/nix-unit";
-    nix-unit.flake = false;
-
-    # Himalaya TUI - terminal UI for email (companion to himalaya CLI)
-    himalaya-tui.url = "github:pimalaya/himalaya-tui";
   };
 
   outputs = {
@@ -115,10 +103,6 @@
           (final: _prev: {
             zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
           })
-          # himalaya-tui from upstream Pimalaya flake
-          (final: _prev: {
-            himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
-          })
           (import ./overlays {inherit inputs;})
         ];
       };
@@ -168,6 +152,7 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
+          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/microvm.nix
@@ -193,6 +178,7 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
+          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/microvm.nix
@@ -278,6 +264,7 @@
           nix-homebrew.darwinModules.nix-homebrew
           ./modules
           ./modules/roles/homebrew.nix
+          ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
           ./os/darwin.nix
@@ -289,7 +276,7 @@
       };
 
       # Darwin server - headless macOS server for VM hosting
-      # Uses Lume for macOS VMs
+      # Uses Lume for macOS VMs, with Ollama for local LLMs
       "darwin-server" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
@@ -301,6 +288,7 @@
           configuration
           ./modules
           ./modules/services/lume/darwin.nix
+          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -358,6 +346,7 @@
         modules = [
           ./library/archetypes/headless-server-darwin.nix
           ./modules/services/lume/darwin.nix
+          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -382,12 +371,13 @@
           nix-homebrew.darwinModules.nix-homebrew
           ./modules
           ./modules/roles/homebrew.nix
+          ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
-          ./modules/services/vllm-mlx/darwin.nix
-          ./modules/services/ollama/darwin.nix
+          ./modules/services/ds4/darwin.nix
+          ./modules/services/vmlx/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
@@ -440,6 +430,7 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
+          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
@@ -592,6 +583,7 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
+          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
@@ -723,6 +715,12 @@
             foundation-packages
             config-validation
             all-role-tests
+            role-evaluation
+            role-composition
+            role-packages
+            role-cascades
+            llm-host-shared-models
+            no-dead-development-option
             module-coverage
             skills-manifest
             skills-autoload-filtering
@@ -748,6 +746,8 @@
             sketchybar-entrypoint
             aerospace-options
             aerospace-custom-options
+            ollama-options
+            ollama-custom-options
             vane-options
             vane-custom-options
             vane-opnix-url-options
@@ -770,15 +770,15 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
-            vllm-mlx-options
-            megamanx-vllm
+            ds4-options
+            vmlx-options
             llm-client-opencode
             llm-client-claude
             llm-client-pi
             llm-client-custom-host
             llm-client-no-ai-roles
+            entertainment-nixos
             typed-attrs-options
-            stack-integration
             phase5-core-bootstrap
             phase3-zero
             phase4-darwin-server

@@ -1,6 +1,8 @@
 # MegamanX (personal desktop) target configuration
 {
+  lib,
   mkUser,
+  pkgs,
   inputs,
   ...
 }: {
@@ -17,102 +19,92 @@
         desktop.enable = true;
         workstation.enable = true;
         entertainment.enable = true;
+        llm-host.enable = true;
+        opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
       };
-      # vllm-mlx disabled — use Ollama instead. Config preserved for easy re-enable.
-      vllmMlx = {
-        enable = false;
+      vmlx = {
+        enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 90;
-        contention = "preempt";
-        models = {
-          "qwen3.6-27b" = {
-            path = "mlx-community/Qwen3.6-27B-4bit";
-            type = "lm";
-            estimatedMemoryGb = 16;
-          };
+        kvCacheQuantization = "q8";
+        enableDiskCache = true;
+        maxPromptTokens = 32768;
+        model = {
+          name = "gemma4-31B-OptiQ-4bit";
+          path = "mlx-community/gemma-4-31B-it-OptiQ-4bit";
+          package = pkgs.gemma4-31B-OptiQ-4bit;
         };
-        enableAutoToolChoice = true;
-        toolCallParser = "qwen";
-        timeout = 120;
-        logLevel = "INFO";
       };
-
-      ollama = {
-        enable = true;
-        host = "127.0.0.1";
-        port = 11434;
-      };
-
+      ds4.enable = false;
       vane = {
         enable = true;
-        openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "qwen3.6:27b";
-        embeddingModel = "nomic-embed-text:latest";
-        ollamaUrl = "http://localhost:11434";
+        openaiBaseUrl = "http://localhost:8300/v1";
+        defaultModel = "gemma4-31B-OptiQ-4bit";
+        embeddingModel = null;
       };
       bifrost = {
         enable = true;
         logLevel = "debug";
-        upstreams = {
-          # vllm-mlx disabled — preserved for easy re-enable
-          vllm-mlx-local = {
-            url = "http://localhost:8300";
-            type = "openai";
-            requestTimeout = 120;
-            models = [
-              "qwen3.6-27b"
-            ];
-          };
-          ollama-local = {
-            url = "http://localhost:11434";
-            type = "openai";
-            requestTimeout = 600;
-            models = [];
-          };
+        upstreams.vmlx-local = {
+          url = "http://127.0.0.1:8300";
+          type = "vllm";
+          models = ["gemma4-31B-OptiQ-4bit"];
         };
       };
       searxng.enable = true;
       caddy.enable = true;
-      llmClient = {
-        serverHost = "bifrost.internal";
-        serverPort = "80";
-      };
-      pi = {
-        npmPackages = {
-          "pi-opencode-provider" = "^0.7.3";
-          "pi-web-access" = "^0.10.7";
-          "pi-subagents" = "^0.33.1";
+      opencode = {
+        enable = true;
+        model = lib.mkForce "vmlx/gemma4-31B-OptiQ-4bit";
+
+        providers.vmlx = {
+          npm = "@ai-sdk/openai-compatible";
+          name = "vMLX (local Gemma 4 31B)";
+          baseURL = "http://localhost:8300/v1";
+          onePasswordItem = "";
+          models = {
+            "gemma4-31B-OptiQ-4bit" = {
+              name = "Gemma 4 31B OptiQ";
+            };
+          };
         };
 
+        providers.opencode-go = {
+          name = "OpenCode Go";
+          baseURL = "https://opencode.ai/zen/go/v1";
+          onePasswordItem = "op://Opnix/OpenCode Go API/credential";
+        };
+
+        agents = {
+          plan = {
+            description = "Analysis and planning without making changes";
+            mode = "primary";
+            model = "vmlx/gemma4-31B-OptiQ-4bit";
+            prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
+            permission = {
+              edit = "deny";
+              bash = "ask";
+            };
+          };
+
+          frontier = {
+            description = "Frontier model for maximum capability";
+            mode = "primary";
+            model = "opencode-go/kimi-k2.5";
+            prompt = "You are a frontier AI assistant with maximum capability for challenging tasks.";
+          };
+        };
+      };
+      pi = {
         settings = {
           theme = "dark";
           editor = {
             vimMode = true;
           };
-          compaction = {
-            enabled = true;
-            # Trigger compaction earlier so each summarization is smaller
-            reserveTokens = 24576;
-            keepRecentTokens = 16000;
-          };
-          retry = {
-            enabled = true;
-            # More retries and longer timeout for large summarizations
-            maxRetries = 5;
-            baseDelayMs = 3000;
-            provider = {
-              # Summarizing large contexts can take minutes; SDK default is too aggressive
-              timeoutMs = 600000; # 10 min
-              maxRetries = 0;
-              maxRetryDelayMs = 60000;
-            };
-          };
-          httpIdleTimeoutMs = 300000; # 5 minutes - needed for slow first-token latency with local models
         };
 
         agentsMd = ''
@@ -124,21 +116,11 @@
           - Follow the conventional commit style
         '';
 
-        models.bifrost = {
-          name = "Bifrost AI Gateway";
+        models.local-vmlx = {
+          name = "Gemma 4 31B OptiQ (vMLX local)";
           provider = "openai";
-          modelId = "ollama-local/qwen3.6:27b";
-          baseUrl = "http://bifrost.internal/v1";
-          reasoning = true;
-          maxTokens = 131072;
-        };
-        models.local-ollama = {
-          name = "Local LLM (Ollama via Bifrost)";
-          provider = "openai";
-          modelId = "ollama-local/qwen3.6:27b";
-          baseUrl = "http://bifrost.internal/v1";
-          reasoning = true;
-          maxTokens = 131072;
+          modelId = "gemma4-31B-OptiQ-4bit";
+          baseUrl = "http://localhost:8300/v1";
         };
 
         prompts.review = ''
@@ -152,9 +134,7 @@
         '';
 
         skills.nix = ''
-          ---
-          description: Nix development skill for working with flakes, modules, and configurations
-          ---
+          # Nix Development Skill
 
           Use this skill when working with Nix flakes, modules, or configurations.
 

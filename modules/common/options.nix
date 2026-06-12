@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  options,
   pkgs,
   ...
 }:
@@ -554,6 +553,12 @@ with lib; {
         description = "SSH key name for git signing in 1Password";
       };
 
+      enableSudo = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Enable 1Password for sudo authentication (NixOS only)";
+      };
+
       sudoPasswordRef = mkOption {
         type = types.str;
         default = "";
@@ -750,6 +755,44 @@ with lib; {
       };
     };
 
+    ollama = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Ollama local LLM service";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Host address for Ollama to bind to (use 0.0.0.0 for network access)";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 11434;
+        description = "Port for Ollama API";
+      };
+
+      models = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = "List of models to pre-pull on service start";
+      };
+
+      acceleration = mkOption {
+        type = types.nullOr (types.enum ["cuda" "rocm" "metal"]);
+        default = null;
+        description = "GPU acceleration type (null for auto-detection)";
+      };
+
+      environmentFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Path to environment file with additional Ollama configuration";
+      };
+    };
+
     bifrost = {
       enable = mkOption {
         type = types.bool;
@@ -816,7 +859,7 @@ with lib; {
           };
         });
         default = {};
-        description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vllm-mlx-local' → model 'vllm-mlx-local/glm47-flash-4bit')";
+        description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vmlx-local' → model 'vmlx-local/glm47-flash-4bit')";
       };
     };
 
@@ -951,7 +994,7 @@ with lib; {
           };
         });
         default = {};
-        description = "Chat models exposed by Vane. If empty, falls back to the built-in vllm-mlx model configuration. When using Bifrost, set keys with provider prefix (e.g., 'vllm-mlx-local/glm47-flash-4bit')";
+        description = "Chat models exposed by Vane. If empty, falls back to the built-in vMLX model configuration. When using Bifrost, set keys with provider prefix (e.g., 'vmlx-local/glm47-flash-4bit')";
       };
     };
 
@@ -1057,7 +1100,7 @@ with lib; {
 
     sharedModels = mkOption {
       type = types.listOf types.str;
-      default = ["qwen3:4b" "gemma3:4b"];
+      default = ["qwen3:4b" "gemma3:4b" "qwen3.5"];
       description = "Central model configuration - change here to affect ALL Ollama services and instances.\n\nRecommended models:\n  qwen3:4b     - Research/Analysis\n  gemma3:4b    - Chat (fast responses)\n  qwen3.5      - Coding/Planning (best model)\n  qwen2.5-coder:7b - Coding alternatives\n  llama3.2     - Lightweight fallback";
     };
 
@@ -1295,16 +1338,6 @@ with lib; {
               default = "";
               description = "Base URL for the API (for custom endpoints)";
             };
-            reasoning = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Whether the model supports extended thinking/reasoning";
-            };
-            maxTokens = mkOption {
-              type = types.nullOr types.int;
-              default = null;
-              description = "Maximum output tokens for the model";
-            };
           };
         });
         default = {};
@@ -1344,22 +1377,6 @@ with lib; {
         '';
       };
 
-      npmPackages = mkOption {
-        type = types.attrsOf types.str;
-        default = {};
-        description = ''
-          NPM packages to install for pi extensions.
-          Each key is the package name, value is the version constraint.
-          Written to ~/.pi/agent/npm/package.json and installed on activation.
-
-          Example:
-          {
-            "pi-web-access" = "^0.10.7";
-            "pi-opencode-provider" = "^0.7.3";
-          }
-        '';
-      };
-
       themes = mkOption {
         type = types.attrsOf (types.attrsOf types.anything);
         default = {};
@@ -1367,29 +1384,6 @@ with lib; {
           Custom themes as attribute set.
           Each key is the theme name, value is a theme attribute set.
           Written to ~/.pi/agent/themes/<name>.json
-        '';
-      };
-
-      pluginsSource = mkOption {
-        type = types.nullOr types.path;
-        default = null;
-        description = ''
-          Path to the pi-plugins repository.
-          Set to inputs.pi-plugins for the locked flake version,
-          or an absolute local path (e.g., /home/user/src/pi-plugins) for development.
-          When null, no plugins are copied from an external source.
-        '';
-      };
-
-      plugins = mkOption {
-        type = types.listOf types.str;
-        default = [];
-        description = ''
-          List of plugin names to install from pluginsSource.
-          Each name corresponds to a package in packages/<name>/src/index.ts
-          within the pi-plugins repository.
-          The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts
-          and any matching skill in .pi/skills/<name>/ is copied to ~/.pi/agent/skills/.
         '';
       };
     };
@@ -1460,164 +1454,132 @@ with lib; {
       };
     };
 
-    vllmMlx = {
+    ds4 = {
       enable = mkOption {
         type = types.bool;
         default = false;
-        description = "Enable vllm-mlx inference server for local MLX models (OpenAI + Anthropic API with multi-model hotswap)";
+        description = "Enable ds4 LLM inference server for DeepSeek V4 Flash/PRO";
       };
 
       server = {
         host = mkOption {
           type = types.str;
           default = "0.0.0.0";
-          description = "Bind address for vllm-mlx server";
+          description = "Bind address for the ds4 server";
+        };
+        port = mkOption {
+          type = types.port;
+          default = 8100;
+          description = "Bind port for the ds4 server";
+        };
+        contextSize = mkOption {
+          type = types.ints.unsigned;
+          default = 32768;
+          description = "Maximum context window size in tokens";
+        };
+        kvDiskSpaceMb = mkOption {
+          type = types.ints.unsigned;
+          default = 8192;
+          description = "Disk space for KV cache in MB";
+        };
+        cors = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Enable CORS headers for browser clients";
+        };
+        power = mkOption {
+          type = types.nullOr types.ints.between 0 100;
+          default = null;
+          description = "Target GPU usage percentage (null = full speed)";
+        };
+      };
+
+      model = mkOption {
+        type = types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              default = "deepseek-v4-flash";
+              description = "Model name exposed in the API";
+            };
+            path = mkOption {
+              type = types.str;
+              description = "Path to the GGUF model file";
+            };
+            gguf = mkOption {
+              type = types.str;
+              description = "GGUF filename within the package directory";
+            };
+            package = mkOption {
+              type = types.nullOr types.package;
+              default = null;
+              description = "Nix package providing the GGUF model (overrides path with store path)";
+            };
+          };
+        };
+      };
+    };
+
+    vmlx = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable vMLX inference server for local MLX models (OpenAI + Anthropic API)";
+      };
+
+      server = {
+        host = mkOption {
+          type = types.str;
+          default = "0.0.0.0";
+          description = "Bind address for vMLX server";
         };
         port = mkOption {
           type = types.port;
           default = 8300;
-          description = "Bind port for vllm-mlx server";
+          description = "Bind port for vMLX server";
         };
       };
 
-      memoryBudgetGb = mkOption {
-        type = types.ints.unsigned;
-        default = 24;
-        description = "Memory budget in GB for model loading. Idle models are evicted under this budget.";
+      kvCacheQuantization = mkOption {
+        type = types.nullOr (types.enum ["q4" "q8"]);
+        default = "q8";
+        description = "Quantize KV cache for memory savings";
       };
-
-      contention = mkOption {
-        type = types.enum ["wait" "preempt" "fail"];
-        default = "preempt";
-        description = "Behavior when a requested model is not loaded and memory is full: wait (queue), preempt (evict current), or fail (reject).";
-      };
-
-      models = mkOption {
-        type = types.attrsOf (types.submodule {
-          options = {
-            path = mkOption {
-              type = types.str;
-              description = "Model path or HuggingFace ID (e.g., mlx-community/gemma-4-12B-it-qat-4bit)";
-            };
-            type = mkOption {
-              type = types.enum ["lm" "multimodal" "embedding"];
-              default = "lm";
-              description = "Model type: lm (text), multimodal (vision), or embedding";
-            };
-            estimatedMemoryGb = mkOption {
-              type = types.nullOr types.ints.positive;
-              default = null;
-              description = "Estimated memory in GB for non-local (HuggingFace) models. Required for registry-backed loading so eviction remains deterministic.";
-            };
-          };
-        });
-        default = {};
-        description = "Model registry. Each key is a model alias used in API requests. vllm-mlx lazily loads models on first use.";
-      };
-
-      enableAutoToolChoice = mkOption {
+      enableDiskCache = mkOption {
         type = types.bool;
         default = true;
-        description = "Enable automatic tool calling. The model decides when to use tools based on the prompt.";
+        description = "Persist prompt caches to SSD (survives restarts)";
       };
-
-      toolCallParser = mkOption {
-        type = types.nullOr (types.enum ["auto" "none" "mistral" "qwen" "llama" "hermes" "deepseek" "kimi" "lfm2" "granite" "nemotron" "minimax" "xlam" "functionary" "glm47" "step3p5" "gemma3" "gemma3n" "xml_function" "dsml" "deepseek_v4" "zaya_xml" "hunyuan" "generic" "qwen3" "llama3" "llama4" "nous" "deepseek_v3" "deepseek_r1" "kimi_k2" "moonshot" "liquid" "granite3" "nemotron3" "minimax_m2" "meetkai" "stepfun" "glm4" "gemma4" "hy_v3" "tencent"]);
-        default = null;
-        description = "Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4 models.";
-      };
-
-      timeout = mkOption {
-        type = types.ints.unsigned;
-        default = 120;
-        description = "Request timeout in seconds.";
-      };
-
-      logLevel = mkOption {
-        type = types.enum ["DEBUG" "INFO" "WARNING" "ERROR"];
-        default = "INFO";
-        description = "Server log level.";
-      };
-    };
-
-    ollama = {
-      enable = mkOption {
+      enableJIT = mkOption {
         type = types.bool;
         default = false;
-        description = "Enable Ollama inference server for local LLMs";
+        description = "JIT Metal kernel compilation (experimental)";
+      };
+      maxPromptTokens = mkOption {
+        type = types.ints.unsigned;
+        default = 32768;
+        description = "Maximum prompt/context tokens accepted before prefill";
       };
 
-      host = mkOption {
-        type = types.str;
-        default = "127.0.0.1";
-        description = "Bind address for Ollama server";
-      };
-
-      port = mkOption {
-        type = types.port;
-        default = 11434;
-        description = "Bind port for Ollama server";
-      };
-
-      keepAlive = mkOption {
-        type = types.str;
-        default = "8h";
-        description = "Duration to keep loaded models in memory (e.g. \"8h\", \"24h\", \"0\" for infinite)";
-      };
-    };
-
-    # Service registry — each service module registers its metadata here
-    serviceRegistry = mkOption {
-      type = types.attrsOf (types.submodule {
-        options = {
-          name = mkOption {
-            type = types.str;
-            description = "Human-readable service name";
-          };
-          port = mkOption {
-            type = types.port;
-            description = "Port the service binds to";
-          };
-          launchdLabel = mkOption {
-            type = types.str;
-            description = "launchd service label (e.g. org.vllm-mlx.server)";
-          };
-          errorLog = mkOption {
-            type = types.str;
-            description = "Path to stderr log for port conflict detection";
+      model = mkOption {
+        type = types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Short name for the model";
+            };
+            path = mkOption {
+              type = types.str;
+              description = "Model path or HuggingFace ID";
+            };
+            package = mkOption {
+              type = types.nullOr types.package;
+              default = null;
+              description = "Nix package providing the model (overrides path with store path)";
+            };
           };
         };
-      });
-      default = {};
-      description = "Registry of all managed services for port conflict detection and readiness verification";
+      };
     };
   };
-
-  # Port conflict prevention — generic check from service registry
-  config = let
-    services = builtins.attrValues config.myConfig.serviceRegistry;
-    uniquePorts = lib.unique (map (s: s.port) services);
-    conflictPorts =
-      lib.filter (
-        p:
-          (builtins.length (builtins.filter (s: s.port == p) services)) > 1
-      )
-      uniquePorts;
-  in
-    lib.optionalAttrs (builtins.hasAttr "assertions" options) {
-      assertions = [
-        {
-          assertion = conflictPorts == [];
-          message = ''
-            Port conflicts detected between enabled services:
-            ${builtins.concatStringsSep "\n" (map (
-                p: "  port ${toString p}: ${builtins.concatStringsSep ", " (map (s: s.name) (builtins.filter (s: s.port == p) services))}"
-              )
-              conflictPorts)}
-
-            Each service must use a unique port. Change one of the conflicting service's port options.
-          '';
-        }
-      ];
-    };
 }

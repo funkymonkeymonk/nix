@@ -113,7 +113,7 @@ in {
 
 | Field | Purpose |
 |-------|---------|
-| `Label` | Unique reverse-domain identifier (e.g. `org.vllm-mlx.server`) |
+| `Label` | Unique reverse-domain identifier (e.g. `org.vmlx.server`) |
 | `ProgramArguments` | Binary path and arguments as a list |
 | `RunAtLoad` | Start immediately when the plist is loaded |
 | `KeepAlive` | Restart the process if it exits |
@@ -147,7 +147,7 @@ myConfig.my-service = {
 
 ## Step 5: Add Tests
 
-Create `tests/test-my-service.nix` to validate option defaults and custom values. Follow the pattern in `tests/test-vllm-mlx.nix`.
+Create `tests/test-my-service.nix` to validate option defaults and custom values. Follow the pattern in `tests/test-vmlx.nix`.
 
 ## Step 6: Run Checks
 
