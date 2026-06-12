@@ -50,6 +50,9 @@
     # Official OpenClaw flake for declarative OpenClaw installation
     nix-openclaw.url = "github:openclaw/nix-openclaw";
     nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Bifrost AI Gateway - high-performance LLM gateway
+    bifrost.url = "github:maximhq/bifrost";
   };
 
   outputs = {
@@ -100,7 +103,7 @@
           (final: _prev: {
             zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
           })
-          (import ./overlays)
+          (import ./overlays {inherit inputs;})
         ];
       };
     };
@@ -203,7 +206,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [(import ./overlays)];
+          overlays = [(import ./overlays {inherit inputs;})];
         };
       in
         {
@@ -226,7 +229,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [(import ./overlays)];
+          overlays = [(import ./overlays {inherit inputs;})];
         };
       in {
         installer = {
@@ -263,6 +266,7 @@
           ./modules/roles/homebrew.nix
           ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
+          ./modules/services/bifrost/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/wweaver
@@ -369,8 +373,11 @@
           ./modules/roles/homebrew.nix
           ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
+          ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
-          ./modules/services/higgs/darwin.nix
+          ./modules/services/caddy/darwin.nix
+          ./modules/services/ds4/darwin.nix
+          ./modules/services/vmlx/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
@@ -692,7 +699,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          overlays = [(import ./overlays)];
+          overlays = [(import ./overlays {inherit inputs;})];
         };
         tests = import ./tests {
           inherit pkgs self;
@@ -763,7 +770,8 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
-            higgs-options
+            ds4-options
+            vmlx-options
             llm-client-opencode
             llm-client-claude
             llm-client-pi

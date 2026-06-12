@@ -24,7 +24,15 @@ in {
     # Use mkDefault so opencode wins if both are enabled
     myConfig.llmClient = {
       serverHost = lib.mkDefault "127.0.0.1";
-      serverPort = lib.mkDefault "11434";
+      serverPort = lib.mkDefault "8080";
+    };
+
+    # Auto-configure bifrost as a model provider
+    myConfig.pi.models.bifrost = lib.mkDefault {
+      name = "Bifrost AI Gateway";
+      provider = "bifrost";
+      modelId = "openai/gpt-4o";
+      baseUrl = "http://${host}:${port}/v1";
     };
 
     environment.variables = {

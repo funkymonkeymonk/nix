@@ -540,6 +540,8 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 
 **Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
 
+**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task and `apply-config-to-microvms` script use `op` to fetch sudo passwords. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI is likely waiting for browser-based authorization that requires the user to approve a 1Password prompt. Agents cannot complete this step — the user must sign in manually (e.g., `op signin` and approve the browser prompt). Once signed in, the CLI caches the session and subsequent `op` calls work without interaction.
+
 ---
 
 ## Code Style

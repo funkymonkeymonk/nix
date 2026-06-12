@@ -2,6 +2,7 @@
 {
   lib,
   mkUser,
+  pkgs,
   inputs,
   ...
 }: {
@@ -23,111 +24,66 @@
         pi.enable = true;
         homebrew.enable = true;
       };
-      higgs = {
+      vmlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
-          port = 8000;
+          port = 8300;
         };
-        local = {
-          mlxProfile = "auto";
-          raiseWiredLimit = false;
+        kvCacheQuantization = "q8";
+        enableDiskCache = true;
+        maxPromptTokens = 32768;
+        model = {
+          name = "gemma4-31B-OptiQ-4bit";
+          path = "mlx-community/gemma-4-31B-it-OptiQ-4bit";
+          package = pkgs.gemma4-31B-OptiQ-4bit;
         };
-        models = [
-          {
-            path = "mlx-community/Qwen3-Coder-Next-4bit";
-            name = "qwen-coder";
-          }
-          {
-            path = "mlx-community/Qwen3.6-35B-A3B-8bit";
-            name = "qwen-35b";
-            mlxProfile = "throughput";
-          }
-          {
-            path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
-            name = "qwen-embed";
-            mlxProfile = "latency";
-          }
-        ];
-        providers = {
-          opencode-go = {
-            url = "https://opencode.ai/zen/go/v1";
-            format = "openai";
-            apiKeyOpnixItem = "op://Opnix/OpenCode Go API/credential";
-          };
-        };
-        routes = [
-          # Frontier models proxied through Higgs → OpenCode Go
-          {
-            pattern = "kimi-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "gpt-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "claude-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "gemini-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "opencode-go/.*";
-            provider = "opencode-go";
-          }
-        ];
-        default.provider = "higgs";
       };
+      ds4.enable = false;
       vane = {
         enable = true;
-        # Higgs is the unified gateway — Vane runs natively now, so use localhost
-        # Embeddings are generated natively by Higgs from loaded MLX models
-        openaiBaseUrl = "http://localhost:8000/v1";
-        # Models are served by Higgs at the OpenAI endpoint, discovered at runtime
-        defaultModel = null;
+        openaiBaseUrl = "http://localhost:8300/v1";
+        defaultModel = "gemma4-31B-OptiQ-4bit";
         embeddingModel = null;
       };
+      bifrost = {
+        enable = true;
+        logLevel = "debug";
+        upstreams.vmlx-local = {
+          url = "http://127.0.0.1:8300";
+          type = "vllm";
+          models = ["gemma4-31B-OptiQ-4bit"];
+        };
+      };
       searxng.enable = true;
+      caddy.enable = true;
       opencode = {
         enable = true;
-        # Default model - qwen-coder handles both coding and fast chat
-        model = lib.mkForce "higgs/qwen-coder";
+        model = lib.mkForce "vmlx/gemma4-31B-OptiQ-4bit";
 
-        # Configure Higgs as the unified provider
-        providers.higgs = {
+        providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
-          name = "Higgs Gateway";
-          baseURL = "http://localhost:8000/v1";
+          name = "vMLX (local Gemma 4 31B)";
+          baseURL = "http://localhost:8300/v1";
           onePasswordItem = "";
           models = {
-            "qwen-coder" = {
-              name = "Qwen3 Coder Next (Local MLX)";
-            };
-            "qwen-35b" = {
-              name = "Qwen3.6 35B A3B (Local MLX)";
-            };
-            "qwen-embed" = {
-              name = "Qwen3 Embedding 4B (Local MLX)";
+            "gemma4-31B-OptiQ-4bit" = {
+              name = "Gemma 4 31B OptiQ";
             };
           };
         };
 
-        # Configure OpenCode Go provider for frontier models
         providers.opencode-go = {
           name = "OpenCode Go";
           baseURL = "https://opencode.ai/zen/go/v1";
           onePasswordItem = "op://Opnix/OpenCode Go API/credential";
         };
 
-        # Define agents
         agents = {
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "higgs/qwen-35b";
+            model = "vmlx/gemma4-31B-OptiQ-4bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -160,11 +116,11 @@
           - Follow the conventional commit style
         '';
 
-        models.local-higgs = {
-          name = "Higgs Gateway (Qwen Coder)";
+        models.local-vmlx = {
+          name = "Gemma 4 31B OptiQ (vMLX local)";
           provider = "openai";
-          modelId = "qwen-coder";
-          baseUrl = "http://localhost:8000/v1";
+          modelId = "gemma4-31B-OptiQ-4bit";
+          baseUrl = "http://localhost:8300/v1";
         };
 
         prompts.review = ''

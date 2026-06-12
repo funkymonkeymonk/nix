@@ -28,6 +28,7 @@ Solve specific problems:
 - [Use jj Workspaces](how-to/use-workspaces.md) - Parallel development with workspaces
 - [Create Stacked PRs](how-to/create-stacked-prs.md) - Stack dependent pull requests
 - [Complete PR Workflow](how-to/complete-pr-workflow.md) - End-to-end with jj-finish
+- [Create a Darwin System Daemon](how-to/create-darwin-daemon.md) - Add a launchd daemon service for macOS
 
 ## Reference (Information)
 

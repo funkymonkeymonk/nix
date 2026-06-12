@@ -17,7 +17,8 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
-  testHiggs = import ./test-higgs.nix {inherit pkgs;};
+  testDs4 = import ./test-ds4.nix {inherit pkgs;};
+  testVmlx = import ./test-vmlx.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
@@ -152,8 +153,11 @@ in
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
 
-    # Higgs module tests
-    higgs-options = testHiggs.higgsOptionsTest;
+    # ds4 module tests
+    ds4-options = testDs4.ds4OptionsTest;
+
+    # vMLX module tests
+    vmlx-options = testVmlx.vmlxOptionsTest;
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;

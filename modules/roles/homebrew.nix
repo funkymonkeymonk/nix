@@ -31,12 +31,8 @@ in {
           autoUpdate = false;
           cleanup = "uninstall";
         };
-        taps = [
-          "panbanda/brews"
-        ];
-        brews = [
-          "panbanda/brews/higgs"
-        ];
+        taps = [];
+        brews = [];
         casks = [
           "raycast"
           "zed"

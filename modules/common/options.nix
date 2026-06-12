@@ -793,6 +793,76 @@ with lib; {
       };
     };
 
+    bifrost = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Bifrost AI gateway for unified LLM access across all local inference servers";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 8081;
+        description = "Port for Bifrost HTTP gateway";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "0.0.0.0";
+        description = "Host to bind Bifrost to";
+      };
+
+      logLevel = mkOption {
+        type = types.enum ["debug" "info" "warn" "error"];
+        default = "info";
+        description = "Bifrost log level";
+      };
+
+      appDir = mkOption {
+        type = types.str;
+        default = "$HOME/.config/bifrost";
+        description = "Directory for Bifrost data (config.json, SQLite DB, request logs)";
+      };
+
+      upstreams = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            url = mkOption {
+              type = types.str;
+              description = "Base URL for the upstream inference server (e.g., http://localhost:8300/v1)";
+            };
+            type = mkOption {
+              type = types.enum ["openai" "vllm"];
+              default = "openai";
+              description = "Provider type for the upstream. Use 'vllm' for vLLM-compatible servers (uses bifrost's native vLLM provider integration)";
+            };
+            apiKey = mkOption {
+              type = types.str;
+              default = "dummy";
+              description = "API key for the upstream (dummy for local servers)";
+            };
+            allowPrivateNetwork = mkOption {
+              type = types.bool;
+              default = true;
+              description = "Allow connecting to private network IPs (localhost, 192.168.x.x, 10.x.x.x)";
+            };
+            requestTimeout = mkOption {
+              type = types.ints.unsigned;
+              default = 120;
+              description = "Default request timeout in seconds";
+            };
+            models = mkOption {
+              type = types.listOf types.str;
+              default = [];
+              description = "Model names to expose via this upstream (empty = wildcard). For vllm provider, list the models available on the vLLM server";
+            };
+          };
+        });
+        default = {};
+        description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vmlx-local' → model 'vmlx-local/glm47-flash-4bit')";
+      };
+    };
+
     vane = {
       enable = mkOption {
         type = types.bool;
@@ -909,6 +979,49 @@ with lib; {
           description = "Disk space in GB for Vane's dedicated Colima VM";
         };
       };
+
+      chatModels = mkOption {
+        type = types.attrsOf (types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Display name for the model in Vane UI";
+            };
+            key = mkOption {
+              type = types.str;
+              description = "Model key sent to the API (use 'provider-prefix/model-name' when routing through Bifrost)";
+            };
+          };
+        });
+        default = {};
+        description = "Chat models exposed by Vane. If empty, falls back to the built-in vMLX model configuration. When using Bifrost, set keys with provider prefix (e.g., 'vmlx-local/glm47-flash-4bit')";
+      };
+    };
+
+    caddy = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Caddy reverse proxy with .internal hostnames to local services";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 80;
+        description = "Port for Caddy HTTP listener";
+      };
+
+      dataDir = mkOption {
+        type = types.str;
+        default = "$HOME/.local/share/caddy";
+        description = "Directory for Caddy data (certs, config)";
+      };
+
+      hosts = mkOption {
+        type = types.attrsOf types.str;
+        default = {};
+        description = "Additional hostname->upstream mappings (e.g. { \"app.internal\" = \"localhost:9000\"; })";
+      };
     };
 
     searxng = {
@@ -1017,8 +1130,8 @@ with lib; {
 
       serverPort = mkOption {
         type = types.str;
-        default = "11434";
-        description = "Default LLM server port for client tools";
+        default = "8080";
+        description = "Default LLM server port for client tools (bifrost gateway)";
       };
 
       rtk = {
@@ -1341,277 +1454,129 @@ with lib; {
       };
     };
 
-    higgs = {
+    ds4 = {
       enable = mkOption {
         type = types.bool;
         default = false;
-        description = "Enable Higgs LLM inference server config management";
+        description = "Enable ds4 LLM inference server for DeepSeek V4 Flash/PRO";
       };
 
       server = {
         host = mkOption {
           type = types.str;
           default = "0.0.0.0";
-          description = "Bind address for the Higgs server";
+          description = "Bind address for the ds4 server";
         };
         port = mkOption {
           type = types.port;
-          default = 8000;
-          description = "Bind port for the Higgs server";
+          default = 8100;
+          description = "Bind port for the ds4 server";
         };
-        maxTokens = mkOption {
-          type = types.nullOr types.ints.unsigned;
-          default = null;
-          description = "Maximum generation tokens";
+        contextSize = mkOption {
+          type = types.ints.unsigned;
+          default = 32768;
+          description = "Maximum context window size in tokens";
         };
-        timeout = mkOption {
-          type = types.nullOr types.number;
-          default = null;
-          description = "Request timeout in seconds";
+        kvDiskSpaceMb = mkOption {
+          type = types.ints.unsigned;
+          default = 8192;
+          description = "Disk space for KV cache in MB";
         };
-        maxBodySize = mkOption {
-          type = types.nullOr types.ints.unsigned;
-          default = null;
-          description = "Maximum request body size in bytes";
-        };
-        apiKeyFile = mkOption {
-          type = types.nullOr types.path;
-          default = null;
-          description = "Path to file containing the API key (read at runtime)";
-        };
-        rateLimit = mkOption {
-          type = types.nullOr types.ints.unsigned;
-          default = null;
-          description = "Requests per minute per client (0 = unlimited)";
-        };
-      };
-
-      local = {
-        mlxProfile = mkOption {
-          type = types.enum ["auto" "latency" "balanced" "throughput"];
-          default = "auto";
-          description = "Default MLX tuning profile for local models";
-        };
-        raiseWiredLimit = mkOption {
+        cors = mkOption {
           type = types.bool;
           default = false;
-          description = "Allow MLX to raise the process wired-memory limit";
+          description = "Enable CORS headers for browser clients";
+        };
+        power = mkOption {
+          type = types.nullOr types.ints.between 0 100;
+          default = null;
+          description = "Target GPU usage percentage (null = full speed)";
         };
       };
 
-      models = mkOption {
-        type = types.listOf (types.submodule {
+      model = mkOption {
+        type = types.submodule {
           options = {
+            name = mkOption {
+              type = types.str;
+              default = "deepseek-v4-flash";
+              description = "Model name exposed in the API";
+            };
+            path = mkOption {
+              type = types.str;
+              description = "Path to the GGUF model file";
+            };
+            gguf = mkOption {
+              type = types.str;
+              description = "GGUF filename within the package directory";
+            };
+            package = mkOption {
+              type = types.nullOr types.package;
+              default = null;
+              description = "Nix package providing the GGUF model (overrides path with store path)";
+            };
+          };
+        };
+      };
+    };
+
+    vmlx = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable vMLX inference server for local MLX models (OpenAI + Anthropic API)";
+      };
+
+      server = {
+        host = mkOption {
+          type = types.str;
+          default = "0.0.0.0";
+          description = "Bind address for vMLX server";
+        };
+        port = mkOption {
+          type = types.port;
+          default = 8300;
+          description = "Bind port for vMLX server";
+        };
+      };
+
+      kvCacheQuantization = mkOption {
+        type = types.nullOr (types.enum ["q4" "q8"]);
+        default = "q8";
+        description = "Quantize KV cache for memory savings";
+      };
+      enableDiskCache = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Persist prompt caches to SSD (survives restarts)";
+      };
+      enableJIT = mkOption {
+        type = types.bool;
+        default = false;
+        description = "JIT Metal kernel compilation (experimental)";
+      };
+      maxPromptTokens = mkOption {
+        type = types.ints.unsigned;
+        default = 32768;
+        description = "Maximum prompt/context tokens accepted before prefill";
+      };
+
+      model = mkOption {
+        type = types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Short name for the model";
+            };
             path = mkOption {
               type = types.str;
               description = "Model path or HuggingFace ID";
             };
-            name = mkOption {
-              type = types.nullOr types.str;
+            package = mkOption {
+              type = types.nullOr types.package;
               default = null;
-              description = "Short name for the model (used in routing)";
+              description = "Nix package providing the model (overrides path with store path)";
             };
-            mlxProfile = mkOption {
-              type = types.nullOr (types.enum ["auto" "latency" "balanced" "throughput"]);
-              default = null;
-              description = "Per-model MLX profile override";
-            };
-            batch = mkOption {
-              type = types.nullOr types.bool;
-              default = null;
-              description = "Enable continuous batching for this model";
-            };
-            kvCache = mkOption {
-              type = types.nullOr (types.enum ["off" "turboquant"]);
-              default = null;
-              description = "KV cache mode";
-            };
-            kvBits = mkOption {
-              type = types.nullOr types.ints.unsigned;
-              default = null;
-              description = "Default TurboQuant KV bit width";
-            };
-            kvKeyBits = mkOption {
-              type = types.nullOr types.ints.unsigned;
-              default = null;
-              description = "Override TurboQuant key bit width";
-            };
-            kvValueBits = mkOption {
-              type = types.nullOr types.ints.unsigned;
-              default = null;
-              description = "Override TurboQuant value bit width";
-            };
-            kvNormCorrection = mkOption {
-              type = types.nullOr types.bool;
-              default = null;
-              description = "Disable TurboQuant norm correction";
-            };
-            kvAdaptiveDenseLayers = mkOption {
-              type = types.nullOr types.ints.unsigned;
-              default = null;
-              description = "Keep the last N KV cache layers dense";
-            };
-            kvSeed = mkOption {
-              type = types.nullOr types.ints.unsigned;
-              default = null;
-              description = "TurboQuant seed";
-            };
-          };
-        });
-        default = [];
-        description = "List of local MLX models to serve";
-      };
-
-      providers = mkOption {
-        type = types.attrsOf (types.submodule {
-          options = {
-            url = mkOption {
-              type = types.str;
-              description = "Base URL of the upstream API";
-            };
-            format = mkOption {
-              type = types.enum ["openai" "anthropic"];
-              default = "openai";
-              description = "API format the provider speaks";
-            };
-            apiKeyFile = mkOption {
-              type = types.nullOr types.path;
-              default = null;
-              description = "Path to file containing the API key (read at build time, content embedded in config)";
-            };
-            apiKeyOpnixItem = mkOption {
-              type = types.nullOr types.str;
-              default = null;
-              description = "1Password item reference for the API key (e.g., 'op://vault/item/field'). The key is resolved at runtime via opnix.";
-            };
-            stripAuth = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Remove the client's Authorization header before proxying";
-            };
-            stubCountTokens = mkOption {
-              type = types.bool;
-              default = false;
-              description = "Return a stub for /v1/messages/count_tokens";
-            };
-          };
-        });
-        default = {};
-        description = "Remote provider configurations (keyed by provider name)";
-        example = {
-          anthropic = {
-            url = "https://api.anthropic.com";
-            format = "anthropic";
-          };
-          openai = {
-            url = "https://api.openai.com";
-            format = "openai";
-          };
-        };
-      };
-
-      routes = mkOption {
-        type = types.listOf (types.submodule {
-          options = {
-            pattern = mkOption {
-              type = types.str;
-              description = "Regex pattern to match against the model field in requests";
-            };
-            provider = mkOption {
-              type = types.str;
-              description = "Provider name to forward to";
-            };
-            model = mkOption {
-              type = types.nullOr types.str;
-              default = null;
-              description = "Rewrite the model field before forwarding";
-            };
-            name = mkOption {
-              type = types.nullOr types.str;
-              default = null;
-              description = "Human label used by the auto-router";
-            };
-            description = mkOption {
-              type = types.nullOr types.str;
-              default = null;
-              description = "Route description used for auto-router classification";
-            };
-          };
-        });
-        default = [];
-        description = "List of routing rules (first match wins)";
-        example = [
-          {
-            pattern = "claude-.*";
-            provider = "anthropic";
-          }
-          {
-            pattern = "gpt-.*";
-            provider = "openai";
-          }
-        ];
-      };
-
-      default = {
-        provider = mkOption {
-          type = types.str;
-          default = "higgs";
-          description = "Default provider when no route or local model matches";
-        };
-      };
-
-      autoRouter = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Enable the auto-router for smart request classification";
-        };
-        model = mkOption {
-          type = types.str;
-          default = "";
-          description = "Name of the local model to use for classification (must match a [[models]] name)";
-        };
-        timeoutMs = mkOption {
-          type = types.ints.unsigned;
-          default = 2000;
-          description = "Timeout for auto-router classification in milliseconds";
-        };
-      };
-
-      retention = {
-        enable = mkOption {
-          type = types.bool;
-          default = true;
-          description = "Enable retention of metrics in memory for the TUI dashboard";
-        };
-        minutes = mkOption {
-          type = types.ints.unsigned;
-          default = 60;
-          description = "How many minutes to retain metrics in memory";
-        };
-      };
-
-      logging = {
-        metrics = {
-          enable = mkOption {
-            type = types.bool;
-            default = true;
-            description = "Enable appending request metrics to a JSONL file";
-          };
-          path = mkOption {
-            type = types.nullOr types.str;
-            default = null;
-            description = "Path to the metrics JSONL file (default: ~/.config/higgs/logs/metrics.jsonl)";
-          };
-          maxSizeMb = mkOption {
-            type = types.ints.unsigned;
-            default = 50;
-            description = "Maximum size of the metrics log file in MB before rotation";
-          };
-          maxFiles = mkOption {
-            type = types.ints.unsigned;
-            default = 5;
-            description = "Maximum number of rotated log files to keep";
           };
         };
       };

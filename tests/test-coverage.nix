@@ -32,7 +32,6 @@
     "home-manager/skills/manifest.nix"
     "home-manager/email-agent.nix"
     "home-manager/email-backup.nix"
-    "home-manager/higgs.nix"
     "home-manager/sketchybar/default.nix"
     "home-manager/themes.nix"
     # roles/
@@ -64,7 +63,8 @@
     "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
     "services/microvm-host/default.nix"
-    "services/higgs/darwin.nix"
+    "services/ds4/darwin.nix"
+    "services/vmlx/darwin.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
     # top-level
@@ -119,9 +119,10 @@
     "services/openclaw/default.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
-    "services/higgs/darwin.nix"
-    # Tested via test-higgs.nix (higgs option defaults and custom values)
-    "home-manager/higgs.nix"
+    "services/ds4/darwin.nix"
+    "services/vmlx/darwin.nix"
+    # Tested via test-ds4.nix (ds4 option defaults and custom values)
+    # Tested via test-vmlx.nix (vMLX option defaults and custom values)
     # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
     "home-manager/jj-autosync.nix"
     "home-manager/opencode.nix"
