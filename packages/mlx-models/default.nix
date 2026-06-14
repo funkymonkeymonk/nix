@@ -34,7 +34,7 @@ in {
       buildPhase = ''
         echo "Fetching file list for ${modelPath}..."
         FILES=$(${curl}/bin/curl -sL "https://huggingface.co/api/models/${modelPath}" | \
-          ${jq}/bin/jq -r '.siblings[] | select(.rfilename | test("${includePattern}")) | .rfilename')
+          ${jq}/bin/jq --arg pattern "${includePattern}" -r '.siblings[] | select(.rfilename | test($pattern)) | .rfilename')
 
         mkdir -p $out
 
@@ -71,7 +71,7 @@ in {
       buildPhase = ''
         echo "Fetching file list for ${modelPath}..."
         FILES=$(${curl}/bin/curl -sL "https://huggingface.co/api/models/${modelPath}" | \
-          ${jq}/bin/jq -r '.siblings[] | select(.rfilename | test("\\.(gguf)$")) | .rfilename')
+          ${jq}/bin/jq --arg pattern '\\.(gguf)$' -r '.siblings[] | select(.rfilename | test($pattern)) | .rfilename')
 
         mkdir -p $out
 
