@@ -116,13 +116,9 @@ in {
         ProgramArguments = ["${caddyScript}"];
         RunAtLoad = true;
         KeepAlive = true;
-        UserName = primaryUser;
         StandardOutPath = "/tmp/caddy.log";
         StandardErrorPath = "/tmp/caddy.error.log";
         WorkingDirectory = darwinHomeDir;
-        EnvironmentVariables = {
-          HOME = darwinHomeDir;
-        };
       };
     };
 
