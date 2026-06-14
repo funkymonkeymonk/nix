@@ -36,6 +36,8 @@ with lib; let
       --continuous-batching \
       --enable-prefix-cache \
       --use-paged-cache \
+      --enable-auto-tool-choice \
+      --default-enable-thinking false \
       --max-prompt-tokens ${toString cfg.maxPromptTokens} \
       ${lib.optionalString (cfg.kvCacheQuantization != null) "--kv-cache-quantization ${cfg.kvCacheQuantization}"} \
       ${lib.optionalString cfg.enableDiskCache "--enable-disk-cache"} \
