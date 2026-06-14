@@ -21,6 +21,7 @@ in {
     modelPath,
     outputHash,
     includePattern ? "\\.(safetensors|json)$",
+    extraHook ? "",
   }:
     stdenvNoCC.mkDerivation {
       pname = name;
@@ -45,6 +46,7 @@ in {
             -o "$out/$FILE"
         done
         echo "Done."
+        ${extraHook}
       '';
       installPhase = "true";
       meta = {
