@@ -34,16 +34,16 @@
         enableDiskCache = true;
         maxPromptTokens = 32768;
         model = {
-          name = "gemma4-12B-OptiQ-4bit";
-          path = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
-          package = pkgs.gemma4-12B-OptiQ-4bit;
+          name = "qwen36-35B-A3B-4bit";
+          path = "mlx-community/Qwen3.6-35B-A3B-4bit";
+          package = pkgs.qwen36-35B-A3B-4bit;
         };
       };
       ds4.enable = false;
       vane = {
         enable = true;
         openaiBaseUrl = "http://localhost:8300/v1";
-        defaultModel = "gemma4-12B-OptiQ-4bit";
+        defaultModel = "qwen36-35B-A3B-4bit";
         embeddingModel = null;
       };
       bifrost = {
@@ -52,23 +52,23 @@
         upstreams.vmlx-local = {
           url = "http://127.0.0.1:8300";
           type = "vllm";
-          models = ["gemma4-12B-OptiQ-4bit"];
+          models = ["qwen36-35B-A3B-4bit"];
         };
       };
       searxng.enable = true;
       caddy.enable = true;
       opencode = {
         enable = true;
-        model = lib.mkForce "vmlx/gemma4-12B-OptiQ-4bit";
+        model = lib.mkForce "vmlx/qwen36-35B-A3B-4bit";
 
         providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
-          name = "vMLX (local Gemma 4 12B)";
+          name = "vMLX (local Qwen3.6 35B MoE)";
           baseURL = "http://localhost:8300/v1";
           onePasswordItem = "";
           models = {
-            "gemma4-12B-OptiQ-4bit" = {
-              name = "Gemma 4 12B OptiQ";
+            "qwen36-35B-A3B-4bit" = {
+              name = "Qwen3.6 35B MoE";
             };
           };
         };
@@ -83,7 +83,7 @@
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "vmlx/gemma4-12B-OptiQ-4bit";
+            model = "vmlx/qwen36-35B-A3B-4bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -117,9 +117,9 @@
         '';
 
         models.local-vmlx = {
-          name = "Gemma 4 12B OptiQ (vMLX local)";
+          name = "Qwen3.6 35B MoE (vMLX local)";
           provider = "openai";
-          modelId = "gemma4-12B-OptiQ-4bit";
+          modelId = "qwen36-35B-A3B-4bit";
           baseUrl = "http://localhost:8300/v1";
         };
 
