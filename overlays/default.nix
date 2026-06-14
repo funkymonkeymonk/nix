@@ -16,6 +16,11 @@
     modelPath = "mlx-community/gemma-4-31B-it-OptiQ-4bit";
     outputHash = "sha256-adiGBvHq9gCDPiHaFCp7xwX4A9OY/nLZw3jGS0kkvQk=";
   };
+  gemma4-12B-OptiQ-4bit = final.mlx-models.fetchModel {
+    name = "gemma4-12B-OptiQ-4bit";
+    modelPath = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+    outputHash = final.lib.fakeHash;
+  };
   qwen-embed = final.mlx-models.fetchModel {
     name = "qwen-embed";
     modelPath = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
