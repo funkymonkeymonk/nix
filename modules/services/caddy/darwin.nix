@@ -49,7 +49,7 @@ with lib; let
   allRoutes = serviceRoutes ++ (mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);
 
   routeBlock = route: ''
-    ${route.host} {
+    http://${route.host} {
       reverse_proxy ${route.upstream}
     }
   '';
