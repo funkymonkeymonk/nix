@@ -42,7 +42,7 @@ with lib; let
       --enable-prefix-cache \
       --use-paged-cache \
       --enable-auto-tool-choice \
-      --tool-call-parser generic \
+      --tool-call-parser qwen3 \
       --default-enable-thinking false \
       --max-prompt-tokens ${toString cfg.maxPromptTokens} \
       ${lib.optionalString (cfg.kvCacheQuantization != null) "--kv-cache-quantization ${cfg.kvCacheQuantization}"} \
