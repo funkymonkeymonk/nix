@@ -34,16 +34,16 @@
         enableDiskCache = true;
         maxPromptTokens = 32768;
         model = {
-          name = "gemma4-31B-OptiQ-4bit";
-          path = "mlx-community/gemma-4-31B-it-OptiQ-4bit";
-          package = pkgs.gemma4-31B-OptiQ-4bit;
+          name = "gemma4-12B-OptiQ-4bit";
+          path = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+          package = pkgs.gemma4-12B-OptiQ-4bit;
         };
       };
       ds4.enable = false;
       vane = {
         enable = true;
         openaiBaseUrl = "http://localhost:8300/v1";
-        defaultModel = "gemma4-31B-OptiQ-4bit";
+        defaultModel = "gemma4-12B-OptiQ-4bit";
         embeddingModel = null;
       };
       bifrost = {
@@ -52,23 +52,23 @@
         upstreams.vmlx-local = {
           url = "http://127.0.0.1:8300";
           type = "vllm";
-          models = ["gemma4-31B-OptiQ-4bit"];
+          models = ["gemma4-12B-OptiQ-4bit"];
         };
       };
       searxng.enable = true;
       caddy.enable = true;
       opencode = {
         enable = true;
-        model = lib.mkForce "vmlx/gemma4-31B-OptiQ-4bit";
+        model = lib.mkForce "vmlx/gemma4-12B-OptiQ-4bit";
 
         providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
-          name = "vMLX (local Gemma 4 31B)";
+          name = "vMLX (local Gemma 4 12B)";
           baseURL = "http://localhost:8300/v1";
           onePasswordItem = "";
           models = {
-            "gemma4-31B-OptiQ-4bit" = {
-              name = "Gemma 4 31B OptiQ";
+            "gemma4-12B-OptiQ-4bit" = {
+              name = "Gemma 4 12B OptiQ";
             };
           };
         };
@@ -83,7 +83,7 @@
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "vmlx/gemma4-31B-OptiQ-4bit";
+            model = "vmlx/gemma4-12B-OptiQ-4bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -117,9 +117,9 @@
         '';
 
         models.local-vmlx = {
-          name = "Gemma 4 31B OptiQ (vMLX local)";
+          name = "Gemma 4 12B OptiQ (vMLX local)";
           provider = "openai";
-          modelId = "gemma4-31B-OptiQ-4bit";
+          modelId = "gemma4-12B-OptiQ-4bit";
           baseUrl = "http://localhost:8300/v1";
         };
 
