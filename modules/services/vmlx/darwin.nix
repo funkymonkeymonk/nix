@@ -79,7 +79,7 @@ with open('$MODEL_DIR/tokenizer_config.json', 'w') as f:
       --enable-prefix-cache \
       --use-paged-cache \
       --enable-auto-tool-choice \
-      --tool-call-parser qwen3 \
+      --tool-call-parser generic \
       --default-enable-thinking false \
       --max-prompt-tokens ${toString cfg.maxPromptTokens} \
       ${lib.optionalString (cfg.kvCacheQuantization != null) "--kv-cache-quantization ${cfg.kvCacheQuantization}"} \
