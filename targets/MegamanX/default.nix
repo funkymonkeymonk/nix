@@ -42,9 +42,8 @@
       ds4.enable = false;
       vane = {
         enable = true;
-        openaiBaseUrl = "http://localhost:8300/v1";
         defaultModel = "mlx-community/Qwen3.6-35B-A3B-4bit";
-        embeddingModel = null;
+        embeddingModel = "mlx-community/Qwen3.6-35B-A3B-4bit";
       };
       bifrost = {
         enable = true;
