@@ -71,17 +71,25 @@ with lib; let
       }) (builtins.attrValues cfg.chatModels)
     else defaultChatModels;
 
-  modelProvider = {
-    id = resolvedProviderId;
-    name = resolvedProviderName;
-    type = "openai";
-    chatModels = chatModels;
-    embeddingModels = [];
-    config = {
-      apiKey = resolvedProviderApiKey;
-      baseURL = resolvedBaseUrl;
+  modelProvider =
+    {
+      id = resolvedProviderId;
+      name = resolvedProviderName;
+      type = "openai";
+      chatModels = chatModels;
+      config = {
+        apiKey = resolvedProviderApiKey;
+        baseURL = resolvedBaseUrl;
+      };
+    }
+    // optionalAttrs (cfg.embeddingModel != null) {
+      embeddingModels = [
+        {
+          name = cfg.embeddingModel;
+          key = cfg.embeddingModel;
+        }
+      ];
     };
-  };
 
   vaneConfig = builtins.toJSON {
     version = 1;
@@ -92,6 +100,8 @@ with lib; let
     };
   };
 
+  playwrightBrowsers = pkgs.playwright-driver.browsers;
+
   # Environment for Vane
   # OPENAI_BASE_URL is omitted — it triggers Vane to auto-create a duplicate provider.
   # The base URL is set in the pre-created config.json instead.
@@ -99,6 +109,7 @@ with lib; let
     {
       VANE_PORT = toString cfg.port;
       SEARXNG_API_URL = searxngUrl;
+      PLAYWRIGHT_BROWSERS_PATH = "${playwrightBrowsers}";
     }
     // optionalAttrs (cfg.ollamaUrl != null) {
       OLLAMA_API_URL = cfg.ollamaUrl;
