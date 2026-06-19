@@ -42,6 +42,7 @@ with lib; let
       allowed_requests = {
         chat_completion = true;
         chat_completion_stream = true;
+        embedding = true;
       };
     };
   };
