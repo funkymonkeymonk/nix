@@ -46,5 +46,17 @@ in {
           };
       };
     };
+
+    system.activationScripts.postActivation.text = mkAfter ''
+      if launchctl list "org.ollama.server" >/dev/null 2>&1; then
+        if launchctl list "org.ollama.server" 2>&1 | grep -q '"PID"'; then
+          echo "  org.ollama.server: running" >&2
+        else
+          echo "  org.ollama.server: loaded (not running)" >&2
+        fi
+      else
+        echo "  org.ollama.server: not registered" >&2
+      fi
+    '';
   };
 }

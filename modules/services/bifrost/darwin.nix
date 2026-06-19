@@ -125,6 +125,16 @@ in {
 
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${appDir}"
+
+      if launchctl list "com.bifrost.service" >/dev/null 2>&1; then
+        if launchctl list "com.bifrost.service" 2>&1 | grep -q '"PID"'; then
+          echo "  com.bifrost.service: running" >&2
+        else
+          echo "  com.bifrost.service: loaded (not running)" >&2
+        fi
+      else
+        echo "  com.bifrost.service: not registered" >&2
+      fi
     '';
   };
 }

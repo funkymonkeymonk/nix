@@ -168,5 +168,17 @@ in {
         };
       };
     };
+
+    system.activationScripts.postActivation.text = mkAfter ''
+      if launchctl list "com.funkymonkeymonk.openclaw-gateway" >/dev/null 2>&1; then
+        if launchctl list "com.funkymonkeymonk.openclaw-gateway" 2>&1 | grep -q '"PID"'; then
+          echo "  com.funkymonkeymonk.openclaw-gateway: running" >&2
+        else
+          echo "  com.funkymonkeymonk.openclaw-gateway: loaded (not running)" >&2
+        fi
+      else
+        echo "  com.funkymonkeymonk.openclaw-gateway: not registered" >&2
+      fi
+    '';
   };
 }

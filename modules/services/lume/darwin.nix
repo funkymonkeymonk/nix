@@ -113,5 +113,17 @@ in {
           cfg.prePullImages}
       '';
     };
+
+    system.activationScripts.postActivation.text = mkAfter ''
+      if launchctl list "com.trycua.lume_daemon" >/dev/null 2>&1; then
+        if launchctl list "com.trycua.lume_daemon" 2>&1 | grep -q '"PID"'; then
+          echo "  com.trycua.lume_daemon: running" >&2
+        else
+          echo "  com.trycua.lume_daemon: loaded (not running)" >&2
+        fi
+      else
+        echo "  com.trycua.lume_daemon: not registered" >&2
+      fi
+    '';
   };
 }
