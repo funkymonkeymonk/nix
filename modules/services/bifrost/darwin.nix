@@ -40,6 +40,7 @@ with lib; let
     custom_provider_config = {
       base_provider_type = "openai";
       allowed_requests = {
+        list_models = true;
         chat_completion = true;
         chat_completion_stream = true;
         embedding = true;
