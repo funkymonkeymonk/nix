@@ -13,7 +13,6 @@ with lib; let
   bifrostCfg = config.myConfig.bifrost;
   vaneCfg = config.myConfig.vane;
   vmlxCfg = config.myConfig.vmlx;
-  ds4Cfg = config.myConfig.ds4;
 
   primaryUser =
     if config.myConfig.users != []
@@ -40,10 +39,6 @@ with lib; let
     ++ optional (vmlxCfg.enable && vmlxCfg.server.port != cfg.port) {
       host = "vmlx.internal";
       upstream = "localhost:${toString vmlxCfg.server.port}";
-    }
-    ++ optional (ds4Cfg.enable && ds4Cfg.server.port != cfg.port) {
-      host = "ds4.internal";
-      upstream = "localhost:${toString ds4Cfg.server.port}";
     };
 
   allRoutes = serviceRoutes ++ (mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);

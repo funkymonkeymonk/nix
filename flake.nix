@@ -376,7 +376,6 @@
           ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
-          ./modules/services/ds4/darwin.nix
           ./modules/services/vmlx/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
@@ -770,7 +769,6 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
-            ds4-options
             vmlx-options
             llm-client-opencode
             llm-client-claude

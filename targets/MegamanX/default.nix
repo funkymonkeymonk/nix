@@ -34,16 +34,16 @@
         enableDiskCache = true;
         maxPromptTokens = 32768;
         model = {
-          name = "mlx-community/Qwen3.6-35B-A3B-4bit";
-          path = "mlx-community/Qwen3.6-35B-A3B-4bit";
+          name = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+          path = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
           package = null;
         };
       };
-      ds4.enable = false;
+
       vane = {
         enable = true;
-        defaultModel = "mlx-community/Qwen3.6-35B-A3B-4bit";
-        embeddingModel = "mlx-community/Qwen3.6-35B-A3B-4bit";
+        defaultModel = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+        embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
       };
       bifrost = {
         enable = true;
@@ -51,23 +51,32 @@
         upstreams.vmlx-local = {
           url = "http://127.0.0.1:8300";
           type = "vllm";
-          models = ["mlx-community/Qwen3.6-35B-A3B-4bit"];
+          models = [
+            "mlx-community/gemma-4-12B-it-OptiQ-4bit"
+            "mlx-community/DeepSeek-V4-Flash-4bit"
+          ];
         };
       };
       searxng.enable = true;
       caddy.enable = true;
       opencode = {
         enable = true;
-        model = lib.mkForce "vmlx/mlx-community/Qwen3.6-35B-A3B-4bit";
+        model = lib.mkForce "vmlx/mlx-community/gemma-4-12B-it-OptiQ-4bit";
 
         providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
-          name = "vMLX (local Qwen3.6 35B MoE)";
+          name = "vMLX (local)";
           baseURL = "http://localhost:8300/v1";
           onePasswordItem = "";
           models = {
-            "mlx-community/Qwen3.6-35B-A3B-4bit" = {
-              name = "Qwen3.6 35B MoE";
+            "mlx-community/gemma-4-12B-it-OptiQ-4bit" = {
+              name = "Gemma 4 12B OptiQ 4bit";
+            };
+            "mlx-community/gemma-4-31B-it-OptiQ-4bit" = {
+              name = "Gemma 4 31B OptiQ 4bit";
+            };
+            "mlx-community/DeepSeek-V4-Flash-4bit" = {
+              name = "DeepSeek V4 Flash 4bit";
             };
           };
         };
@@ -82,7 +91,7 @@
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "vmlx/mlx-community/Qwen3.6-35B-A3B-4bit";
+            model = "vmlx/mlx-community/gemma-4-12B-it-OptiQ-4bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -116,9 +125,9 @@
         '';
 
         models.local-vmlx = {
-          name = "Qwen3.6 35B MoE (vMLX local)";
+          name = "Gemma 4 12B (vMLX local)";
           provider = "openai";
-          modelId = "mlx-community/Qwen3.6-35B-A3B-4bit";
+          modelId = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
           baseUrl = "http://localhost:8300/v1";
         };
 

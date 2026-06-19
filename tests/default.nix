@@ -17,7 +17,6 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
-  testDs4 = import ./test-ds4.nix {inherit pkgs;};
   testVmlx = import ./test-vmlx.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
@@ -152,9 +151,6 @@ in
 
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
-
-    # ds4 module tests
-    ds4-options = testDs4.ds4OptionsTest;
 
     # vMLX module tests
     vmlx-options = testVmlx.vmlxOptionsTest;

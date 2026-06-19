@@ -5,8 +5,6 @@
   yaks = final.callPackage ../packages/yaks {};
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
-  ds4 = final.callPackage ../packages/ds4 {};
-
   mlx-models = final.callPackage ../packages/mlx-models {
     inherit (final) lib stdenvNoCC curl jq gnugrep gnused cacert;
   };
@@ -21,17 +19,6 @@
     modelPath = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
     outputHash = "sha256-YU2IoQlwGbIbNZzcHjGHt55rFoNQhWhLL3ACrUNvncc=";
   };
-  qwen-embed = final.mlx-models.fetchModel {
-    name = "qwen-embed";
-    modelPath = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
-    outputHash = final.lib.fakeHash;
-  };
-  deepseek-v4-flash-q2 = final.mlx-models.fetchGgufModel {
-    name = "deepseek-v4-flash-q2";
-    modelPath = "antirez/deepseek-v4-gguf";
-    outputHash = final.lib.fakeHash;
-  };
-
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation
   #
