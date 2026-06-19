@@ -53,7 +53,9 @@
           type = "vllm";
           models = [
             "mlx-community/gemma-4-12B-it-OptiQ-4bit"
+            "mlx-community/gemma-4-31B-it-OptiQ-4bit"
             "mlx-community/DeepSeek-V4-Flash-4bit"
+            "mlx-community/nomicai-modernbert-embed-base-4bit"
           ];
         };
       };
