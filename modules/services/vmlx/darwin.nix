@@ -57,6 +57,7 @@ in {
         ProgramArguments = ["${vmlxWrapper}"];
         RunAtLoad = true;
         KeepAlive = true;
+        ExitTimeOut = 30;
         StandardOutPath = "/tmp/vmlx.log";
         StandardErrorPath = "/tmp/vmlx.err";
         UserName = primaryUser;
