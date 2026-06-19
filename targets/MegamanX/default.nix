@@ -42,7 +42,7 @@
 
       vane = {
         enable = true;
-        openaiBaseUrl = "http://vmlx.internal/v1";
+        openaiBaseUrl = "http://bifrost.internal/v1";
         defaultModel = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
         embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
       };

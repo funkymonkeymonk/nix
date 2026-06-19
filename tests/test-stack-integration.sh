@@ -28,7 +28,7 @@ check_dns() {
 
 check_port() {
   local port=$1 name=$2
-  if (echo > /dev/tcp/127.0.0.1/"$port") 2>/dev/null; then
+  if lsof -tiTCP -sTCP:LISTEN:"$port" -P 2>/dev/null; then
     pass "$name on port $port"
   else
     fail "$name NOT on port $port"
@@ -86,6 +86,7 @@ echo ""
 
 # Layer 0: DNS
 echo "--- Layer 0: DNS ---"
+check_dns "vmlx.internal" "127.0.0.1" "127.0.0.1"
 check_dns "bifrost.internal" "127.0.0.1" "127.0.0.1"
 check_dns "vane.internal" "127.0.0.1" "127.0.0.1"
 echo ""
@@ -94,25 +95,37 @@ echo ""
 echo "--- Layer 1: Reverse Proxy ---"
 check_port "5353" "dnsmasq"
 check_port "80" "Caddy"
+check_port "8300" "vMLX"
 check_port "8081" "Bifrost"
 check_port "3000" "Vane"
 echo ""
 
-# Layer 2: Bifrost
-echo "--- Layer 2: Bifrost ---"
-check_api "http://localhost:8081/v1/models" "Bifrost /v1/models"
-check_chat "http://localhost:8081" "qwen3.6-35b" "Bifrost"
+# Layer 2: vMLX
+echo "--- Layer 2: vMLX ---"
+check_api "http://localhost:8300/v1/models" "vMLX /v1/models"
+check_chat "http://localhost:8300" "mlx-community/gemma-4-12B-it-OptiQ-4bit" "vMLX"
+check_embedding "http://localhost:8300" "mlx-community/nomicai-modernbert-embed-base-4bit" "vMLX"
 echo ""
 
-# Layer 3: Caddy routing
-echo "--- Layer 3: Caddy Routing ---"
+# Layer 3: Bifrost
+echo "--- Layer 3: Bifrost ---"
+check_api "http://localhost:8081/v1/models" "Bifrost /v1/models"
+check_chat "http://localhost:8081" "mlx-community/gemma-4-12B-it-OptiQ-4bit" "Bifrost"
+check_embedding "http://localhost:8081" "mlx-community/nomicai-modernbert-embed-base-4bit" "Bifrost"
+echo ""
+
+# Layer 4: Caddy routing
+echo "--- Layer 4: Caddy Routing ---"
+check_api "http://vmlx.internal/v1/models" "Caddy → vMLX"
 check_api "http://bifrost.internal/v1/models" "Caddy → Bifrost"
 check_api "http://vane.internal/" "Caddy → Vane"
-check_chat "http://bifrost.internal" "qwen3.6-35b" "Caddy → Bifrost"
+check_chat "http://vmlx.internal" "mlx-community/gemma-4-12B-it-OptiQ-4bit" "Caddy → vMLX"
+check_chat "http://bifrost.internal" "mlx-community/gemma-4-12B-it-OptiQ-4bit" "Caddy → Bifrost"
+check_embedding "http://bifrost.internal" "mlx-community/nomicai-modernbert-embed-base-4bit" "Caddy → Bifrost"
 echo ""
 
-# Layer 4: Vane
-echo "--- Layer 4: Vane ---"
+# Layer 5: Vane
+echo "--- Layer 5: Vane ---"
 check_api "http://localhost:3000/" "Vane UI"
 if curl -sf --max-time 5 "http://localhost:3000/api/config" 2>/dev/null; then
   pass "Vane /api/config accessible"
