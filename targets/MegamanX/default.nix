@@ -42,6 +42,7 @@
 
       vane = {
         enable = true;
+        openaiBaseUrl = "http://bifrost.internal/v1";
         defaultModel = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
         embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
       };
@@ -49,7 +50,7 @@
         enable = true;
         logLevel = "debug";
         upstreams.vmlx-local = {
-          url = "http://127.0.0.1:8300";
+          url = "http://vmlx.internal";
           type = "vllm";
           models = [
             "mlx-community/gemma-4-12B-it-OptiQ-4bit"
@@ -68,7 +69,7 @@
         providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
           name = "vMLX (local)";
-          baseURL = "http://localhost:8300/v1";
+          baseURL = "http://vmlx.internal/v1";
           onePasswordItem = "";
           models = {
             "mlx-community/gemma-4-12B-it-OptiQ-4bit" = {
@@ -130,7 +131,7 @@
           name = "Gemma 4 12B (vMLX local)";
           provider = "openai";
           modelId = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
-          baseUrl = "http://localhost:8300/v1";
+          baseUrl = "http://vmlx.internal/v1";
         };
 
         prompts.review = ''
