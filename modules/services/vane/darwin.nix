@@ -47,20 +47,12 @@ with lib; let
       if cfg.defaultModel != null
       then cfg.defaultModel
       else "deepseek-r1:14b";
-  in
-    if bifrostEnabled
-    then [
-      {
-        name = model;
-        key = "vllm/${model}";
-      }
-    ]
-    else [
-      {
-        name = model;
-        key = model;
-      }
-    ];
+  in [
+    {
+      name = model;
+      key = model;
+    }
+  ];
 
   chatModels =
     if cfg.chatModels != {}
