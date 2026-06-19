@@ -19,6 +19,7 @@
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testVmlx = import ./test-vmlx.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
@@ -154,6 +155,9 @@ in
 
     # vMLX module tests
     vmlx-options = testVmlx.vmlxOptionsTest;
+
+    # LLM stack integration test
+    stack-integration = testStackIntegration.stackIntegrationTest;
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;

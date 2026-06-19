@@ -729,6 +729,21 @@ in {
       '';
     };
 
+    "test:stack" = {
+      description = "Test LLM stack integration (eval + runtime)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running LLM stack eval test..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.stack-integration" --no-link
+        echo "Eval test passed"
+        echo ""
+        echo "Running runtime integration test..."
+        echo "(requires live system with all services running)"
+        echo ""
+        ./tests/test-stack-integration.sh
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (eval gates build, optimized for parallel CI)";
       exec = ''

@@ -64,6 +64,8 @@
     "services/openclaw/default.nix"
     "services/microvm-host/default.nix"
     "services/vmlx/darwin.nix"
+    "services/bifrost/darwin.nix"
+    "services/caddy/darwin.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
     # top-level
@@ -119,6 +121,9 @@
     "services/vane/common.nix"
     "services/vane/darwin.nix"
     "services/vmlx/darwin.nix"
+    # Tested via test-stack-integration.nix (LLM stack composition)
+    "services/bifrost/darwin.nix"
+    "services/caddy/darwin.nix"
     # Tested via test-vmlx.nix (vMLX option defaults and custom values)
     # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
     "home-manager/jj-autosync.nix"
