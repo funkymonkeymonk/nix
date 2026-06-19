@@ -63,7 +63,6 @@
     "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
     "services/microvm-host/default.nix"
-    "services/ds4/darwin.nix"
     "services/vmlx/darwin.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
@@ -119,9 +118,7 @@
     "services/openclaw/default.nix"
     "services/vane/common.nix"
     "services/vane/darwin.nix"
-    "services/ds4/darwin.nix"
     "services/vmlx/darwin.nix"
-    # Tested via test-ds4.nix (ds4 option defaults and custom values)
     # Tested via test-vmlx.nix (vMLX option defaults and custom values)
     # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
     "home-manager/jj-autosync.nix"
