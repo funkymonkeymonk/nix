@@ -1,59 +1,62 @@
 # Ollama service module for Darwin (macOS)
 #
 # Uses launchd to manage Ollama as a system daemon.
-# Ollama is installed via homebrew — no nixpkgs dependency.
+# Imports shared configuration from common.nix.
+# Uses nixpkgs ollama package (v0.17.7) which is kept up-to-date by the Nix community.
 {
   config,
   lib,
-  options,
   ...
 }:
 with lib; let
   cfg = config.myConfig.ollama;
-  hasHomebrew = builtins.hasAttr "homebrew" options;
 
+  # Common values are exposed via config._ollamaCommon from common.nix
+  inherit (config._ollamaCommon) serviceEnvironment ollamaStartScript pathEnv packages;
+
+  # Get the first configured user for Darwin launchd environment
+  # Falls back to a generic "ollama" user if no users configured
   primaryUser =
     if config.myConfig.users != []
     then (builtins.head config.myConfig.users).name
-    else "monkey";
+    else "ollama";
 
+  # Darwin home directory based on user
   darwinHomeDir = "/Users/${primaryUser}";
 in {
-  config = mkIf cfg.enable (mkMerge [
-    (optionalAttrs hasHomebrew {
-      homebrew.brews = ["ollama"];
-    })
-    {
-      launchd.daemons.ollama = {
-        command = "ollama serve";
-        serviceConfig = {
-          Label = "org.ollama.server";
-          RunAtLoad = true;
-          KeepAlive = true;
-          StandardOutPath = "/tmp/ollama.log";
-          StandardErrorPath = "/tmp/ollama.err";
-          UserName = primaryUser;
-          EnvironmentVariables = {
+  imports = [./common.nix];
+
+  config = mkIf cfg.enable {
+    environment.systemPackages = packages;
+
+    launchd.daemons.ollama = {
+      serviceConfig = {
+        Label = "org.ollama.server";
+        ProgramArguments = ["${ollamaStartScript}"];
+        RunAtLoad = true;
+        KeepAlive = true;
+        StandardOutPath = "/tmp/ollama.log";
+        StandardErrorPath = "/tmp/ollama.err";
+        EnvironmentVariables =
+          serviceEnvironment
+          // {
             HOME = darwinHomeDir;
-            OLLAMA_HOST = "${cfg.host}:${toString cfg.port}";
-            OLLAMA_KEEPALIVE = "8h";
-            PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
+            USER = primaryUser;
+            PATH = pathEnv;
           };
-        };
       };
+    };
 
-      system.activationScripts.postActivation.text = mkAfter ''
-        mkdir -p "${darwinHomeDir}/.ollama"
-      '';
-
-      myConfig.serviceRegistry = optionalAttrs cfg.enable {
-        ollama = {
-          name = "Ollama";
-          port = cfg.port;
-          launchdLabel = "org.ollama.server";
-          errorLog = "/tmp/ollama.err";
-        };
-      };
-    }
-  ]);
+    system.activationScripts.postActivation.text = mkAfter ''
+      if launchctl list "org.ollama.server" >/dev/null 2>&1; then
+        if launchctl list "org.ollama.server" 2>&1 | grep -q '"PID"'; then
+          echo "  org.ollama.server: running" >&2
+        else
+          echo "  org.ollama.server: loaded (not running)" >&2
+        fi
+      else
+        echo "  org.ollama.server: not registered" >&2
+      fi
+    '';
+  };
 }

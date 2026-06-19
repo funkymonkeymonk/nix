@@ -57,6 +57,16 @@ in {
 
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${darwinHomeDir}/.local/share/searxng"
+
+      if launchctl list "com.searxng.service" >/dev/null 2>&1; then
+        if launchctl list "com.searxng.service" 2>&1 | grep -q '"PID"'; then
+          echo "  com.searxng.service: running" >&2
+        else
+          echo "  com.searxng.service: loaded (not running)" >&2
+        fi
+      else
+        echo "  com.searxng.service: not registered" >&2
+      fi
     '';
 
     # Register in service registry for port conflict detection and readiness checks

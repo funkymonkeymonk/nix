@@ -145,6 +145,16 @@ in {
 
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${dataDir}/data" "${dataDir}/logs"
+
+      if launchctl list "com.vane.service" >/dev/null 2>&1; then
+        if launchctl list "com.vane.service" 2>&1 | grep -q '"PID"'; then
+          echo "  com.vane.service: running" >&2
+        else
+          echo "  com.vane.service: loaded (not running)" >&2
+        fi
+      else
+        echo "  com.vane.service: not registered" >&2
+      fi
     '';
   };
 }
