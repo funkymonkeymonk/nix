@@ -29,7 +29,7 @@ in {
         enable = true;
         onActivation = {
           autoUpdate = false;
-          cleanup = "uninstall";
+          cleanup = "none";
         };
         taps = [];
         brews = [];
