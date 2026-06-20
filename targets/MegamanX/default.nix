@@ -19,7 +19,6 @@
         desktop.enable = true;
         workstation.enable = true;
         entertainment.enable = true;
-        llm-host.enable = true;
         opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
