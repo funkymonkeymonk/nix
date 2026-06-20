@@ -51,7 +51,7 @@
         logLevel = "debug";
         upstreams.vmlx-local = {
           url = "http://vmlx.internal";
-          type = "openai";
+          type = "vllm";
           models = [
             "mlx-community/gemma-4-12B-it-4bit"
             "mlx-community/gemma-4-12B-it-8bit"
