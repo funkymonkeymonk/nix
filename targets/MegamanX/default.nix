@@ -51,7 +51,7 @@
         logLevel = "debug";
         upstreams.vmlx-local = {
           url = "http://vmlx.internal";
-          type = "vllm";
+          type = "openai";
           models = [
             "mlx-community/gemma-4-12B-it-4bit"
             "mlx-community/gemma-4-12B-it-8bit"
@@ -66,27 +66,27 @@
       caddy.enable = true;
       opencode = {
         enable = true;
-        model = lib.mkForce "vmlx/mlx-community/gemma-4-12B-it-4bit";
+        model = lib.mkForce "vmlx/vmlx-local/mlx-community/gemma-4-12B-it-4bit";
 
         providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
-          name = "vMLX (local)";
-          baseURL = "http://vmlx.internal/v1";
+          name = "Bifrost (vMLX local)";
+          baseURL = "http://bifrost.internal/v1";
           onePasswordItem = "";
           models = {
-            "mlx-community/gemma-4-12B-it-4bit" = {
+            "vmlx-local/mlx-community/gemma-4-12B-it-4bit" = {
               name = "Gemma 4 12B 4bit";
             };
-            "mlx-community/gemma-4-12B-it-8bit" = {
+            "vmlx-local/mlx-community/gemma-4-12B-it-8bit" = {
               name = "Gemma 4 12B 8bit";
             };
-            "mlx-community/gemma-4-12b-coder-fable5-composer2.5-4bit" = {
+            "vmlx-local/mlx-community/gemma-4-12b-coder-fable5-composer2.5-4bit" = {
               name = "Gemma 4 12B Coder 4bit";
             };
-            "mlx-community/gemma-4-31B-it-OptiQ-4bit" = {
+            "vmlx-local/mlx-community/gemma-4-31B-it-OptiQ-4bit" = {
               name = "Gemma 4 31B OptiQ 4bit";
             };
-            "mlx-community/DeepSeek-V4-Flash-4bit" = {
+            "vmlx-local/mlx-community/DeepSeek-V4-Flash-4bit" = {
               name = "DeepSeek V4 Flash 4bit";
             };
           };
@@ -102,7 +102,7 @@
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "vmlx/mlx-community/gemma-4-12B-it-4bit";
+            model = "vmlx/vmlx-local/mlx-community/gemma-4-12B-it-4bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -136,10 +136,10 @@
         '';
 
         models.local-vmlx = {
-          name = "Gemma 4 12B (vMLX local)";
+          name = "Gemma 4 12B (Bifrost)";
           provider = "openai";
-          modelId = "mlx-community/gemma-4-12B-it-4bit";
-          baseUrl = "http://vmlx.internal/v1";
+          modelId = "vmlx-local/mlx-community/gemma-4-12B-it-4bit";
+          baseUrl = "http://bifrost.internal/v1";
         };
 
         prompts.review = ''
