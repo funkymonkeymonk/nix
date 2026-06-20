@@ -12,7 +12,11 @@ Guide for AI agents working with this Nix system configuration repository.
 
 <!-- LLM: This document is optimized for AI agent consumption -->
 
-## Quick Reference
+## Model Source
+
+All MLX models should be sourced from [mlx-community collections](https://huggingface.co/mlx-community/collections).
+Prefer models from the `mlx-community` org when adding new models to the configuration.
+Check the collection for the latest MLX-converted models before choosing alternatives.
 
 | Task | Command |
 |------|---------|

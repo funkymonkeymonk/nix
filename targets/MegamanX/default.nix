@@ -34,8 +34,8 @@
         enableDiskCache = true;
         maxPromptTokens = 32768;
         model = {
-          name = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
-          path = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+          name = "mlx-community/gemma-4-12B-it-4bit";
+          path = "mlx-community/gemma-4-12B-it-4bit";
           package = null;
         };
       };
@@ -43,7 +43,7 @@
       vane = {
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+        defaultModel = "mlx-community/gemma-4-12B-it-4bit";
         embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
       };
       bifrost = {
@@ -53,7 +53,9 @@
           url = "http://vmlx.internal";
           type = "openai";
           models = [
-            "mlx-community/gemma-4-12B-it-OptiQ-4bit"
+            "mlx-community/gemma-4-12B-it-4bit"
+            "mlx-community/gemma-4-12B-it-8bit"
+            "mlx-community/gemma-4-12b-coder-fable5-composer2.5-4bit"
             "mlx-community/gemma-4-31B-it-OptiQ-4bit"
             "mlx-community/DeepSeek-V4-Flash-4bit"
             "mlx-community/nomicai-modernbert-embed-base-4bit"
@@ -64,7 +66,7 @@
       caddy.enable = true;
       opencode = {
         enable = true;
-        model = lib.mkForce "vmlx/mlx-community/gemma-4-12B-it-OptiQ-4bit";
+        model = lib.mkForce "vmlx/mlx-community/gemma-4-12B-it-4bit";
 
         providers.vmlx = {
           npm = "@ai-sdk/openai-compatible";
@@ -72,8 +74,14 @@
           baseURL = "http://vmlx.internal/v1";
           onePasswordItem = "";
           models = {
-            "mlx-community/gemma-4-12B-it-OptiQ-4bit" = {
-              name = "Gemma 4 12B OptiQ 4bit";
+            "mlx-community/gemma-4-12B-it-4bit" = {
+              name = "Gemma 4 12B 4bit";
+            };
+            "mlx-community/gemma-4-12B-it-8bit" = {
+              name = "Gemma 4 12B 8bit";
+            };
+            "mlx-community/gemma-4-12b-coder-fable5-composer2.5-4bit" = {
+              name = "Gemma 4 12B Coder 4bit";
             };
             "mlx-community/gemma-4-31B-it-OptiQ-4bit" = {
               name = "Gemma 4 31B OptiQ 4bit";
@@ -94,7 +102,7 @@
           plan = {
             description = "Analysis and planning without making changes";
             mode = "primary";
-            model = "vmlx/mlx-community/gemma-4-12B-it-OptiQ-4bit";
+            model = "vmlx/mlx-community/gemma-4-12B-it-4bit";
             prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
             permission = {
               edit = "deny";
@@ -130,7 +138,7 @@
         models.local-vmlx = {
           name = "Gemma 4 12B (vMLX local)";
           provider = "openai";
-          modelId = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+          modelId = "mlx-community/gemma-4-12B-it-4bit";
           baseUrl = "http://vmlx.internal/v1";
         };
 
