@@ -1516,4 +1516,37 @@ with lib; {
       };
     };
   };
+
+  # Port conflict prevention — fail at eval time if enabled services share a port
+  config = let
+    svcPorts = [
+      {name = "vMLX"; enable = config.myConfig.vmlx.enable; port = config.myConfig.vmlx.server.port;}
+      {name = "Bifrost"; enable = config.myConfig.bifrost.enable; port = config.myConfig.bifrost.port;}
+      {name = "Vane"; enable = config.myConfig.vane.enable; port = config.myConfig.vane.port;}
+      {name = "Caddy"; enable = config.myConfig.caddy.enable; port = config.myConfig.caddy.port;}
+      {name = "SearXNG"; enable = config.myConfig.searxng.enable; port = config.myConfig.searxng.port;}
+      {name = "Ollama"; enable = config.myConfig.ollama.enable; port = config.myConfig.ollama.port;}
+    ];
+    enabled = builtins.filter (s: s.enable) svcPorts;
+
+    # Group enabled services by port and find conflicts
+    uniquePorts = lib.unique (map (s: s.port) enabled);
+    conflictPorts = lib.filter (p:
+      (builtins.length (builtins.filter (s: s.port == p) enabled)) > 1
+    ) uniquePorts;
+  in {
+    assertions = [
+      {
+        assertion = conflictPorts == [];
+        message = ''
+          Port conflicts detected between enabled services:
+          ${builtins.concatStringsSep "\n" (map (p:
+            "  port ${toString p}: ${builtins.concatStringsSep ", " (map (s: s.name) (builtins.filter (s: s.port == p) enabled))}"
+          ) conflictPorts)}
+
+          Each service must use a unique port. Change one of the conflicting service's port options.
+        '';
+      }
+    ];
+  };
 }
