@@ -1515,24 +1515,40 @@ with lib; {
         };
       };
     };
+
+    # Service registry — each service module registers its metadata here
+    serviceRegistry = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          name = mkOption {
+            type = types.str;
+            description = "Human-readable service name";
+          };
+          port = mkOption {
+            type = types.port;
+            description = "Port the service binds to";
+          };
+          launchdLabel = mkOption {
+            type = types.str;
+            description = "launchd service label (e.g. org.vmlx.server)";
+          };
+          errorLog = mkOption {
+            type = types.str;
+            description = "Path to stderr log for port conflict detection";
+          };
+        };
+      });
+      default = {};
+      description = "Registry of all managed services for port conflict detection and readiness verification";
+    };
   };
 
-  # Port conflict prevention — fail at eval time if enabled services share a port
+  # Port conflict prevention — generic check from service registry
   config = let
-    svcPorts = [
-      {name = "vMLX"; enable = config.myConfig.vmlx.enable; port = config.myConfig.vmlx.server.port;}
-      {name = "Bifrost"; enable = config.myConfig.bifrost.enable; port = config.myConfig.bifrost.port;}
-      {name = "Vane"; enable = config.myConfig.vane.enable; port = config.myConfig.vane.port;}
-      {name = "Caddy"; enable = config.myConfig.caddy.enable; port = config.myConfig.caddy.port;}
-      {name = "SearXNG"; enable = config.myConfig.searxng.enable; port = config.myConfig.searxng.port;}
-      {name = "Ollama"; enable = config.myConfig.ollama.enable; port = config.myConfig.ollama.port;}
-    ];
-    enabled = builtins.filter (s: s.enable) svcPorts;
-
-    # Group enabled services by port and find conflicts
-    uniquePorts = lib.unique (map (s: s.port) enabled);
+    services = builtins.attrValues config.myConfig.serviceRegistry;
+    uniquePorts = lib.unique (map (s: s.port) services);
     conflictPorts = lib.filter (p:
-      (builtins.length (builtins.filter (s: s.port == p) enabled)) > 1
+      (builtins.length (builtins.filter (s: s.port == p) services)) > 1
     ) uniquePorts;
   in {
     assertions = [
@@ -1541,7 +1557,7 @@ with lib; {
         message = ''
           Port conflicts detected between enabled services:
           ${builtins.concatStringsSep "\n" (map (p:
-            "  port ${toString p}: ${builtins.concatStringsSep ", " (map (s: s.name) (builtins.filter (s: s.port == p) enabled))}"
+            "  port ${toString p}: ${builtins.concatStringsSep ", " (map (s: s.name) (builtins.filter (s: s.port == p) services))}"
           ) conflictPorts)}
 
           Each service must use a unique port. Change one of the conflicting service's port options.
