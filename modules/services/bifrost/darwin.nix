@@ -45,6 +45,11 @@ with lib; let
         chat_completion_stream = true;
         embedding = true;
       };
+      request_path_overrides = {
+        chat_completion = "/v1/chat/completions";
+        chat_completion_stream = "/v1/chat/completions";
+        embedding = "/v1/embeddings";
+      };
     };
   };
 
