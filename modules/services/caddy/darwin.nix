@@ -120,13 +120,13 @@ in {
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${cfg.dataDir}"
 
-      # Verify launchd services are healthy after switch
+      # Verify launchd services come up, fail if any don't
       echo "Verifying LLM stack services..." >&2
       for svc in org.vmlx.server com.bifrost.service com.caddy.service com.dnsmasq.service com.vane.service; do
         if launchctl list "$svc" >/dev/null 2>&1; then
           state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
           waited=0
-          while [ "$state" -eq 0 ] && [ "$waited" -lt 10 ]; do
+          while [ "$state" -eq 0 ] && [ "$waited" -lt 30 ]; do
             sleep 1
             state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
             waited=$((waited + 1))
@@ -134,12 +134,15 @@ in {
           if [ "$state" -gt 0 ]; then
             echo "  $svc: running" >&2
           else
-            echo "  $svc: loaded (not running after ${waited}s)" >&2
+            echo "  $svc: NOT RUNNING after 30s — aborting" >&2
+            exit 1
           fi
         else
-          echo "  $svc: not found" >&2
+          echo "  $svc: not registered" >&2
+          exit 1
         fi
       done
+      echo "All LLM stack services running" >&2
     '';
   };
 }
