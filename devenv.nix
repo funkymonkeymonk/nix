@@ -40,6 +40,7 @@ in {
     alias dt="devenv tasks run"
     alias dtr="devenv tasks run"
     alias dtl="devenv tasks list"
+    alias agentsudo='op read "op://Private/$(hostname -s) Sudo Password/password" | sudo -S '
 
     # ============================================
     # JJ Workspace Support - Check if in workspace
