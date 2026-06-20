@@ -122,40 +122,51 @@ in {
 
       # Verify launchd services come up, fail if any don't
       echo "Verifying LLM stack services..." >&2
-      for svc in org.vmlx.server com.bifrost.service com.caddy.service com.dnsmasq.service com.vane.service; do
-        if launchctl list "$svc" >/dev/null 2>&1; then
-          state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
+      ${builtins.concatStringsSep "\n" (map (svc: ''
+        if launchctl list "${svc.launchdLabel}" >/dev/null 2>&1; then
+          state=$(launchctl list "${svc.launchdLabel}" 2>&1 | grep -c '"PID"')
           if [ "$state" -eq 0 ]; then
-            # Fast port conflict check — services log "address already in use" to their stderr
-            case "$svc" in
-              com.bifrost.service) errf=/tmp/bifrost.error.log ;;
-              com.vane.service) errf=/tmp/vane.error.log ;;
-              org.vmlx.server) errf=/tmp/vmlx.err ;;
-              *) errf= ;;
-            esac
-            if [ -n "$errf" ] && [ -f "$errf" ] && grep -q "address already in use" "$errf" 2>/dev/null; then
-              echo "  $svc: PORT CONFLICT detected — aborting" >&2
+            if [ -f "${svc.errorLog}" ] && grep -q "address already in use" "${svc.errorLog}" 2>/dev/null; then
+              echo "  ${svc.name}: PORT CONFLICT detected — aborting" >&2
               exit 1
             fi
             waited=0
             while [ "$state" -eq 0 ] && [ "$waited" -lt 30 ]; do
               sleep 1
-              state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
+              state=$(launchctl list "${svc.launchdLabel}" 2>&1 | grep -c '"PID"')
               waited=$((waited + 1))
             done
           fi
           if [ "$state" -gt 0 ]; then
-            echo "  $svc: running" >&2
+            echo "  ${svc.name}: running" >&2
           else
-            echo "  $svc: NOT RUNNING after 30s — aborting" >&2
+            echo "  ${svc.name}: NOT RUNNING after 30s — aborting" >&2
             exit 1
           fi
         else
-          echo "  $svc: not registered" >&2
+          echo "  ${svc.name}: not registered" >&2
           exit 1
         fi
-      done
+      '') (builtins.attrValues config.myConfig.serviceRegistry))}
       echo "All LLM stack services running" >&2
     '';
+
+    # Register caddy + dnsmasq in service registry
+    myConfig.serviceRegistry = mkMerge [
+      (optionalAttrs cfg.enable {
+        caddy = {
+          name = "Caddy";
+          port = cfg.port;
+          launchdLabel = "com.caddy.service";
+          errorLog = "/tmp/caddy.error.log";
+        };
+        dnsmasq = {
+          name = "dnsmasq";
+          port = 5353;
+          launchdLabel = "com.dnsmasq.service";
+          errorLog = "/tmp/dnsmasq.error.log";
+        };
+      })
+    ];
   };
 }
