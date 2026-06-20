@@ -102,6 +102,17 @@ with lib; let
 
     printf '%s\n' ${lib.escapeShellArg configJson} > "$APP_DIR/config.json"
 
+    # Check port availability before starting
+    PORT=${toString cfg.port}
+    if lsof -tiTCP -sTCP:LISTEN:"$PORT" -P 2>/dev/null; then
+      CONFLICT_PID=$(lsof -tiTCP -sTCP:LISTEN:"$PORT" -P 2>/dev/null | head -1)
+      CONFLICT_NAME=$(ps -p "$CONFLICT_PID" -o comm= 2>/dev/null || echo "unknown")
+      echo "Bifrost: port $PORT is in use by PID $CONFLICT_PID ($CONFLICT_NAME)" >&2
+      echo "Bifrost: launchd should have stopped the previous instance before starting this one." >&2
+      echo "Bifrost: The previous process may be stuck in an uninterruptible state (e.g. GPU operation)." >&2
+      exit 1
+    fi
+
     exec ${pkgs.bifrost-http}/bin/bifrost-http \
       -host ${lib.escapeShellArg cfg.host} \
       -port ${toString cfg.port} \
