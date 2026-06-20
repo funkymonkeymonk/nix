@@ -73,7 +73,7 @@ Caddy runs as a **root daemon** and proxies `.internal` hostnames to their respe
 | Service | `org.vmlx.server` |
 | Port | 8300 |
 | API | OpenAI-compatible |
-| Model | `mlx-community/gemma-4-12B-it-OptiQ-4bit` |
+| Model | `mlx-community/gemma-4-12B-it-4bit` |
 | Config | `modules/services/vmlx/darwin.nix` |
 
 vMLX runs as a **user daemon**. It self-installs via `uv` if not present.
@@ -109,10 +109,14 @@ All models are served through vMLX and exposed via Bifrost:
 
 | Model ID | Type | Source |
 |----------|------|--------|
-| `mlx-community/gemma-4-12B-it-OptiQ-4bit` | Chat | HuggingFace (runtime) |
+| `mlx-community/gemma-4-12B-it-4bit` | Chat | HuggingFace (runtime) |
+| `mlx-community/gemma-4-12B-it-8bit` | Chat | HuggingFace (runtime) |
+| `mlx-community/gemma-4-12b-coder-fable5-composer2.5-4bit` | Chat | HuggingFace (runtime) |
 | `mlx-community/gemma-4-31B-it-OptiQ-4bit` | Chat | HuggingFace (runtime) |
 | `mlx-community/DeepSeek-V4-Flash-4bit` | Chat | HuggingFace (runtime) |
 | `mlx-community/nomicai-modernbert-embed-base-4bit` | Embedding | HuggingFace (runtime) |
+
+All models should be sourced from [mlx-community collections](https://huggingface.co/mlx-community/collections). When adding new models, prefer MLX-converted models from the `mlx-community` org.
 
 ## Operations
 
