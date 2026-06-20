@@ -359,15 +359,16 @@ in {
           echo "Sudo password: retrieved"
           echo ""
 
-          # Build and switch
-          echo "--- Building Configuration ---"
-          echo "Running: darwin-rebuild switch --flake ./#$CONFIG_NAME --impure"
+          # Build and switch with output logging
+          SWITCH_LOG="/tmp/system-switch-$(date +%Y%m%d-%H%M%S).log"
+          echo "Build log: $SWITCH_LOG"
           echo ""
 
+          set -o pipefail
           echo "$SUDO_PASSWORD" | sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
             --flake "./#$CONFIG_NAME" \
             --impure \
-            --show-trace 2>&1 || {
+            --show-trace 2>&1 | tee "$SWITCH_LOG" || {
             EXIT_CODE=$?
             echo ""
             echo "ERROR: darwin-rebuild failed with exit code $EXIT_CODE"
