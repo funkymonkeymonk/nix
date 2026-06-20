@@ -125,12 +125,25 @@ in {
       for svc in org.vmlx.server com.bifrost.service com.caddy.service com.dnsmasq.service com.vane.service; do
         if launchctl list "$svc" >/dev/null 2>&1; then
           state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
-          waited=0
-          while [ "$state" -eq 0 ] && [ "$waited" -lt 30 ]; do
-            sleep 1
-            state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
-            waited=$((waited + 1))
-          done
+          if [ "$state" -eq 0 ]; then
+            # Fast port conflict check — services log "address already in use" to their stderr
+            case "$svc" in
+              com.bifrost.service) errf=/tmp/bifrost.error.log ;;
+              com.vane.service) errf=/tmp/vane.error.log ;;
+              org.vmlx.server) errf=/tmp/vmlx.err ;;
+              *) errf= ;;
+            esac
+            if [ -n "$errf" ] && [ -f "$errf" ] && grep -q "address already in use" "$errf" 2>/dev/null; then
+              echo "  $svc: PORT CONFLICT detected — aborting" >&2
+              exit 1
+            fi
+            waited=0
+            while [ "$state" -eq 0 ] && [ "$waited" -lt 30 ]; do
+              sleep 1
+              state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
+              waited=$((waited + 1))
+            done
+          fi
           if [ "$state" -gt 0 ]; then
             echo "  $svc: running" >&2
           else
