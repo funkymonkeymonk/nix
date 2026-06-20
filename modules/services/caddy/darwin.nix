@@ -120,7 +120,6 @@ in {
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${cfg.dataDir}"
 
-      # Verify launchd services come up, fail if any don't
       echo "Verifying LLM stack services..." >&2
       ${builtins.concatStringsSep "\n" (map (svc: ''
         if launchctl list "${svc.launchdLabel}" >/dev/null 2>&1; then
@@ -132,23 +131,33 @@ in {
             fi
             waited=0
             while [ "$state" -eq 0 ] && [ "$waited" -lt 30 ]; do
-              sleep 1
-              state=$(launchctl list "${svc.launchdLabel}" 2>&1 | grep -c '"PID"')
+              sleep 1; state=$(launchctl list "${svc.launchdLabel}" 2>&1 | grep -c '"PID"')
               waited=$((waited + 1))
             done
           fi
           if [ "$state" -gt 0 ]; then
             echo "  ${svc.name}: running" >&2
           else
-            echo "  ${svc.name}: NOT RUNNING after 30s — aborting" >&2
-            exit 1
+            echo "  ${svc.name}: NOT RUNNING after 30s — aborting" >&2; exit 1
           fi
         else
-          echo "  ${svc.name}: not registered" >&2
-          exit 1
+          echo "  ${svc.name}: not registered" >&2; exit 1
         fi
       '') (builtins.attrValues config.myConfig.serviceRegistry))}
       echo "All LLM stack services running" >&2
+
+      # Write stack report
+      REPORT="${cfg.dataDir}/stack-report.json"
+      TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      printf '%s\n' '${builtins.toJSON {
+        timestamp = "@RUNTIME@";
+        result = "pass";
+        services = builtins.listToAttrs (map (svc: {
+          name = svc.launchdLabel;
+          value = {name = svc.name; port = svc.port; status = "running";};
+        }) (builtins.attrValues config.myConfig.serviceRegistry));
+      }}' | sed "s/@RUNTIME@/$TS/" > "$REPORT"
+      echo "Stack report: $REPORT" >&2
     '';
 
     # Register caddy + dnsmasq in service registry
