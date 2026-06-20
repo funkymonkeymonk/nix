@@ -125,10 +125,16 @@ in {
       for svc in org.vmlx.server com.bifrost.service com.caddy.service com.dnsmasq.service com.vane.service; do
         if launchctl list "$svc" >/dev/null 2>&1; then
           state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
+          waited=0
+          while [ "$state" -eq 0 ] && [ "$waited" -lt 10 ]; do
+            sleep 1
+            state=$(launchctl list "$svc" 2>&1 | grep -c '"PID"')
+            waited=$((waited + 1))
+          done
           if [ "$state" -gt 0 ]; then
             echo "  $svc: running" >&2
           else
-            echo "  $svc: loaded (not running)" >&2
+            echo "  $svc: loaded (not running after ${waited}s)" >&2
           fi
         else
           echo "  $svc: not found" >&2
