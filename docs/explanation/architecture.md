@@ -47,9 +47,11 @@ modules/
 │   ├── opencode.nix
 │   └── skills/       # AI agent skills
 ├── services/         # Daemon service modules
-│   ├── ollama/       # Ollama LLM server
-│   ├── vmlx/         # vMLX inference server
-│   └── vane/         # OpenCode agent gateway
+│   ├── vllm-mlx/     # vllm-mlx inference server
+│   ├── bifrost/      # Bifrost AI gateway
+│   ├── caddy/        # Caddy reverse proxy
+│   ├── dnsmasq/      # Local DNS resolver
+│   └── vane/         # Vane AI search engine
 └── nixos/            # NixOS-specific
     ├── base.nix      # Common NixOS settings
     ├── desktop.nix   # Desktop environment

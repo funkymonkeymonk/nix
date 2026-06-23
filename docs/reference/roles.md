@@ -70,7 +70,7 @@ Gaming tools.
 
 Local model hosting.
 
-**Packages:** ollama
+**Packages:** vllm-mlx (installed via uv)
 
 ### microvm-host
 

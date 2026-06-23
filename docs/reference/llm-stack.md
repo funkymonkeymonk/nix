@@ -1,6 +1,6 @@
 ---
 title: "LLM Stack Reference"
-description: "Architecture and operations for the local LLM inference stack: vMLX → Bifrost → Caddy → Applications"
+description: "Architecture and operations for the local LLM inference stack: vllm-mlx → Bifrost → Caddy → Applications"
 type: reference
 ---
 
@@ -20,7 +20,7 @@ The LLM stack follows a layered architecture where each layer has a single respo
 │  Proxies all AI requests to upstream inference       │
 │  Unified OpenAI-compatible API on port 8081          │
 ├─────────────────────────────────────────────────────┤
-│  Layer 3: Inference (vMLX)                          │
+│  Layer 3: Inference (vllm-mlx)                      │
 │  MLX inference engine on Metal GPU                  │
 │  OpenAI-compatible API on port 8300                  │
 ├─────────────────────────────────────────────────────┤
@@ -61,24 +61,29 @@ Caddy runs as a **root daemon** and proxies `.internal` hostnames to their respe
 
 | Hostname | Upstream |
 |----------|----------|
-| `vmlx.internal` | `localhost:8300` |
+| `vllm-mlx.internal` | `localhost:8300` |
 | `bifrost.internal` | `localhost:8081` |
 | `vane.internal` | `localhost:3000` |
 | `searxng.internal` | `localhost:8080` |
 
-### Layer 3: Inference Server (vMLX)
+### Layer 3: Inference Server (vllm-mlx)
 
 | Property | Value |
 |----------|-------|
-| Service | `org.vmlx.server` |
+| Service | `org.vllm-mlx.server` |
 | Port | 8300 |
 | API | OpenAI-compatible |
-| Model | `mlx-community/gemma-4-12B-it-4bit` |
-| Config | `modules/services/vmlx/darwin.nix` |
+| Binary | `~/.local/bin/vllm-mlx` (uv tool) |
+| Config | `modules/services/vllm-mlx/darwin.nix` |
 
-vMLX runs as a **user daemon**. It self-installs via `uv` if not present.
-It uses Metal GPU acceleration and supports tool calling, prefix caching,
-paged attention, and disk cache.
+vllm-mlx runs as a **user daemon**. It self-installs via `uv tool install vllm-mlx` if not present.
+It uses Metal GPU acceleration and supports:
+
+- Multi-model registry (lazy loading on first use)
+- Tool calling (with configurable parser: `qwen`, `gemma4`, etc.)
+- Continuous batching
+- Prefix caching
+- Paged attention
 
 ### Layer 4: AI Gateway (Bifrost)
 
@@ -87,33 +92,79 @@ paged attention, and disk cache.
 | Service | `com.bifrost.service` |
 | Port | 8081 |
 | API | OpenAI-compatible |
-| Upstream | `http://vmlx.internal` (via Caddy) |
+| Upstream | `http://vllm-mlx.internal` (via Caddy) |
 | Type | `openai` |
 | Config | `modules/services/bifrost/darwin.nix` |
 
 Bifrost runs as a **user daemon**. It provides a unified OpenAI-compatible API
 that routes to upstream inference servers. All LLM-consuming applications
-connect to Bifrost rather than directly to vMLX.
+connect to Bifrost rather than directly to vllm-mlx.
 
 ### Layer 5: Applications
 
 | Application | Bifrost URL | Model |
 |-------------|-------------|-------|
-| **Vane** | `bifrost.internal/v1` | `gemma-4-12B-it-OptiQ-4bit` |
-| **OpenCode** | `vmlx.internal/v1` | via `vmlx` provider |
-| **Pi** | `vmlx.internal/v1` | `openai` provider |
+| **Vane** | `bifrost.internal/v1` | Configured per-target |
+| **OpenCode** | `bifrost.internal/v1` | via Bifrost provider |
+| **Pi** | `bifrost.internal/v1` | via openai provider |
+
+## Configuration
+
+### Target Configuration (MegamanX)
+
+```nix
+myConfig = {
+  vllmMlx = {
+    enable = true;
+    server = {
+      host = "0.0.0.0";
+      port = 8300;
+    };
+    memoryBudgetGb = 32;
+    contention = "preempt";
+    models = {
+      "qwen3.6-35b" = {
+        path = "mlx-community/Qwen3.6-35B-A3B-4bit";
+        type = "lm";
+        estimatedMemoryGb = 21;
+      };
+    };
+    enableAutoToolChoice = true;
+    toolCallParser = "qwen";
+    timeout = 120;
+    logLevel = "INFO";
+  };
+
+  bifrost = {
+    enable = true;
+    logLevel = "debug";
+    upstreams.vllm-mlx-local = {
+      url = "http://localhost:8300";
+      type = "openai";
+      requestTimeout = 120;
+      models = [ "qwen3.6-35b" ];
+    };
+  };
+
+  vane = {
+    enable = true;
+    openaiBaseUrl = "http://bifrost.internal/v1";
+    defaultModel = "qwen3.6-35b";
+    embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
+  };
+
+  caddy = { enable = true; };
+  searxng = { enable = true; };
+};
+```
 
 ## Available Models
 
-All models are served through vMLX and exposed via Bifrost:
+All models are served through vllm-mlx and exposed via Bifrost:
 
 | Model ID | Type | Source |
 |----------|------|--------|
-| `mlx-community/gemma-4-12B-it-4bit` | Chat | HuggingFace (runtime) |
-| `mlx-community/gemma-4-12B-it-8bit` | Chat | HuggingFace (runtime) |
-| `mlx-community/gemma-4-12b-coder-fable5-composer2.5-4bit` | Chat | HuggingFace (runtime) |
-| `mlx-community/gemma-4-31B-it-OptiQ-4bit` | Chat | HuggingFace (runtime) |
-| `mlx-community/DeepSeek-V4-Flash-4bit` | Chat | HuggingFace (runtime) |
+| `mlx-community/Qwen3.6-35B-A3B-4bit` | Chat | HuggingFace (runtime) |
 | `mlx-community/nomicai-modernbert-embed-base-4bit` | Embedding | HuggingFace (runtime) |
 
 All models should be sourced from [mlx-community collections](https://huggingface.co/mlx-community/collections). When adding new models, prefer MLX-converted models from the `mlx-community` org.
@@ -137,11 +188,11 @@ For individual services:
 
 ```bash
 # Kill process and let launchd restart
-launchctl kickstart -k gui/$(id -u)/org.vmlx.server
+launchctl kickstart -k gui/$(id -u)/org.vllm-mlx.server
 
 # Full unload/reload (for config changes)
-launchctl bootout gui/$(id -u)/org.vmlx.server
-launchctl bootstrap gui/$(id -u) /Library/LaunchDaemons/org.vmlx.server.plist
+launchctl bootout gui/$(id -u)/org.vllm-mlx.server
+launchctl bootstrap gui/$(id -u) /Library/LaunchDaemons/org.vllm-mlx.server.plist
 
 # Root services (dnsmasq, Caddy)
 sudo launchctl bootout system/com.dnsmasq.service
@@ -164,7 +215,7 @@ This tests all layers from DNS resolution through to chat completions.
 |------|---------|----------|
 | 5353 | dnsmasq | DNS |
 | 80 | Caddy | HTTP |
-| 8300 | vMLX | HTTP (OpenAI API) |
+| 8300 | vllm-mlx | HTTP (OpenAI API) |
 | 8081 | Bifrost | HTTP (OpenAI API) |
 | 3000 | Vane | HTTP (Next.js) |
 | 8080 | SearXNG | HTTP |
@@ -181,15 +232,15 @@ Use `restart-stack.sh` which properly frees ports between stop and start cycles.
 Check the service log:
 
 ```bash
-cat /tmp/vmlx.err     # vMLX errors
+cat /tmp/vllm-mlx.err     # vllm-mlx errors
 cat /tmp/bifrost.error.log  # Bifrost errors
 cat /tmp/caddy.error.log    # Caddy errors
 ```
 
 ### Model Not Loading
 
-vMLX downloads models from HuggingFace on first use. Check download progress:
+vllm-mlx downloads models from HuggingFace on first use. Check download progress:
 
 ```bash
-cat /tmp/vmlx.log | grep -i "loading\|download\|error"
+cat /tmp/vllm-mlx.log | grep -i "loading\|download\|error"
 ```

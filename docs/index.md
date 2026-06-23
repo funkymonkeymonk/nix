@@ -28,6 +28,7 @@ Solve specific problems:
 - [Use jj Workspaces](how-to/use-workspaces.md) - Parallel development with workspaces
 - [Create Stacked PRs](how-to/create-stacked-prs.md) - Stack dependent pull requests
 - [Complete PR Workflow](how-to/complete-pr-workflow.md) - End-to-end with jj-finish
+- [Configure the LLM Stack](how-to/configure-llm-stack.md) - Enable vllm-mlx, Bifrost, and Caddy
 - [Create a Darwin System Daemon](how-to/create-darwin-daemon.md) - Add a launchd daemon service for macOS
 
 ## Reference (Information)
@@ -41,6 +42,7 @@ Technical descriptions:
 - [Yaks Reference](reference/yaks.md) - yx task management commands
 - [CI/CD Reference](reference/ci.md) - Pipeline stages and tasks
 - [JJ Commands Reference](reference/jj-commands.md) - Jujutsu command reference
+- [LLM Stack Reference](reference/llm-stack.md) - vllm-mlx + Bifrost + Caddy architecture
 
 ## Explanation (Understanding)
 
@@ -50,3 +52,4 @@ Background and design:
 - [Agent Skills System](explanation/agent-skills.md) - Why skills are managed through Nix
 - [Yaks and Workspaces](explanation/yaks-workspaces.md) - Multi-agent coordination design
 - [JJ Mental Model](explanation/jj-mental-model.md) - Why jj works the way it does
+- [LLM Stack Evolution](explanation/llm-stack-evolution.md) - Why we replaced Higgs + Ollama with vllm-mlx
