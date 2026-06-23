@@ -1,6 +1,5 @@
 # MegamanX (personal desktop) target configuration
 {
-  lib,
   mkUser,
   inputs,
   ...
@@ -18,132 +17,60 @@
         desktop.enable = true;
         workstation.enable = true;
         entertainment.enable = true;
-        llm-host.enable = true;
-        opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
       };
-      higgs = {
+      vllmMlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
-          port = 8000;
+          port = 8300;
         };
-        local = {
-          mlxProfile = "auto";
-          raiseWiredLimit = false;
-        };
-        models = [
-          {
-            path = "mlx-community/Qwen3-Coder-Next-4bit";
-            name = "qwen-coder";
-          }
-          {
-            path = "mlx-community/Qwen3.6-35B-A3B-8bit";
-            name = "qwen-35b";
-            mlxProfile = "throughput";
-          }
-          {
-            path = "mlx-community/Qwen3-Embedding-4B-4bit-DWQ";
-            name = "qwen-embed";
-            mlxProfile = "latency";
-          }
-        ];
-        providers = {
-          opencode-go = {
-            url = "https://opencode.ai/zen/go/v1";
-            format = "openai";
-            apiKeyOpnixItem = "op://Opnix/OpenCode Go API/credential";
+        memoryBudgetGb = 32;
+        contention = "preempt";
+        models = {
+          "qwen3.6-35b" = {
+            path = "mlx-community/Qwen3.6-35B-A3B-4bit";
+            type = "lm";
+            estimatedMemoryGb = 21;
           };
         };
-        routes = [
-          # Frontier models proxied through Higgs → OpenCode Go
-          {
-            pattern = "kimi-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "gpt-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "claude-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "gemini-.*";
-            provider = "opencode-go";
-          }
-          {
-            pattern = "opencode-go/.*";
-            provider = "opencode-go";
-          }
-        ];
-        default.provider = "higgs";
+        enableAutoToolChoice = true;
+        toolCallParser = "qwen";
+        timeout = 120;
+        logLevel = "INFO";
       };
+
       vane = {
         enable = true;
-        # Higgs is the unified gateway — Vane runs natively now, so use localhost
-        # Embeddings are generated natively by Higgs from loaded MLX models
-        openaiBaseUrl = "http://localhost:8000/v1";
-        # Models are served by Higgs at the OpenAI endpoint, discovered at runtime
-        defaultModel = null;
-        embeddingModel = null;
+        openaiBaseUrl = "http://bifrost.internal/v1";
+        defaultModel = "qwen3.6-35b";
+        embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
+      };
+      bifrost = {
+        enable = true;
+        logLevel = "debug";
+        upstreams.vllm-mlx-local = {
+          url = "http://localhost:8300";
+          type = "openai";
+          requestTimeout = 120;
+          models = [
+            "qwen3.6-35b"
+          ];
+        };
       };
       searxng.enable = true;
-      opencode = {
-        enable = true;
-        # Default model - qwen-coder handles both coding and fast chat
-        model = lib.mkForce "higgs/qwen-coder";
-
-        # Configure Higgs as the unified provider
-        providers.higgs = {
-          npm = "@ai-sdk/openai-compatible";
-          name = "Higgs Gateway";
-          baseURL = "http://localhost:8000/v1";
-          onePasswordItem = "";
-          models = {
-            "qwen-coder" = {
-              name = "Qwen3 Coder Next (Local MLX)";
-            };
-            "qwen-35b" = {
-              name = "Qwen3.6 35B A3B (Local MLX)";
-            };
-            "qwen-embed" = {
-              name = "Qwen3 Embedding 4B (Local MLX)";
-            };
-          };
-        };
-
-        # Configure OpenCode Go provider for frontier models
-        providers.opencode-go = {
-          name = "OpenCode Go";
-          baseURL = "https://opencode.ai/zen/go/v1";
-          onePasswordItem = "op://Opnix/OpenCode Go API/credential";
-        };
-
-        # Define agents
-        agents = {
-          plan = {
-            description = "Analysis and planning without making changes";
-            mode = "primary";
-            model = "higgs/qwen-35b";
-            prompt = "You are a planning assistant. Analyze code and create plans without making changes.";
-            permission = {
-              edit = "deny";
-              bash = "ask";
-            };
-          };
-
-          frontier = {
-            description = "Frontier model for maximum capability";
-            mode = "primary";
-            model = "opencode-go/kimi-k2.5";
-            prompt = "You are a frontier AI assistant with maximum capability for challenging tasks.";
-          };
-        };
+      caddy.enable = true;
+      llmClient = {
+        serverHost = "bifrost.internal";
+        serverPort = "80";
       };
       pi = {
+        npmPackages = {
+          "pi-opencode-provider" = "^0.7.3";
+          "pi-web-access" = "^0.10.7";
+        };
+
         settings = {
           theme = "dark";
           editor = {
@@ -160,11 +87,17 @@
           - Follow the conventional commit style
         '';
 
-        models.local-higgs = {
-          name = "Higgs Gateway (Qwen Coder)";
+        models.bifrost = {
+          name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "qwen-coder";
-          baseUrl = "http://localhost:8000/v1";
+          modelId = "vllm-mlx-local/qwen3.6-35b";
+          baseUrl = "http://bifrost.internal/v1";
+        };
+        models.local-vllm-mlx = {
+          name = "Qwen3.6 35B A3B (Bifrost)";
+          provider = "openai";
+          modelId = "vllm-mlx-local/qwen3.6-35b";
+          baseUrl = "http://bifrost.internal/v1";
         };
 
         prompts.review = ''
@@ -178,7 +111,9 @@
         '';
 
         skills.nix = ''
-          # Nix Development Skill
+          ---
+          description: Nix development skill for working with flakes, modules, and configurations
+          ---
 
           Use this skill when working with Nix flakes, modules, or configurations.
 

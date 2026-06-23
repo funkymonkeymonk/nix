@@ -20,7 +20,21 @@ in {
 
     myConfig.llmClient = {
       serverHost = lib.mkDefault "127.0.0.1";
-      serverPort = lib.mkDefault "11434";
+      serverPort = lib.mkDefault "8080";
+    };
+
+    # Auto-configure bifrost as a model provider
+    myConfig.opencode.providers.bifrost = lib.mkDefault {
+      name = "Bifrost AI Gateway";
+      baseURL = "http://${host}:${port}/v1";
+      dynamicModels = true;
+    };
+
+    # Auto-configure bifrost as MCP gateway
+    myConfig.opencode.extraMcpServers.bifrost = lib.mkDefault {
+      type = "remote";
+      url = "http://${host}:${port}/mcp";
+      enabled = true;
     };
 
     environment.shellAliases = {

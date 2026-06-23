@@ -10,12 +10,5 @@ in {
     environment.systemPackages = with pkgs; [
       ollama
     ];
-
-    myConfig.ollama = {
-      enable = true;
-      host = "0.0.0.0";
-      port = 11434;
-      models = config.myConfig.sharedModels;
-    };
   };
 }

@@ -71,7 +71,9 @@
   };
 
   # Ghostty terminal configuration (Darwin only)
-  xdg.configFile."ghostty/config" = lib.mkIf myConfig.isDarwin {
+  # Uses config.ghostty (canonical name since Ghostty 1.2.3) to avoid
+  # startup config-loading issues with Ghostty 1.3.x.
+  xdg.configFile."ghostty/config.ghostty" = lib.mkIf myConfig.isDarwin {
     text = ''
       font-size = 14
       theme = Earthsong

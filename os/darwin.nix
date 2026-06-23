@@ -1,4 +1,10 @@
 {lib, ...}: {
+  imports = [
+    # ../modules/common/launchd-services.nix
+    # NOTE: Custom launchd bootstrap removed — nix-darwin's built-in activation
+    # handles service loading/unloading. The custom script was fighting with
+    # nix-darwin's reload logic and causing hangs during switch.
+  ];
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [

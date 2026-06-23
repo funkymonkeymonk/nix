@@ -24,7 +24,25 @@ in {
     # Use mkDefault so opencode wins if both are enabled
     myConfig.llmClient = {
       serverHost = lib.mkDefault "127.0.0.1";
-      serverPort = lib.mkDefault "11434";
+      serverPort = lib.mkDefault "8080";
+    };
+
+    # Auto-configure bifrost as a model provider
+    myConfig.pi.models.bifrost = lib.mkDefault {
+      name = "Bifrost AI Gateway";
+      provider = "bifrost";
+      modelId = "openai/gpt-4o";
+      baseUrl = "http://${host}:${port}/v1";
+    };
+
+    # Auto-configure OpenCode Go built-in provider (API key from 1Password)
+    # modelId left empty to signal built-in provider override -
+    # preserves all built-in models while providing the API key
+    myConfig.pi.models.opencode-go = lib.mkDefault {
+      name = "OpenCode Go";
+      provider = "opencode-go";
+      modelId = "";
+      onePasswordItem = "op://Opnix/OpenCode Go API/credential";
     };
 
     environment.variables = {

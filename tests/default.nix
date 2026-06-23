@@ -17,8 +17,10 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testMicrovm = import ./test-microvm.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
-  testHiggs = import ./test-higgs.nix {inherit pkgs;};
+
+  testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
@@ -89,8 +91,7 @@ in
     sketchybar-entrypoint = testSketchybar.sketchybarEntryPointTest;
 
     # Service module tests
-    ollama-options = testServices.ollamaOptionsTest;
-    ollama-custom-options = testServices.ollamaCustomOptionsTest;
+
     vane-options = testServices.vaneOptionsTest;
     vane-custom-options = testServices.vaneCustomOptionsTest;
     openclaw-options = testServices.openclawOptionsTest;
@@ -152,8 +153,14 @@ in
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
 
-    # Higgs module tests
-    higgs-options = testHiggs.higgsOptionsTest;
+    # vMLX module tests
+
+    # vllm-mlx module tests
+    vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
+    megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
+
+    # LLM stack integration test
+    stack-integration = testStackIntegration.stackIntegrationTest;
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;

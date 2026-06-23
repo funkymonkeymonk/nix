@@ -1,6 +1,5 @@
 # wweaver (work laptop) target configuration
 {
-  lib,
   mkUser,
   inputs,
   ...
@@ -32,12 +31,6 @@
         opencode.enable = true;
         pi.enable = true;
         homebrew.enable = true;
-      };
-      ollama = {
-        # Bind to all interfaces so Docker containers can access Ollama
-        host = "0.0.0.0";
-        # Smaller/faster models for quick tasks, LiteLLM handles heavy workloads
-        models = lib.mkForce ["qwen3.5:2b" "qwen3.5"];
       };
       vane = {
         enable = true;

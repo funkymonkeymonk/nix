@@ -26,5 +26,7 @@ in {
 
     dtr = "devenv tasks run";
     dtl = "devenv tasks list";
+
+    agentsudo = ''op read "op://Private/$(hostname -s) Sudo Password/password" | sudo -S '';
   };
 }

@@ -11,79 +11,112 @@
   fetchFromGitHub,
   python3,
   makeWrapper,
+  jq,
+  writeText,
   lib,
   ...
-}:
-buildNpmPackage rec {
-  pname = "vane";
-  version = "1.12.2";
+}: let
+  patchScript = writeText "patch-vane.py" ''
+    import re, glob, sys
 
-  src = fetchFromGitHub {
-    owner = "ItzCrazyKns";
-    repo = "Vane";
-    rev = "v${version}";
-    hash = "sha256-mQx2ZTUkTRbtcOZciyRpjH6G391oslAXRzjWBO1NKg8=";
-  };
+    out = sys.argv[1] if len(sys.argv) > 1 else "@out@"
 
-  npmDepsHash = "sha256-zG2gS6PVx4HfK49y4ylbgccK2GCNs2TSAgm6huuqW9s=";
+    for f in glob.glob(out + "/lib/vane/.next/server/chunks/*.js"):
+        with open(f) as fh:
+            c = fh.read()
 
-  npmFlags = ["--legacy-peer-deps"];
+        nc = re.sub(r"(\w+)\.content,\s*4e3,\s*500", r"\1.content.slice(0, 500000), 50000, 1000", c)
 
-  postPatch = ''
-    cp ${./package-lock.json} package-lock.json
+        if nc != c:
+            with open(f, "w") as fh:
+                fh.write(nc)
+            print("Patched:", f.split("/")[-1], file=sys.stderr)
   '';
+in
+  buildNpmPackage rec {
+    pname = "vane";
+    version = "1.12.2";
 
-  preBuild = ''
-    patch_file="src/app/layout.tsx"
-    sed -i \
-      -e "s/import { Montserrat } from .next.font.google.;/\/\/ font patched for nix build/" \
-      -e "/^const montserrat = Montserrat({$/,/^});$/c\
-    const montserrat = { className: \"\", style: { fontFamily: \"system-ui, sans-serif\" } };" \
-      "$patch_file"
-  '';
+    src = fetchFromGitHub {
+      owner = "ItzCrazyKns";
+      repo = "Vane";
+      rev = "v${version}";
+      hash = "sha256-mQx2ZTUkTRbtcOZciyRpjH6G391oslAXRzjWBO1NKg8=";
+    };
 
-  nativeBuildInputs = [python3 makeWrapper];
+    npmDepsHash = "sha256-zG2gS6PVx4HfK49y4ylbgccK2GCNs2TSAgm6huuqW9s=";
 
-  NEXT_TELEMETRY_DISABLED = 1;
+    npmFlags = ["--legacy-peer-deps"];
 
-  buildPhase = ''
-    runHook preBuild
-    # Disable Google Fonts fetch (fails in sandbox) - font falls back to system fonts
-    NEXT_PUBLIC_DISABLE_GOOGLE_FONTS=1 npm run build 2>&1
-    runHook postBuild
-  '';
+    postPatch = ''
+      cp ${./package-lock.json} package-lock.json
+    '';
 
-  installPhase = ''
-    runHook preInstall
-    mkdir -p $out/lib/vane $out/bin
+    # Patch playwright browsers.json to match nixpkgs playwright-driver revision (1217)
+    # Vane ships playwright which expects revision 1223, but nixpkgs has 1217
+    postInstall = ''
+      browsers_json="$out/lib/vane/node_modules/playwright-core/browsers.json"
+      if [ -f "$browsers_json" ]; then
+        ${jq}/bin/jq '
+          (.browsers[] | select(.name == "chromium" or .name == "chromium-headless-shell") | .revision) |= "1217"
+        ' "$browsers_json" > "$browsers_json.tmp" && mv "$browsers_json.tmp" "$browsers_json"
+      fi
 
-    # Copy standalone server output (includes server.js, node_modules, package.json)
-    cp -r .next/standalone/* $out/lib/vane/
+      # Patch compiled chunks: limit extraction content on large pages
+      ${lib.getExe python3} ${patchScript} "$out"
+    '';
 
-    # Copy the full .next/ directory (buildId, manifests, server chunks, etc.)
-    cp -r .next $out/lib/vane/.next
-    # Remove cache (not needed at runtime)
-    rm -rf $out/lib/vane/.next/cache
+    preBuild = ''
+      sed -i \
+        -e "s/import { Montserrat } from .next.font.google.;/\/\/ font patched for nix build/" \
+        -e "/^const montserrat = Montserrat({$/,/^});$/c\
+      const montserrat = { className: \"\", style: { fontFamily: \"system-ui, sans-serif\" } };" \
+        "src/app/layout.tsx"
 
-    # Copy public assets
-    cp -r public $out/lib/vane/
+    '';
 
-    # Copy database migration files
-    cp -r drizzle $out/lib/vane/drizzle
+    nativeBuildInputs = [python3 makeWrapper];
 
-    makeWrapper ${nodejs}/bin/node $out/bin/vane \
-      --add-flags "$out/lib/vane/server.js" \
-      --chdir "$out/lib/vane" \
-      --set NODE_ENV production \
-      --set NEXT_TELEMETRY_DISABLED 1
+    NEXT_TELEMETRY_DISABLED = 1;
 
-    runHook postInstall
-  '';
+    buildPhase = ''
+      runHook preBuild
+      # Disable Google Fonts fetch (fails in sandbox) - font falls back to system fonts
+      NEXT_PUBLIC_DISABLE_GOOGLE_FONTS=1 npm run build 2>&1
+      runHook postBuild
+    '';
 
-  meta = {
-    description = "AI-powered answering engine with SearXNG integration";
-    homepage = "https://github.com/ItzCrazyKns/Vane";
-    license = lib.licenses.mit;
-    platforms = lib.platforms.darwin;
-  };
-}
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/lib/vane $out/bin
+
+      # Copy standalone server output (includes server.js, node_modules, package.json)
+      cp -r .next/standalone/* $out/lib/vane/
+
+      # Copy the full .next/ directory (buildId, manifests, server chunks, etc.)
+      cp -r .next $out/lib/vane/.next
+      # Remove cache (not needed at runtime)
+      rm -rf $out/lib/vane/.next/cache
+
+      # Copy public assets
+      cp -r public $out/lib/vane/
+
+      # Copy database migration files
+      cp -r drizzle $out/lib/vane/drizzle
+
+      makeWrapper ${nodejs}/bin/node $out/bin/vane \
+        --add-flags "$out/lib/vane/server.js" \
+        --chdir "$out/lib/vane" \
+        --set NODE_ENV production \
+        --set NEXT_TELEMETRY_DISABLED 1
+
+      runHook postInstall
+    '';
+
+    meta = {
+      description = "AI-powered answering engine with SearXNG integration";
+      homepage = "https://github.com/ItzCrazyKns/Vane";
+      license = lib.licenses.mit;
+      platforms = lib.platforms.darwin;
+    };
+  }

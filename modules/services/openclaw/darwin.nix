@@ -111,50 +111,46 @@ in {
 
     # OpenClaw Gateway service (launchd)
     launchd.daemons.openclaw-gateway = {
+      script = ''
+        set -euo pipefail
+
+        export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${cfg.dataDir}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
+        export HOME="${cfg.dataDir}"
+        export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
+
+        # Create directories
+        mkdir -p "${cfg.dataDir}/.npm-global"
+        mkdir -p "${cfg.dataDir}/.openclaw/workspace"
+
+        # Configure npm
+        ${cfg.nodePackage}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
+
+        # Install openclaw if needed
+        if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
+          echo "Installing OpenClaw..."
+          ${cfg.nodePackage}/bin/npm install -g openclaw@latest
+        fi
+
+        # Link config if provided
+        if [ -f /etc/openclaw/config.json ]; then
+          cp /etc/openclaw/config.json "${cfg.dataDir}/.openclaw/openclaw.json"
+        fi
+
+        # Set Node memory limit
+        export NODE_OPTIONS="--max-old-space-size=3072"
+
+        ${optionalString (cfg.environmentFile != null) ''
+          # Load environment file
+          set -a
+          source ${cfg.environmentFile}
+          set +a
+        ''}
+
+        # Start the gateway
+        exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --host ${cfg.host} --verbose
+      '';
       serviceConfig = {
         Label = "com.funkymonkeymonk.openclaw-gateway";
-        ProgramArguments = [
-          "${pkgs.bash}/bin/bash"
-          "-c"
-          ''
-            set -euo pipefail
-
-            export PATH="${cfg.nodePackage}/bin:${pkgs.git}/bin:${cfg.dataDir}/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
-            export HOME="${cfg.dataDir}"
-            export NPM_CONFIG_PREFIX="${cfg.dataDir}/.npm-global"
-
-            # Create directories
-            mkdir -p "${cfg.dataDir}/.npm-global"
-            mkdir -p "${cfg.dataDir}/.openclaw/workspace"
-
-            # Configure npm
-            ${cfg.nodePackage}/bin/npm config set prefix "${cfg.dataDir}/.npm-global"
-
-            # Install openclaw if needed
-            if [ ! -f "${cfg.dataDir}/.npm-global/bin/openclaw" ]; then
-              echo "Installing OpenClaw..."
-              ${cfg.nodePackage}/bin/npm install -g openclaw@latest
-            fi
-
-            # Link config if provided
-            if [ -f /etc/openclaw/config.json ]; then
-              cp /etc/openclaw/config.json "${cfg.dataDir}/.openclaw/openclaw.json"
-            fi
-
-            # Set Node memory limit
-            export NODE_OPTIONS="--max-old-space-size=3072"
-
-            ${optionalString (cfg.environmentFile != null) ''
-              # Load environment file
-              set -a
-              source ${cfg.environmentFile}
-              set +a
-            ''}
-
-            # Start the gateway
-            exec ${cfg.dataDir}/.npm-global/bin/openclaw gateway --port ${toString cfg.port} --host ${cfg.host} --verbose
-          ''
-        ];
         RunAtLoad = true;
         KeepAlive = true;
         StandardOutPath = "/var/log/openclaw-gateway.log";

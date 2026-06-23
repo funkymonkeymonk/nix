@@ -60,55 +60,6 @@
   ];
 
   # Evaluate llm-host role with default sharedModels
-  llmHostDefaultEval =
-    (lib.evalModules {
-      modules =
-        stubModules
-        ++ [
-          {
-            config.myConfig = {
-              users = [
-                {
-                  name = "testuser";
-                  email = "test@example.com";
-                  fullName = "Test User";
-                  isAdmin = true;
-                  sshIncludes = [];
-                }
-              ];
-              roles.llm-host.enable = true;
-            };
-          }
-        ];
-    })
-    .config;
-
-  # Evaluate llm-host role with custom sharedModels
-  llmHostCustomEval =
-    (lib.evalModules {
-      modules =
-        stubModules
-        ++ [
-          {
-            config.myConfig = {
-              users = [
-                {
-                  name = "testuser";
-                  email = "test@example.com";
-                  fullName = "Test User";
-                  isAdmin = true;
-                  sshIncludes = [];
-                }
-              ];
-              roles.llm-host.enable = true;
-              sharedModels = ["llama3.2" "mistral:7b"];
-            };
-          }
-        ];
-    })
-    .config;
-
-  # Helper: evaluate modules with a specific role enabled
   evalWithRole = roleName:
     (lib.evalModules {
       modules =
@@ -204,7 +155,7 @@
     opencode = ["opencode" "rtk"];
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
-    llm-host = ["ollama"];
+    llm-host = ["ollama"]; # package still installed even though service option removed
     assistant = ["himalaya" "gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
     # microvm-host packages are NixOS-only (guarded by isNixOS check).
@@ -223,7 +174,7 @@
       "agent-skills.enable" = true;
       "pi.enable" = true;
     };
-    llm-host = {"ollama.enable" = true;};
+    # llm-host no longer cascades to ollama.enable (service option removed)
     assistant = {"email-agent.enable" = true;};
     email-backup = {"email-backup.enable" = true;};
     foundation = {
@@ -381,35 +332,6 @@
       echo "All role cascades work correctly"
     '';
 
-    llmHostScript = let
-      defaultModels = llmHostDefaultEval.myConfig.sharedModels;
-      defaultOllamaModels = llmHostDefaultEval.myConfig.ollama.models;
-      customOllamaModels = llmHostCustomEval.myConfig.ollama.models;
-    in ''
-      echo "=== Testing llm-host sharedModels wiring ==="
-      ${
-        if defaultModels == defaultOllamaModels
-        then "echo \"  default sharedModels propagated to ollama.models: OK\""
-        else ''
-          echo "  sharedModels default should propagate to ollama.models!"
-          echo "  sharedModels = ${builtins.toJSON defaultModels}"
-          echo "  ollama.models = ${builtins.toJSON defaultOllamaModels}"
-          exit 1
-        ''
-      }
-      ${
-        if customOllamaModels == ["llama3.2" "mistral:7b"]
-        then "echo \"  custom sharedModels reflected in ollama.models: OK\""
-        else ''
-          echo "  custom sharedModels should be reflected in ollama.models!"
-          echo "  expected = [\"llama3.2\" \"mistral:7b\"]"
-          echo "  got = ${builtins.toJSON customOllamaModels}"
-          exit 1
-        ''
-      }
-      echo "All llm-host sharedModels tests passed"
-    '';
-
     deadDevOptionScript = let
       testEval = pkgs.lib.evalModules {
         modules = [
@@ -486,8 +408,6 @@
       ${packageInclusionScript}
       echo ""
       ${cascadeScript}
-      echo ""
-      ${llmHostScript}
       echo ""
       ${deadDevOptionScript}
       echo ""

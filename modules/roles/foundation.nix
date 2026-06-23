@@ -15,6 +15,7 @@ in {
           foundationPkgs.common
           ++ (with pkgs; [
             _1password-cli
+            bifrost-http
           ]);
 
         myConfig.onepassword.enable = true;

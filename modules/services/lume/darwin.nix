@@ -62,9 +62,9 @@ in {
 
     # Lume background service (lume serve)
     launchd.daemons.lume = mkIf cfg.enableBackgroundService {
+      command = "${cfg.package}/bin/lume serve --port ${toString cfg.port}";
       serviceConfig = {
         Label = "com.trycua.lume_daemon";
-        ProgramArguments = ["${cfg.package}/bin/lume" "serve" "--port" "${toString cfg.port}"];
         RunAtLoad = true;
         KeepAlive = true;
         StandardOutPath = "/tmp/lume_daemon.log";
@@ -79,9 +79,9 @@ in {
 
     # Auto-updater service
     launchd.daemons.lume-updater = mkIf cfg.enableAutoUpdater {
+      command = "${cfg.package}/bin/lume-update";
       serviceConfig = {
         Label = "com.trycua.lume_updater";
-        ProgramArguments = ["${cfg.package}/bin/lume-update"];
         StartCalendarInterval = {
           Hour = 3;
           Minute = 0;

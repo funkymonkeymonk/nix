@@ -8,6 +8,7 @@
 }:
 with lib; let
   cfg = config.myConfig.vane;
+  bifrostCfg = config.myConfig.bifrost;
   inherit (config._vaneCommon) searxngUrl;
 
   primaryUser =
@@ -16,10 +17,82 @@ with lib; let
     else "monkey";
   darwinHomeDir = "/Users/${primaryUser}";
   dataDir = cfg.dataDir;
+
+  bifrostEnabled = bifrostCfg.enable && bifrostCfg.upstreams != {};
+
   resolvedBaseUrl =
     if cfg.openaiBaseUrl != null
     then cfg.openaiBaseUrl
+    else if bifrostEnabled
+    then "http://localhost:${toString bifrostCfg.port}/v1"
     else "http://localhost:8000/v1";
+
+  resolvedProviderId =
+    if bifrostEnabled
+    then "bifrost"
+    else "vllm-mlx-local";
+
+  resolvedProviderName =
+    if bifrostEnabled
+    then "Bifrost Gateway (local)"
+    else "vllm-mlx Gateway (local)";
+
+  resolvedProviderApiKey =
+    if bifrostEnabled
+    then "bifrost"
+    else "vllm-mlx-local";
+
+  defaultChatModels = let
+    model =
+      if cfg.defaultModel != null
+      then cfg.defaultModel
+      else "deepseek-r1:14b";
+  in [
+    {
+      name = model;
+      key = model;
+    }
+  ];
+
+  chatModels =
+    if cfg.chatModels != {}
+    then
+      map (model: {
+        name = model.name;
+        key = model.key;
+      }) (builtins.attrValues cfg.chatModels)
+    else defaultChatModels;
+
+  modelProvider =
+    {
+      id = resolvedProviderId;
+      name = resolvedProviderName;
+      type = "openai";
+      chatModels = chatModels;
+      config = {
+        apiKey = resolvedProviderApiKey;
+        baseURL = resolvedBaseUrl;
+      };
+    }
+    // optionalAttrs (cfg.embeddingModel != null) {
+      embeddingModels = [
+        {
+          name = cfg.embeddingModel;
+          key = cfg.embeddingModel;
+        }
+      ];
+    };
+
+  vaneConfig = builtins.toJSON {
+    version = 1;
+    setupComplete = true;
+    modelProviders = [modelProvider];
+    search = {
+      searxngURL = searxngUrl;
+    };
+  };
+
+  playwrightBrowsers = pkgs.playwright-driver.browsers;
 
   # Environment for Vane
   # OPENAI_BASE_URL is omitted — it triggers Vane to auto-create a duplicate provider.
@@ -28,63 +101,38 @@ with lib; let
     {
       VANE_PORT = toString cfg.port;
       SEARXNG_API_URL = searxngUrl;
+      PLAYWRIGHT_BROWSERS_PATH = "${playwrightBrowsers}";
     }
     // optionalAttrs (cfg.ollamaUrl != null) {
       OLLAMA_API_URL = cfg.ollamaUrl;
     };
 
   vaneServiceScript = pkgs.writeShellScript "vane-launchd-service" ''
-        set -euo pipefail
-        export HOME="${darwinHomeDir}"
-        export PATH="${pkgs.nodejs}/bin:/usr/local/bin:/usr/bin:/bin"
-        export DATA_DIR="${dataDir}"
+    set -euo pipefail
+    export HOME="${darwinHomeDir}"
+    export PATH="${pkgs.nodejs}/bin:/usr/local/bin:/usr/bin:/bin"
+    export DATA_DIR="${dataDir}"
 
-        mkdir -p "${dataDir}/data" "${dataDir}/logs"
+    mkdir -p "${dataDir}/data" "${dataDir}/logs"
 
-        # Symlink drizzle directory so Vane can find migration files
-        if [ ! -L "${dataDir}/drizzle" ]; then
-          ln -sf "${pkgs.vane}/lib/vane/drizzle" "${dataDir}/drizzle"
-        fi
+    # Symlink drizzle directory so Vane can find migration files
+    if [ ! -L "${dataDir}/drizzle" ]; then
+      ln -sf "${pkgs.vane}/lib/vane/drizzle" "${dataDir}/drizzle"
+    fi
 
-        # Write Nix-managed config (always overwrites to stay in sync)
-        cat > "${dataDir}/data/config.json" << VANECONFIG
-    {
-      "version": 1,
-      "setupComplete": true,
-      "modelProviders": [
-        {
-          "id": "higgs-local",
-          "name": "Higgs Gateway (local)",
-          "type": "openai",
-          "chatModels": [
-            {"name": "qwen-coder", "key": "qwen-coder"},
-            {"name": "qwen-35b", "key": "qwen-35b"}
-          ],
-          "embeddingModels": [
-            {"name": "qwen-embed", "key": "qwen-embed"}
-          ],
-          "config": {
-            "apiKey": "higgs-local",
-            "baseURL": "${resolvedBaseUrl}"
-          }
-        }
-      ],
-      "search": {
-        "searxngURL": "${searxngUrl}"
-      }
-    }
-    VANECONFIG
+    # Write Nix-managed config (always overwrites to stay in sync)
+    printf '%s\n' ${lib.escapeShellArg vaneConfig} > "${dataDir}/data/config.json"
 
-        exec ${pkgs.vane}/bin/vane
+    exec ${pkgs.vane}/bin/vane
   '';
 in {
   imports = [./common.nix];
 
   config = mkIf cfg.enable {
     launchd.daemons.vane = {
+      command = vaneServiceScript;
       serviceConfig = {
         Label = "com.vane.service";
-        ProgramArguments = ["${vaneServiceScript}"];
         EnvironmentVariables = vaneEnv;
         RunAtLoad = cfg.autoStart;
         KeepAlive = true;
@@ -98,5 +146,15 @@ in {
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${dataDir}/data" "${dataDir}/logs"
     '';
+
+    # Register in service registry for port conflict detection and readiness checks
+    myConfig.serviceRegistry = optionalAttrs cfg.enable {
+      vane = {
+        name = "Vane";
+        port = cfg.port;
+        launchdLabel = "com.vane.service";
+        errorLog = "/tmp/vane.error.log";
+      };
+    };
   };
 }
