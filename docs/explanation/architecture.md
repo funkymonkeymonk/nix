@@ -46,6 +46,12 @@ modules/
 │   ├── development.nix
 │   ├── opencode.nix
 │   └── skills/       # AI agent skills
+├── services/         # Daemon service modules
+│   ├── vllm-mlx/     # vllm-mlx inference server
+│   ├── bifrost/      # Bifrost AI gateway
+│   ├── caddy/        # Caddy reverse proxy
+│   ├── dnsmasq/      # Local DNS resolver
+│   └── vane/         # Vane AI search engine
 └── nixos/            # NixOS-specific
     ├── base.nix      # Common NixOS settings
     ├── desktop.nix   # Desktop environment
@@ -72,6 +78,21 @@ in {
 ```
 
 Roles can be combined: a machine with `developer` and `creative` enabled gets packages from both.
+
+### Services (Background Processes)
+
+Services are launchd system daemons that run on macOS. Each service lives in `modules/services/<name>/darwin.nix`.
+
+**Location:** `modules/services/`
+
+**This repo uses `launchd.daemons` (system daemons), not `launchd.agents` (user agents).** System daemons:
+
+- Start at boot, before any user logs in
+- Survive logout/login cycles
+- Run as a specific user via `UserName` (not root)
+- Log to ephemeral `/tmp/<service>.log`
+
+> **How-to:** [Create a Darwin System Daemon](../how-to/create-darwin-daemon.md)
 
 ### Targets (Machine-Specific Settings)
 

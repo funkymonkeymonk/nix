@@ -50,6 +50,9 @@
     # Official OpenClaw flake for declarative OpenClaw installation
     nix-openclaw.url = "github:openclaw/nix-openclaw";
     nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Bifrost AI Gateway - high-performance LLM gateway
+    bifrost.url = "github:maximhq/bifrost";
   };
 
   outputs = {
@@ -100,7 +103,7 @@
           (final: _prev: {
             zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
           })
-          (import ./overlays)
+          (import ./overlays {inherit inputs;})
         ];
       };
     };
@@ -149,7 +152,6 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/microvm.nix
@@ -175,7 +177,6 @@
           configuration
           ./modules
           ./modules/nixos/base.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/microvm.nix
@@ -203,7 +204,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [(import ./overlays)];
+          overlays = [(import ./overlays {inherit inputs;})];
         };
       in
         {
@@ -226,7 +227,7 @@
       system: let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [(import ./overlays)];
+          overlays = [(import ./overlays {inherit inputs;})];
         };
       in {
         installer = {
@@ -261,8 +262,8 @@
           nix-homebrew.darwinModules.nix-homebrew
           ./modules
           ./modules/roles/homebrew.nix
-          ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
+          ./modules/services/bifrost/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/wweaver
@@ -272,7 +273,7 @@
       };
 
       # Darwin server - headless macOS server for VM hosting
-      # Uses Lume for macOS VMs, with Ollama for local LLMs
+      # Uses Lume for macOS VMs
       "darwin-server" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
@@ -284,7 +285,6 @@
           configuration
           ./modules
           ./modules/services/lume/darwin.nix
-          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -342,7 +342,6 @@
         modules = [
           ./library/archetypes/headless-server-darwin.nix
           ./modules/services/lume/darwin.nix
-          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./targets/darwin-server
           home-manager.darwinModules.home-manager
@@ -367,10 +366,11 @@
           nix-homebrew.darwinModules.nix-homebrew
           ./modules
           ./modules/roles/homebrew.nix
-          ./modules/services/ollama/darwin.nix
           ./modules/services/vane/darwin.nix
+          ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
-          ./modules/services/higgs/darwin.nix
+          ./modules/services/caddy/darwin.nix
+          ./modules/services/vllm-mlx/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX
@@ -423,7 +423,6 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
@@ -576,7 +575,6 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
-          ./modules/services/ollama/nixos.nix
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
@@ -692,7 +690,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          overlays = [(import ./overlays)];
+          overlays = [(import ./overlays {inherit inputs;})];
         };
         tests = import ./tests {
           inherit pkgs self;
@@ -739,8 +737,6 @@
             sketchybar-entrypoint
             aerospace-options
             aerospace-custom-options
-            ollama-options
-            ollama-custom-options
             vane-options
             vane-custom-options
             vane-opnix-url-options
@@ -763,7 +759,8 @@
             microvm-ip-uniqueness
             microvm-ssh
             microvm-dev-vm-stateversion
-            higgs-options
+            vllm-mlx-options
+            megamanx-vllm
             llm-client-opencode
             llm-client-claude
             llm-client-pi
@@ -771,6 +768,7 @@
             llm-client-no-ai-roles
             entertainment-nixos
             typed-attrs-options
+            stack-integration
             phase5-core-bootstrap
             phase3-zero
             phase4-darwin-server

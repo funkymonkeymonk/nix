@@ -40,12 +40,10 @@ with lib; let
 in {
   config = mkIf cfg.enable {
     launchd.daemons.searxng = {
+      command = "${pkgs.searxng}/bin/searxng-run";
       serviceConfig = {
         Label = "com.searxng.service";
         UserName = primaryUser;
-        ProgramArguments = [
-          "${pkgs.searxng}/bin/searxng-run"
-        ];
         RunAtLoad = true;
         KeepAlive = true;
         StandardOutPath = "/tmp/searxng.log";
@@ -60,5 +58,15 @@ in {
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${darwinHomeDir}/.local/share/searxng"
     '';
+
+    # Register in service registry for port conflict detection and readiness checks
+    myConfig.serviceRegistry = optionalAttrs cfg.enable {
+      searxng = {
+        name = "SearXNG";
+        port = cfg.port;
+        launchdLabel = "com.searxng.service";
+        errorLog = "/tmp/searxng.error.log";
+      };
+    };
   };
 }

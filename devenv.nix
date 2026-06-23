@@ -40,6 +40,7 @@ in {
     alias dt="devenv tasks run"
     alias dtr="devenv tasks run"
     alias dtl="devenv tasks list"
+    alias agentsudo='op read "op://Private/$(hostname -s) Sudo Password/password" | sudo -S '
 
     # ============================================
     # JJ Workspace Support - Check if in workspace
@@ -358,15 +359,16 @@ in {
           echo "Sudo password: retrieved"
           echo ""
 
-          # Build and switch
-          echo "--- Building Configuration ---"
-          echo "Running: darwin-rebuild switch --flake ./#$CONFIG_NAME --impure"
+          # Build and switch with output logging
+          SWITCH_LOG="/tmp/system-switch-$(date +%Y%m%d-%H%M%S).log"
+          echo "Build log: $SWITCH_LOG"
           echo ""
 
+          set -o pipefail
           echo "$SUDO_PASSWORD" | sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
             --flake "./#$CONFIG_NAME" \
             --impure \
-            --show-trace 2>&1 || {
+            --show-trace 2>&1 | tee "$SWITCH_LOG" || {
             EXIT_CODE=$?
             echo ""
             echo "ERROR: darwin-rebuild failed with exit code $EXIT_CODE"
@@ -729,6 +731,21 @@ in {
       '';
     };
 
+    "test:stack" = {
+      description = "Test LLM stack integration (eval + runtime)";
+      exec = ''
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "Running LLM stack eval test..."
+        nix build ".#checks.''${CURRENT_SYSTEM}.stack-integration" --no-link
+        echo "Eval test passed"
+        echo ""
+        echo "Running runtime integration test..."
+        echo "(requires live system with all services running)"
+        echo ""
+        ./tests/test-stack-integration.sh
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (eval gates build, optimized for parallel CI)";
       exec = ''
@@ -736,16 +753,12 @@ in {
         echo "Eval checks gate the build. Build runs only if all pass."
         echo ""
 
-        devenv tasks run test:nixos-eval
-        EVAL_NIXOS=$?
-        devenv tasks run test:darwin-eval
-        EVAL_DARWIN=$?
+        devenv tasks run test:eval
+        EVAL_RESULT=$?
 
-        if [ $EVAL_NIXOS -ne 0 ] || [ $EVAL_DARWIN -ne 0 ]; then
+        if [ $EVAL_RESULT -ne 0 ]; then
           echo ""
           echo "=== Eval Results: FAILED ==="
-          [ $EVAL_NIXOS -ne 0 ] && echo "NixOS eval: FAILED"
-          [ $EVAL_DARWIN -ne 0 ] && echo "Darwin eval: FAILED"
           echo ""
           echo "Skipping build - eval failures must be fixed first."
           exit 1
@@ -790,8 +803,6 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.sketchybar-entrypoint" \
           ".#checks.''${CURRENT_SYSTEM}.onepassword-guard" \
           ".#checks.''${CURRENT_SYSTEM}.onepassword-config-output" \
-          ".#checks.''${CURRENT_SYSTEM}.ollama-options" \
-          ".#checks.''${CURRENT_SYSTEM}.ollama-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.openclaw-options" \

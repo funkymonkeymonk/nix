@@ -42,12 +42,6 @@
         # Pre-pull macOS Tahoe vanilla image
         prePullImages = ["macos-tahoe-vanilla:latest"];
       };
-      # Enable Ollama with Qwen3 14B for wadsworth
-      ollama = {
-        enable = true;
-        acceleration = "metal"; # Use Apple Silicon GPU
-        models = ["qwen3:14b"];
-      };
     };
 
   # Enable OpenClaw via official nix-openclaw home-manager module

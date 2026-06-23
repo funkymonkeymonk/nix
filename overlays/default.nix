@@ -1,10 +1,24 @@
 # Custom package overlays
-final: _prev: {
+{inputs ? {}}: final: _prev:
+{
   rtk = final.callPackage ../packages/rtk {};
   yaks = final.callPackage ../packages/yaks {};
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
+  mlx-models = final.callPackage ../packages/mlx-models {
+    inherit (final) lib stdenvNoCC curl jq gnugrep gnused cacert;
+  };
 
+  gemma4-31B-OptiQ-4bit = final.mlx-models.fetchModel {
+    name = "gemma4-31B-OptiQ-4bit";
+    modelPath = "mlx-community/gemma-4-31B-it-OptiQ-4bit";
+    outputHash = "sha256-adiGBvHq9gCDPiHaFCp7xwX4A9OY/nLZw3jGS0kkvQk=";
+  };
+  gemma4-12B-OptiQ-4bit = final.mlx-models.fetchModel {
+    name = "gemma4-12B-OptiQ-4bit";
+    modelPath = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
+    outputHash = "sha256-YU2IoQlwGbIbNZzcHjGHt55rFoNQhWhLL3ACrUNvncc=";
+  };
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation
   #
@@ -57,3 +71,15 @@ final: _prev: {
     });
   });
 }
+// (
+  if inputs ? bifrost
+  then {
+    bifrost-http =
+      ((inputs.bifrost.packages.${final.system}.bifrost-http).override {
+        bifrost-ui = final.runCommand "bifrost-ui-dummy" {} "mkdir $out";
+      }).overrideAttrs (_prev: {
+        vendorHash = "sha256-apPaRE3ZOaXrETX5EbhvPsgKdQa8IXoe4epeudytOUI=";
+      });
+  }
+  else {}
+)

@@ -12,7 +12,11 @@ Guide for AI agents working with this Nix system configuration repository.
 
 <!-- LLM: This document is optimized for AI agent consumption -->
 
-## Quick Reference
+## Model Source
+
+All MLX models should be sourced from [mlx-community collections](https://huggingface.co/mlx-community/collections).
+Prefer models from the `mlx-community` org when adding new models to the configuration.
+Check the collection for the latest MLX-converted models before choosing alternatives.
 
 | Task | Command |
 |------|---------|
@@ -511,6 +515,112 @@ nix build .#target --impure
 
 ---
 
+## macOS Service Definitions (nix-darwin)
+
+When defining launchd services on macOS, follow the upstream nix-darwin patterns. **Do not manually script `launchctl` commands in individual modules** — nix-darwin's activation scripts handle loading/unloading automatically.
+
+### Daemon vs Agent
+
+| Type | Nix Option | Runs As | Scope |
+|------|-----------|---------|-------|
+| **Daemon** | `launchd.daemons.<name>` | root or specified user | System-wide |
+| **User Agent** | `launchd.user.agents.<name>` | Logged-in user | Per-user |
+
+### Prefer `command` or `script`
+
+Use the high-level `command` or `script` options. nix-darwin automatically wraps them with `/bin/wait4path /nix/store && exec …` and generates the correct `ProgramArguments`.
+
+**Good — `command` for simple commands:**
+```nix
+launchd.daemons.myapp = {
+  command = "${pkgs.myapp}/bin/myapp-server";
+  serviceConfig.KeepAlive = true;
+  serviceConfig.RunAtLoad = true;
+};
+```
+
+**Good — `script` for setup + exec:**
+```nix
+launchd.daemons.myapp = {
+  script = ''
+    mkdir -p /var/lib/myapp
+    printf '%s' "$CONFIG" > /var/lib/myapp/config.json
+    exec ${pkgs.myapp}/bin/myapp-server
+  '';
+  serviceConfig.KeepAlive = true;
+};
+```
+
+**Bad — manually wrapping `ProgramArguments`:**
+```nix
+# ❌ Anti-pattern: do not wrap scripts in ProgramArguments
+launchd.daemons.myapp = {
+  serviceConfig.ProgramArguments = [ "${pkgs.writeShellScript "myapp" ''...''}" ];
+};
+```
+
+### When to Use `serviceConfig.ProgramArguments`
+
+Only use the raw `ProgramArguments` plist key when you need precise argument-array semantics that `command` cannot express:
+```nix
+launchd.user.agents.skhd = {
+  serviceConfig.ProgramArguments = [
+    "${cfg.package}/bin/skhd"
+    "-c" "/etc/skhdrc"
+  ];
+};
+```
+
+### Labels
+
+nix-darwin auto-generates labels as `org.nixos.<name>`. **Only override `serviceConfig.Label` if external tools reference the specific label.**
+
+```nix
+# Default (preferred)
+launchd.daemons.nix-daemon = {
+  command = ...;
+};
+# → Label = org.nixos.nix-daemon
+
+# Override only when needed externally
+launchd.daemons.nix-daemon = {
+  command = ...;
+  serviceConfig.Label = "org.nixos.nix-daemon";  # Only if external scripts reference it
+};
+```
+
+### Common `serviceConfig` Keys
+
+```nix
+launchd.daemons.myapp = {
+  command = ...;
+  serviceConfig = {
+    KeepAlive = true;           # Restart on exit
+    RunAtLoad = true;           # Start when loaded
+    UserName = "myuser";        # Run as non-root
+    WorkingDirectory = "/var/lib/myapp";
+    StandardOutPath = "/var/log/myapp.log";
+    StandardErrorPath = "/var/log/myapp.error.log";
+    EnvironmentVariables = {
+      HOME = "/var/lib/myapp";
+    };
+    ProcessType = "Background"; # Background | Standard | Adaptive | Interactive
+  };
+};
+```
+
+### Activation Scripts
+
+**Do not** add per-service `launchctl list` status checks in `system.activationScripts`. nix-darwin already diffs plists, unloads old services, and loads new ones. If a custom bootstrap sequence is required (e.g., macOS Tahoe `launchctl load -w` workaround), centralize it in `modules/common/launchd-services.nix` rather than duplicating it across modules.
+
+### Full Reference
+
+- [nix-darwin launchd module](https://github.com/nix-darwin/nix-darwin/blob/master/modules/launchd/default.nix)
+- [nix-darwin launchd plist options](https://github.com/nix-darwin/nix-darwin/blob/master/modules/launchd/launchd.nix)
+- [Apple launchd.plist(5)](https://developer.apple.com/library/archive/documentation/Darwin/Reference/ManPages/man5/launchd.plist.5.html)
+
+---
+
 ## Platform Support
 
 - **macOS**: nix-darwin (aarch64-darwin)
@@ -539,6 +649,8 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 ```
 
 **Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
+
+**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task and `apply-config-to-microvms` script use `op` to fetch sudo passwords. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI is likely waiting for browser-based authorization that requires the user to approve a 1Password prompt. Agents cannot complete this step — the user must sign in manually (e.g., `op signin` and approve the browser prompt). Once signed in, the CLI caches the session and subsequent `op` calls work without interaction.
 
 ---
 

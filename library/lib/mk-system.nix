@@ -45,7 +45,7 @@
                 (final: _prev: {
                   zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
                 })
-                (import ../../overlays)
+                (import ../../overlays {inherit inputs;})
               ];
             };
           }
@@ -107,7 +107,7 @@
                 (final: _prev: {
                   zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
                 })
-                (import ../../overlays)
+                (import ../../overlays {inherit inputs;})
               ];
             };
           }

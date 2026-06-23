@@ -29,14 +29,10 @@ in {
         enable = true;
         onActivation = {
           autoUpdate = false;
-          cleanup = "uninstall";
+          cleanup = "none";
         };
-        taps = [
-          "panbanda/brews"
-        ];
-        brews = [
-          "panbanda/brews/higgs"
-        ];
+        taps = [];
+        brews = [];
         casks = [
           "raycast"
           "zed"

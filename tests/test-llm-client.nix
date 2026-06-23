@@ -138,8 +138,8 @@
   noAiVars = evalWithNoAiRoles;
 
   defaultExpectedHost = "127.0.0.1";
-  defaultExpectedPort = "11434";
-  defaultExpectedEndpoint = "http://127.0.0.1:11434";
+  defaultExpectedPort = "8080";
+  defaultExpectedEndpoint = "http://127.0.0.1:8080";
 in {
   # Test that LLM_SERVER_HOST and LLM_SERVER_PORT are set when opencode role is enabled
   llmClientOpencodeTest =
