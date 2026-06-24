@@ -1,0 +1,1 @@
+Deduplicate nixpkgs config between flake.nix and library
