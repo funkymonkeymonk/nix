@@ -19,6 +19,12 @@
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
 
   testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
+  testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
+  testPi = import ./test-pi.nix {inherit pkgs;};
+  testBifrost = import ./test-bifrost.nix {inherit pkgs;};
+  testCaddy = import ./test-caddy.nix {inherit pkgs;};
+  testSearxng = import ./test-searxng.nix {inherit pkgs;};
+  testLume = import ./test-lume.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
@@ -158,6 +164,30 @@ in
     # vllm-mlx module tests
     vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
     megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
+
+    # Claude Code module tests
+    claude-code-options = testClaudeCode.claudeCodeOptionsTest;
+    claude-code-custom-options = testClaudeCode.claudeCodeCustomOptionsTest;
+
+    # Pi coding agent module tests
+    pi-options = testPi.piOptionsTest;
+    pi-custom-options = testPi.piCustomOptionsTest;
+
+    # Bifrost AI gateway module tests
+    bifrost-options = testBifrost.bifrostOptionsTest;
+    bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
+
+    # Caddy reverse proxy module tests
+    caddy-options = testCaddy.caddyOptionsTest;
+    caddy-custom-options = testCaddy.caddyCustomOptionsTest;
+
+    # SearXNG module tests
+    searxng-options = testSearxng.searxngOptionsTest;
+    searxng-custom-options = testSearxng.searxngCustomOptionsTest;
+
+    # Lume module tests
+    lume-options = testLume.lumeOptionsTest;
+    lume-custom-options = testLume.lumeCustomOptionsTest;
 
     # LLM stack integration test
     stack-integration = testStackIntegration.stackIntegrationTest;
