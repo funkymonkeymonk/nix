@@ -236,9 +236,9 @@ in {
       else ''echo "  FAIL: toolCallParser should be qwen, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.memoryBudgetGb == 32
-      then ''echo "  memoryBudgetGb = 32: OK"''
-      else ''echo "  FAIL: memoryBudgetGb should be 32, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
+      if megamanxVllmMlx.memoryBudgetGb == 90
+      then ''echo "  memoryBudgetGb = 90: OK"''
+      else ''echo "  FAIL: memoryBudgetGb should be 90, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
     }
     ${
       if megamanxVllmMlx.enableAutoToolChoice

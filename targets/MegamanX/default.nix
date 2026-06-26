@@ -26,7 +26,7 @@
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 32;
+        memoryBudgetGb = 90;
         contention = "preempt";
         models = {
           "qwen3.6-35b" = {

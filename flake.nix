@@ -706,12 +706,6 @@
             foundation-packages
             config-validation
             all-role-tests
-            role-evaluation
-            role-composition
-            role-packages
-            role-cascades
-            llm-host-shared-models
-            no-dead-development-option
             module-coverage
             skills-manifest
             skills-autoload-filtering
@@ -766,7 +760,6 @@
             llm-client-pi
             llm-client-custom-host
             llm-client-no-ai-roles
-            entertainment-nixos
             typed-attrs-options
             stack-integration
             phase5-core-bootstrap
