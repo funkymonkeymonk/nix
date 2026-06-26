@@ -53,13 +53,6 @@ in
 
     # Per-role tests (all combined into one derivation for CI speed)
     all-role-tests = testRoles.allRoleTests;
-    role-evaluation = testRoles.allRoleTests;
-    role-composition = testRoles.allRoleTests;
-    role-packages = testRoles.allRoleTests;
-    role-cascades = testRoles.allRoleTests;
-    llm-host-shared-models = testRoles.allRoleTests;
-    no-dead-development-option = testRoles.allRoleTests;
-    entertainment-nixos = testRoles.allRoleTests;
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;
