@@ -240,12 +240,140 @@ with lib; let
       };
     };
 
+  # pi-plugins external source files
+  # When pluginsSource is set, copy selected extensions and all skills from that repo
+  pluginSourceFiles = let
+    src = cfg.pluginsSource;
+    names = cfg.plugins;
+    hasSource = src != null && names != [];
+    # Build extension file entries from pi-plugins packages/
+    extEntries = lib.concatLists (map (
+        name: let
+          extPath = src + "/packages/${name}/src/index.ts";
+        in
+          lib.optional (builtins.pathExists extPath) {
+            name = ".pi/agent/extensions/${name}.ts";
+            value = {
+              source = extPath;
+            };
+          }
+      )
+      names);
+    # Copy all skills from pi-plugins .pi/skills/ (skills are tightly coupled to extensions)
+    skillsDir = src + "/.pi/skills";
+    skillNames =
+      if builtins.pathExists skillsDir
+      then lib.attrNames (lib.filterAttrs (_: t: t == "directory") (builtins.readDir skillsDir))
+      else [];
+    skillEntries =
+      map (name: {
+        name = ".pi/agent/skills/${name}";
+        value = {
+          source = skillsDir + "/${name}";
+          recursive = true;
+        };
+      })
+      skillNames;
+  in
+    lib.optionalAttrs hasSource (lib.listToAttrs (extEntries ++ skillEntries));
+
+  # Model-stack skill (directory with scripts)
+  modelStackPath = ../../skills/model-stack;
+  modelStackFiles = lib.optionalAttrs (builtins.pathExists modelStackPath) {
+    ".pi/agent/skills/model-stack" = {
+      source = modelStackPath;
+      recursive = true;
+    };
+  };
+
   # All files merged together
-  allFiles = coreFiles // promptFiles // skillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles;
+  allFiles = coreFiles // promptFiles // skillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles // modelStackFiles;
+
+  # pi-dev: run pi with local plugin overrides (no special shell needed)
+  pi-dev-script = pkgs.writeShellScriptBin "pi-dev" ''
+    set -euo pipefail
+
+    PLUGINS_DIR=''${PI_PLUGINS_DIR:-$HOME/src/funkymonkeymonk/pi-plugins}
+    AGENT_DIR=''${PI_DEV_AGENT_DIR:-$HOME/.pi/agent-dev}
+    SYSTEM_AGENT="$HOME/.pi/agent"
+
+    if [[ ! -d "$PLUGINS_DIR" ]]; then
+      echo "Error: PI_PLUGINS_DIR not found: $PLUGINS_DIR"
+      echo "Clone pi-plugins and set PI_PLUGINS_DIR, or run from the repo:"
+      echo "  PI_PLUGINS_DIR=/path/to/pi-plugins pi-dev"
+      exit 1
+    fi
+
+    echo "Merging pi config with plugins from $PLUGINS_DIR"
+    mkdir -p "$AGENT_DIR"
+
+    link_dir() {
+      local src="$1"
+      local dst="$2"
+      mkdir -p "$dst"
+      if [[ -d "$src" ]]; then
+        for item in "$src"/*; do
+          [[ -e "$item" ]] || continue
+          local name=$(basename "$item")
+          [[ -e "$dst/$name" ]] && continue
+          ln -sf "$item" "$dst/$name"
+        done
+      fi
+    }
+
+    # Core config files
+    for f in settings.json models.json keybindings.json SYSTEM.md APPEND_SYSTEM.md; do
+      if [[ -f "$SYSTEM_AGENT/$f" && ! -f "$AGENT_DIR/$f" ]]; then
+        cp "$SYSTEM_AGENT/$f" "$AGENT_DIR/$f"
+      fi
+    done
+
+    # Merge directories
+    for dir in skills prompts themes sessions; do
+      link_dir "$SYSTEM_AGENT/$dir" "$AGENT_DIR/$dir"
+    done
+
+    # Link repo skills
+    if [[ -d "$PLUGINS_DIR/.pi/skills" ]]; then
+      mkdir -p "$AGENT_DIR/skills"
+      for skill in "$PLUGINS_DIR/.pi/skills"/*; do
+        [[ -d "$skill" ]] || continue
+        name=$(basename "$skill")
+        dst="$AGENT_DIR/skills/$name"
+        [[ -e "$dst" ]] && continue
+        ln -sf "$skill" "$dst"
+        echo "  + skill $name"
+      done
+    fi
+
+    # Link repo plugins
+    mkdir -p "$AGENT_DIR/extensions"
+    link_dir "$SYSTEM_AGENT/extensions" "$AGENT_DIR/extensions"
+
+    for ext in "$PLUGINS_DIR"/packages/*/src/index.ts; do
+      [[ -f "$ext" ]] || continue
+      name=$(basename "$(dirname "$(dirname "$ext")")")
+      dst="$AGENT_DIR/extensions/$name"
+      mkdir -p "$dst"
+      ln -sf "$ext" "$dst/index.ts"
+      echo "  + plugin $name"
+    done
+
+    # NPM packages
+    link_dir "$SYSTEM_AGENT/npm" "$AGENT_DIR/npm"
+    link_dir "$SYSTEM_AGENT/git" "$AGENT_DIR/git"
+
+    echo "Launching pi with merged config: $AGENT_DIR"
+    export PI_CODING_AGENT_DIR="$AGENT_DIR"
+    exec pi "$@"
+  '';
 in {
   config = mkIf cfg.enable {
     # All pi configuration files
     home.file = allFiles;
+
+    # pi-dev script for testing local plugin changes
+    home.packages = [pi-dev-script] ++ lib.optional (cfg.npmPackages != {}) pkgs.nodejs;
 
     # Run npm install when npm packages change
     home.activation.piNpmInstall = mkIf (cfg.npmPackages != {}) (lib.hm.dag.entryAfter ["writeBoundary"] ''
@@ -259,9 +387,6 @@ in {
         $DRY_RUN_CMD echo "$current_target" > "$stamp_file"
       fi
     '');
-
-    # Ensure nodejs is available for npm install
-    home.packages = mkIf (cfg.npmPackages != {}) [pkgs.nodejs];
 
     # Configure opnix secrets for models with 1Password items
     programs.onepassword-secrets = mkIf (modelsWithSecrets != {} && osConfig.myConfig.onepassword.enable) {

@@ -1631,11 +1631,11 @@
     },
     "nixpkgs_9": {
       "locked": {
-        "lastModified": 1780243769,
-        "narHash": "sha256-x5UQuRsH3MqI0U9afaXSNqzTPSeZlRLvFAav2Ux1pNw=",
+        "lastModified": 1782467914,
+        "narHash": "sha256-pGvFkM8N0xEkIIXDe5YYfbEAvHrk4IxBrjB/x8OomhE=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "331800de5053fcebacf6813adb5db9c9dca22a0c",
+        "rev": "e73de5be04e0eff4190a1432b946d469c794e7b4",
         "type": "github"
       },
       "original": {
@@ -1663,6 +1663,22 @@
       "original": {
         "owner": "brizzbuzz",
         "repo": "opnix",
+        "type": "github"
+      }
+    },
+    "pi-plugins": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782448710,
+        "narHash": "sha256-xIEWRBRgdQLzmoOwROIbOG6mWbLR8xPC/Thelvpf29w=",
+        "owner": "funkymonkeymonk",
+        "repo": "pi-plugins",
+        "rev": "6f3f6e968805445a4e8764752c11188e4f2bcc5c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "funkymonkeymonk",
+        "repo": "pi-plugins",
         "type": "github"
       }
     },
@@ -1787,6 +1803,7 @@
         "nixpkgs": "nixpkgs_9",
         "nixpkgs-stable": "nixpkgs-stable",
         "opnix": "opnix",
+        "pi-plugins": "pi-plugins",
         "superpowers": "superpowers",
         "vercel-skills": "vercel-skills",
         "zellij-pane-tracker": "zellij-pane-tracker"

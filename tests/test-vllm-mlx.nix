@@ -220,15 +220,15 @@ in {
     echo ""
     ${
       let
-        hasModel = builtins.elem "qwen3.6-35b" (builtins.attrNames megamanxVllmMlx.models);
+        hasModel = builtins.elem "qwen3.6-27b" (builtins.attrNames megamanxVllmMlx.models);
         modelPath =
           if hasModel
-          then megamanxVllmMlx.models."qwen3.6-35b".path
+          then megamanxVllmMlx.models."qwen3.6-27b".path
           else null;
       in
-        if hasModel && modelPath == "mlx-community/Qwen3.6-35B-A3B-4bit"
-        then ''echo "  model = Qwen3.6-35B-A3B-4bit: OK"''
-        else ''echo "  FAIL: model should be mlx-community/Qwen3.6-35B-A3B-4bit, got ${toString modelPath}"; exit 1''
+        if hasModel && modelPath == "mlx-community/Qwen3.6-27B-4bit"
+        then ''echo "  model = Qwen3.6-27B-4bit: OK"''
+        else ''echo "  FAIL: model should be mlx-community/Qwen3.6-27B-4bit, got ${toString modelPath}"; exit 1''
     }
     ${
       if megamanxVllmMlx.toolCallParser == "qwen"
