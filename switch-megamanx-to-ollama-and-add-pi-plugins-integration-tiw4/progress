@@ -1,0 +1,10 @@
+Fixed critical bugs found during review:
+1. Changed pi-plugin default from non-existent "pi-plugin-op" to "pi-plugin-yaks"
+2. Wired model-stack skill into pi-coding-agent.nix (copies to ~/.pi/agent/skills/model-stack/)
+3. Removed Python cache files and .hw_cache.json from tracked files
+4. Added gitignore patterns for Python cache and skill runtime caches
+5. Verified flake.lock hash is valid (epoch timestamp, not corrupt)
+6. Verified home-manager "inconsistency" is expected nix-darwin behavior
+
+All tests pass: check:lint ✓, test:eval ✓
+Build verifies: model-stack skill present, pi-plugin-yaks.ts present
