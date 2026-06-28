@@ -71,7 +71,7 @@
           ollama-local = {
             url = "http://localhost:11434";
             type = "openai";
-            requestTimeout = 120;
+            requestTimeout = 600;
             models = [];
           };
         };
