@@ -29,6 +29,14 @@ logs
 facter.json
 hardware-configuration.nix
 
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Skill runtime caches
+.hw_cache.json
+
 # Yaks working directory (stored in parent git repo's refs/notes/yaks)
 .yaks/
 

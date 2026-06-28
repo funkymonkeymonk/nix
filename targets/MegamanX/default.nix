@@ -20,8 +20,9 @@
         pi.enable = true;
         homebrew.enable = true;
       };
+      # vllm-mlx disabled — use Ollama instead. Config preserved for easy re-enable.
       vllmMlx = {
-        enable = true;
+        enable = false;
         server = {
           host = "0.0.0.0";
           port = 8300;
@@ -29,10 +30,10 @@
         memoryBudgetGb = 90;
         contention = "preempt";
         models = {
-          "qwen3.6-35b" = {
-            path = "mlx-community/Qwen3.6-35B-A3B-4bit";
+          "qwen3.6-27b" = {
+            path = "mlx-community/Qwen3.6-27B-4bit";
             type = "lm";
-            estimatedMemoryGb = 21;
+            estimatedMemoryGb = 16;
           };
         };
         enableAutoToolChoice = true;
@@ -41,22 +42,38 @@
         logLevel = "INFO";
       };
 
+      ollama = {
+        enable = true;
+        host = "127.0.0.1";
+        port = 11434;
+      };
+
       vane = {
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "qwen3.6-35b";
-        embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
+        defaultModel = "qwen3.6:27b";
+        embeddingModel = "nomic-embed-text:latest";
+        ollamaUrl = "http://localhost:11434";
       };
       bifrost = {
         enable = true;
         logLevel = "debug";
-        upstreams.vllm-mlx-local = {
-          url = "http://localhost:8300";
-          type = "openai";
-          requestTimeout = 120;
-          models = [
-            "qwen3.6-35b"
-          ];
+        upstreams = {
+          # vllm-mlx disabled — preserved for easy re-enable
+          vllm-mlx-local = {
+            url = "http://localhost:8300";
+            type = "openai";
+            requestTimeout = 120;
+            models = [
+              "qwen3.6-27b"
+            ];
+          };
+          ollama-local = {
+            url = "http://localhost:11434";
+            type = "openai";
+            requestTimeout = 120;
+            models = [];
+          };
         };
       };
       searxng.enable = true;
@@ -90,13 +107,13 @@
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "vllm-mlx-local/qwen3.6-35b";
+          modelId = "ollama-local/qwen3.6:27b";
           baseUrl = "http://bifrost.internal/v1";
         };
-        models.local-vllm-mlx = {
-          name = "Qwen3.6 35B A3B (Bifrost)";
+        models.local-ollama = {
+          name = "Local LLM (Ollama via Bifrost)";
           provider = "openai";
-          modelId = "vllm-mlx-local/qwen3.6-35b";
+          modelId = "ollama-local/qwen3.6:27b";
           baseUrl = "http://bifrost.internal/v1";
         };
 

@@ -1365,6 +1365,29 @@ with lib; {
           Written to ~/.pi/agent/themes/<name>.json
         '';
       };
+
+      pluginsSource = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = ''
+          Path to the pi-plugins repository.
+          Set to inputs.pi-plugins for the locked flake version,
+          or an absolute local path (e.g., /home/user/src/pi-plugins) for development.
+          When null, no plugins are copied from an external source.
+        '';
+      };
+
+      plugins = mkOption {
+        type = types.listOf types.str;
+        default = [];
+        description = ''
+          List of plugin names to install from pluginsSource.
+          Each name corresponds to a package in packages/<name>/src/index.ts
+          within the pi-plugins repository.
+          The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts
+          and any matching skill in .pi/skills/<name>/ is copied to ~/.pi/agent/skills/.
+        '';
+      };
     };
 
     microvm = {
@@ -1510,6 +1533,26 @@ with lib; {
         type = types.enum ["DEBUG" "INFO" "WARNING" "ERROR"];
         default = "INFO";
         description = "Server log level.";
+      };
+    };
+
+    ollama = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Ollama inference server for local LLMs";
+      };
+
+      host = mkOption {
+        type = types.str;
+        default = "127.0.0.1";
+        description = "Bind address for Ollama server";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 11434;
+        description = "Bind port for Ollama server";
       };
     };
 

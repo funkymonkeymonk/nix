@@ -13,7 +13,7 @@ in {
     lib.mkMerge ([
         {
           environment.systemPackages = with pkgs; [
-            logseq
+            # logseq removed: Build hangs for hours on electron-forge from source.
             # super-productivity disabled: Electron 41 kqueue assertion crash on macOS.
             # during electron-builder. Existing installed version (18.5.0) works fine.
             # Tracked: libuv kqueue.c:279 errno == EINTR

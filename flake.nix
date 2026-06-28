@@ -53,6 +53,9 @@
 
     # Bifrost AI Gateway - high-performance LLM gateway
     bifrost.url = "github:maximhq/bifrost";
+
+    # Pi plugins - extensions and skills for pi coding agent
+    pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
   };
 
   outputs = {
@@ -371,6 +374,7 @@
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
           ./modules/services/vllm-mlx/darwin.nix
+          ./modules/services/ollama/darwin.nix
           ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./targets/MegamanX

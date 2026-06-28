@@ -137,6 +137,18 @@ in {
       else ''echo "  themes should default to {}!"; exit 1''
     }
 
+    ${
+      if piDefaults.pluginsSource == null
+      then ''echo "  pluginsSource default = null: OK"''
+      else ''echo "  pluginsSource should default to null!"; exit 1''
+    }
+
+    ${
+      if piDefaults.plugins == []
+      then ''echo "  plugins default = []: OK"''
+      else ''echo "  plugins should default to []!"; exit 1''
+    }
+
     echo "All Pi option defaults verified"
     touch $out
   '';

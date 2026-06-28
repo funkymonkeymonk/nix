@@ -58,6 +58,8 @@ Entertainment applications.
 
 ### foundation
 
+### foundation-packages
+
 ### gaming
 
 Gaming tools.
@@ -70,7 +72,7 @@ Gaming tools.
 
 Local model hosting.
 
-**Packages:** vllm-mlx (installed via uv)
+**Packages:** ollama
 
 ### microvm-host
 
