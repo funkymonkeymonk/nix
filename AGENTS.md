@@ -286,6 +286,21 @@ Before marking a task complete:
 - [ ] All existing tests still pass
 - [ ] CI checks pass (`check:lint`, `test`)
 
+### Keeping Tests in Sync with Implementation
+
+When you **remove** a package, option, or feature, the tests that asserted its presence will fail. You MUST update those tests in the same commit — this is not optional.
+
+Common traps:
+
+| Change You Make | Test File to Update | Field to Update |
+|-----------------|---------------------|-----------------|
+| Remove package from role | `tests/test-roles.nix` | `roleExpectedPackages.<role>` |
+| Add package to role | `tests/test-roles.nix` | `roleExpectedPackages.<role>` |
+| Change role cascade | `tests/test-roles.nix` | `roleCascades.<role>` |
+| Remove service option | `tests/test-*.nix` | Any assertion referencing the option |
+
+**Rule:** If `devenv tasks run test` fails after your change, you have not finished. Fix the tests before pushing.
+
 ### Adding Features
 
 | Feature | Steps |
