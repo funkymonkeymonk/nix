@@ -12,6 +12,7 @@ in {
       pkgs.nvd
       pkgs.nixd
       pkgs.optnix
+      pkgs.nix-unit
 
       # Linting and formatting
       pkgs.yamllint
@@ -948,44 +949,11 @@ in {
     };
 
     "test:checks" = {
-      description = "Build flake checks affected by changed files (auto-discovers, excludes VM tests)";
+      description = "Run nix-unit eval tests (fast, no derivation builds)";
       after = ["test:eval"];
       exec = ''
-        echo "=== Building Checks ==="
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "System: $CURRENT_SYSTEM"
-        echo ""
-
-        ALL_CHECKS=$(nix eval --impure --json ".#checks.''${CURRENT_SYSTEM}" --apply 'builtins.attrNames' 2>/dev/null)
-        if [ -z "$ALL_CHECKS" ] || [ "$ALL_CHECKS" = "null" ]; then
-          echo "No checks found"
-          exit 0
-        fi
-
-        # Exclude VM and microVM tests (need Linux + KVM)
-        FILTERED=$(echo "$ALL_CHECKS" | jq -r '.[] | select(startswith("vm-") or startswith("microvm-") | not)')
-
-        # Detect changed files and filter to relevant checks
-        CHECKS_JSON=$(mktemp)
-        echo "$ALL_CHECKS" | jq '[.[] | select(startswith("vm-") or startswith("microvm-") | not)]' > "$CHECKS_JSON"
-
-        SELECTED=$(python3 scripts/filter-checks.py "$CHECKS_JSON")
-        rm -f "$CHECKS_JSON"
-
-        if [ "$SELECTED" = "__ALL__" ]; then
-          echo "Building all non-VM checks..."
-          TARGETS=$(echo "$FILTERED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
-        else
-          echo "Building selected checks affected by changed files..."
-          TARGETS=$(echo "$SELECTED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
-        fi
-
-        if [ -z "$TARGETS" ]; then
-          echo "No checks to build"
-          exit 0
-        fi
-
-        echo "$TARGETS" | xargs nix build --no-link --keep-going --print-build-logs
+        echo "=== Running nix-unit tests ==="
+        nix-unit ./tests/nix-unit-tests.nix
       '';
     };
   };
