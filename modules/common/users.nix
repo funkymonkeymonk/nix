@@ -47,14 +47,16 @@ with lib; let
           enable = true;
           enableDefaultConfig = false;
           includes = user.sshIncludes;
-          matchBlocks = lib.optionalAttrs (config.myConfig.onepassword.enableSSHAgent && isDarwin) {
+          settings = lib.optionalAttrs (config.myConfig.onepassword.enableSSHAgent && isDarwin) {
             "*" = {
-              extraOptions = {
-                IdentityAgent = "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\"";
-              };
+              IdentityAgent = "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\"";
             };
           };
         };
+
+        # Disable home-manager manpages to avoid expensive options.json
+        # generation and builtins.derivation context warnings
+        manual.manpages.enable = lib.mkDefault false;
 
         # Allowed signers file for SSH signature verification
         # Maps email addresses to trusted SSH public keys for local commit verification
