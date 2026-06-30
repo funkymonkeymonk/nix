@@ -5,6 +5,12 @@
     # handles service loading/unloading. The custom script was fighting with
     # nix-darwin's reload logic and causing hangs during switch.
   ];
+
+  # Disable nix-darwin documentation generation to speed up eval.
+  # The docs require re-evaluating the entire config with scrubbed
+  # derivations, which adds significant overhead on every rebuild.
+  documentation.enable = false;
+
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [
