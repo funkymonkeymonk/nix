@@ -16,7 +16,8 @@ in {
           ++ (with pkgs; [
             _1password-cli
             bifrost-http
-          ]);
+          ])
+          ++ lib.optional (pkgs ? himalaya-tui) pkgs.himalaya-tui;
 
         myConfig.onepassword.enable = true;
         myConfig.syncthing.enable = true;
