@@ -948,7 +948,7 @@ in {
     };
 
     "test:checks" = {
-      description = "Build all flake checks (auto-discovers, excludes VM tests)";
+      description = "Build flake checks affected by changed files (auto-discovers, excludes VM tests)";
       after = ["test:eval"];
       exec = ''
         echo "=== Building Checks ==="
@@ -964,7 +964,21 @@ in {
 
         # Exclude VM and microVM tests (need Linux + KVM)
         FILTERED=$(echo "$ALL_CHECKS" | jq -r '.[] | select(startswith("vm-") or startswith("microvm-") | not)')
-        TARGETS=$(echo "$FILTERED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
+
+        # Detect changed files and filter to relevant checks
+        CHECKS_JSON=$(mktemp)
+        echo "$ALL_CHECKS" | jq '[.[] | select(startswith("vm-") or startswith("microvm-") | not)]' > "$CHECKS_JSON"
+
+        SELECTED=$(python3 scripts/filter-checks.py "$CHECKS_JSON")
+        rm -f "$CHECKS_JSON"
+
+        if [ "$SELECTED" = "__ALL__" ]; then
+          echo "Building all non-VM checks..."
+          TARGETS=$(echo "$FILTERED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
+        else
+          echo "Building selected checks affected by changed files..."
+          TARGETS=$(echo "$SELECTED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
+        fi
 
         if [ -z "$TARGETS" ]; then
           echo "No checks to build"
