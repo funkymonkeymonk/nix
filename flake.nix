@@ -56,6 +56,13 @@
 
     # Pi plugins - extensions and skills for pi coding agent
     pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
+
+    # Flake-parts (incremental migration — used for testing infrastructure first)
+    flake-parts.url = "github:hercules-ci/flake-parts";
+
+    # nix-unit: Eval-time unit testing framework
+    nix-unit.url = "github:nix-community/nix-unit";
+    nix-unit.flake = false;
   };
 
   outputs = {

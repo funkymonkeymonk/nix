@@ -3,75 +3,29 @@
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
-  # All module files in modules/ (manually enumerated to avoid IFD)
-  # Update this list when adding new modules
-  allModules = [
-    # common/
-    "common/cachix.nix"
-    "common/core.nix"
-    "common/onepassword.nix"
-    "common/options.nix"
-    "common/shell.nix"
-    "common/users.nix"
-    # home-manager/
-    "home-manager/aliases.nix"
-    "home-manager/aerospace.nix"
-    "home-manager/charm.nix"
-    "home-manager/claude-code.nix"
-    "home-manager/default.nix"
-    "home-manager/fjj.nix"
-    "home-manager/foundation.nix"
-    "home-manager/jj-autosync.nix"
-    "home-manager/lib.nix"
-    "home-manager/opencode.nix"
-    "home-manager/pi-coding-agent.nix"
-    "home-manager/shell.nix"
-    "home-manager/watch-ci-jobs.nix"
-    "home-manager/zellij.nix"
-    "home-manager/skills/install.nix"
-    "home-manager/skills/manifest.nix"
-    "home-manager/email-agent.nix"
-    "home-manager/email-backup.nix"
-    "home-manager/sketchybar/default.nix"
-    "home-manager/themes.nix"
-    # roles/
-    "roles/agent-skills.nix"
-    "roles/assistant.nix"
-    "roles/claude.nix"
-    "roles/creative.nix"
-    "roles/default.nix"
-    "roles/desktop.nix"
-    "roles/developer.nix"
-    "roles/email-backup.nix"
-    "roles/entertainment.nix"
-    "roles/foundation.nix"
-    "roles/gaming.nix"
-    "roles/llm-host.nix"
-    "roles/microvm-host.nix"
-    "roles/opencode.nix"
-    "roles/pi.nix"
-    "roles/workstation.nix"
-    # nixos/
-    "nixos/base.nix"
-    "nixos/desktop.nix"
-    "nixos/gaming.nix"
-    "nixos/ghostty-terminfo.nix"
-    "nixos/streaming.nix"
-    # services/
-    "services/ollama/common.nix"
-    "services/ollama/darwin.nix"
-    "services/ollama/nixos.nix"
-    "services/openclaw/default.nix"
-    "services/microvm-host/default.nix"
-    "services/vmlx/darwin.nix"
-    "services/vllm-mlx/darwin.nix"
-    "services/bifrost/darwin.nix"
-    "services/caddy/darwin.nix"
-    "services/vane/common.nix"
-    "services/vane/darwin.nix"
-    # top-level
-    "default.nix"
-  ];
+  # Auto-discover all .nix files under modules/ without IFD.
+  # Uses recursive builtins.readDir helper — no need to manually update this list.
+  collectNixFiles = path: let
+    entries = builtins.readDir path;
+  in
+    lib.concatLists (
+      lib.mapAttrsToList (
+        name: type: let
+          fullPath = "${path}/${name}";
+        in
+          if type == "regular" && lib.hasSuffix ".nix" name
+          then [fullPath]
+          else if type == "directory"
+          then collectNixFiles fullPath
+          else []
+      )
+      entries
+    );
+
+  modulesDir = ./../modules;
+  basePrefix = toString modulesDir + "/";
+
+  allModules = map (p: lib.removePrefix basePrefix p) (collectNixFiles modulesDir);
 
   # Modules that are exercised by tests (directly imported or evaluated)
   # This includes modules imported by test stubs via evalModules
