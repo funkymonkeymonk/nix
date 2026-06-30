@@ -12,6 +12,7 @@ in {
       pkgs.nvd
       pkgs.nixd
       pkgs.optnix
+      pkgs.nix-unit
 
       # Linting and formatting
       pkgs.yamllint
@@ -948,30 +949,11 @@ in {
     };
 
     "test:checks" = {
-      description = "Build all flake checks (auto-discovers, excludes VM tests)";
+      description = "Run nix-unit eval tests (fast, no derivation builds)";
       after = ["test:eval"];
       exec = ''
-        echo "=== Building Checks ==="
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "System: $CURRENT_SYSTEM"
-        echo ""
-
-        ALL_CHECKS=$(nix eval --impure --json ".#checks.''${CURRENT_SYSTEM}" --apply 'builtins.attrNames' 2>/dev/null)
-        if [ -z "$ALL_CHECKS" ] || [ "$ALL_CHECKS" = "null" ]; then
-          echo "No checks found"
-          exit 0
-        fi
-
-        # Exclude VM and microVM tests (need Linux + KVM)
-        FILTERED=$(echo "$ALL_CHECKS" | jq -r '.[] | select(startswith("vm-") or startswith("microvm-") | not)')
-        TARGETS=$(echo "$FILTERED" | sed "s|^|.#checks.''${CURRENT_SYSTEM}.|")
-
-        if [ -z "$TARGETS" ]; then
-          echo "No checks to build"
-          exit 0
-        fi
-
-        echo "$TARGETS" | xargs nix build --no-link --keep-going --print-build-logs
+        echo "=== Running nix-unit tests ==="
+        nix-unit ./tests/nix-unit-tests.nix
       '';
     };
   };
