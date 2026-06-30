@@ -228,5 +228,5 @@ fjj --clean
 ## See Also
 
 - [Create a PR](./create-pr-with-jj.md)
-- [Complete PR Workflow](./complete-pr-workflow.md)
+- [Sync with main](./sync-with-main.md)
 - [JJ Commands Reference](../reference/jj-commands.md)

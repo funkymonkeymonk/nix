@@ -247,14 +247,17 @@ with lib; let
     names = cfg.plugins;
     hasSource = src != null && names != [];
     # Build extension file entries from pi-plugins packages/
+    # Each plugin is a directory (like bifrost-discovery) so relative imports
+    # (e.g. ./commands.js, ./tools.js) resolve correctly at runtime.
     extEntries = lib.concatLists (map (
         name: let
-          extPath = src + "/packages/${name}/src/index.ts";
+          extPath = src + "/packages/${name}/src";
         in
-          lib.optional (builtins.pathExists extPath) {
-            name = ".pi/agent/extensions/${name}.ts";
+          lib.optional (builtins.pathExists (extPath + "/index.ts")) {
+            name = ".pi/agent/extensions/${name}";
             value = {
               source = extPath;
+              recursive = true;
             };
           }
       )

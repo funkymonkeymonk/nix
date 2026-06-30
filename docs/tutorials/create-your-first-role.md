@@ -1,36 +1,38 @@
+---
+title: "Create Your First Role"
+description: "Learn how to create a reusable role module for grouping packages"
+type: tutorial
+audience: both
+last-reviewed: 2026-06-30
+---
+
 # Create Your First Role
 
-In this tutorial, you'll create a custom role module that bundles packages and configuration together. By the end, you'll have a working role that can be enabled on any machine.
-
-## What You'll Learn
-
-- How role modules are structured
-- How to define a new option in `options.nix`
-- How to register and import the role
-- How platform-specific config works
+In this tutorial you will bundle related tools into a single toggleable role. By the end, any machine in the flake can enable your role with one option.
 
 ## Prerequisites
 
-- Completed [Getting Started](getting-started.md) and [Add Your Machine](add-your-machine.md)
-- Familiarity with the repo structure
+- Completed [Getting Started](getting-started.md) and either the Mac or NixOS setup tutorial
+- Familiarity with `modules/` and `targets/` directories from earlier tutorials
 - About 20 minutes
 
-## Step 1: Pick a Role to Build
+## Step 1: Plan the Role
 
-We'll create a `writing` role for documentation and technical writing. It will include:
-- `vale` -- a prose linter
-- `pandoc` -- a document converter
-- `mdbook` -- a book builder from Markdown
+Pick a name and a set of packages. We'll create a `writing` role for prose work:
 
-## Step 2: Add the Enable Option
+| Tool | Purpose |
+|------|---------|
+| vale | Prose linter |
+| pandoc | Document converter |
+| mdbook | Book builder from Markdown |
 
-Open `modules/common/options.nix` and find the `myConfig.roles` section. You'll see existing roles like `developer`, `creative`, etc.
+## Step 2: Define the Enable Option
 
-Add your new role alongside them:
+Open `modules/common/options.nix` and find the `myConfig.roles` section alongside existing role definitions. Add:
 
 ```nix
 writing = {
-  enable = lib.mkEnableOption "writing tools for documentation and technical writing";
+  enable = lib.mkEnableOption "writing tools (vale, pandoc, mdbook)";
 };
 ```
 
@@ -38,15 +40,10 @@ This creates a boolean option at `myConfig.roles.writing.enable` that defaults t
 
 ## Step 3: Create the Role Module
 
-Create the file `modules/roles/writing.nix`:
+Create `modules/roles/writing.nix`:
 
 ```nix
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}: let
+{ config, lib, pkgs, ... }: let
   cfg = config.myConfig.roles.writing;
 in {
   config = lib.mkIf cfg.enable {
@@ -59,22 +56,22 @@ in {
 }
 ```
 
-The key pattern: `lib.mkIf cfg.enable { ... }` ensures the packages only install when the role is activated for a machine.
+The pattern `lib.mkIf cfg.enable` ensures the packages install only when the role is activated. Notice we do not hard-code any platform assumptions here — `vale`, `pandoc`, and `mdbook` are available on both Darwin and Linux.
 
-## Step 4: Import the Role
+## Step 4: Import the Module
 
-Open `modules/roles/default.nix` and add your module to the imports list:
+Add the module to `modules/roles/default.nix`:
 
 ```nix
 imports = [
-  # ... existing roles ...
+  # ... other roles ...
   ./writing.nix
 ];
 ```
 
 ## Step 5: Validate
 
-Run the checks to make sure everything evaluates:
+Before applying, verify the flake still evaluates cleanly:
 
 ```bash
 devenv tasks run check:lint
@@ -82,32 +79,32 @@ devenv tasks run test:darwin-eval    # macOS
 devenv tasks run test:nixos-eval     # NixOS
 ```
 
-If you get an error like "option myConfig.roles.writing does not exist", double-check that you added the option in Step 2.
+Both should pass. If you see "option myConfig.roles.writing does not exist", double-check Step 2 for a typo.
 
 ## Step 6: Enable the Role on Your Machine
 
-In `flake.nix`, add `"writing"` to your machine's roles list:
+In your target configuration under `targets/`, enable the role inside `myConfig`:
 
 ```nix
-"my-laptop" = mkDarwinHost {
-  target = ./targets/my-laptop;
-  user = mkUser "yourusername" "you@example.com";
-  roles = ["developer" "desktop" "writing"];
+roles = {
+  developer.enable = true;
+  writing.enable = true;    # add this line
 };
 ```
 
-## Step 7: Build and Apply
+Then rebuild:
 
 ```bash
 # macOS
-nix build .#darwinConfigurations.my-laptop.system
-./result/sw/bin/darwin-rebuild switch --flake .#my-laptop
+./result/sw/bin/darwin-rebuild switch --flake .#your-target
 
 # NixOS
-sudo nixos-rebuild switch --flake .#my-laptop
+sudo nixos-rebuild switch --flake .#your-target
 ```
 
-## Step 8: Verify
+## Step 7: Verify the Installation
+
+Open a new terminal and confirm the tools are present:
 
 ```bash
 vale --version
@@ -115,40 +112,29 @@ pandoc --version
 mdbook --version
 ```
 
-All three should be available.
+You will see version info from each tool. If one is missing, check that `myConfig.roles.writing.enable = true` was actually written to your target before rebuilding.
 
-## Going Further: Platform-Specific Packages
+## Optional: Platform-Specific Packages
 
-To add macOS-only Homebrew casks, guard them with a platform check:
+To add macOS-only Homebrew casks to the same role, guard with a platform check:
 
 ```nix
 config = lib.mkIf cfg.enable {
-  environment.systemPackages = with pkgs; [
-    vale
-    pandoc
-    mdbook
-  ];
+  environment.systemPackages = with pkgs; [vale pandoc mdbook];
 
-  # macOS Homebrew casks
   homebrew = lib.mkIf config.myConfig.isDarwin {
-    casks = [
-      "marked"    # Markdown previewer (macOS only)
-    ];
+    casks = ["marked"];  # Markdown previewer (macOS only)
   };
 };
 ```
 
-## What You've Learned
+## What You Learned
 
 - Roles are NixOS modules gated by `lib.mkIf cfg.enable`
-- Options go in `modules/common/options.nix`
-- The module goes in `modules/roles/<name>.nix` and is imported in `default.nix`
-- Platform checks use `config.myConfig.isDarwin`
-- Always validate with lint + eval before applying
+- Options live in `modules/common/options.nix` under `myConfig.roles`
+- Modules go in `modules/roles/<name>.nix` and import via `default.nix`
+- Platform-specific code uses `lib.mkIf config.myConfig.isDarwin`
 
-## What's Next
+## See Also
 
-- **Add skills to your role**: See [Write Your First Skill](write-your-first-skill.md)
-- **See all existing roles**: [Roles Reference](../reference/roles.md)
-- **Add shell aliases**: Add an `environment.shellAliases` block inside the `mkIf`
-- **Understand the module system**: [Architecture](../explanation/architecture.md)
+For a quick checklist when adding any role (not this first one), see [Add a New Role](../how-to/add-role.md).

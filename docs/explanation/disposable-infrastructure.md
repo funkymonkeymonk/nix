@@ -212,9 +212,7 @@ nixos-facter requires kexec or installer image. If on existing Linux:
 
 ## Related Documents
 
-- [Install Disposable Quick Reference](../how-to/install-disposable-quick-reference.md) - Quick installation reference
-- [Install Disposable](../how-to/install-disposable.md) - Full installation guide
-- [Add a New Machine](../how-to/add-machine.md) - Adding new machines to the flake
+- [Set Up Your NixOS Machine](../tutorials/setup-your-nixos-machine.md) - Step-by-step installation tutorial
 - [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) - Remote installation
 - [disko](https://github.com/nix-community/disko) - Declarative partitioning
 - [nixos-facter](https://github.com/nix-community/nixos-facter) - Hardware detection

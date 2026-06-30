@@ -127,7 +127,6 @@ If empty, you need to make changes first.
 
 ## Next Steps
 
-- [Complete the PR workflow](./complete-pr-workflow.md)
 - [Create stacked PRs](./create-stacked-prs.md)
 - [Sync with main branch](./sync-with-main.md)
 
