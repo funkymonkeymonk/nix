@@ -56,13 +56,15 @@
 
     # Pi plugins - extensions and skills for pi coding agent
     pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
-
     # Flake-parts (incremental migration — used for testing infrastructure first)
     flake-parts.url = "github:hercules-ci/flake-parts";
 
     # nix-unit: Eval-time unit testing framework
     nix-unit.url = "github:nix-community/nix-unit";
     nix-unit.flake = false;
+
+    # Himalaya TUI - terminal UI for email (companion to himalaya CLI)
+    himalaya-tui.url = "github:pimalaya/himalaya-tui";
   };
 
   outputs = {
@@ -112,6 +114,10 @@
           # zellij-pane-tracker WASM plugin from its own flake
           (final: _prev: {
             zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
+          })
+          # himalaya-tui from upstream Pimalaya flake
+          (final: _prev: {
+            himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
           })
           (import ./overlays {inherit inputs;})
         ];
