@@ -93,6 +93,24 @@
           editor = {
             vimMode = true;
           };
+          compaction = {
+            enabled = true;
+            # Trigger compaction earlier so each summarization is smaller
+            reserveTokens = 24576;
+            keepRecentTokens = 16000;
+          };
+          retry = {
+            enabled = true;
+            # More retries and longer timeout for large summarizations
+            maxRetries = 5;
+            baseDelayMs = 3000;
+            provider = {
+              # Summarizing large contexts can take minutes; SDK default is too aggressive
+              timeoutMs = 600000; # 10 min
+              maxRetries = 0;
+              maxRetryDelayMs = 60000;
+            };
+          };
         };
 
         agentsMd = ''
