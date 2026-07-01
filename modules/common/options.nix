@@ -554,12 +554,6 @@ with lib; {
         description = "SSH key name for git signing in 1Password";
       };
 
-      enableSudo = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable 1Password for sudo authentication (NixOS only)";
-      };
-
       sudoPasswordRef = mkOption {
         type = types.str;
         default = "";
@@ -1553,6 +1547,12 @@ with lib; {
         type = types.port;
         default = 11434;
         description = "Bind port for Ollama server";
+      };
+
+      keepAlive = mkOption {
+        type = types.str;
+        default = "8h";
+        description = "Duration to keep loaded models in memory (e.g. \"8h\", \"24h\", \"0\" for infinite)";
       };
     };
 

@@ -236,7 +236,7 @@ The current installer uses a single disk. For complex layouts:
 
 ## Related
 
-- [Add a new machine](add-machine.md)
+- [Set Up Your NixOS Machine](../tutorials/setup-your-nixos-machine.md)
 - [NixOS Installation Manual](https://nixos.org/manual/nixos/stable/#sec-installation)
 - [disko documentation](https://github.com/nix-community/disko)
 - [nixos-anywhere](https://github.com/nix-community/nixos-anywhere)

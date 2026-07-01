@@ -32,6 +32,7 @@ in {
         EnvironmentVariables = {
           HOME = darwinHomeDir;
           OLLAMA_HOST = "${cfg.host}:${toString cfg.port}";
+          OLLAMA_KEEPALIVE = "8h";
         };
       };
     };

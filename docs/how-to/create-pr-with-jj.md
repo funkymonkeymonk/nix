@@ -118,7 +118,6 @@ jj git remote list
 
 - [Update an existing PR](./update-existing-pr.md)
 - [Create stacked PRs](./create-stacked-prs.md)
-- [Complete PR workflow with jj-finish](./complete-pr-workflow.md)
 
 ## See Also
 

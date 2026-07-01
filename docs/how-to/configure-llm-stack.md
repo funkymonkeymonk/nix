@@ -231,4 +231,4 @@ cat /tmp/caddy.error.log
 ## See Also
 
 - [LLM Stack Reference](../reference/llm-stack.md) - Full architecture and operations
-- [Add a New Machine](add-machine.md) - Configure a new Darwin target
+- [Set Up Your Mac](../tutorials/setup-your-mac.md) - Configure a new Darwin target

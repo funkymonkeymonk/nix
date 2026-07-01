@@ -1,121 +1,140 @@
 ---
 title: "Getting Started"
-description: "Tutorial for setting up this Nix configuration on a new machine"
+description: "Overview of this Nix configuration system and your first steps"
 type: tutorial
 audience: both
-last-reviewed: 2026-04-06
+last-reviewed: 2026-06-30
 ---
 
 # Getting Started
 
-This tutorial walks you through setting up this Nix configuration on a new machine. By the end, you'll have a fully configured development environment.
+In this tutorial you will learn what this repository is, see its structure, and set up the development environment. By the end, you will be able to evaluate configurations and run local tests.
 
-## What You'll Learn
+## What This Is
 
-- How to install Nix with flakes
-- How to apply this configuration to your machine
-- How to verify everything works
+This repository manages the configuration of multiple machines through a single Nix flake. It supports both macOS (nix-darwin) and NixOS.
+
+The repo follows three patterns:
+
+| Pattern | When to Use | Example |
+|---------|-------------|---------|
+| **Heirloom** | Unique machine with custom settings | Work laptop, gaming desktop |
+| **Takeout Container** | Standardized, replaceable machines | Headless servers, MicroVM hosts |
+| **MicroVM** | Lightweight isolated NixOS VMs | AI tooling, dev environments |
+
+## Repository Structure at a Glance
+
+```
+├── modules/                 # Reusable configuration logic
+│   ├── common/              # Shared options and user management
+│   ├── home-manager/        # User environment (dotfiles, apps)
+│   ├── roles/               # Role modules (package bundles)
+│   ├── services/            # Background service definitions
+│   ├── microvm/             # MicroVM guest configuration
+│   └── nixos/              # NixOS-specific modules
+├── targets/                 # Machine-specific configurations
+│   ├── wweaver/             # Work laptop (macOS)
+│   ├── MegamanX/            # Personal desktop (macOS)
+│   ├── zero/                # Gaming PC (NixOS)
+│   └── microvms/            # MicroVM definitions
+├── machine-types/           # Generic configurations (type-server, type-desktop)
+├── disk-configs/            # Disko disk layouts
+├── os/                      # Platform-specific base configuration
+├── library/                 # System-building abstractions
+└── flake.nix               # Composes everything together
+```
+
+## Core Concepts
+
+**Roles** group packages by purpose. A machine enables one or more roles:
+
+- `developer` — emacs, helix, docker, kubectl, python, nodejs
+- `creative` — ffmpeg, imagemagick, pandoc
+- `gaming` — Steam, Moonlight game streaming
+- `opencode` / `claude` / `pi` — AI coding agents
+- And more (see [Roles Reference](../reference/roles.md))
+
+**Targets** hold machine-specific settings in `targets/<name>/`. Heirloom machines have their own target directory; takeout container machines use one of the generic configurations under `machine-types/`.
 
 ## Prerequisites
 
-- A macOS (Apple Silicon) or Linux (x86_64) machine
-- Terminal access
-- About 30 minutes
+- macOS 14+ (Apple Silicon) **or** a NixOS-capable machine
+- Terminal access with administrator privileges
+- A GitHub account with SSH key configured
 
 ## Step 1: Install Nix
 
-If you don't have Nix installed, use the Determinate Systems installer:
+Use the Determinate Systems installer if Nix is not already installed:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 ```
 
-Restart your terminal after installation.
-
-Verify Nix is working:
+Restart your terminal and verify:
 
 ```bash
 nix --version
+# Expected: nix (Nix) 2.x.x or later
 ```
 
-You should see output like `nix (Nix) 2.x.x`.
-
-## Step 2: Clone This Repository
+## Step 2: Clone the Repository
 
 ```bash
-git clone https://github.com/funkymonkeymonk/nix.git
-cd nix
+git clone git@github.com:funkymonkeymonk/nix.git ~/nix
+cd ~/nix
 ```
 
-## Step 3: Enter the Development Environment
+## Step 3: Enter the Development Shell
+
+```bash
+devenv shell
+```
+
+This provides access to all development tools (linters, formatters, devenv tasks). The first invocation downloads and caches dependencies.
+
+You can also use `nix develop` without the devenv wrapper:
 
 ```bash
 nix develop
-```
-
-This may take a few minutes the first time as it downloads dependencies. When complete, you'll be in a shell with all development tools available.
-
-## Step 4: Review Available Configurations
-
-List the available system configurations:
-
-```bash
-# For macOS
-nix flake show | grep darwinConfigurations
-
-# For NixOS
-nix flake show | grep nixosConfigurations
-```
-
-You'll see configurations like `wweaver`, `MegamanX`, and `zero`.
-
-## Step 5: Create Your Configuration
-
-For a new machine, you'll need to create a target. For now, let's test with the `core` configuration which provides minimal tooling.
-
-### On macOS
-
-```bash
-# Build and apply the core configuration
-nix build .#darwinConfigurations.core.system
-./result/sw/bin/darwin-rebuild switch --flake .#core
-```
-
-### On NixOS
-
-NixOS requires hardware-specific configuration. See the [Add a New Machine](../how-to/add-machine.md) guide for detailed steps.
-
-## Step 6: Verify Installation
-
-After applying the configuration:
-
-```bash
-# Check that devenv is available
-devenv --version
-
-# List available tasks
 devenv tasks list
 ```
 
-You should see a list of available tasks like `check:lint`, `build:darwin`, etc.
+## Step 4: Check What Configurations Are Available
 
-## Step 7: Run Validation
-
-Verify your configuration is healthy:
+List macOS configurations:
 
 ```bash
-devenv tasks run check:lint
+nix flake show | grep darwinConfigurations
 ```
 
-This runs fast lint checks (~30 seconds).
+List NixOS configurations:
+
+```bash
+nix flake show | grep nixosConfigurations
+```
+
+Expected output includes entries like `wweaver`, `MegamanX`, `type-server`, and `zero`.
+
+## Step 5: Run Local Validation
+
+Before building or applying anything, verify the flake evaluates cleanly:
+
+```bash
+# Fast lint check (formatting, dead code)
+devenv tasks run check:lint
+
+# Eval test for your platform
+devenv tasks run test:darwin-eval    # on macOS
+devenv tasks run test:nixos-eval     # on Linux
+```
+
+If both pass, the flake is healthy.
 
 ## What's Next?
 
-Now that you have the basics working:
+Continue with your platform's setup walkthrough: [Set Up Your Mac](setup-your-mac.md) or [Set Up Your NixOS Machine](setup-your-nixos-machine.md).
 
-- **Customize your setup**: See [Add a New Machine](../how-to/add-machine.md) to create a personalized configuration
-- **Understand the architecture**: Read [Architecture](../explanation/architecture.md) to learn how modules, bundles, and roles work
-- **Explore available roles**: Check [Roles Reference](../reference/roles.md) for available package bundles
+If you want to understand how modules and roles fit together before configuring anything, read [Architecture](../explanation/architecture.md).
 
 ## Troubleshooting
 
@@ -127,16 +146,18 @@ Add this to `~/.config/nix/nix.conf`:
 experimental-features = nix-command flakes
 ```
 
-### Build takes too long
+The Determinate installer usually sets this automatically.
 
-First builds download many packages. Subsequent builds use the cache and are much faster.
+### Flake evaluation fails with missing input locks
 
-### Permission denied errors
-
-On macOS, you may need to run:
+Unlock the flake:
 
 ```bash
-sudo chown -R $(whoami) /nix
+nix flake update
 ```
 
-> For more troubleshooting help, see the reference documentation or check existing issues in the repository.
+Then re-run the failing command.
+
+### devenv tasks are not found
+
+Ensure you are in the development shell (`devenv shell` or `nix develop`) before running devenv tasks. Tasks defined in `devenv.nix` are only available inside the dev environment.

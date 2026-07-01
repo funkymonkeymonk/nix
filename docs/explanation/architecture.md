@@ -92,7 +92,6 @@ Services are launchd system daemons that run on macOS. Each service lives in `mo
 - Run as a specific user via `UserName` (not root)
 - Log to ephemeral `/tmp/<service>.log`
 
-> **How-to:** [Create a Darwin System Daemon](../how-to/create-darwin-daemon.md)
 
 ### Targets (Machine-Specific Settings)
 
