@@ -207,5 +207,4 @@ This lets you work in isolation while still being able to test your changes with
 - **[How to Create a PR](../how-to/create-pr-with-jj.md)** — the full PR workflow with `jj-pr`
 - **[How to Update a PR](../how-to/update-existing-pr.md)** — handling review iterations
 - **[How to Use Workspaces](../how-to/use-workspaces.md)** — work on multiple features simultaneously
-- **[How to Complete the Full PR Workflow](../how-to/complete-pr-workflow.md)** — `jj-finish` for end-to-end automation
 - **[JJ Commands Reference](../reference/jj-commands.md)** — every command with options

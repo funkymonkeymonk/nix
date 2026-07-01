@@ -111,6 +111,7 @@
               maxRetryDelayMs = 60000;
             };
           };
+          httpIdleTimeoutMs = 300000; # 5 minutes - needed for slow first-token latency with local models
         };
 
         agentsMd = ''

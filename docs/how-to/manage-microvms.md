@@ -1,62 +1,69 @@
-# Manage MicroVMs
+---
+title: "How to Manage MicroVMs"
+description: "Add, remove, start, stop, and update NixOS MicroVMs on a type-server"
+type: how-to
+audience: both
+last-reviewed: 2026-06-30
+---
 
-Add, remove, start, and stop MicroVMs on a type-server with the `microvm-host` role enabled.
+# How to Manage MicroVMs
+
+Manage lightweight NixOS MicroVMs running on a `type-server` with the `microvm-host` role enabled.
 
 ## Add a MicroVM
 
-```bash
-sudo nix-cloud-init microvm add <name> <flake-attr> <ip-address> [autoStart]
-```
+1. Choose a name, flake attribute, and IP address for the VM:
 
-Example:
+    ```bash
+    # Syntax: add <name> <flake-attr> <ip-address> [autoStart]
+    sudo nix-cloud-init microvm add matrix .#microvm.nixosConfigurations.matrix 192.168.83.15
+    sudo nix-cloud-init microvm add openclaw .#microvm.nixosConfigurations.openclaw 192.168.83.16
+    ```
 
-```bash
-sudo nix-cloud-init microvm add matrix .#microvm.nixosConfigurations.matrix 192.168.83.15
-sudo nix-cloud-init microvm add openclaw .#microvm.nixosConfigurations.openclaw 192.168.83.16
-```
+    `autoStart` defaults to `true`.
 
-The `autoStart` parameter defaults to `true`.
+2. Regenerate the Nix configuration:
+
+    ```bash
+    sudo nix-cloud-init microvm generate
+    ```
+
+    This writes disk interfaces, cloud-hypervisor configs, read-only store mounts, and cloud-init shares into `/etc/nixos/microvms.nix`.
+
+3. Rebuild the system:
+
+    ```bash
+    sudo nixos-rebuild switch --impure
+    ```
 
 ## Remove a MicroVM
 
-```bash
-sudo nix-cloud-init microvm remove <name>
-```
+1. Delete the definition:
 
-Example:
+    ```bash
+    sudo nix-cloud-init microvm remove matrix
+    ```
 
-```bash
-sudo nix-cloud-init microvm remove matrix
-```
+2. Regenerate and rebuild:
 
-Then regenerate and rebuild:
-
-```bash
-sudo nix-cloud-init microvm generate
-sudo nixos-rebuild switch --impure
-```
+    ```bash
+    sudo nix-cloud-init microvm generate
+    sudo nixos-rebuild switch --impure
+    ```
 
 ## List Defined MicroVMs
 
 ```bash
-nix-cloud-init microvm list
+sudo nix-cloud-init microvm list
 ```
 
-## Generate Nix Configuration
+## Start / Stop / Restart Individual VMs
 
-After adding or removing VMs, regenerate `/etc/nixos/microvms.nix`:
-
-```bash
-sudo nix-cloud-init microvm generate
-```
-
-This file defines `microvm.vms.*` with TAP interfaces, cloud-hypervisor, read-only store, and cloud-init shares.
-
-## Start/Stop Individual VMs
+Each MicroVM runs as a systemd service named `microvm-\u003cname\u003e`:
 
 ```bash
-sudo systemctl start microvm-matrix
-sudo systemctl stop microvm-openclaw
+sudo systemctl start  microvm-matrix
+sudo systemctl stop   microvm-openclaw
 sudo systemctl restart microvm-matrix
 ```
 
@@ -64,40 +71,29 @@ sudo systemctl restart microvm-matrix
 
 ```bash
 sudo systemctl status microvm-matrix
-sudo systemctl status microvm-openclaw
 ```
 
 ## SSH Into a VM
 
-From the host:
+Connect from the host using the IP address you assigned:
 
 ```bash
-ssh root@192.168.83.15  # Matrix
+ssh root@192.168.83.15   # Matrix
 ssh root@192.168.83.16  # OpenClaw
 ```
 
-## View Monitoring
+## View Monitoring Data
 
-### DNS queries from VMs
+- **DNS queries** from VMs flow through unbound:
 
-```bash
-journalctl -u unbound -f
-```
+    ```bash
+    journalctl -u unbound -f
+    ```
 
-### Outbound connections from VMs
+- **Outbound connections** appear in the kernel log:
 
-```bash
-journalctl -k | grep microvm-egress
-```
+    ```bash
+    journalctl -k | grep microvm-egress
+    ```
 
-## Enable the microvm-host Role
-
-If not already enabled:
-
-```bash
-sudo nix-cloud-init set nix.roles microvm-host
-sudo nixos-rebuild switch --impure
-```
-
-> For a step-by-step walkthrough, see [Run OpenClaw in a MicroVM](../tutorials/run-openclaw-microvm.md).
-> For cloud-init format details, see [Cloud-init Format Reference](../reference/cloud-init-format.md).
+\u003e For cloud-init format details, see [Cloud-init Format Reference](../reference/cloud-init-format.md).

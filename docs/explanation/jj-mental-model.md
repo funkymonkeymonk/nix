@@ -333,6 +333,6 @@ Auto-sync only updates if there are no local changes. If you have uncommitted wo
 
 ## Recommended Reading
 
-- [JJ Tutorial](../tutorials/jj-workflow.md) - Hands-on learning
+- [JJ Workflow guide](../how-to/jj-workflow.md) - Hands-on learning
 - [How to Create a PR](../how-to/create-pr-with-jj.md) - Practical workflow
 - [JJ Commands Reference](../reference/jj-commands.md) - Command details

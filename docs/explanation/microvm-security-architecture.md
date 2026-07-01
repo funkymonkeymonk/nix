@@ -103,5 +103,5 @@ The blog post approach stages secrets on the host and mounts them into VMs. This
 
 sops-nix encrypts secrets with age/GPG keys stored on the host. This avoids needing 1Password in VMs but introduces key management complexity. We use 1Password because it's already in use for the homelab and supports audit logging.
 
-> For a step-by-step walkthrough, see [Run OpenClaw in a MicroVM](../tutorials/run-openclaw-microvm.md).
+> For a walkthrough, see [Manage MicroVMs](../how-to/manage-microvms.md).
 > For module details, see [MicroVM Modules Reference](../reference/microvm-modules.md).

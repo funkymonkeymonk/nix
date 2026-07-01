@@ -161,58 +161,6 @@ Let's break down what opnix did:
 
 ## Next Steps
 
-Congratulations! You now have opnix working. Here's what to explore next:
+You have opnix working. To manage secrets on a production system, see [Configure MicroVM Secrets](../how-to/configure-microvm-secrets.md) for the full procedure.
 
-### Add More Secrets
-
-Simply add more entries to `myConfig.onepassword.secrets`:
-
-```nix
-myConfig.onepassword.secrets = {
-  demoApiKey = { /* ... */ };
-  databasePassword = {
-    reference = "op://Private/Production DB/password";
-    path = "/run/secrets/db-password";
-    mode = "0400";
-    owner = "postgres";
-  };
-  tlsCertificate = {
-    reference = "op://Homelab/Website TLS/certificate";
-    path = "/run/secrets/tls.crt";
-    mode = "0444";
-  };
-};
-```
-
-### Use Secrets in Applications
-
-Most services can read secrets from files:
-
-```nix
-services.postgresql = {
-  enable = true;
-  initialScript = pkgs.writeText "init.sql" ''
-    ALTER USER postgres WITH PASSWORD '$(cat /run/secrets/db-password)';
-  '';
-};
-```
-
-### Learn More
-
-- [Set up a 1Password service account](../how-to/setup-opnix-service-account.md) - Production setup guide
-- [opnix configuration reference](../reference/opnix-options.md) - All available options
-- [opnix security architecture](../explanation/opnix-security.md) - How it keeps secrets safe
-
-## Common Issues
-
-**Service account can't access vault**
-
-Make sure the service account has access to the vault containing your secrets. You can check this in the 1Password web interface.
-
-**Permission denied when reading secret**
-
-Ensure the `owner` and `mode` in your secret configuration match what the service expects.
-
-**Changes not applying**
-
-Remember to run `sudo nixos-rebuild switch` after changing your configuration.
+For the reference of all opnix options, see [opnix Options Reference](../reference/opnix-options.md).

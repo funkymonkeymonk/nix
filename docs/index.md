@@ -1,55 +1,41 @@
-# Documentation
+# Documentation Hub
 
-This documentation follows the [Diataxis](https://diataxis.fr/) framework, organizing content by user need.
+This documentation follows the [Diátaxis](https://diataxis.fr/) framework. Pick the quadrant that matches what you need.
 
 ## Tutorials (Learning)
 
-Step-by-step guides for learning:
+Walk-throughs that teach by having you do things in order. Follow them top to bottom.
 
-- [Getting Started](tutorials/getting-started.md) - Set up this configuration on a new machine
-- [Add Your Machine](tutorials/add-your-machine.md) - Add your own machine to this repo
-- [Create Your First Role](tutorials/create-your-first-role.md) - Build a custom role module
-- [Write Your First Skill](tutorials/write-your-first-skill.md) - Create an AI agent skill
-- [Yak Shaving with yx](tutorials/yak-shaving.md) - Multi-agent task tracking with jj workspaces
-- [Getting Started with jj](tutorials/jj-workflow.md) - Learn the jj version control workflow
+| Tutorial | What You'll Learn |
+|----------|-------------------|
+| [Getting Started](tutorials/getting-started.md) | Repo overview, clone, run initial validation |
+| [Set Up Your Mac](tutorials/setup-your-mac.md) | Configure a new macOS machine from scratch |
+| [Set Up Your NixOS Machine](tutorials/setup-your-nixos-machine.md) | Boot USB, install NixOS, apply config |
+| [Create Your First Role](tutorials/create-your-first-role.md) | Bundle packages into a reusable role module |
+
+See the full list: [→ Tutorials Index](tutorials/index.md)
 
 ## How-To Guides (Tasks)
 
-Solve specific problems:
+Procedural guides that solve a specific problem. Pick the one that matches your task.
 
-- [Add a New Machine](how-to/add-machine.md) - Configure a new Darwin or NixOS machine
-- [Add a New Role](how-to/add-role.md) - Create a role module
-- [Add a Custom Skill](how-to/add-skill.md) - Create an AI agent skill
-- [Set Up 1Password SSH Signing](how-to/setup-1password.md) - Configure commit signing
-- [Run CI Locally](how-to/run-ci-locally.md) - Validate before pushing
-- [Create a PR with jj](how-to/create-pr-with-jj.md) - Create a pull request
-- [Update an Existing PR](how-to/update-existing-pr.md) - Respond to review feedback
-- [Sync with Main](how-to/sync-with-main.md) - Keep your branch up to date
-- [Use jj Workspaces](how-to/use-workspaces.md) - Parallel development with workspaces
-- [Create Stacked PRs](how-to/create-stacked-prs.md) - Stack dependent pull requests
-- [Complete PR Workflow](how-to/complete-pr-workflow.md) - End-to-end with jj-finish
-- [Configure the LLM Stack](how-to/configure-llm-stack.md) - Enable vllm-mlx, Bifrost, and Caddy
-- [Create a Darwin System Daemon](how-to/create-darwin-daemon.md) - Add a launchd daemon service for macOS
+[→ How-To Guides Index](how-to/index.md)
+
+| Category | Guides |
+|----------|--------|
+| **Version Control** | [Use jj Workspaces](how-to/use-workspaces.md), [Create a PR with jj](how-to/create-pr-with-jj.md), [Update an Existing PR](how-to/update-existing-pr.md), [Sync with Main](how-to/sync-with-main.md), [JJ Workflow](how-to/jj-workflow.md) |
+| **Configuration** | [Add a New Role](how-to/add-role.md), [Run CI Locally](how-to/run-ci-locally.md), [Set Up 1Password SSH Signing](how-to/setup-1password.md) |
+| **Infrastructure** | [Manage MicroVMs](how-to/manage-microvms.md), [Configure MicroVM Secrets](how-to/configure-microvm-secrets.md), [Create a Darwin System Daemon](how-to/create-darwin-daemon.md), [Create an Installer USB](how-to/create-installer-usb.md) |
+| **LLM Stack** | [Configure the LLM Stack](how-to/configure-llm-stack.md) |
 
 ## Reference (Information)
 
-Technical descriptions:
+Technical look-up tables. No narrative, no opinion — just facts.
 
-- [Options Reference](reference/options.md) - Configuration options (myConfig.*)
-- [Roles Reference](reference/roles.md) - Available role modules
-- [Tasks Reference](reference/tasks.md) - Devenv task commands
-- [Skills Reference](reference/skills.md) - Agent skill manifest format
-- [Yaks Reference](reference/yaks.md) - yx task management commands
-- [CI/CD Reference](reference/ci.md) - Pipeline stages and tasks
-- [JJ Commands Reference](reference/jj-commands.md) - Jujutsu command reference
-- [LLM Stack Reference](reference/llm-stack.md) - vllm-mlx + Bifrost + Caddy architecture
+[→ Reference Index](reference/index.md) | [Configuration Options](reference/options.md) | [Roles](reference/roles.md) | [Jujutsu Commands](reference/jj-commands.md) | [CI/CD](reference/ci.md) | [Skills](reference/skills.md) | [Tasks](reference/tasks.md)
 
 ## Explanation (Understanding)
 
-Background and design:
+Background and design rationale. Read these when you want to understand *why* the system works the way it does.
 
-- [Architecture](explanation/architecture.md) - How modules, roles, and targets work
-- [Agent Skills System](explanation/agent-skills.md) - Why skills are managed through Nix
-- [Yaks and Workspaces](explanation/yaks-workspaces.md) - Multi-agent coordination design
-- [JJ Mental Model](explanation/jj-mental-model.md) - Why jj works the way it does
-- [LLM Stack Evolution](explanation/llm-stack-evolution.md) - Why we replaced Higgs + Ollama with vllm-mlx
+[→ Explanation Index](explanation/index.md) | [Architecture](explanation/architecture.md) | [Disposable Infrastructure](explanation/disposable-infrastructure.md) | [JJ Mental Model](explanation/jj-mental-model.md) | [Testing Strategy](explanation/testing.md)
