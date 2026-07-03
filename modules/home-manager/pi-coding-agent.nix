@@ -47,12 +47,19 @@ with lib; let
         else null;
       models =
         if model.modelId != ""
-        then [
-          {
-            id = model.modelId;
-            name = model.name;
-          }
-        ]
+        then let
+          baseModel =
+            {
+              id = model.modelId;
+              name = model.name;
+            }
+            // lib.optionalAttrs model.reasoning {
+              reasoning = true;
+            }
+            // lib.optionalAttrs (model.maxTokens != null) {
+              maxTokens = model.maxTokens;
+            };
+        in [baseModel]
         else null;
       compat =
         if model.modelId == ""
