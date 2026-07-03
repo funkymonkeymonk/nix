@@ -1295,6 +1295,16 @@ with lib; {
               default = "";
               description = "Base URL for the API (for custom endpoints)";
             };
+            reasoning = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether the model supports extended thinking/reasoning";
+            };
+            maxTokens = mkOption {
+              type = types.nullOr types.int;
+              default = null;
+              description = "Maximum output tokens for the model";
+            };
           };
         });
         default = {};

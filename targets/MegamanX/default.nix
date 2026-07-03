@@ -128,12 +128,16 @@
           provider = "openai";
           modelId = "ollama-local/qwen3.6:27b";
           baseUrl = "http://bifrost.internal/v1";
+          reasoning = true;
+          maxTokens = 131072;
         };
         models.local-ollama = {
           name = "Local LLM (Ollama via Bifrost)";
           provider = "openai";
           modelId = "ollama-local/qwen3.6:27b";
           baseUrl = "http://bifrost.internal/v1";
+          reasoning = true;
+          maxTokens = 131072;
         };
 
         prompts.review = ''
