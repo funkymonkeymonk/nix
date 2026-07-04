@@ -393,7 +393,7 @@ in {
 
       if [ ! -f "$stamp_file" ] || [ "$(cat "$stamp_file" 2>/dev/null)" != "$current_target" ]; then
         $DRY_RUN_CMD mkdir -p "$npm_dir"
-        $DRY_RUN_CMD cd "$npm_dir" && ${pkgs.nodejs}/bin/npm install
+        $DRY_RUN_CMD cd "$npm_dir" && PATH="${pkgs.nodejs}/bin:$PATH" ${pkgs.nodejs}/bin/npm install
         $DRY_RUN_CMD echo "$current_target" > "$stamp_file"
       fi
     '');
