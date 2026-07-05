@@ -37,6 +37,7 @@ in {
             HOME = darwinHomeDir;
             OLLAMA_HOST = "${cfg.host}:${toString cfg.port}";
             OLLAMA_KEEPALIVE = "8h";
+            PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
           };
         };
       };
