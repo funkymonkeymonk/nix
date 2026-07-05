@@ -1,4 +1,6 @@
 # MegamanX (personal desktop) target configuration
+# Thin host file — imports workstation archetype, adds machine-specific
+# LLM stack (vllm-mlx, bifrost, vane) and pi customizations.
 {
   mkUser,
   inputs,
@@ -8,18 +10,18 @@
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
+  imports = [
+    ../../library/archetypes/workstation-darwin.nix
+  ];
+
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
       skills.superpowersPath = inputs.superpowers;
-      roles = {
-        developer.enable = true;
-        desktop.enable = true;
-        workstation.enable = true;
-        entertainment.enable = true;
-        pi.enable = true;
-        homebrew.enable = true;
-      };
+
+      # Extra role beyond workstation archetype
+      roles.entertainment.enable = true;
+
       # vllm-mlx disabled — use Ollama instead. Config preserved for easy re-enable.
       vllmMlx = {
         enable = false;
@@ -42,12 +44,6 @@
         logLevel = "INFO";
       };
 
-      ollama = {
-        enable = true;
-        host = "127.0.0.1";
-        port = 11434;
-      };
-
       vane = {
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
@@ -55,11 +51,11 @@
         embeddingModel = "nomic-embed-text:latest";
         ollamaUrl = "http://localhost:11434";
       };
+
       bifrost = {
         enable = true;
         logLevel = "debug";
         upstreams = {
-          # vllm-mlx disabled — preserved for easy re-enable
           vllm-mlx-local = {
             url = "http://localhost:8300";
             type = "openai";
@@ -76,12 +72,16 @@
           };
         };
       };
+
       searxng.enable = true;
+
       caddy.enable = true;
+
       llmClient = {
         serverHost = "bifrost.internal";
         serverPort = "80";
       };
+
       pi = {
         npmPackages = {
           "pi-opencode-provider" = "^0.7.3";
@@ -96,23 +96,20 @@
           };
           compaction = {
             enabled = true;
-            # Trigger compaction earlier so each summarization is smaller
             reserveTokens = 24576;
             keepRecentTokens = 16000;
           };
           retry = {
             enabled = true;
-            # More retries and longer timeout for large summarizations
             maxRetries = 5;
             baseDelayMs = 3000;
             provider = {
-              # Summarizing large contexts can take minutes; SDK default is too aggressive
-              timeoutMs = 600000; # 10 min
+              timeoutMs = 600000;
               maxRetries = 0;
               maxRetryDelayMs = 60000;
             };
           };
-          httpIdleTimeoutMs = 300000; # 5 minutes - needed for slow first-token latency with local models
+          httpIdleTimeoutMs = 300000;
         };
 
         agentsMd = ''
@@ -124,6 +121,8 @@
           - Follow the conventional commit style
         '';
 
+        # Override the workstation archetype's default local-ollama model
+        # to route through Bifrost instead of direct Ollama
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";

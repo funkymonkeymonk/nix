@@ -374,25 +374,23 @@
           }
         ];
       };
-      # MegamanX - personal desktop/workstation
+      # MegamanX — personal desktop/workstation
+      # Uses base-darwin archetype (modules, os/darwin, home-manager) +
+      # workstation-darwin archetype (roles, ollama, pi) with machine-specific services
       "MegamanX" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          ./library/archetypes/base-darwin.nix
           nix-homebrew.darwinModules.nix-homebrew
-          ./modules
-          ./modules/roles/homebrew.nix
+          ./library/archetypes/workstation-darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
           ./modules/services/vllm-mlx/darwin.nix
-          ./modules/services/ollama/darwin.nix
-          ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          ./targets/MegamanX
-          home-manager.darwinModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          ./hosts/megamanx
         ];
       };
     };
