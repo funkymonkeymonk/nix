@@ -12,12 +12,10 @@ with lib; let
   cfg = config.myConfig.ollama;
   hasHomebrew = builtins.hasAttr "homebrew" options;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
+  commonLib = import ../../common/lib.nix {inherit lib;};
 
-  darwinHomeDir = "/Users/${primaryUser}";
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
 in {
   config = mkIf cfg.enable (mkMerge [
     (optionalAttrs hasHomebrew {
