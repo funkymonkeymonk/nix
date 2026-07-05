@@ -86,6 +86,7 @@
         npmPackages = {
           "pi-opencode-provider" = "^0.7.3";
           "pi-web-access" = "^0.10.7";
+          "pi-subagents" = "^0.33.1";
         };
 
         settings = {

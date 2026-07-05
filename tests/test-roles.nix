@@ -155,7 +155,7 @@
     opencode = ["opencode" "rtk"];
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
-    llm-host = ["ollama"]; # package still installed even though service option removed
+    llm-host = []; # ollama now installed via homebrew, not nixpkgs
     assistant = ["himalaya" "gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
     # microvm-host packages are NixOS-only (guarded by isNixOS check).
