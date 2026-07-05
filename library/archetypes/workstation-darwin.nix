@@ -3,7 +3,11 @@
 # Lightweight LLM stack (gemma3:4b only via Ollama) designed for
 # 24GB machines running other apps alongside — no heavy inference
 # servers, container overlays, or gateway proxies.
-{inputs, ...}: {
+{
+  inputs,
+  lib,
+  ...
+}: {
   imports = [
     ../../modules/roles/homebrew.nix
     ../../modules/services/ollama/darwin.nix
@@ -26,7 +30,7 @@
       port = 11434;
     };
 
-    pi.models.local-ollama = {
+    pi.models.local-ollama = lib.mkDefault {
       name = "Local LLM (gemma3 via Ollama)";
       provider = "openai";
       modelId = "gemma3:4b";
