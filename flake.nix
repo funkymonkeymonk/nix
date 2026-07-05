@@ -300,9 +300,8 @@
           }
           configuration
           ./modules
-          ./modules/services/lume/darwin.nix
           ./os/darwin.nix
-          ./targets/darwin-server
+          ./library/archetypes/headless-server-darwin.nix
           home-manager.darwinModules.home-manager
           {
             home-manager.sharedModules = [
@@ -310,6 +309,7 @@
               inputs.nix-openclaw.homeManagerModules.openclaw
             ];
           }
+          ./hosts/darwin-server
         ];
       };
 
