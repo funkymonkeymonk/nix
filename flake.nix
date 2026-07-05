@@ -271,20 +271,20 @@
     };
 
     darwinConfigurations = {
+      # wweaver — work laptop (Will Weaver)
+      # Uses base-darwin + workstation-darwin archetypes with work-specific
+      # providers (Justworks LiteLLM) and vane/opencode customizations
       "wweaver" = nix-darwin.lib.darwinSystem {
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          ./library/archetypes/base-darwin.nix
           nix-homebrew.darwinModules.nix-homebrew
-          ./modules
-          ./modules/roles/homebrew.nix
+          ./library/archetypes/workstation-darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
-          ./os/darwin.nix
           ./modules/home-manager/aerospace.nix
-          ./targets/wweaver
-          home-manager.darwinModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          ./hosts/wweaver
         ];
       };
 
