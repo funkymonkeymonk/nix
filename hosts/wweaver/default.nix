@@ -1,4 +1,6 @@
-# wweaver (work laptop) target configuration
+# wweaver — work laptop (Will Weaver)
+# Thin host file — imports workstation archetype, adds work-specific config
+# (Justworks providers, vane with LiteLLM, opencode agents/commands, etc.)
 {
   mkUser,
   inputs,
@@ -12,6 +14,10 @@
     "granola"
   ];
 
+  imports = [
+    ../../library/archetypes/workstation-darwin.nix
+  ];
+
   myConfig =
     mkUser "wweaver" "wweaver@justworks.com"
     // {
@@ -22,30 +28,20 @@
         };
       };
       onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
-      roles = {
-        developer.enable = true;
-        desktop.enable = true;
-        workstation.enable = true;
-        entertainment.enable = true;
-        llm-host.enable = true;
-        opencode.enable = true;
-        pi.enable = true;
-        homebrew.enable = true;
-      };
+
+      # Extra roles beyond workstation archetype
+      roles.entertainment.enable = true;
+      roles.llm-host.enable = true;
+      roles.opencode.enable = true;
+
       vane = {
         enable = true;
         autoStart = true;
-        # Local Ollama for fast local models
         ollamaUrl = "http://host.docker.internal:11434";
-        # LiteLLM base URL via 1Password (not hardcoded)
         openaiBaseUrlOpnixItem = "op://Justworks/LiteLLM/baseURL";
-        # Embedded SearxNG for web search
         embeddedSearxng = true;
-        # Chat model (balanced speed/quality)
         defaultModel = "qwen3.5";
-        # Embedding model for vector search
         embeddingModel = "nomic-embed-text";
-        # Good resources for M4 Pro (14 cores, 48GB RAM)
         colima = {
           cpu = 6;
           memory = 12;
@@ -53,7 +49,6 @@
         };
       };
       opencode = {
-        enable = true;
         model = "just-llms/claude-sonnet-4-6";
         disabledProviders = ["opencode"];
         extraMcpServers = {
@@ -156,6 +151,5 @@
           };
         };
       };
-      llmClient.rtk.enable = true;
     };
 }
