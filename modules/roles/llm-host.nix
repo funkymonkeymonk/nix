@@ -1,14 +1,15 @@
+# LLM host role — provides ollama for local LLM hosting
+#
+# Note: ollama itself is installed by modules/services/ollama/darwin.nix
+#       via homebrew. This role exists only to enable the service option.
 {
   config,
   lib,
-  pkgs,
   ...
 }: let
   cfg = config.myConfig.roles.llm-host;
 in {
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = with pkgs; [
-      ollama
-    ];
+    myConfig.ollama.enable = true;
   };
 }
