@@ -571,12 +571,77 @@
 
       # Phase 1: MicroVM v2 configs using new library mkNixosSystem
       # Runs in parallel with microvm.nixosConfigurations until verified.
-      "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
-        roles.opencode.enable = true;
+      "dev-vm-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "dev-vm";
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nopnix.nixosModules.home-manager
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/defaults.nix
+          ./targets/microvms/dev-vm.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+          ({lib, ...}: {
+            users.users.dev.shell = lib.mkForce pkgs.zsh;
+          })
+        ];
       };
-      "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
-      "matrix-v2" = _mkMicrovmV2 "matrix" {};
-      "media-center-v2" = _mkMicrovmV2 "media-center" {};
+      "openclaw-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "openclaw";
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nixosModules.home-manager
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/defaults.nix
+          ./targets/microvms/openclaw.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+        ];
+      };
+      "matrix-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "matrix";
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nixosModules.home-manager
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/defaults.nix
+          ./targets/microvms/matrix.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+        ];
+      };
+      "media-center-v2" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "media-center";
+        modules = [
+          microvm.nixosModules.microvm
+          home-manager.nixosModules.home-manager
+          opnix.nixosModules.default
+          ./modules/nixos/base.nix
+          ./modules/services/openclaw
+          inputs.nix-openclaw.nixosModules.openclaw-gateway
+          ./os/microvm.nix
+          ./modules/microvm
+          ./targets/microvms/defaults.nix
+          ./targets/microvms/media-center.nix
+          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
+        ];
+      };
 
       # Phase 3: Real-machine migration — zero desktop/workstation
       # Parallel v2 config using new library mkNixosSystem + archetype.
