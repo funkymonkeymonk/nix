@@ -12,7 +12,7 @@
   bifrostCfg = config.myConfig.bifrost;
   vaneCfg = config.myConfig.vane;
 
-  commonLib = import ../../common/lib.nix {};
+  commonLib = import ../../common/lib.nix {inherit lib;};
 
   darwinHomeDir = commonLib.darwinHomeDir config;
 
