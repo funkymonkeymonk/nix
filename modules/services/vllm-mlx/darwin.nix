@@ -93,13 +93,12 @@ in {
       mkdir -p "${appDir}"
     '';
 
-    myConfig.serviceRegistry = lib.optionalAttrs cfg.enable {
-      vllm-mlx = {
-        name = "vllm-mlx";
-        port = cfg.server.port;
-        launchdLabel = "org.vllm-mlx.server";
-        errorLog = "/tmp/vllm-mlx.err";
-      };
+    myConfig.serviceRegistry = commonLib.mkServiceRegistry "vllm-mlx" {
+      displayName = "vllm-mlx";
+      port = cfg.server.port;
+      label = "org.vllm-mlx.server";
+      errorLog = "/tmp/vllm-mlx.err";
+      enabled = cfg.enable;
     };
   };
 }

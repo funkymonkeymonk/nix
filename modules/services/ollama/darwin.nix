@@ -44,13 +44,12 @@ in {
         mkdir -p "${darwinHomeDir}/.ollama"
       '';
 
-      myConfig.serviceRegistry = optionalAttrs cfg.enable {
-        ollama = {
-          name = "Ollama";
-          port = cfg.port;
-          launchdLabel = "org.ollama.server";
-          errorLog = "/tmp/ollama.err";
-        };
+      myConfig.serviceRegistry = commonLib.mkServiceRegistry "ollama" {
+        displayName = "Ollama";
+        port = cfg.port;
+        label = "org.ollama.server";
+        errorLog = "/tmp/ollama.err";
+        enabled = cfg.enable;
       };
     }
   ]);

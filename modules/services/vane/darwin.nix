@@ -147,13 +147,12 @@ in {
     '';
 
     # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
-      vane = {
-        name = "Vane";
-        port = cfg.port;
-        launchdLabel = "com.vane.service";
-        errorLog = "/tmp/vane.error.log";
-      };
+    myConfig.serviceRegistry = commonLib.mkServiceRegistry "vane" {
+      displayName = "Vane";
+      port = cfg.port;
+      label = "com.vane.service";
+      errorLog = "/tmp/vane.error.log";
+      enabled = cfg.enable;
     };
   };
 }

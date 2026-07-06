@@ -143,13 +143,12 @@ in {
     '';
 
     # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
-      bifrost = {
-        name = "Bifrost";
-        port = cfg.port;
-        launchdLabel = "com.bifrost.service";
-        errorLog = "/tmp/bifrost.error.log";
-      };
+    myConfig.serviceRegistry = commonLib.mkServiceRegistry "bifrost" {
+      displayName = "Bifrost";
+      port = cfg.port;
+      label = "com.bifrost.service";
+      errorLog = "/tmp/bifrost.error.log";
+      enabled = cfg.enable;
     };
   };
 }
