@@ -68,6 +68,8 @@
     # Tested via test-roles.nix (microvm-host added to allRoles)
     # services/microvm-host tracked via role imports
     "services/microvm-host/default.nix"
+    # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
+    "common/lib.nix"
     # Tested via test-services.nix (ollama, vane, openclaw option tests)
     "services/ollama/common.nix"
     "services/ollama/darwin.nix"

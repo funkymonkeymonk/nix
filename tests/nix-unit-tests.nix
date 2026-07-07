@@ -98,6 +98,9 @@ let
 
   evalBase = (lib.evalModules {modules = baseStubs;}).config;
 
+  # Shared library helpers for unit testing extracted functions
+  commonLib = import ../modules/common/lib.nix {inherit lib;};
+
   allRoles = [
     "foundation"
     "developer"
@@ -357,5 +360,124 @@ in {
   testSkillsDefaults = {
     expr = evalBase.myConfig.agent-skills.enable;
     expected = false;
+  };
+
+  # ── Shared library: common/lib.nix helpers ────────────────────────
+
+  # darwinUserEnv with users configured
+  testDarwinUserEnvWithUsers = let
+    alice = {
+      name = "alice";
+      email = "a@b.com";
+      sshIncludes = [];
+    };
+    config = {myConfig.users = [alice];};
+    result = commonLib.darwinUserEnv config;
+  in {
+    expr = result;
+    expected = {
+      name = "alice";
+      home = "/Users/alice";
+    };
+  };
+
+  # darwinUserEnv with no users falls back to root
+  testDarwinUserEnvNoUsers = let
+    config = {myConfig.users = [];};
+    result = commonLib.darwinUserEnv config;
+  in {
+    expr = result;
+    expected = {
+      name = "root";
+      home = "/Users/root";
+    };
+  };
+
+  # primaryUser convenience wrapper
+  testPrimaryUser = let
+    bob = {
+      name = "bob";
+      email = "b@b.com";
+      sshIncludes = [];
+    };
+    config = {myConfig.users = [bob];};
+    result = commonLib.primaryUser config;
+  in {
+    expr = result;
+    expected = "bob";
+  };
+
+  # darwinHomeDir convenience wrapper
+  testDarwinHomeDir = let
+    carol = {
+      name = "carol";
+      email = "c@b.com";
+      sshIncludes = [];
+    };
+    config = {myConfig.users = [carol];};
+    result = commonLib.darwinHomeDir config;
+  in {
+    expr = result;
+    expected = "/Users/carol";
+  };
+
+  # mkServiceRegistry: enabled service produces entry
+  testServiceRegistryEnabled = {
+    expr = commonLib.mkServiceRegistry "ollama" {
+      displayName = "Ollama";
+      port = 11434;
+      label = "org.nixos.ollama";
+      errorLog = "/var/log/ollama-error.log";
+      enabled = true;
+    };
+    expected = {
+      ollama = {
+        name = "Ollama";
+        port = 11434;
+        launchdLabel = "org.nixos.ollama";
+        errorLog = "/var/log/ollama-error.log";
+      };
+    };
+  };
+
+  # mkServiceRegistry: disabled service produces empty attrset
+  testServiceRegistryDisabled = {
+    expr = commonLib.mkServiceRegistry "vane" {
+      displayName = "Vane";
+      port = 3000;
+      label = "org.nixos.vane";
+      errorLog = "/var/log/vane-error.log";
+      enabled = false;
+    };
+    expected = {};
+  };
+
+  # mkServiceRegistry: multiple services composed
+  testServiceRegistryComposition = let
+    svc1 = commonLib.mkServiceRegistry "svc-a" {
+      displayName = "Svc A";
+      port = 80;
+      label = "org.nixos.svc-a";
+      errorLog = "/var/log/svc-a.log";
+      enabled = true;
+    };
+    svc2 = commonLib.mkServiceRegistry "svc-b" {
+      displayName = "Svc B";
+      port = 443;
+      label = "org.nixos.svc-b";
+      errorLog = "/var/log/svc-b.log";
+      enabled = true;
+    };
+    svc3 = commonLib.mkServiceRegistry "svc-off" {
+      displayName = "Svc Off";
+      port = 999;
+      label = "org.nixos.svc-off";
+      errorLog = "/var/log/svc-off.log";
+      enabled = false;
+    };
+    combined = lib.recursiveUpdate svc1 (lib.recursiveUpdate svc2 svc3);
+  in {
+    expr = {keys = builtins.sort builtins.lessThan (builtins.attrNames combined);};
+    expected = {keys = ["svc-a" "svc-b"];};
   };
 }
