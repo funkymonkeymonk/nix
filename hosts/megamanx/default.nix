@@ -22,9 +22,9 @@
       # Extra role beyond workstation archetype
       roles.entertainment.enable = true;
 
-      # vllm-mlx disabled — use Ollama instead. Config preserved for easy re-enable.
+      # vllm-mlx serves Gemma 4 with native tool/reasoning parsers
       vllmMlx = {
-        enable = false;
+        enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
@@ -32,14 +32,23 @@
         memoryBudgetGb = 90;
         contention = "preempt";
         models = {
-          "qwen3.6-27b" = {
-            path = "mlx-community/Qwen3.6-27B-4bit";
+          "gemma4-31b" = {
+            path = "mlx-community/gemma-4-31b-it-4bit";
             type = "lm";
-            estimatedMemoryGb = 16;
+            estimatedMemoryGb = 18;
+            preload = true;
+          };
+          "gemma4-e4b" = {
+            path = "mlx-community/gemma-4-e4b-it-4bit";
+            type = "lm";
+            estimatedMemoryGb = 5;
+            preload = true;
           };
         };
         enableAutoToolChoice = true;
-        toolCallParser = "qwen";
+        toolCallParser = "gemma4";
+        reasoningParser = "gemma4";
+        maxKvSize = 65536;
         timeout = 120;
         logLevel = "INFO";
       };
@@ -47,7 +56,7 @@
       vane = {
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "qwen3.6:27b";
+        defaultModel = "gemma4-31b";
         embeddingModel = "nomic-embed-text:latest";
         ollamaUrl = "http://localhost:11434";
       };
@@ -61,16 +70,19 @@
             type = "openai";
             requestTimeout = 120;
             models = [
-              "qwen3.6-27b"
+              "gemma4-31b"
+              "gemma4-e4b"
             ];
           };
-          ollama-local = {
-            url = "http://localhost:11434";
-            type = "openai";
-            requestTimeout = 600;
-            models = [];
-          };
         };
+      };
+
+      # Ollama disabled — vllm-mlx handles all local inference
+      ollama = {
+        enable = false;
+        host = "127.0.0.1";
+        port = 11434;
+        keepAlive = "0";
       };
 
       searxng.enable = true;
@@ -121,12 +133,11 @@
           - Follow the conventional commit style
         '';
 
-        # Override the workstation archetype's default local-ollama model
-        # to route through Bifrost instead of direct Ollama
+        # Route through Bifrost to vllm-mlx for Gemma 4 with working tool calls
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "ollama-local/qwen3.6:27b";
+          modelId = "vllm-mlx-local/gemma4-31b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = true;
           maxTokens = 131072;
@@ -134,7 +145,7 @@
         models.local-ollama = {
           name = "Local LLM (Ollama via Bifrost)";
           provider = "openai";
-          modelId = "ollama-local/qwen3.6:27b";
+          modelId = "vllm-mlx-local/gemma4-31b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = true;
           maxTokens = 131072;

@@ -1,51 +1,53 @@
 # MLX model packages fetched from HuggingFace
-# Each model is a fixed-output derivation for reproducibility and caching.
+# Uses huggingface-hub CLI (hf download) for reliable CDN downloads.
+# curl fails on large files (>1GB) due to HF CDN auth requirements.
 {
   lib,
   stdenvNoCC,
-  curl,
-  jq,
-  gnugrep,
-  gnused,
+  python3Packages,
   cacert,
   ...
-}: let
-in {
+}: {
   # Fetch an MLX model from HuggingFace as a fixed-output derivation.
   # To compute outputHash:
-  #   1. Set outputHash = "" and build
+  #   1. Set outputHash = lib.fakeSha256 and build
   #   2. Nix will fail with the actual hash — copy it here
   #   3. Rebuild — subsequent builds are cached
   fetchModel = {
     name,
     modelPath,
     outputHash,
-    includePattern ? "\\.(safetensors|json)$",
+    include ? ["*.safetensors" "*.json" "*.jinja"],
     extraHook ? "",
   }:
     stdenvNoCC.mkDerivation {
       pname = name;
       version = "0";
-      nativeBuildInputs = [curl jq gnugrep gnused cacert];
+      nativeBuildInputs = [python3Packages.huggingface-hub];
       SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
       inherit outputHash;
       phases = ["buildPhase" "installPhase"];
       buildPhase = ''
-        echo "Fetching file list for ${modelPath}..."
-        FILES=$(${curl}/bin/curl -sL "https://huggingface.co/api/models/${modelPath}" | \
-          ${jq}/bin/jq --arg pattern "${includePattern}" -r '.siblings[] | select(.rfilename | test($pattern)) | .rfilename')
+        set -euo pipefail
+        echo "Downloading ${modelPath} from HuggingFace..."
+
+        # hf download needs a writable HOME for its cache
+        export HOME=$(mktemp -d)
 
         mkdir -p $out
 
-        echo "$FILES" | while read -r FILE; do
-          [ -z "$FILE" ] && continue
-          echo "  Downloading $FILE..."
-          ${curl}/bin/curl -sL "https://huggingface.co/${modelPath}/resolve/main/$FILE" \
-            -o "$out/$FILE"
-        done
-        echo "Done."
+        ${lib.getExe python3Packages.huggingface-hub} download "${modelPath}" \
+          --local-dir "$out" \
+          --include "*.safetensors" \
+          --include "*.json" \
+          --include "*.jinja"
+
+        # Remove HF cache metadata — not deterministic across builds
+        rm -rf "$out/.cache"
+
+        echo "Done downloading ${modelPath}."
         ${extraHook}
       '';
       installPhase = "true";
