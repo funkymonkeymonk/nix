@@ -23,8 +23,11 @@
       roles.entertainment.enable = true;
 
       # vllm-mlx serves Gemma 4 with native tool/reasoning parsers
+      # Uses uv-installed binary because nixpkgs mlx lacks Metal GPU support.
+      # Run scripts/patch-uv-vllm-mlx.sh after any uv tool upgrade.
       vllmMlx = {
         enable = true;
+        package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
         server = {
           host = "0.0.0.0";
           port = 8300;

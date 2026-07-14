@@ -17,7 +17,7 @@
     name,
     modelPath,
     outputHash,
-    include ? ["*.safetensors" "*.json" "*.jinja"],
+    _include ? ["*.safetensors" "*.json" "*.jinja"],
     extraHook ? "",
   }:
     stdenvNoCC.mkDerivation {

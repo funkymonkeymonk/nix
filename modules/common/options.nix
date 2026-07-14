@@ -1433,6 +1433,12 @@ with lib; {
         description = "Enable vllm-mlx inference server for local MLX models (OpenAI + Anthropic API with multi-model hotswap)";
       };
 
+      package = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx. Set to an external binary (e.g. uv-installed) if the Nix package lacks Metal GPU support on your macOS version.";
+      };
+
       server = {
         host = mkOption {
           type = types.str;

@@ -16,7 +16,7 @@
 
   # Override python3Packages so vllm-mlx dependencies resolve correctly
   python3 = _prev.python3.override {
-    packageOverrides = pySelf: pySuper: {
+    packageOverrides = _pySelf: _pySuper: {
       mlx-lm = final.mlx-lm;
       mlx-vlm = final.mlx-vlm;
       mlx-audio = final.mlx-audio;

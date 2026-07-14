@@ -214,6 +214,41 @@ cat /tmp/bifrost.error.log # Bifrost errors
 cat /tmp/caddy.error.log   # Caddy errors
 ```
 
+### Gemma 4 Models Hang or Time Out
+
+**Symptom:** Requests to `gemma4-31b` or `gemma4-e4b` hang indefinitely and return 503/timeout.
+
+**Root cause:** The nixpkgs `mlx` package is built without Metal GPU support (`MLX_BUILD_METAL=OFF`) because Metal requires Xcode tools that are not available in the Nix build sandbox. vllm-mlx falls back to CPU inference, which is too slow for 31B models.
+
+**Workaround:** Use a uv-installed vllm-mlx (which compiles mlx locally with Metal) and point the Nix service to it:
+
+```bash
+# 1. Install vllm-mlx via uv (if not already present)
+uv tool install vllm-mlx
+
+# 2. Apply the Gemma 4 cross-thread patches
+./scripts/patch-uv-vllm-mlx.sh
+
+# 3. Configure Nix to use the uv binary
+myConfig.vllmMlx = {
+  enable = true;
+  package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
+  # ... rest of config
+};
+
+# 4. Switch
+sudo launchctl unload /Library/LaunchDaemons/org.vllm-mlx.server.plist
+devenv tasks run system:switch
+```
+
+**Post-upgrade:** After any `uv tool upgrade vllm-mlx`, re-run the patch script and restart the service:
+
+```bash
+./scripts/patch-uv-vllm-mlx.sh
+sudo launchctl unload /Library/LaunchDaemons/org.vllm-mlx.server.plist
+sudo launchctl load /Library/LaunchDaemons/org.vllm-mlx.server.plist
+```
+
 ### Bifrost Can't Reach vllm-mlx
 
 Verify Caddy is routing correctly:

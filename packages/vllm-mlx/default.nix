@@ -63,6 +63,16 @@ python3Packages.buildPythonApplication rec {
     ]
     ++ [mlx-embeddings mlx-vlm];
 
+  # Patch bind_generation_streams to use set_generation_stream() when available,
+  # instead of replacing the function with a raw Stream object via setattr.
+  # Our patched mlx-lm 0.31.3 makes generation_stream a function with a
+  # thread-local backing; clobbering it with setattr breaks inference.
+  postPatch = ''
+    substituteInPlace vllm_mlx/mlx_streams.py \
+      --replace-fail 'if hasattr(module, "generation_stream"):' 'if hasattr(module, "set_generation_stream"):' \
+      --replace-fail 'setattr(module, "generation_stream", default_stream)' 'module.set_generation_stream(default_stream)'
+  '';
+
   # Darwin-only: MLX is Apple Silicon only
   meta = with lib; {
     description = "vLLM-like inference server for Apple Silicon with MLX";
