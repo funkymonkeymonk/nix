@@ -342,6 +342,16 @@ with lib; {
         description = "Enable automatic updates for opencode";
       };
 
+      agentsMd = mkOption {
+        type = types.lines;
+        default = "";
+        description = ''
+          Global AGENTS.md content installed to ~/.config/opencode/AGENTS.md.
+          Loaded at startup by OpenCode as global agent instructions.
+          Mirrors the pi agentsMd pattern.
+        '';
+      };
+
       enableBrowserAgents = mkOption {
         type = types.bool;
         default = false;
@@ -1097,50 +1107,6 @@ with lib; {
           default = false;
           description = "Enable RTK (Rust Token Killer) for token-optimized LLM tool output. Automatically integrates with OpenCode and Claude Code when their respective roles are enabled.";
         };
-      };
-    };
-
-    jj-autosync = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Enable automatic jj repository synchronization";
-      };
-
-      username = mkOption {
-        type = types.str;
-        default = "";
-        description = "Username for launchd environment (required on Darwin)";
-      };
-
-      reposDir = mkOption {
-        type = types.str;
-        default = "$HOME/repos";
-        description = "Directory containing jj repositories to sync";
-      };
-
-      mainBranch = mkOption {
-        type = types.str;
-        default = "main";
-        description = "Main branch name to sync";
-      };
-
-      hourlySync = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable hourly background sync for all repos";
-      };
-
-      fastSyncInterval = mkOption {
-        type = types.int;
-        default = 300;
-        description = "Sync interval in seconds for active sessions (default: 300 = 5 minutes)";
-      };
-
-      sessionTtlSeconds = mkOption {
-        type = types.int;
-        default = 1800;
-        description = "Session TTL in seconds before auto-expiry (default: 1800 = 30 minutes). TTL resets on each sync.";
       };
     };
 

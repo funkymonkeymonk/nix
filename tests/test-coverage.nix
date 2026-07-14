@@ -81,8 +81,7 @@
     "services/caddy/darwin.nix"
     # Tested via test-vmlx.nix (vMLX option defaults and custom values)
     # Tested via test-vllm-mlx.nix (vllm-mlx option defaults and custom values)
-    # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
-    "home-manager/jj-autosync.nix"
+    # Tested via test-home-manager.nix (opencode, shell aliases)
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"
     "home-manager/skills/manifest.nix"

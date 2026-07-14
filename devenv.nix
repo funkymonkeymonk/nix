@@ -603,9 +603,6 @@ in {
         statix check . || true
         echo "Checking YAML files..."
         yamllint .
-        echo "Checking jj-autosync shell scripts with shellcheck..."
-        find ./modules/home-manager -name 'jj-autosync*.sh' -o -name 'jj-workspace-session.sh' -o -name 'jj-fast-sync.sh' \
-          | xargs ${pkgs.shellcheck}/bin/shellcheck
         echo "Lint checks complete"
       '';
     };
@@ -808,8 +805,6 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.openclaw-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-opnix-url-options" \
-          ".#checks.''${CURRENT_SYSTEM}.jj-autosync-options" \
-          ".#checks.''${CURRENT_SYSTEM}.jj-autosync-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-provider-opnix-url" \
