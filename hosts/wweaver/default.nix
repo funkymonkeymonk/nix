@@ -38,7 +38,7 @@
         enable = true;
         autoStart = true;
         ollamaUrl = "http://host.docker.internal:11434";
-        openaiBaseUrlOpnixItem = "op://Justworks/LiteLLM/baseURL";
+        openaiBaseUrl = "https://litellm.justworksai.net/v1";
         embeddedSearxng = true;
         defaultModel = "qwen3.5";
         embeddingModel = "nomic-embed-text";
@@ -110,8 +110,7 @@
           just-llms = {
             npm = "@ai-sdk/openai-compatible";
             name = "Just LLMs";
-            baseURL = "";
-            baseURLOpnixItem = "op://Justworks/LiteLLM/baseURL";
+            baseURL = "https://litellm.justworksai.net/v1";
             onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
             dynamicModels = true;
             models = {

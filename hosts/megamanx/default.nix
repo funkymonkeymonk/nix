@@ -140,6 +140,13 @@
           maxTokens = 131072;
         };
 
+        models.opencode-go = {
+          name = "OpenCode Go";
+          provider = "opencode-go";
+          modelId = "";
+          onePasswordItem = "op://Opnix/OpenCode Go API/credential";
+        };
+
         prompts.review = ''
           Review this code for:
           1. Bugs and logic errors

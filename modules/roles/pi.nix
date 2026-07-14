@@ -42,15 +42,8 @@ in {
       baseUrl = "http://${host}:${port}/v1";
     };
 
-    # Auto-configure OpenCode Go built-in provider (API key from 1Password)
-    # modelId left empty to signal built-in provider override -
-    # preserves all built-in models while providing the API key
-    myConfig.pi.models.opencode-go = lib.mkDefault {
-      name = "OpenCode Go";
-      provider = "opencode-go";
-      modelId = "";
-      onePasswordItem = "op://Opnix/OpenCode Go API/credential";
-    };
+    # Default global agent instructions — override per-machine with a direct assignment
+    myConfig.pi.agentsMd = lib.mkDefault (builtins.readFile ../common/AGENTS.md);
 
     environment.variables = {
       PI_CODING_AGENT_DIR = "$HOME/.pi/agent";
