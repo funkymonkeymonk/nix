@@ -11,11 +11,10 @@ with lib; let
   bifrostCfg = config.myConfig.bifrost;
   inherit (config._vaneCommon) searxngUrl;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
-  darwinHomeDir = "/Users/${primaryUser}";
+  commonLib = import ../../common/lib.nix {inherit lib;};
+
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
   dataDir = cfg.dataDir;
 
   bifrostEnabled = bifrostCfg.enable && bifrostCfg.upstreams != {};

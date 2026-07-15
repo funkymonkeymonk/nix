@@ -11,11 +11,10 @@
 with lib; let
   cfg = config.myConfig.bifrost;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
-  darwinHomeDir = "/Users/${primaryUser}";
+  commonLib = import ../../common/lib.nix {inherit lib;};
+
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
   appDir = cfg.appDir;
 
   upstreamList = mapAttrsToList (name: value: value // {inherit name;}) cfg.upstreams;

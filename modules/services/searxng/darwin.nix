@@ -5,14 +5,13 @@
   lib,
   pkgs,
   ...
-}:
-with lib; let
+}: let
   cfg = config.myConfig.searxng;
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "searxng";
-  darwinHomeDir = "/Users/${primaryUser}";
+
+  commonLib = import ../../common/lib.nix {inherit lib;};
+
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
 
   # Use configured secret key or generate a stable one
   secretKey =
@@ -38,7 +37,7 @@ with lib; let
         disabled: false
   '';
 in {
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
     launchd.daemons.searxng = {
       command = "${pkgs.searxng}/bin/searxng-run";
       serviceConfig = {
@@ -55,12 +54,12 @@ in {
       };
     };
 
-    system.activationScripts.postActivation.text = mkAfter ''
+    system.activationScripts.postActivation.text = lib.mkAfter ''
       mkdir -p "${darwinHomeDir}/.local/share/searxng"
     '';
 
     # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
+    myConfig.serviceRegistry = lib.optionalAttrs cfg.enable {
       searxng = {
         name = "SearXNG";
         port = cfg.port;
