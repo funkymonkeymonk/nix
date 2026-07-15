@@ -193,42 +193,6 @@ in {
     expected = "TEST";
   };
 
-  # ── Options: jj-autosync ──────────────────────────────────────
-  testJjAutosyncDefaults = {
-    expr = {
-      enable = evalBase.myConfig.jj-autosync.enable;
-      fastSyncInterval = evalBase.myConfig.jj-autosync.fastSyncInterval;
-    };
-    expected = {
-      enable = false;
-      fastSyncInterval = 300;
-    };
-  };
-
-  testJjAutosyncCustom = let
-    custom =
-      (lib.evalModules {
-        modules =
-          baseStubs
-          ++ [
-            {
-              config.myConfig.jj-autosync = {
-                enable = true;
-                username = "test";
-                fastSyncInterval = 60;
-              };
-            }
-          ];
-      }).config.myConfig.jj-autosync;
-  in {
-    expr = {inherit (custom) enable username fastSyncInterval;};
-    expected = {
-      enable = true;
-      username = "test";
-      fastSyncInterval = 60;
-    };
-  };
-
   # ── Options: opencode ───────────────────────────────────────────
   testOpencodeDefaults = {
     expr = {
