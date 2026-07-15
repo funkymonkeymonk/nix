@@ -52,6 +52,9 @@ in {
       onePasswordItem = "op://Opnix/OpenCode Go API/credential";
     };
 
+    # Default global agent instructions — override per-machine with a direct assignment
+    myConfig.pi.agentsMd = lib.mkDefault (builtins.readFile ../common/AGENTS.md);
+
     environment.variables = {
       PI_CODING_AGENT_DIR = "$HOME/.pi/agent";
     };
