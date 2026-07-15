@@ -99,8 +99,6 @@ in
     vane-opnix-url-options = testServices.vaneOpnixUrlOptionsTest;
 
     # Home-manager module tests
-    jj-autosync-options = testHomeManager.jjAutosyncOptionsTest;
-    jj-autosync-custom-options = testHomeManager.jjAutosyncCustomOptionsTest;
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
