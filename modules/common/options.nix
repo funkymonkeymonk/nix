@@ -342,6 +342,16 @@ with lib; {
         description = "Enable automatic updates for opencode";
       };
 
+      agentsMd = mkOption {
+        type = types.lines;
+        default = "";
+        description = ''
+          Global AGENTS.md content installed to ~/.config/opencode/AGENTS.md.
+          Loaded at startup by OpenCode as global agent instructions.
+          Mirrors the pi agentsMd pattern.
+        '';
+      };
+
       enableBrowserAgents = mkOption {
         type = types.bool;
         default = false;
