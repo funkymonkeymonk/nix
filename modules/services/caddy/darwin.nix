@@ -16,6 +16,8 @@
 
   darwinHomeDir = commonLib.darwinHomeDir config;
 
+  mkServiceRegistry = commonLib.mkServiceRegistry;
+
   dnsPort = 5353;
 
   serviceRoutes =
@@ -115,19 +117,19 @@ in {
 
     # Register caddy + dnsmasq in service registry
     myConfig.serviceRegistry = lib.mkMerge [
-      (lib.optionalAttrs cfg.enable {
-        caddy = {
-          name = "Caddy";
-          port = cfg.port;
-          launchdLabel = "com.caddy.service";
-          errorLog = "/tmp/caddy.error.log";
-        };
-        dnsmasq = {
-          name = "dnsmasq";
-          port = 5353;
-          launchdLabel = "com.dnsmasq.service";
-          errorLog = "/tmp/dnsmasq.error.log";
-        };
+      (mkServiceRegistry "caddy" {
+        displayName = "Caddy";
+        port = cfg.port;
+        label = "com.caddy.service";
+        errorLog = "/tmp/caddy.error.log";
+        enabled = cfg.enable;
+      })
+      (mkServiceRegistry "dnsmasq" {
+        displayName = "dnsmasq";
+        port = dnsPort;
+        label = "com.dnsmasq.service";
+        errorLog = "/tmp/dnsmasq.error.log";
+        enabled = cfg.enable;
       })
     ];
   };
