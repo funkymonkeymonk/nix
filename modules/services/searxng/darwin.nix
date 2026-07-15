@@ -59,13 +59,12 @@ in {
     '';
 
     # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = lib.optionalAttrs cfg.enable {
-      searxng = {
-        name = "SearXNG";
-        port = cfg.port;
-        launchdLabel = "com.searxng.service";
-        errorLog = "/tmp/searxng.error.log";
-      };
+    myConfig.serviceRegistry = commonLib.mkServiceRegistry "searxng" {
+      displayName = "SearXNG";
+      port = cfg.port;
+      label = "com.searxng.service";
+      errorLog = "/tmp/searxng.error.log";
+      enabled = cfg.enable;
     };
   };
 }
