@@ -50,7 +50,6 @@
         };
         enableAutoToolChoice = true;
         toolCallParser = "gemma4";
-        reasoningParser = "gemma4";
         maxKvSize = 65536;
         timeout = 120;
         logLevel = "INFO";
