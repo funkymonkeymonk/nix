@@ -8,15 +8,19 @@
   mlx-audio = final.callPackage ../packages/mlx-audio {};
   mlx-lm = final.callPackage ../packages/mlx-lm {};
   mlx-vlm = final.callPackage ../packages/mlx-vlm {};
+  mlx-metal = final.callPackage ../packages/mlx-metal {};
   vllm-mlx = final.callPackage ../packages/vllm-mlx {};
   mlx-embeddings = final.callPackage ../packages/mlx-embeddings {};
   mlx-models = final.callPackage ../packages/mlx-models {
     inherit (final) lib stdenvNoCC curl jq gnugrep gnused cacert;
   };
 
-  # Override python3Packages so vllm-mlx dependencies resolve correctly
+  # Override python3Packages so vllm-mlx dependencies resolve correctly.
+  # Use mlx-metal (prebuilt wheels with GPU support) instead of nixpkgs mlx
+  # which builds without Metal acceleration.
   python3 = _prev.python3.override {
     packageOverrides = _pySelf: _pySuper: {
+      mlx = final.mlx-metal;
       mlx-lm = final.mlx-lm;
       mlx-vlm = final.mlx-vlm;
       mlx-audio = final.mlx-audio;

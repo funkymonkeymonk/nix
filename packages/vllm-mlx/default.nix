@@ -1,11 +1,11 @@
 # vllm-mlx — vLLM-style inference server for Apple Silicon
-# Packaged from PyPI with all dependencies from nixpkgs.
+# Built from GitHub source with Metal-enabled mlx.
 # Gradio is removed (UI optional). mlx-vlm comes from the overlay
 # at version 0.6.4 because nixpkgs 0.4.4 lacks Gemma 4 support.
 {
   lib,
   python3Packages,
-  fetchPypi,
+  fetchFromGitHub,
   mlx-embeddings,
   mlx-vlm,
 }:
@@ -14,10 +14,11 @@ python3Packages.buildPythonApplication rec {
   version = "0.4.0";
   pyproject = true;
 
-  src = fetchPypi {
-    pname = "vllm_mlx";
-    inherit version;
-    hash = "sha256-zNrawBjozyxlNSl+IEp9vbHvcpnQ6AE0ONIWl3Dne9o=";
+  src = fetchFromGitHub {
+    owner = "waybarrios";
+    repo = "vllm-mlx";
+    tag = "v${version}";
+    hash = "sha256-YVon+ta/hf1bnew2q4BhLSnO9XJYalY+Qf/IlBurvyQ=";
   };
 
   nativeBuildInputs = with python3Packages; [
