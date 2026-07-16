@@ -62,7 +62,9 @@ with lib; let
         in [baseModel]
         else null;
       compat =
-        if model.modelId == ""
+        if model.compat != {}
+        then model.compat
+        else if model.modelId == ""
         then {}
         else null;
     })

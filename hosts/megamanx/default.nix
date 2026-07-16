@@ -142,16 +142,12 @@
           provider = "openai";
           modelId = "vllm-mlx-local/gemma4-31b";
           baseUrl = "http://bifrost.internal/v1";
-          reasoning = true;
+          reasoning = false;
           maxTokens = 131072;
-        };
-        models.local-ollama = {
-          name = "Local LLM (Ollama via Bifrost)";
-          provider = "openai";
-          modelId = "vllm-mlx-local/gemma4-31b";
-          baseUrl = "http://bifrost.internal/v1";
-          reasoning = true;
-          maxTokens = 131072;
+          compat = {
+            supportsDeveloperRole = false;
+            supportsReasoningEffort = false;
+          };
         };
 
         prompts.review = ''

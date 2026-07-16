@@ -1271,6 +1271,17 @@ with lib; {
               default = null;
               description = "Maximum output tokens for the model";
             };
+            compat = mkOption {
+              type = types.attrsOf (types.oneOf [types.bool types.str]);
+              default = {};
+              description = ''
+                Compatibility settings for the model provider.
+                Common keys: supportsDeveloperRole, supportsReasoningEffort,
+                supportsUsageInStreaming, maxTokensField, thinkingFormat.
+                Set supportsDeveloperRole = false for local OpenAI-compatible
+                servers that do not understand the "developer" role.
+              '';
+            };
           };
         });
         default = {};
