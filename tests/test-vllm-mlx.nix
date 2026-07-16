@@ -226,9 +226,9 @@ in {
       }
 
       ${
-        if vllmMlxCustom.reasoningParser == null
-        then ''echo "  reasoningParser = null: OK"''
-        else ''echo "  reasoningParser should be null!"; exit 1''
+        if vllmMlxCustom.reasoningParser == "gemma4"
+        then ''echo "  reasoningParser = gemma4: OK"''
+        else ''echo "  reasoningParser should be gemma4!"; exit 1''
       }
 
       echo ""
@@ -270,9 +270,9 @@ in {
       else ''echo "  FAIL: toolCallParser should be gemma4, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.reasoningParser == null
-      then ''echo "  reasoningParser = null: OK"''
-      else ''echo "  FAIL: reasoningParser should be null, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
+      if megamanxVllmMlx.reasoningParser == "gemma4"
+      then ''echo "  reasoningParser = gemma4: OK"''
+      else ''echo "  FAIL: reasoningParser should be gemma4, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
     }
     ${
       if megamanxVllmMlx.maxKvSize == 65536

@@ -67,10 +67,18 @@ python3Packages.buildPythonApplication rec {
   # instead of replacing the function with a raw Stream object via setattr.
   # Our patched mlx-lm 0.31.3 makes generation_stream a function with a
   # thread-local backing; clobbering it with setattr breaks inference.
+  #
+  # Also patch Gemma4 tool parser to treat <turn|> as a stop token. Gemma 4's
+  # tokenizer defines eot_token = "<turn|>" but vllm-mlx only uses the default
+  # eos_token_id for stopping, causing the model to emit <turn|> as text and
+  # continue generating in an infinite loop.
   postPatch = ''
     substituteInPlace vllm_mlx/mlx_streams.py \
       --replace-fail 'if hasattr(module, "generation_stream"):' 'if hasattr(module, "set_generation_stream"):' \
       --replace-fail 'setattr(module, "generation_stream", default_stream)' 'module.set_generation_stream(default_stream)'
+
+    substituteInPlace vllm_mlx/tool_parsers/gemma4_tool_parser.py \
+      --replace-fail 'extra_stop_tokens = ["<|tool_response>"]' 'extra_stop_tokens = ["<|tool_response>", "<turn|>"]'
   '';
 
   # Darwin-only: MLX is Apple Silicon only
