@@ -73,6 +73,9 @@ python3Packages.buildPythonApplication rec {
   # tokenizer defines eot_token = "<turn|>" but vllm-mlx only uses the default
   # eos_token_id for stopping, causing the model to emit <turn|> as text and
   # continue generating in an infinite loop.
+  #
+  # Also strip <turn|> from output text via SPECIAL_TOKENS_PATTERN so it
+  # doesn't appear in API responses (it's an internal control token).
   postPatch = ''
     substituteInPlace vllm_mlx/mlx_streams.py \
       --replace-fail 'if hasattr(module, "generation_stream"):' 'if hasattr(module, "set_generation_stream"):' \
@@ -80,6 +83,16 @@ python3Packages.buildPythonApplication rec {
 
     substituteInPlace vllm_mlx/tool_parsers/gemma4_tool_parser.py \
       --replace-fail 'extra_stop_tokens = ["<|tool_response>"]' 'extra_stop_tokens = ["<|tool_response>", "<turn|>"]'
+
+    substituteInPlace vllm_mlx/api/utils.py \
+      --replace-fail 'r"<\|channel\|>|<\|message\|>|<\|start\|>|<\|return\|>|<\|call\|>|<\|constrain\|>|"' 'r"<\|channel\|>|<\|message\|>|<\|start\|>|<\|return\|>|<\|call\|>|<\|constrain\|>|<turn\|>|"'
+
+    # Also strip <turn|> from content/reasoning in the streaming path after
+    # the reasoning parser runs (the parser only strips channel tokens, not
+    # the end-of-turn token).
+    substituteInPlace vllm_mlx/server.py \
+      --replace-fail 'content = delta_msg.content' 'content = SPECIAL_TOKENS_PATTERN.sub("", delta_msg.content) if delta_msg.content else None' \
+      --replace-fail 'reasoning = delta_msg.reasoning' 'reasoning = SPECIAL_TOKENS_PATTERN.sub("", delta_msg.reasoning) if delta_msg.reasoning else None'
   '';
 
   # Darwin-only: MLX is Apple Silicon only
