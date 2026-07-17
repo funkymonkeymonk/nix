@@ -216,37 +216,38 @@ cat /tmp/caddy.error.log   # Caddy errors
 
 ### Gemma 4 Models Hang or Time Out
 
-**Symptom:** Requests to `gemma4-31b` or `gemma4-e4b` hang indefinitely and return 503/timeout.
+**Symptom:** Requests to `gemma4-31b` with tools enabled hang indefinitely and return 503/timeout. `gemma4-e4b` and text-only `gemma4-31b` requests work normally.
 
-**Root cause:** The nixpkgs `mlx` package is built without Metal GPU support (`MLX_BUILD_METAL=OFF`) because Metal requires Xcode tools that are not available in the Nix build sandbox. vllm-mlx falls back to CPU inference, which is too slow for 31B models.
+**Root cause:** The vllm-mlx Gemma 4 tool parser gets stuck during prefill when processing large tool schemas (21+ tools / 38K+ chars) with the 31B model. The `SimpleEngine` serialized route blocks, and all subsequent requests queue up. This is a vllm-mlx parser issue, not a Metal/CPU issue.
 
-**Workaround:** Use a uv-installed vllm-mlx (which compiles mlx locally with Metal) and point the Nix service to it:
+**Verify Metal is active:** The Nix build uses `mlx-metal`, which pulls prebuilt PyPI wheels with Metal GPU support. The running vllm-mlx process maps `AGXMetalG13X.bundle` (Apple GPU driver) and `mlx.metallib`. Text-only requests achieve 60+ tok/s, confirming GPU acceleration.
+
+**Workarounds:**
+
+1. **Use `gemma4-e4b` for tool-heavy contexts** — it handles the same tool schema in ~15s at 4 tok/s.
+2. **Disable the Gemma 4 tool parser for `gemma4-31b`** — fall back to the generic tool path:
+   ```nix
+   vllmMlx = {
+     enable = true;
+     enableAutoToolChoice = false;
+     toolCallParser = null;
+   };
+   ```
+3. **Reduce tool schema size** — fewer tools or shorter descriptions reduce prefill pressure.
+
+If you need a patched vllm-mlx outside Nix (e.g., to test upstream fixes):
 
 ```bash
-# 1. Install vllm-mlx via uv (if not already present)
+# Install via uv and apply cross-thread patches
 uv tool install vllm-mlx
-
-# 2. Apply the Gemma 4 cross-thread patches
 ./scripts/patch-uv-vllm-mlx.sh
 
-# 3. Configure Nix to use the uv binary
+# Point Nix to the uv binary
 myConfig.vllmMlx = {
   enable = true;
   package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
   # ... rest of config
 };
-
-# 4. Switch
-sudo launchctl unload /Library/LaunchDaemons/org.vllm-mlx.server.plist
-devenv tasks run system:switch
-```
-
-**Post-upgrade:** After any `uv tool upgrade vllm-mlx`, re-run the patch script and restart the service:
-
-```bash
-./scripts/patch-uv-vllm-mlx.sh
-sudo launchctl unload /Library/LaunchDaemons/org.vllm-mlx.server.plist
-sudo launchctl load /Library/LaunchDaemons/org.vllm-mlx.server.plist
 ```
 
 ### Bifrost Can't Reach vllm-mlx

@@ -1447,7 +1447,7 @@ with lib; {
       package = mkOption {
         type = types.nullOr types.path;
         default = null;
-        description = "Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx. Set to an external binary (e.g. uv-installed) if the Nix package lacks Metal GPU support on your macOS version.";
+        description = "Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx (built with Metal GPU support via prebuilt PyPI wheels). Set to an external binary (e.g. uv-installed) only for testing upstream fixes or when the Nix package version is too old.";
       };
 
       server = {
