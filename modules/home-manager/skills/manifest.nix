@@ -142,6 +142,16 @@
     deps = [];
   };
 
+  "nix-hf-models" = {
+    description = "Use when pre-downloading HuggingFace models into the Nix store for local inference. Covers hf download CLI, fixed-output derivations, hash computation, and CDN/auth issues";
+    roles = ["developer" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/nix-hf-models;
+    };
+    deps = [];
+  };
+
   # External skills - fetched from other repositories
   # Example: Uncomment and modify when you want to add external skills
   # "spec-driven-workflow" = {

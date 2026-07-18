@@ -1271,6 +1271,17 @@ with lib; {
               default = null;
               description = "Maximum output tokens for the model";
             };
+            compat = mkOption {
+              type = types.attrsOf (types.oneOf [types.bool types.str]);
+              default = {};
+              description = ''
+                Compatibility settings for the model provider.
+                Common keys: supportsDeveloperRole, supportsReasoningEffort,
+                supportsUsageInStreaming, maxTokensField, thinkingFormat.
+                Set supportsDeveloperRole = false for local OpenAI-compatible
+                servers that do not understand the "developer" role.
+              '';
+            };
           };
         });
         default = {};
@@ -1433,6 +1444,12 @@ with lib; {
         description = "Enable vllm-mlx inference server for local MLX models (OpenAI + Anthropic API with multi-model hotswap)";
       };
 
+      package = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx (built with Metal GPU support via prebuilt PyPI wheels). Set to an external binary (e.g. uv-installed) only for testing upstream fixes or when the Nix package version is too old.";
+      };
+
       server = {
         host = mkOption {
           type = types.str;
@@ -1475,6 +1492,11 @@ with lib; {
               default = null;
               description = "Estimated memory in GB for non-local (HuggingFace) models. Required for registry-backed loading so eviction remains deterministic.";
             };
+            preload = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Load this model into memory at server startup. Useful for keeping frequently-used models resident.";
+            };
           };
         });
         default = {};
@@ -1491,6 +1513,18 @@ with lib; {
         type = types.nullOr (types.enum ["auto" "none" "mistral" "qwen" "llama" "hermes" "deepseek" "kimi" "lfm2" "granite" "nemotron" "minimax" "xlam" "functionary" "glm47" "step3p5" "gemma3" "gemma3n" "xml_function" "dsml" "deepseek_v4" "zaya_xml" "hunyuan" "generic" "qwen3" "llama3" "llama4" "nous" "deepseek_v3" "deepseek_r1" "kimi_k2" "moonshot" "liquid" "granite3" "nemotron3" "minimax_m2" "meetkai" "stepfun" "glm4" "gemma4" "hy_v3" "tencent"]);
         default = null;
         description = "Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4 models.";
+      };
+
+      reasoningParser = mkOption {
+        type = types.nullOr (types.enum ["auto" "none" "gemma4" "deepseek" "qwen3"]);
+        default = null;
+        description = "Reasoning parser for extracting thinking/reasoning content from model output. 'gemma4' for Gemma 4 models.";
+      };
+
+      maxKvSize = mkOption {
+        type = types.nullOr types.ints.positive;
+        default = null;
+        description = "Maximum KV cache size per sequence (number of tokens). When set, oldest tokens roll off to prevent unbounded memory growth.";
       };
 
       timeout = mkOption {

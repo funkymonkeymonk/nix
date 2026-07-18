@@ -25,16 +25,9 @@
     };
 
     ollama = {
-      enable = true;
+      enable = lib.mkDefault true;
       host = "127.0.0.1";
       port = 11434;
-    };
-
-    pi.models.local-ollama = lib.mkDefault {
-      name = "Local LLM (gemma3 via Ollama)";
-      provider = "openai";
-      modelId = "gemma3:4b";
-      baseUrl = "http://127.0.0.1:11434/v1";
     };
   };
 }

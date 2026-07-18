@@ -73,11 +73,32 @@ Caddy runs as a **root daemon** and proxies `.internal` hostnames to their respe
 | Service | `org.vllm-mlx.server` |
 | Port | 8300 |
 | API | OpenAI-compatible |
-| Binary | `~/.local/bin/vllm-mlx` (uv tool) |
+| Binary | `~/.local/bin/vllm-mlx` (uv tool) or nix-packaged |
 | Config | `modules/services/vllm-mlx/darwin.nix` |
 
-vllm-mlx runs as a **user daemon**. It self-installs via `uv tool install vllm-mlx` if not present.
-It uses Metal GPU acceleration and supports:
+vllm-mlx runs as a **user daemon**. The Nix build uses `mlx-metal`, which pulls prebuilt PyPI wheels with Metal GPU support. The running process maps the Apple GPU driver (`AGXMetalG13X.bundle`) and `mlx.metallib`. Text-only requests achieve 60+ tok/s on Apple Silicon.
+
+**Binary selection:**
+
+| Mode | Binary | Metal | Notes |
+|------|--------|-------|-------|
+| Default (nix) | `${pkgs.vllm-mlx}/bin/vllm-mlx` | ✅ Yes | Prebuilt wheels with Metal |
+| UV override | `~/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx` | ✅ Yes | For testing upstream fixes |
+
+Set via `myConfig.vllmMlx.package`:
+
+```nix
+myConfig.vllmMlx = {
+  enable = true;
+  # Use uv-installed binary instead of Nix-packaged
+  package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
+  # ...
+};
+```
+
+**Patching:** The PyPI vllm-mlx wheel lacks patches for Gemma 4 cross-thread MLX stream handling and `<turn|>` stop-token fixes. Run `scripts/patch-uv-vllm-mlx.sh` after any `uv tool upgrade vllm-mlx`.
+
+vllm-mlx supports:
 
 - Multi-model registry (lazy loading on first use)
 - Tool calling (with configurable parser: `qwen`, `gemma4`, etc.)

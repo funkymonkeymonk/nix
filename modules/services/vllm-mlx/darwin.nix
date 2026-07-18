@@ -1,7 +1,6 @@
 # vllm-mlx inference server launched service for Darwin (macOS)
-# Self-bootstrapping via uv — nixpkgs lacks vllm-mlx package.
-# vllm-mlx supports multi-model registry, continuous batching,
-# and OpenAI + Anthropic APIs with proper Gemma 4 tool parsing.
+# Uses the Nix-packaged vllm-mlx binary (no runtime uv install).
+# Supports pre-downloaded models via pkgs.mlx-models overlays.
 {
   config,
   lib,
@@ -14,22 +13,51 @@
 
   primaryUser = commonLib.primaryUser config;
   darwinHomeDir = commonLib.darwinHomeDir config;
-  vllmMlxBin = "${darwinHomeDir}/.local/bin/vllm-mlx";
   appDir = "${darwinHomeDir}/.config/vllm-mlx";
+
+  # Resolve a model path to either a Nix store path (if a matching overlay
+  # package exists) or the raw HuggingFace ID for runtime download.
+  # Model overlay names are derived from the HuggingFace path segment
+  # after the org, e.g. mlx-community/gemma-4-26B-A4B-it-OptiQ-4bit
+  # -> gemma4-26B-OptiQ-4bit.
+  resolveModelPath = path:
+    if lib.hasPrefix "/nix/store" path
+    then path
+    else let
+      # Strip org prefix, keep last segment
+      segments = lib.splitString "/" path;
+      modelName = lib.last segments;
+      # Convert HF name to overlay-style name.
+      # Known overlays in this repo:
+      #   gemma4-31B-4bit  -> mlx-community/gemma-4-31b-it-4bit
+      #   gemma4-e4B-4bit  -> mlx-community/gemma-4-e4b-it-4bit
+      overlayName =
+        if modelName == "gemma-4-31b-it-4bit"
+        then "gemma4-31B-4bit"
+        else if modelName == "gemma-4-e4b-it-4bit"
+        then "gemma4-e4B-4bit"
+        else null;
+    in
+      if overlayName != null && pkgs ? ${overlayName}
+      then "${pkgs.${overlayName}}"
+      else path;
 
   # Build model registry YAML from Nix attrset
   # vllm-mlx expects models as a YAML list, not a map
   registryYaml = let
     modelEntries = lib.mapAttrsToList (name: m:
       "  - name: ${name}\n"
-      + "    path: ${m.path}\n"
+      + "    path: ${resolveModelPath m.path}\n"
       + "    type: ${m.type}\n"
-      + lib.optionalString (m.estimatedMemoryGb != null) "    estimated_memory_gb: ${toString m.estimatedMemoryGb}\n")
+      + lib.optionalString (m.estimatedMemoryGb != null) "    estimated_memory_gb: ${toString m.estimatedMemoryGb}\n"
+      + lib.optionalString m.preload "    preload: true\n"
+      + lib.optionalString (m.type == "lm") "    mllm: false\n")
     cfg.models;
     yamlContent = lib.concatStringsSep "\n" ([
         "manager:"
         "  memory_budget_gb: ${toString cfg.memoryBudgetGb}"
-        "  contention: ${cfg.contention}"
+        "  contention_policy:"
+        "    strategy: ${cfg.contention}"
         ""
         "models:"
       ]
@@ -44,11 +72,6 @@
     APP_DIR="${appDir}"
     mkdir -p "$APP_DIR"
 
-    if [ ! -x "${vllmMlxBin}" ]; then
-      echo "vllm-mlx not found, installing via uv..." >&2
-      HOME=${darwinHomeDir} ${pkgs.uv}/bin/uv tool install vllm-mlx >&2
-    fi
-
     # Copy registry into writable location
     cat ${registryYaml} > "$APP_DIR/registry.yaml"
 
@@ -62,13 +85,53 @@
       exit 1
     fi
 
-    exec ${vllmMlxBin} serve \
+    exec ${
+      if cfg.package != null
+      then lib.escapeShellArg cfg.package
+      else "${pkgs.vllm-mlx}/bin/vllm-mlx"
+    } serve \
       --models-config "$APP_DIR/registry.yaml" \
       --host ${lib.escapeShellArg cfg.server.host} \
       --port ${toString cfg.server.port} \
       --timeout ${toString cfg.timeout} \
+      --use-paged-cache \
       ${lib.optionalString cfg.enableAutoToolChoice "--enable-auto-tool-choice"} \
-      ${lib.optionalString (cfg.toolCallParser != null) "--tool-call-parser ${cfg.toolCallParser}"}
+      ${lib.optionalString (cfg.toolCallParser != null) "--tool-call-parser ${cfg.toolCallParser}"} \
+      ${lib.optionalString (cfg.reasoningParser != null) "--reasoning-parser ${cfg.reasoningParser}"} \
+      ${lib.optionalString (cfg.maxKvSize != null) "--max-kv-size ${toString cfg.maxKvSize}"}
+  '';
+
+  # Warmup script: pre-load model weights into memory after service start
+  vllmMlxWarmup = pkgs.writeShellScript "vllm-mlx-warmup" ''
+    set -euo pipefail
+    HOST="${lib.escapeShellArg cfg.server.host}"
+    PORT=${toString cfg.server.port}
+    MAX_WAIT=300
+
+    echo "Waiting for vllm-mlx on $HOST:$PORT..."
+    for i in $(seq 1 $MAX_WAIT); do
+      if ${pkgs.curl}/bin/curl -sf "http://$HOST:$PORT/v1/models" >/dev/null 2>&1; then
+        echo "vllm-mlx is ready"
+        break
+      fi
+      sleep 1
+    done
+
+    if [ $i -eq $MAX_WAIT ]; then
+      echo "Timeout waiting for vllm-mlx"
+      exit 1
+    fi
+
+    ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: _m: ''
+        echo "Warming up ${name}..."
+        ${pkgs.curl}/bin/curl -sf "http://$HOST:$PORT/v1/chat/completions" \
+          -H "Content-Type: application/json" \
+          -d '{"model":"${name}","messages":[{"role":"user","content":"hi"}],"max_tokens":1}' \
+          >/dev/null 2>&1 || echo "  ${name} warmup failed (may need more time)"
+      '')
+      cfg.models)}
+
+    echo "Warmup complete"
   '';
 in {
   config = lib.mkIf cfg.enable {
@@ -84,7 +147,24 @@ in {
         UserName = primaryUser;
         EnvironmentVariables = {
           HOME = darwinHomeDir;
-          PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${darwinHomeDir}/.local/bin";
+          PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
+        };
+      };
+    };
+
+    launchd.daemons.vllm-mlx-warmup = {
+      command = vllmMlxWarmup;
+      serviceConfig = {
+        Label = "org.vllm-mlx.warmup";
+        RunAtLoad = true;
+        KeepAlive = false;
+        ExitTimeOut = 600;
+        StandardOutPath = "/tmp/vllm-mlx-warmup.log";
+        StandardErrorPath = "/tmp/vllm-mlx-warmup.err";
+        UserName = primaryUser;
+        EnvironmentVariables = {
+          HOME = darwinHomeDir;
+          PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
         };
       };
     };

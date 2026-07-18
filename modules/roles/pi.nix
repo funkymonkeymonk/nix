@@ -38,7 +38,7 @@ in {
     myConfig.pi.models.bifrost = lib.mkDefault {
       name = "Bifrost AI Gateway";
       provider = "bifrost";
-      modelId = "openai/gpt-4o";
+      modelId = "gemma4:26b";
       baseUrl = "http://${host}:${port}/v1";
     };
 

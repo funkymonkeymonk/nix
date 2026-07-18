@@ -41,7 +41,7 @@
     (lib.evalModules {
       modules = [
         ../modules/common/options.nix
-        (import ../targets/MegamanX/default.nix)
+        (import ../hosts/megamanx/default.nix)
         {
           options.nixpkgs.hostPlatform = lib.mkOption {
             type = lib.types.anything;
@@ -54,6 +54,19 @@
           options.system.primaryUser = lib.mkOption {
             type = lib.types.anything;
             default = "monkey";
+          };
+          options.system.activationScripts = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
+          # Stubs for nix-darwin options imported by workstation archetype
+          options.launchd = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
+          };
+          options.homebrew = lib.mkOption {
+            type = lib.types.anything;
+            default = {};
           };
         }
         {
@@ -93,6 +106,7 @@
               };
               enableAutoToolChoice = true;
               toolCallParser = "gemma4";
+              reasoningParser = "gemma4";
               timeout = 300;
               logLevel = "DEBUG";
             };
@@ -146,6 +160,12 @@ in {
         if vllmMlxDefaults.toolCallParser == null
         then ''echo "  toolCallParser default = null: OK"''
         else ''echo "  toolCallParser should default to null!"; exit 1''
+      }
+
+      ${
+        if vllmMlxDefaults.reasoningParser == null
+        then ''echo "  reasoningParser default = null: OK"''
+        else ''echo "  reasoningParser should default to null!"; exit 1''
       }
 
       ${
@@ -205,31 +225,59 @@ in {
         else ''echo "  toolCallParser should be gemma4!"; exit 1''
       }
 
+      ${
+        if vllmMlxCustom.reasoningParser == "gemma4"
+        then ''echo "  reasoningParser = gemma4: OK"''
+        else ''echo "  reasoningParser should be gemma4!"; exit 1''
+      }
+
       echo ""
       echo "All vllm-mlx option tests passed"
       touch $out
     '';
 
-  # Verify the actual MegamanX target config targets Qwen3.6 with qwen tool calling
+  # Verify the actual MegamanX target config targets Gemma 4 with gemma4 parsers
   megamanxVllmMlxTest = pkgs.runCommand "test-megamanx-vllm" {} ''
     echo "=== Testing MegamanX vllm-mlx Configuration ==="
     echo ""
     ${
       let
-        hasModel = builtins.elem "qwen3.6-27b" (builtins.attrNames megamanxVllmMlx.models);
+        hasModel = builtins.elem "gemma4-31b" (builtins.attrNames megamanxVllmMlx.models);
         modelPath =
           if hasModel
-          then megamanxVllmMlx.models."qwen3.6-27b".path
+          then megamanxVllmMlx.models."gemma4-31b".path
           else null;
       in
-        if hasModel && modelPath == "mlx-community/Qwen3.6-27B-4bit"
-        then ''echo "  model = Qwen3.6-27B-4bit: OK"''
-        else ''echo "  FAIL: model should be mlx-community/Qwen3.6-27B-4bit, got ${toString modelPath}"; exit 1''
+        if hasModel && modelPath == "mlx-community/gemma-4-31b-it-4bit"
+        then ''echo "  model = gemma-4-31b-it-4bit: OK"''
+        else ''echo "  FAIL: model should be mlx-community/gemma-4-31b-it-4bit, got ${toString modelPath}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.toolCallParser == "qwen"
-      then ''echo "  toolCallParser = qwen: OK"''
-      else ''echo "  FAIL: toolCallParser should be qwen, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
+      let
+        hasE4b = builtins.elem "gemma4-e4b" (builtins.attrNames megamanxVllmMlx.models);
+        e4bPath =
+          if hasE4b
+          then megamanxVllmMlx.models."gemma4-e4b".path
+          else null;
+      in
+        if hasE4b && e4bPath == "mlx-community/gemma-4-e4b-it-4bit"
+        then ''echo "  e4b model = gemma-4-e4b-it-4bit: OK"''
+        else ''echo "  FAIL: e4b model should be mlx-community/gemma-4-e4b-it-4bit, got ${toString e4bPath}"; exit 1''
+    }
+    ${
+      if megamanxVllmMlx.toolCallParser == "gemma4"
+      then ''echo "  toolCallParser = gemma4: OK"''
+      else ''echo "  FAIL: toolCallParser should be gemma4, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
+    }
+    ${
+      if megamanxVllmMlx.reasoningParser == "gemma4"
+      then ''echo "  reasoningParser = gemma4: OK"''
+      else ''echo "  FAIL: reasoningParser should be gemma4, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
+    }
+    ${
+      if megamanxVllmMlx.maxKvSize == 65536
+      then ''echo "  maxKvSize = 65536: OK"''
+      else ''echo "  FAIL: maxKvSize should be 65536, got ${toString megamanxVllmMlx.maxKvSize}"; exit 1''
     }
     ${
       if megamanxVllmMlx.memoryBudgetGb == 90
@@ -240,6 +288,11 @@ in {
       if megamanxVllmMlx.enableAutoToolChoice
       then ''echo "  enableAutoToolChoice = true: OK"''
       else ''echo "  FAIL: enableAutoToolChoice should be true"; exit 1''
+    }
+    ${
+      if megamanxVllmMlx.enable
+      then ''echo "  enable = true: OK"''
+      else ''echo "  FAIL: vllmMlx should be enabled"; exit 1''
     }
     echo ""
     echo "All MegamanX vllm-mlx tests passed"

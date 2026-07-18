@@ -1,0 +1,106 @@
+# vllm-mlx — vLLM-style inference server for Apple Silicon
+# Built from GitHub source with Metal-enabled mlx.
+# Gradio is removed (UI optional). mlx-vlm comes from the overlay
+# at version 0.6.4 because nixpkgs 0.4.4 lacks Gemma 4 support.
+{
+  lib,
+  python3Packages,
+  fetchFromGitHub,
+  mlx-embeddings,
+  mlx-vlm,
+}:
+python3Packages.buildPythonApplication rec {
+  pname = "vllm-mlx";
+  version = "0.4.0";
+  pyproject = true;
+
+  src = fetchFromGitHub {
+    owner = "waybarrios";
+    repo = "vllm-mlx";
+    tag = "v${version}";
+    hash = "sha256-YVon+ta/hf1bnew2q4BhLSnO9XJYalY+Qf/IlBurvyQ=";
+  };
+
+  nativeBuildInputs = with python3Packages; [
+    setuptools
+    wheel
+    pythonRelaxDepsHook
+  ];
+
+  pythonRemoveDeps = [
+    "gradio"
+    "opencv-python"
+  ];
+
+  propagatedBuildInputs = with python3Packages;
+    [
+      mlx
+      mlx-lm
+      transformers
+      tokenizers
+      huggingface-hub
+      numpy
+      pillow
+      tqdm
+      pyyaml
+      requests
+      tabulate
+      opencv4
+      torchvision
+      torch
+      psutil
+      fastapi
+      starlette
+      uvicorn
+      prometheus-client
+      mcp
+      jsonschema
+      lm-format-enforcer
+      typing-extensions
+      openai
+      httpx
+      aiohttp
+      tiktoken
+    ]
+    ++ [mlx-embeddings mlx-vlm];
+
+  # Patch bind_generation_streams to use set_generation_stream() when available,
+  # instead of replacing the function with a raw Stream object via setattr.
+  # Our patched mlx-lm 0.31.3 makes generation_stream a function with a
+  # thread-local backing; clobbering it with setattr breaks inference.
+  #
+  # Also patch Gemma4 tool parser to treat <turn|> as a stop token. Gemma 4's
+  # tokenizer defines eot_token = "<turn|>" but vllm-mlx only uses the default
+  # eos_token_id for stopping, causing the model to emit <turn|> as text and
+  # continue generating in an infinite loop.
+  #
+  # Also strip <turn|> from output text via SPECIAL_TOKENS_PATTERN so it
+  # doesn't appear in API responses (it's an internal control token).
+  postPatch = ''
+    substituteInPlace vllm_mlx/mlx_streams.py \
+      --replace-fail 'if hasattr(module, "generation_stream"):' 'if hasattr(module, "set_generation_stream"):' \
+      --replace-fail 'setattr(module, "generation_stream", default_stream)' 'module.set_generation_stream(default_stream)'
+
+    substituteInPlace vllm_mlx/tool_parsers/gemma4_tool_parser.py \
+      --replace-fail 'extra_stop_tokens = ["<|tool_response>"]' 'extra_stop_tokens = ["<|tool_response>", "<turn|>"]'
+
+    substituteInPlace vllm_mlx/api/utils.py \
+      --replace-fail 'r"<\|channel\|>|<\|message\|>|<\|start\|>|<\|return\|>|<\|call\|>|<\|constrain\|>|"' 'r"<\|channel\|>|<\|message\|>|<\|start\|>|<\|return\|>|<\|call\|>|<\|constrain\|>|<turn\|>|"'
+
+    # Also strip <turn|> from content/reasoning in the streaming path after
+    # the reasoning parser runs (the parser only strips channel tokens, not
+    # the end-of-turn token).
+    substituteInPlace vllm_mlx/server.py \
+      --replace-fail 'content = delta_msg.content' 'content = SPECIAL_TOKENS_PATTERN.sub("", delta_msg.content) if delta_msg.content else None' \
+      --replace-fail 'reasoning = delta_msg.reasoning' 'reasoning = SPECIAL_TOKENS_PATTERN.sub("", delta_msg.reasoning) if delta_msg.reasoning else None'
+  '';
+
+  # Darwin-only: MLX is Apple Silicon only
+  meta = with lib; {
+    description = "vLLM-like inference server for Apple Silicon with MLX";
+    homepage = "https://github.com/waybarrios/vllm-mlx";
+    license = licenses.asl20;
+    platforms = platforms.darwin;
+    mainProgram = "vllm-mlx";
+  };
+}

@@ -5,19 +5,40 @@
   yaks = final.callPackage ../packages/yaks {};
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
+  mlx-audio = final.callPackage ../packages/mlx-audio {};
+  mlx-lm = final.callPackage ../packages/mlx-lm {};
+  mlx-vlm = final.callPackage ../packages/mlx-vlm {};
+  mlx-metal = final.callPackage ../packages/mlx-metal {};
+  vllm-mlx = final.callPackage ../packages/vllm-mlx {};
+  mlx-embeddings = final.callPackage ../packages/mlx-embeddings {};
   mlx-models = final.callPackage ../packages/mlx-models {
     inherit (final) lib stdenvNoCC curl jq gnugrep gnused cacert;
   };
 
-  gemma4-31B-OptiQ-4bit = final.mlx-models.fetchModel {
-    name = "gemma4-31B-OptiQ-4bit";
-    modelPath = "mlx-community/gemma-4-31B-it-OptiQ-4bit";
-    outputHash = "sha256-adiGBvHq9gCDPiHaFCp7xwX4A9OY/nLZw3jGS0kkvQk=";
+  # Override python3Packages so vllm-mlx dependencies resolve correctly.
+  # Use mlx-metal (prebuilt wheels with GPU support) instead of nixpkgs mlx
+  # which builds without Metal acceleration.
+  python3 = _prev.python3.override {
+    packageOverrides = _pySelf: _pySuper: {
+      mlx = final.mlx-metal;
+      mlx-lm = final.mlx-lm;
+      mlx-vlm = final.mlx-vlm;
+      mlx-audio = final.mlx-audio;
+      mlx-embeddings = final.mlx-embeddings;
+    };
+    self = final.python3;
   };
-  gemma4-12B-OptiQ-4bit = final.mlx-models.fetchModel {
-    name = "gemma4-12B-OptiQ-4bit";
-    modelPath = "mlx-community/gemma-4-12B-it-OptiQ-4bit";
-    outputHash = "sha256-YU2IoQlwGbIbNZzcHjGHt55rFoNQhWhLL3ACrUNvncc=";
+  python3Packages = final.python3.pkgs;
+
+  gemma4-31B-4bit = final.mlx-models.fetchModel {
+    name = "gemma4-31B-4bit";
+    modelPath = "mlx-community/gemma-4-31b-it-4bit";
+    outputHash = "sha256-CCj8JPBY+WugmwUyk27dUSEwvWnVKNnDPaupsWnrAgk=";
+  };
+  gemma4-e4B-4bit = final.mlx-models.fetchModel {
+    name = "gemma4-e4B-4bit";
+    modelPath = "mlx-community/gemma-4-e4b-it-4bit";
+    outputHash = "sha256-7xQPqimzrXlumA3aaI/sBux1wZlrxRKarPX2fxtKgW0=";
   };
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation

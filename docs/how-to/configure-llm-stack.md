@@ -214,6 +214,42 @@ cat /tmp/bifrost.error.log # Bifrost errors
 cat /tmp/caddy.error.log   # Caddy errors
 ```
 
+### Gemma 4 Models Hang or Time Out
+
+**Symptom:** Requests to `gemma4-31b` with tools enabled hang indefinitely and return 503/timeout. `gemma4-e4b` and text-only `gemma4-31b` requests work normally.
+
+**Root cause:** The vllm-mlx Gemma 4 tool parser gets stuck during prefill when processing large tool schemas (21+ tools / 38K+ chars) with the 31B model. The `SimpleEngine` serialized route blocks, and all subsequent requests queue up. This is a vllm-mlx parser issue, not a Metal/CPU issue.
+
+**Verify Metal is active:** The Nix build uses `mlx-metal`, which pulls prebuilt PyPI wheels with Metal GPU support. The running vllm-mlx process maps `AGXMetalG13X.bundle` (Apple GPU driver) and `mlx.metallib`. Text-only requests achieve 60+ tok/s, confirming GPU acceleration.
+
+**Workarounds:**
+
+1. **Use `gemma4-e4b` for tool-heavy contexts** — it handles the same tool schema in ~15s at 4 tok/s.
+2. **Disable the Gemma 4 tool parser for `gemma4-31b`** — fall back to the generic tool path:
+   ```nix
+   vllmMlx = {
+     enable = true;
+     enableAutoToolChoice = false;
+     toolCallParser = null;
+   };
+   ```
+3. **Reduce tool schema size** — fewer tools or shorter descriptions reduce prefill pressure.
+
+If you need a patched vllm-mlx outside Nix (e.g., to test upstream fixes):
+
+```bash
+# Install via uv and apply cross-thread patches
+uv tool install vllm-mlx
+./scripts/patch-uv-vllm-mlx.sh
+
+# Point Nix to the uv binary
+myConfig.vllmMlx = {
+  enable = true;
+  package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
+  # ... rest of config
+};
+```
+
 ### Bifrost Can't Reach vllm-mlx
 
 Verify Caddy is routing correctly:
