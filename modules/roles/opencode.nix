@@ -37,6 +37,9 @@ in {
       enabled = true;
     };
 
+    # Default global agent instructions — override per-machine with a direct assignment
+    myConfig.opencode.agentsMd = lib.mkDefault (builtins.readFile ../common/AGENTS.md);
+
     environment.shellAliases = {
       llm-status = "curl http://${host}:${port}/status";
     };

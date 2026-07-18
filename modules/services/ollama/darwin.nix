@@ -12,12 +12,10 @@ with lib; let
   cfg = config.myConfig.ollama;
   hasHomebrew = builtins.hasAttr "homebrew" options;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
+  commonLib = import ../../common/lib.nix {inherit lib;};
 
-  darwinHomeDir = "/Users/${primaryUser}";
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
 in {
   config = mkIf cfg.enable (mkMerge [
     (optionalAttrs hasHomebrew {
@@ -46,13 +44,12 @@ in {
         mkdir -p "${darwinHomeDir}/.ollama"
       '';
 
-      myConfig.serviceRegistry = optionalAttrs cfg.enable {
-        ollama = {
-          name = "Ollama";
-          port = cfg.port;
-          launchdLabel = "org.ollama.server";
-          errorLog = "/tmp/ollama.err";
-        };
+      myConfig.serviceRegistry = commonLib.mkServiceRegistry "ollama" {
+        displayName = "Ollama";
+        port = cfg.port;
+        label = "org.ollama.server";
+        errorLog = "/tmp/ollama.err";
+        enabled = cfg.enable;
       };
     }
   ]);

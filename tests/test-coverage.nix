@@ -68,6 +68,8 @@
     # Tested via test-roles.nix (microvm-host added to allRoles)
     # services/microvm-host tracked via role imports
     "services/microvm-host/default.nix"
+    # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
+    "common/lib.nix"
     # Tested via test-services.nix (ollama, vane, openclaw option tests)
     "services/ollama/common.nix"
     "services/ollama/darwin.nix"
@@ -81,8 +83,7 @@
     "services/caddy/darwin.nix"
     # Tested via test-vmlx.nix (vMLX option defaults and custom values)
     # Tested via test-vllm-mlx.nix (vllm-mlx option defaults and custom values)
-    # Tested via test-home-manager.nix (jj-autosync, opencode, shell aliases)
-    "home-manager/jj-autosync.nix"
+    # Tested via test-home-manager.nix (opencode, shell aliases)
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"
     "home-manager/skills/manifest.nix"

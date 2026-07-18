@@ -325,6 +325,11 @@ in {
           };
         };
       }
+      // (optionalAttrs (cfg.agentsMd != "") {
+        ".config/opencode/AGENTS.md" = {
+          text = cfg.agentsMd;
+        };
+      })
       // (optionalAttrs rtkCfg.enable {
         ".config/opencode/RTK.md" = {
           text = ''

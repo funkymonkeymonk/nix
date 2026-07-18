@@ -1,5 +1,5 @@
 # Home-manager module option tests using evalModules
-# Tests jj-autosync options, opencode options, fjj options, aerospace options, and shell alias structure
+# Tests opencode options, fjj options, aerospace options, and shell alias structure
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
@@ -62,34 +62,6 @@
           }
         ];
     }).config.myConfig.fjj;
-
-  # --- jj-autosync option tests ---
-
-  # Evaluate jj-autosync with defaults
-  jjAutosyncDefaults =
-    (lib.evalModules {
-      modules = stubModules;
-    }).config.myConfig.jj-autosync;
-
-  # Evaluate jj-autosync with custom values
-  jjAutosyncCustom =
-    (lib.evalModules {
-      modules =
-        stubModules
-        ++ [
-          {
-            config.myConfig.jj-autosync = {
-              enable = true;
-              username = "testuser";
-              reposDir = "/home/testuser/code";
-              mainBranch = "develop";
-              hourlySync = false;
-              fastSyncInterval = 120;
-              sessionTtlSeconds = 3600;
-            };
-          }
-        ];
-    }).config.myConfig.jj-autosync;
 
   # --- opencode option tests ---
 
@@ -154,106 +126,6 @@
   };
   inherit (aliasesEval.config.home) shellAliases;
 in {
-  # Test jj-autosync option defaults
-  jjAutosyncOptionsTest =
-    pkgs.runCommand "test-jj-autosync-options"
-    {}
-    ''
-      echo "=== Testing jj-autosync Option Defaults ==="
-
-      ${
-        if !jjAutosyncDefaults.enable
-        then ''echo "  enable default = false: OK"''
-        else ''echo "  enable should default to false!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncDefaults.username == ""
-        then ''echo "  username default = empty: OK"''
-        else ''echo "  username should default to empty!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncDefaults.mainBranch == "main"
-        then ''echo "  mainBranch default = main: OK"''
-        else ''echo "  mainBranch should default to main!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncDefaults.hourlySync
-        then ''echo "  hourlySync default = true: OK"''
-        else ''echo "  hourlySync should default to true!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncDefaults.fastSyncInterval == 300
-        then ''echo "  fastSyncInterval default = 300: OK"''
-        else ''echo "  fastSyncInterval should default to 300!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncDefaults.sessionTtlSeconds == 1800
-        then ''echo "  sessionTtlSeconds default = 1800: OK"''
-        else ''echo "  sessionTtlSeconds should default to 1800!"; exit 1''
-      }
-
-      echo "All jj-autosync option defaults verified"
-      touch $out
-    '';
-
-  # Test jj-autosync custom option values
-  jjAutosyncCustomOptionsTest =
-    pkgs.runCommand "test-jj-autosync-custom-options"
-    {}
-    ''
-      echo "=== Testing jj-autosync Custom Options ==="
-
-      ${
-        if jjAutosyncCustom.enable
-        then ''echo "  enable = true: OK"''
-        else ''echo "  enable should be true!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncCustom.username == "testuser"
-        then ''echo "  username = testuser: OK"''
-        else ''echo "  username should be testuser!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncCustom.reposDir == "/home/testuser/code"
-        then ''echo "  reposDir = /home/testuser/code: OK"''
-        else ''echo "  reposDir should be /home/testuser/code!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncCustom.mainBranch == "develop"
-        then ''echo "  mainBranch = develop: OK"''
-        else ''echo "  mainBranch should be develop!"; exit 1''
-      }
-
-      ${
-        if !jjAutosyncCustom.hourlySync
-        then ''echo "  hourlySync = false: OK"''
-        else ''echo "  hourlySync should be false!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncCustom.fastSyncInterval == 120
-        then ''echo "  fastSyncInterval = 120: OK"''
-        else ''echo "  fastSyncInterval should be 120!"; exit 1''
-      }
-
-      ${
-        if jjAutosyncCustom.sessionTtlSeconds == 3600
-        then ''echo "  sessionTtlSeconds = 3600: OK"''
-        else ''echo "  sessionTtlSeconds should be 3600!"; exit 1''
-      }
-
-      echo "All jj-autosync custom options verified"
-      touch $out
-    '';
-
   # Test opencode option defaults
   opencodeOptionsTest =
     pkgs.runCommand "test-opencode-options"

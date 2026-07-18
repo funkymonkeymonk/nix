@@ -7,29 +7,26 @@
   lib,
   pkgs,
   ...
-}:
-with lib; let
+}: let
   cfg = config.myConfig.vllmMlx;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
+  commonLib = import ../../common/lib.nix {inherit lib;};
 
-  darwinHomeDir = "/Users/${primaryUser}";
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
   vllmMlxBin = "${darwinHomeDir}/.local/bin/vllm-mlx";
   appDir = "${darwinHomeDir}/.config/vllm-mlx";
 
   # Build model registry YAML from Nix attrset
   # vllm-mlx expects models as a YAML list, not a map
   registryYaml = let
-    modelEntries = mapAttrsToList (name: m:
+    modelEntries = lib.mapAttrsToList (name: m:
       "  - name: ${name}\n"
       + "    path: ${m.path}\n"
       + "    type: ${m.type}\n"
-      + optionalString (m.estimatedMemoryGb != null) "    estimated_memory_gb: ${toString m.estimatedMemoryGb}\n")
+      + lib.optionalString (m.estimatedMemoryGb != null) "    estimated_memory_gb: ${toString m.estimatedMemoryGb}\n")
     cfg.models;
-    yamlContent = concatStringsSep "\n" ([
+    yamlContent = lib.concatStringsSep "\n" ([
         "manager:"
         "  memory_budget_gb: ${toString cfg.memoryBudgetGb}"
         "  contention: ${cfg.contention}"
@@ -74,7 +71,7 @@ with lib; let
       ${lib.optionalString (cfg.toolCallParser != null) "--tool-call-parser ${cfg.toolCallParser}"}
   '';
 in {
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
     launchd.daemons.vllm-mlx = {
       command = vllmMlxWrapper;
       serviceConfig = {
@@ -92,17 +89,16 @@ in {
       };
     };
 
-    system.activationScripts.postActivation.text = mkAfter ''
+    system.activationScripts.postActivation.text = lib.mkAfter ''
       mkdir -p "${appDir}"
     '';
 
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
-      vllm-mlx = {
-        name = "vllm-mlx";
-        port = cfg.server.port;
-        launchdLabel = "org.vllm-mlx.server";
-        errorLog = "/tmp/vllm-mlx.err";
-      };
+    myConfig.serviceRegistry = commonLib.mkServiceRegistry "vllm-mlx" {
+      displayName = "vllm-mlx";
+      port = cfg.server.port;
+      label = "org.vllm-mlx.server";
+      errorLog = "/tmp/vllm-mlx.err";
+      enabled = cfg.enable;
     };
   };
 }

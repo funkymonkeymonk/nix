@@ -11,11 +11,10 @@
 with lib; let
   cfg = config.myConfig.bifrost;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
-  darwinHomeDir = "/Users/${primaryUser}";
+  commonLib = import ../../common/lib.nix {inherit lib;};
+
+  primaryUser = commonLib.primaryUser config;
+  darwinHomeDir = commonLib.darwinHomeDir config;
   appDir = cfg.appDir;
 
   upstreamList = mapAttrsToList (name: value: value // {inherit name;}) cfg.upstreams;
@@ -144,13 +143,12 @@ in {
     '';
 
     # Register in service registry for port conflict detection and readiness checks
-    myConfig.serviceRegistry = optionalAttrs cfg.enable {
-      bifrost = {
-        name = "Bifrost";
-        port = cfg.port;
-        launchdLabel = "com.bifrost.service";
-        errorLog = "/tmp/bifrost.error.log";
-      };
+    myConfig.serviceRegistry = commonLib.mkServiceRegistry "bifrost" {
+      displayName = "Bifrost";
+      port = cfg.port;
+      label = "com.bifrost.service";
+      errorLog = "/tmp/bifrost.error.log";
+      enabled = cfg.enable;
     };
   };
 }

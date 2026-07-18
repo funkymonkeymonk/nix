@@ -6,37 +6,36 @@
   lib,
   pkgs,
   ...
-}:
-with lib; let
+}: let
   cfg = config.myConfig.caddy;
   searxngCfg = config.myConfig.searxng;
   bifrostCfg = config.myConfig.bifrost;
   vaneCfg = config.myConfig.vane;
 
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "monkey";
-  darwinHomeDir = "/Users/${primaryUser}";
+  commonLib = import ../../common/lib.nix {inherit lib;};
+
+  darwinHomeDir = commonLib.darwinHomeDir config;
+
+  mkServiceRegistry = commonLib.mkServiceRegistry;
 
   dnsPort = 5353;
 
   serviceRoutes =
     []
-    ++ optional (searxngCfg.enable && searxngCfg.port != cfg.port) {
+    ++ lib.optional (searxngCfg.enable && searxngCfg.port != cfg.port) {
       host = "searxng.internal";
       upstream = "localhost:${toString searxngCfg.port}";
     }
-    ++ optional (bifrostCfg.enable && bifrostCfg.port != cfg.port) {
+    ++ lib.optional (bifrostCfg.enable && bifrostCfg.port != cfg.port) {
       host = "bifrost.internal";
       upstream = "localhost:${toString bifrostCfg.port}";
     }
-    ++ optional (vaneCfg.enable && vaneCfg.port != cfg.port) {
+    ++ lib.optional (vaneCfg.enable && vaneCfg.port != cfg.port) {
       host = "vane.internal";
       upstream = "localhost:${toString vaneCfg.port}";
     };
 
-  allRoutes = serviceRoutes ++ (mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);
+  allRoutes = serviceRoutes ++ (lib.mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);
 
   routeBlock = route: ''
     http://${route.host} {
@@ -50,7 +49,7 @@ with lib; let
       http_port ${toString cfg.port}
     }
 
-    ${concatMapStrings routeBlock allRoutes}
+    ${lib.concatMapStrings routeBlock allRoutes}
   '';
 
   caddyScript = pkgs.writeShellScript "caddy-launchd-service" ''
@@ -82,7 +81,7 @@ with lib; let
       --conf-file="${dnsmasqConf}"
   '';
 in {
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
     environment.etc."resolver/internal".text = ''
       nameserver 127.0.0.1
       port ${toString dnsPort}
@@ -112,25 +111,25 @@ in {
       };
     };
 
-    system.activationScripts.postActivation.text = mkAfter ''
+    system.activationScripts.postActivation.text = lib.mkAfter ''
       mkdir -p "${cfg.dataDir}"
     '';
 
     # Register caddy + dnsmasq in service registry
-    myConfig.serviceRegistry = mkMerge [
-      (optionalAttrs cfg.enable {
-        caddy = {
-          name = "Caddy";
-          port = cfg.port;
-          launchdLabel = "com.caddy.service";
-          errorLog = "/tmp/caddy.error.log";
-        };
-        dnsmasq = {
-          name = "dnsmasq";
-          port = 5353;
-          launchdLabel = "com.dnsmasq.service";
-          errorLog = "/tmp/dnsmasq.error.log";
-        };
+    myConfig.serviceRegistry = lib.mkMerge [
+      (mkServiceRegistry "caddy" {
+        displayName = "Caddy";
+        port = cfg.port;
+        label = "com.caddy.service";
+        errorLog = "/tmp/caddy.error.log";
+        enabled = cfg.enable;
+      })
+      (mkServiceRegistry "dnsmasq" {
+        displayName = "dnsmasq";
+        port = dnsPort;
+        label = "com.dnsmasq.service";
+        errorLog = "/tmp/dnsmasq.error.log";
+        enabled = cfg.enable;
       })
     ];
   };

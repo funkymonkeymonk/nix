@@ -135,10 +135,6 @@
         }
       ];
       onepassword.enable = true;
-      jj-autosync = {
-        enable = true;
-        username = name;
-      };
       opencode = {
         enable = true;
         model = "opencode/big-pickle";
@@ -750,8 +746,6 @@
             vane-custom-options
             vane-opnix-url-options
             openclaw-options
-            jj-autosync-options
-            jj-autosync-custom-options
             opencode-options
             opencode-custom-options
             opencode-provider-opnix-url

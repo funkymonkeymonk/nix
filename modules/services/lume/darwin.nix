@@ -6,62 +6,57 @@
   lib,
   pkgs,
   ...
-}:
-with lib; let
+}: let
   cfg = config.myConfig.lume;
 
-  # Get the first configured user for launchd environment
-  primaryUser =
-    if config.myConfig.users != []
-    then (builtins.head config.myConfig.users).name
-    else "root";
+  commonLib = import ../../common/lib.nix {inherit lib;};
 
-  # Default home directory
-  homeDir = "/Users/${primaryUser}";
+  primaryUser = commonLib.primaryUser config;
+  homeDir = commonLib.darwinHomeDir config;
 in {
   options.myConfig.lume = {
-    enable = mkOption {
-      type = types.bool;
+    enable = lib.mkOption {
+      type = lib.types.bool;
       default = false;
       description = "Enable Lume macOS VM runtime";
     };
 
-    package = mkOption {
-      type = types.package;
+    package = lib.mkOption {
+      type = lib.types.package;
       default = pkgs.lume;
       description = "Lume package to use";
     };
 
-    enableBackgroundService = mkOption {
-      type = types.bool;
+    enableBackgroundService = lib.mkOption {
+      type = lib.types.bool;
       default = true;
       description = "Enable Lume background service (lume serve)";
     };
 
-    port = mkOption {
-      type = types.port;
+    port = lib.mkOption {
+      type = lib.types.port;
       default = 7777;
       description = "Port for Lume HTTP API";
     };
 
-    enableAutoUpdater = mkOption {
-      type = types.bool;
+    enableAutoUpdater = lib.mkOption {
+      type = lib.types.bool;
       default = true;
       description = "Enable automatic Lume updates";
     };
 
-    prePullImages = mkOption {
-      type = types.listOf types.str;
+    prePullImages = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
       default = [];
       description = "List of VM images to pre-pull on activation (e.g., macos-tahoe-vanilla:latest)";
     };
   };
 
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
     environment.systemPackages = [cfg.package];
 
     # Lume background service (lume serve)
-    launchd.daemons.lume = mkIf cfg.enableBackgroundService {
+    launchd.daemons.lume = lib.mkIf cfg.enableBackgroundService {
       command = "${cfg.package}/bin/lume serve --port ${toString cfg.port}";
       serviceConfig = {
         Label = "com.trycua.lume_daemon";
@@ -78,7 +73,7 @@ in {
     };
 
     # Auto-updater service
-    launchd.daemons.lume-updater = mkIf cfg.enableAutoUpdater {
+    launchd.daemons.lume-updater = lib.mkIf cfg.enableAutoUpdater {
       command = "${cfg.package}/bin/lume-update";
       serviceConfig = {
         Label = "com.trycua.lume_updater";
@@ -96,13 +91,13 @@ in {
     };
 
     # Pre-pull VM images on activation
-    system.activationScripts.lume-images = mkIf (cfg.prePullImages != []) {
+    system.activationScripts.lume-images = lib.mkIf (cfg.prePullImages != []) {
       text = ''
         echo "Pre-pulling Lume VM images..."
         export HOME="${homeDir}"
         export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${cfg.package}/bin"
 
-        ${concatMapStrings (image: ''
+        ${lib.concatMapStrings (image: ''
             echo "Pulling ${image}..."
             if ! ${cfg.package}/bin/lume images 2>/dev/null | grep -q "${image}"; then
               ${cfg.package}/bin/lume pull "${image}" || echo "Warning: Failed to pull ${image}"
