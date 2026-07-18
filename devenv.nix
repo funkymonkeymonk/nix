@@ -1,16 +1,10 @@
 {pkgs, ...}: let
-  foundationPkgs = import ./modules/roles/foundation-packages.nix {inherit pkgs;};
+  devBase = import ./library/dev-base.nix {inherit pkgs;};
 in {
   packages =
-    foundationPkgs.common
+    devBase.packages
     ++ [
-      # Nix development tools
-      pkgs.alejandra
-      pkgs.statix
-      pkgs.deadnix
-      pkgs.nix-tree
-      pkgs.nvd
-      pkgs.nixd
+      # Devenv-specific additions for working on this repo
       pkgs.optnix
       pkgs.nix-unit
 
@@ -23,16 +17,9 @@ in {
       pkgs.cachix
       pkgs.deploy-rs
 
-      # GitHub tools
-      pkgs.gh-dash
-
       # Utility
       pkgs.rsync
       pkgs.sshpass
-
-      # Note: 1password-cli (op) is expected to be available on machines that need
-      # switch and cachix:push tasks. It has an unfree license so we don't include
-      # it in devenv packages to avoid CI failures.
     ];
 
   # Shell aliases for devenv tasks

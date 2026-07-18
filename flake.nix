@@ -320,9 +320,11 @@
         ];
       };
 
-      # Phase 5: Core v2 — minimal config using raw darwinSystem
+      # Phase 5: Core v2 — minimal dev machine using raw darwinSystem
       # Uses raw nix-darwin.lib.darwinSystem (NOT mkDarwinSystem) intentionally.
-      # Core is minimal — no home-manager, no opnix, no modules/ import.
+      # Includes the shared dev-base (packages, aliases, darwin defaults) so you
+      # can clone the repo and immediately run `devenv shell` or work on the flake.
+      # No home-manager, no opnix, no roles, no modules/ import.
       "core-v2" = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
         modules = [
@@ -331,7 +333,6 @@
             system.configurationRevision = self.rev or self.dirtyRev or null;
             nixpkgs.hostPlatform = "aarch64-darwin";
             system.stateVersion = 4;
-            nix.enable = false;
             myConfig = {
               users = [];
               roles = {};
@@ -342,6 +343,7 @@
           }
           ./modules/common/core.nix
           ./modules/common/options.nix
+          ./modules/darwin/dev-base.nix
         ];
       };
 
