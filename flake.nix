@@ -309,18 +309,7 @@
         ];
       };
 
-      # Core configuration - absolute minimum for bootstrap/recovery
-      # Uses only core.nix (git, curl, vim) - no foundation, no user config
-      "core" = nix-darwin.lib.darwinSystem {
-        modules = [
-          configuration
-          ./modules/common/core.nix
-          ./modules/common/options.nix
-          ./targets/core
-        ];
-      };
-
-      # Phase 5: Core v2 — minimal dev machine using raw darwinSystem
+      # Core — minimal dev machine using raw darwinSystem
       # Uses raw nix-darwin.lib.darwinSystem (NOT mkDarwinSystem) intentionally.
       # Includes the shared dev-base (packages, aliases, darwin defaults) so you
       # can clone the repo and immediately run `devenv shell` or work on the flake.
@@ -773,7 +762,7 @@
             llm-client-no-ai-roles
             typed-attrs-options
             stack-integration
-            phase5-core-bootstrap
+            core-bootstrap
             phase3-zero
             phase4-darwin-server
             phase2-cattle
