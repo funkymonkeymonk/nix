@@ -195,7 +195,7 @@ cmd_init() {
   echo ""
   local selected_target
   if [[ "$platform" == "darwin" ]]; then
-    local darwin_targets=("MegamanX" "wweaver" "core")
+    local darwin_targets=("MegamanX" "wweaver" "core-v2")
     selected_target=$(gum choose "${darwin_targets[@]}" \
       --header "Select your Mac configuration:" \
       --cursor.foreground 212)
@@ -626,7 +626,7 @@ cmd_edit() {
         platform=$(detect_platform)
         local new_target
         if [[ "$platform" == "darwin" ]]; then
-          new_target=$(gum choose "MegamanX" "wweaver" "core" --header "Select new target:")
+          new_target=$(gum choose "MegamanX" "wweaver" "core-v2" --header "Select new target:")
         else
           new_target=$(gum choose "zero" "type-server" "type-server-arm" "type-desktop" --header "Select new target:")
         fi

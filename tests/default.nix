@@ -28,7 +28,7 @@
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
-  testPhase5CoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
+  testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
   testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
@@ -141,8 +141,8 @@ in
     zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
 
-    # Phase 5: Core and bootstrap v2 configs
-    phase5-core-bootstrap = testPhase5CoreBootstrap.phase5CoreBootstrapTest;
+    # Core and bootstrap configs
+    core-bootstrap = testCoreBootstrap.coreBootstrapTest;
 
     # Phase 3: Real-machine migration — zero v2
     phase3-zero = testPhase3Zero.phase3ZeroTest;
