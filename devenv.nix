@@ -61,14 +61,6 @@ in {
       switch() { devenv tasks run system:switch "$@"; }
     fi
 
-    # Make functions robust to $_JJ_REPO_ROOT being unset
-    # If we are in a workspace but the variable is gone, re-detect it.
-    if [[ -n "$(command -v jj &>/dev/null && command -v detect_jj_repo_root &>/dev/null && is_jj_workspace "$PWD" "$(detect_jj_repo_root "$PWD")" && echo 0 || echo 1)" == "0" ]]; then
-       # This part is tricky to do entirely in the shell init without repeating logic.
-       # Let's just make 's' and 'switch' more resilient via a wrapper or by NOT unsetting.
-       :
-    fi
-
     # Cleanup temp variables
     unset _JJ_WORKSPACE_ROOT _JJ_REPO_ROOT 2>/dev/null || true
 
