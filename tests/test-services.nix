@@ -4,12 +4,23 @@
   inherit (pkgs) lib;
 
   # Shared stub modules for evalModules
+  # vane.nix declares its own options (modules/services/vane/darwin.nix), so it's
+  # imported directly here rather than relying on modules/common/options.nix.
   stubModules = [
     ../modules/common/options.nix
+    ../modules/services/vane/darwin.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;
         default = {inherit (pkgs.stdenv.hostPlatform) system;};
+      };
+      options.launchd.daemons = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+      };
+      options.system.activationScripts = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
       };
     }
     {
@@ -39,14 +50,10 @@
             config.myConfig.vane = {
               enable = true;
               port = 8080;
-              embeddedSearxng = false;
               searxngUrl = "http://my-searxng:9090";
-              embeddedOllama = true;
               defaultModel = "llama3.2";
               embeddingModel = "mxbai-embed-large";
               autoStart = true;
-              colima.cpu = 8;
-              colima.memory = 16;
             };
           }
         ];
@@ -71,7 +78,7 @@
           default = {};
         };
       };
-      options.launchd.user.agents = lib.mkOption {
+      options.launchd.daemons = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = {};
       };
@@ -104,8 +111,7 @@
     })
     .config
     .launchd
-    .user
-    .agents
+    .daemons
     .vane
     .serviceConfig;
 
@@ -128,8 +134,7 @@
     })
     .config
     .launchd
-    .user
-    .agents
+    .daemons
     .vane
     .serviceConfig;
 
@@ -197,33 +202,15 @@ in {
       }
 
       ${
-        if vaneDefaultEval.embeddedSearxng
-        then ''echo "  embeddedSearxng default = true: OK"''
-        else ''echo "  embeddedSearxng should default to true!"; exit 1''
-      }
-
-      ${
-        if !vaneDefaultEval.embeddedOllama
-        then ''echo "  embeddedOllama default = false: OK"''
-        else ''echo "  embeddedOllama should default to false!"; exit 1''
-      }
-
-      ${
         if !vaneDefaultEval.autoStart
         then ''echo "  autoStart default = false: OK"''
         else ''echo "  autoStart should default to false!"; exit 1''
       }
 
       ${
-        if vaneDefaultEval.colima.cpu == 4
-        then ''echo "  colima.cpu default = 4: OK"''
-        else ''echo "  colima.cpu should default to 4!"; exit 1''
-      }
-
-      ${
-        if vaneDefaultEval.colima.memory == 8
-        then ''echo "  colima.memory default = 8: OK"''
-        else ''echo "  colima.memory should default to 8!"; exit 1''
+        if vaneDefaultEval.searxngUrl == null
+        then ''echo "  searxngUrl default = null: OK"''
+        else ''echo "  searxngUrl should default to null!"; exit 1''
       }
 
       echo "All vane option defaults verified"
@@ -250,15 +237,9 @@ in {
       }
 
       ${
-        if !vaneCustomEval.embeddedSearxng
-        then ''echo "  embeddedSearxng = false: OK"''
-        else ''echo "  embeddedSearxng should be false!"; exit 1''
-      }
-
-      ${
-        if vaneCustomEval.embeddedOllama
-        then ''echo "  embeddedOllama = true: OK"''
-        else ''echo "  embeddedOllama should be true!"; exit 1''
+        if vaneCustomEval.searxngUrl == "http://my-searxng:9090"
+        then ''echo "  searxngUrl = http://my-searxng:9090: OK"''
+        else ''echo "  searxngUrl should be http://my-searxng:9090!"; exit 1''
       }
 
       ${
@@ -271,18 +252,6 @@ in {
         if vaneCustomEval.defaultModel == "llama3.2"
         then ''echo "  defaultModel = llama3.2: OK"''
         else ''echo "  defaultModel should be llama3.2!"; exit 1''
-      }
-
-      ${
-        if vaneCustomEval.colima.cpu == 8
-        then ''echo "  colima.cpu = 8: OK"''
-        else ''echo "  colima.cpu should be 8!"; exit 1''
-      }
-
-      ${
-        if vaneCustomEval.colima.memory == 16
-        then ''echo "  colima.memory = 16: OK"''
-        else ''echo "  colima.memory should be 16!"; exit 1''
       }
 
       echo "All vane custom options verified"

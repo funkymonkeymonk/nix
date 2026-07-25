@@ -325,9 +325,7 @@
             myConfig = {
               users = [];
               roles = {};
-              onepassword.enable = false;
               opencode.enable = false;
-              agent-skills.enable = false;
             };
           }
           ./modules/common/core.nix
@@ -646,7 +644,7 @@
         ];
         overrides = {
           autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm-v2";
-          roles.tailscale.enable = false;
+          tailscale.enable = false;
         };
       };
 
@@ -736,6 +734,8 @@
             vane-options
             vane-custom-options
             vane-opnix-url-options
+            vane-darwin-autostart-default
+            vane-darwin-autostart-true
             openclaw-options
             opencode-options
             opencode-custom-options
@@ -766,6 +766,18 @@
             phase3-zero
             phase4-darwin-server
             phase2-cattle
+            claude-code-options
+            claude-code-custom-options
+            pi-options
+            pi-custom-options
+            bifrost-options
+            bifrost-custom-options
+            caddy-options
+            caddy-custom-options
+            searxng-options
+            searxng-custom-options
+            lume-options
+            lume-custom-options
             ;
         }
         // nixpkgs.lib.optionalAttrs isLinux {

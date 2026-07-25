@@ -17,6 +17,32 @@ with lib; let
   primaryUser = commonLib.primaryUser config;
   darwinHomeDir = commonLib.darwinHomeDir config;
 in {
+  options.myConfig.ollama = {
+    enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Enable Ollama inference server for local LLMs";
+    };
+
+    host = mkOption {
+      type = types.str;
+      default = "127.0.0.1";
+      description = "Bind address for Ollama server";
+    };
+
+    port = mkOption {
+      type = types.port;
+      default = 11434;
+      description = "Bind port for Ollama server";
+    };
+
+    keepAlive = mkOption {
+      type = types.str;
+      default = "8h";
+      description = "Duration to keep loaded models in memory (e.g. \"8h\", \"24h\", \"0\" for infinite)";
+    };
+  };
+
   config = mkIf cfg.enable (mkMerge [
     (optionalAttrs hasHomebrew {
       homebrew.brews = ["ollama"];

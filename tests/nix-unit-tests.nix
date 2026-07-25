@@ -5,58 +5,13 @@ let
   pkgs = import <nixpkgs> {system = builtins.currentSystem;};
   lib = pkgs.lib;
 
-  # ── Shared stubs ─────────────────────────────────────────────────
-  baseStubs = [
-    ../modules/common/options.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-      options.environment = {
-        systemPackages = lib.mkOption {
-          type = lib.types.listOf lib.types.package;
-          default = [];
-        };
-        variables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        sessionVariables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        shellAliases = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        etc = lib.mkOption {
-          type = lib.types.attrsOf lib.types.anything;
-          default = {};
-        };
-      };
-      options.programs = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = {};
-      };
-      options.homebrew = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      options.users = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      options.microvm = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      config.microvm.vms = {};
-    }
-    {config._module.args = {inherit pkgs;};}
-  ];
+  # ── Shared stubs (from tests/stubs.nix) ──────────────────────────
+  stubs = import ./stubs.nix {inherit pkgs;};
 
-  roleStubs = baseStubs ++ [../modules/roles/default.nix];
+  # Convenience aliases matching the old local names so test expressions
+  # below don't need to change.
+  baseStubs = stubs.base;
+  roleStubs = stubs.withRoles;
 
   evalAllRoles =
     (lib.evalModules {
@@ -98,6 +53,27 @@ let
 
   evalBase = (lib.evalModules {modules = baseStubs;}).config;
 
+  vaneStubs = stubs.vane;
+  searxngStubs = stubs.searxng;
+  bifrostStubs = stubs.bifrost;
+  caddyStubs = stubs.caddy;
+  onepasswordStubs = baseStubs ++ stubs.onepassword;
+  microvmStubs = stubs.microvm;
+  agentSkillsStubs = stubs.agentSkills;
+  # aerospace.nix lives under modules/home-manager/ but is imported at the
+  # host-module level (services.aerospace, environment.systemPackages), not
+  # inside a home-manager users.<name> block — see flake.nix.
+  aerospaceStubs = stubs.aerospace;
+
+  evalVaneBase = (lib.evalModules {modules = vaneStubs;}).config;
+  evalSearxngBase = (lib.evalModules {modules = searxngStubs;}).config;
+  evalBifrostBase = (lib.evalModules {modules = bifrostStubs;}).config;
+  evalCaddyBase = (lib.evalModules {modules = caddyStubs;}).config;
+  evalOnepasswordBase = (lib.evalModules {modules = onepasswordStubs;}).config;
+  evalMicrovmBase = (lib.evalModules {modules = microvmStubs;}).config;
+  evalAgentSkillsBase = (lib.evalModules {modules = agentSkillsStubs;}).config;
+  evalAerospaceBase = (lib.evalModules {modules = aerospaceStubs;}).config;
+
   # Shared library helpers for unit testing extracted functions
   commonLib = import ../modules/common/lib.nix {inherit lib;};
 
@@ -118,7 +94,6 @@ let
     "email-backup"
     "microvm-host"
     "homebrew"
-    "tailscale"
   ];
 in {
   # ── Role definitions ────────────────────────────────────────────
@@ -176,7 +151,7 @@ in {
 
   # ── Options: aerospace ────────────────────────────────────────
   testAerospaceDefaults = {
-    expr = evalBase.myConfig.aerospace.externalMonitor;
+    expr = evalAerospaceBase.myConfig.aerospace.externalMonitor;
     expected = null;
   };
 
@@ -184,7 +159,7 @@ in {
     custom =
       (lib.evalModules {
         modules =
-          baseStubs
+          aerospaceStubs
           ++ [
             {
               config.myConfig.aerospace = {externalMonitor = "TEST";};
@@ -233,9 +208,9 @@ in {
   # ── Options: vane ─────────────────────────────────────────────
   testVaneDefaults = {
     expr = {
-      enable = evalBase.myConfig.vane.enable;
-      port = evalBase.myConfig.vane.port;
-      defaultModel = evalBase.myConfig.vane.defaultModel;
+      enable = evalVaneBase.myConfig.vane.enable;
+      port = evalVaneBase.myConfig.vane.port;
+      defaultModel = evalVaneBase.myConfig.vane.defaultModel;
     };
     expected = {
       enable = false;
@@ -248,7 +223,7 @@ in {
     custom =
       (lib.evalModules {
         modules =
-          baseStubs
+          vaneStubs
           ++ [
             {
               config.myConfig.vane = {
@@ -273,8 +248,8 @@ in {
   # ── Options: 1Password ────────────────────────────────────────
   testOnepasswordDefaults = {
     expr = {
-      enable = evalBase.myConfig.onepassword.enable;
-      enableSSHAgent = evalBase.myConfig.onepassword.enableSSHAgent;
+      enable = evalOnepasswordBase.myConfig.onepassword.enable;
+      enableSSHAgent = evalOnepasswordBase.myConfig.onepassword.enableSSHAgent;
     };
     expected = {
       enable = true;
@@ -296,15 +271,15 @@ in {
 
   # ── Options: caddy ──────────────────────────────────────────────
   testCaddyDefaults = {
-    expr = evalBase.myConfig.caddy.enable;
+    expr = evalCaddyBase.myConfig.caddy.enable;
     expected = false;
   };
 
   # ── Options: bifrost ──────────────────────────────────────────
   testBifrostDefaults = {
     expr = {
-      enable = evalBase.myConfig.bifrost.enable;
-      port = evalBase.myConfig.bifrost.port;
+      enable = evalBifrostBase.myConfig.bifrost.enable;
+      port = evalBifrostBase.myConfig.bifrost.port;
     };
     expected = {
       enable = false;
@@ -314,7 +289,7 @@ in {
 
   # ── Options: searxng ────────────────────────────────────────────
   testSearxngDefaults = {
-    expr = evalBase.myConfig.searxng.enable;
+    expr = evalSearxngBase.myConfig.searxng.enable;
     expected = false;
   };
 
@@ -339,9 +314,9 @@ in {
   # ── Options: microvm ────────────────────────────────────────────
   testMicrovmDefaults = {
     expr = {
-      enable = evalBase.myConfig.microvm.enable;
-      ipAddress = evalBase.myConfig.microvm.ipAddress;
-      gateway = evalBase.myConfig.microvm.gateway;
+      enable = evalMicrovmBase.myConfig.microvm.enable;
+      ipAddress = evalMicrovmBase.myConfig.microvm.ipAddress;
+      gateway = evalMicrovmBase.myConfig.microvm.gateway;
     };
     expected = {
       enable = false;
@@ -358,7 +333,7 @@ in {
 
   # ── Options: agent-skills ─────────────────────────────────────
   testSkillsDefaults = {
-    expr = evalBase.myConfig.agent-skills.enable;
+    expr = evalAgentSkillsBase.myConfig.agent-skills.enable;
     expected = false;
   };
 

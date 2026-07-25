@@ -39,14 +39,8 @@
         autoStart = true;
         ollamaUrl = "http://host.docker.internal:11434";
         openaiBaseUrl = "https://litellm.justworksai.net/v1";
-        embeddedSearxng = true;
         defaultModel = "qwen3.5";
         embeddingModel = "nomic-embed-text";
-        colima = {
-          cpu = 6;
-          memory = 12;
-          disk = 60;
-        };
       };
       opencode = {
         model = "just-llms/claude-sonnet-4-6";

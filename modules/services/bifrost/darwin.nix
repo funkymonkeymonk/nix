@@ -120,6 +120,76 @@ with lib; let
       -app-dir "$APP_DIR"
   '';
 in {
+  options.myConfig.bifrost = {
+    enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Enable Bifrost AI gateway for unified LLM access across all local inference servers";
+    };
+
+    port = mkOption {
+      type = types.port;
+      default = 8081;
+      description = "Port for Bifrost HTTP gateway";
+    };
+
+    host = mkOption {
+      type = types.str;
+      default = "0.0.0.0";
+      description = "Host to bind Bifrost to";
+    };
+
+    logLevel = mkOption {
+      type = types.enum ["debug" "info" "warn" "error"];
+      default = "info";
+      description = "Bifrost log level";
+    };
+
+    appDir = mkOption {
+      type = types.str;
+      default = "$HOME/.config/bifrost";
+      description = "Directory for Bifrost data (config.json, SQLite DB, request logs)";
+    };
+
+    upstreams = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          url = mkOption {
+            type = types.str;
+            description = "Base URL for the upstream inference server (e.g., http://localhost:8300/v1)";
+          };
+          type = mkOption {
+            type = types.enum ["openai" "vllm"];
+            default = "openai";
+            description = "Provider type for the upstream. Use 'vllm' for vLLM-compatible servers (uses bifrost's native vLLM provider integration)";
+          };
+          apiKey = mkOption {
+            type = types.str;
+            default = "dummy";
+            description = "API key for the upstream (dummy for local servers)";
+          };
+          allowPrivateNetwork = mkOption {
+            type = types.bool;
+            default = true;
+            description = "Allow connecting to private network IPs (localhost, 192.168.x.x, 10.x.x.x)";
+          };
+          requestTimeout = mkOption {
+            type = types.ints.unsigned;
+            default = 120;
+            description = "Default request timeout in seconds";
+          };
+          models = mkOption {
+            type = types.listOf types.str;
+            default = [];
+            description = "Model names to expose via this upstream (empty = wildcard). For vllm provider, list the models available on the vLLM server";
+          };
+        };
+      });
+      default = {};
+      description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vllm-mlx-local' → model 'vllm-mlx-local/glm47-flash-4bit')";
+    };
+  };
+
   config = mkIf cfg.enable {
     launchd.daemons.bifrost = {
       command = bifrostScript;

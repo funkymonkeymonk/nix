@@ -7,6 +7,12 @@
   ...
 }:
 with lib; {
+  options.myConfig.autoUpgrade.flakeUrl = mkOption {
+    type = types.str;
+    default = "";
+    description = "GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines.";
+  };
+
   config = {
     # Configure NixOS-specific user properties from myConfig.users
     users.users = listToAttrs (map (user: {
