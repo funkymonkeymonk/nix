@@ -1,8 +1,4 @@
 # Workstation Darwin archetype — personal developer workstation
-#
-# Lightweight LLM stack (gemma3:4b only via Ollama) designed for
-# 24GB machines running other apps alongside — no heavy inference
-# servers, container overlays, or gateway proxies.
 {
   inputs,
   lib,
@@ -10,7 +6,6 @@
 }: {
   imports = [
     ../../modules/roles/homebrew.nix
-    ../../modules/services/ollama/darwin.nix
   ];
 
   myConfig = {
@@ -29,11 +24,5 @@
     # skills.superpowersPath above. Override per-machine with a direct
     # assignment, e.g. for a local pi-plugins checkout during development.
     pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
-
-    ollama = {
-      enable = lib.mkDefault true;
-      host = "127.0.0.1";
-      port = 11434;
-    };
   };
 }

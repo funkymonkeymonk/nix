@@ -82,14 +82,6 @@
         };
       };
 
-      # Ollama disabled — vllm-mlx handles all local inference
-      ollama = {
-        enable = false;
-        host = "127.0.0.1";
-        port = 11434;
-        keepAlive = "0";
-      };
-
       searxng.enable = true;
 
       caddy.enable = true;
