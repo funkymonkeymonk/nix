@@ -285,59 +285,9 @@
         ];
       };
 
-      # Darwin server - headless macOS server for VM hosting
-      # Uses Lume for macOS VMs
-      "darwin-server" = nix-darwin.lib.darwinSystem {
-        specialArgs = {inherit inputs mkUser;};
-        modules = [
-          {
-            nixpkgs.config.permittedInsecurePackages = [
-              "olm-3.2.16"
-            ];
-          }
-          configuration
-          ./modules
-          ./os/darwin.nix
-          ./library/archetypes/headless-server-darwin.nix
-          home-manager.darwinModules.home-manager
-          {
-            home-manager.sharedModules = [
-              opnix.homeManagerModules.default
-              inputs.nix-openclaw.homeManagerModules.openclaw
-            ];
-          }
-          ./hosts/darwin-server
-        ];
-      };
-
-      # Core — minimal dev machine using raw darwinSystem
-      # Uses raw nix-darwin.lib.darwinSystem (NOT mkDarwinSystem) intentionally.
-      # Includes the shared dev-base (packages, aliases, darwin defaults) so you
-      # can clone the repo and immediately run `devenv shell` or work on the flake.
-      # No home-manager, no opnix, no roles, no modules/ import.
-      "core-v2" = nix-darwin.lib.darwinSystem {
-        system = "aarch64-darwin";
-        modules = [
-          {
-            networking.hostName = "core";
-            system.configurationRevision = self.rev or self.dirtyRev or null;
-            nixpkgs.hostPlatform = "aarch64-darwin";
-            system.stateVersion = 4;
-            myConfig = {
-              users = [];
-              roles = {};
-              opencode.enable = false;
-            };
-          }
-          ./modules/common/core.nix
-          ./modules/common/options.nix
-          ./modules/darwin/dev-base.nix
-        ];
-      };
-
-      # Phase 4: darwin-server v2 using new library mkDarwinSystem + headless-server-darwin archetype
-      # Runs in parallel with darwin-server until verified.
-      "darwin-server-v2" = libraryLib.mkDarwinSystem {
+      # darwin-server — headless macOS server for VM hosting
+      # Uses libraryLib.mkDarwinSystem + headless-server-darwin archetype
+      "darwin-server" = libraryLib.mkDarwinSystem {
         inherit inputs;
         hostname = "darwin-server";
         extraSpecialArgs = {inherit mkUser;};
@@ -385,22 +335,6 @@
       # Bootstrap configuration - minimal setup for initial install
       # Uses core.nix for absolute minimum, no foundation
       "bootstrap" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        modules = [
-          ./modules/common/core.nix
-          ./targets/bootstrap
-          ./modules/common/options.nix
-          {
-            nixpkgs.hostPlatform = "x86_64-linux";
-            system.stateVersion = "25.05";
-          }
-        ];
-      };
-
-      # Phase 5: Bootstrap v2 — minimal config using raw nixosSystem
-      # Uses raw nixpkgs.lib.nixosSystem (NOT mkNixosSystem) intentionally.
-      # Bootstrap is intentionally minimal — no home-manager, no opnix, no disko.
-      "bootstrap-v2" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           ./modules/common/core.nix

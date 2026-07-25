@@ -3,7 +3,7 @@
 # Applies the shared dev-base configuration to a nix-darwin system.
 #
 # No home-manager, no opnix, no secrets, no machine-specific services.
-# This is the minimal base that core-v2 and all other Darwin targets build on.
+# This is the minimal base that all Darwin targets build on.
 {
   lib,
   pkgs,
