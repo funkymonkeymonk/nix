@@ -1,9 +1,12 @@
 # wweaver — work laptop (Will Weaver)
-# Thin host file — imports workstation archetype, adds work-specific config
-# (Justworks providers, vane with LiteLLM, opencode agents/commands, etc.)
+# Machine-specific overrides only — developer-laptop-darwin archetype provides
+# the base (homebrew, desktop, entertainment roles, superpowersPath).
+# Hardware-specific: vane colima sizing, onepassword.sudoPasswordRef.
+# User preference: opencode providers, commands, MCP servers → profile data here.
 {
   mkUser,
   inputs,
+  lib,
   ...
 }: {
   nixpkgs.hostPlatform = "aarch64-darwin";
@@ -12,10 +15,6 @@
 
   homebrew.casks = [
     "granola"
-  ];
-
-  imports = [
-    ../../library/archetypes/workstation-darwin.nix
   ];
 
   myConfig =
@@ -29,9 +28,13 @@
       };
       onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
 
-      # Extra roles beyond workstation archetype
-      roles.entertainment.enable = true;
+      # Roles beyond developer-laptop-darwin archetype (homebrew, desktop, entertainment already set)
+      roles.developer.enable = true;
+      roles.workstation.enable = true;
       roles.opencode.enable = true;
+      roles.pi.enable = true;
+
+      pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
 
       vane = {
         enable = true;
