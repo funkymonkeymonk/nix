@@ -13,13 +13,14 @@
 
   users.users.root.openssh.authorizedKeys.keys = [];
 
+  # SSH hardening (Darwin uses extraConfig, not settings.)
   services.openssh = {
     enable = true;
-    settings = {
-      PermitRootLogin = "prohibit-password";
-      PasswordAuthentication = false;
-      AllowAgentForwarding = true;
-    };
+    extraConfig = ''
+      PermitRootLogin prohibit-password
+      PasswordAuthentication no
+      AllowAgentForwarding yes
+    '';
   };
 
   time.timeZone = "America/New_York";

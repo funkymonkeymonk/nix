@@ -268,14 +268,15 @@
 
     darwinConfigurations = {
       # wweaver — work laptop (Will Weaver)
-      # Uses base-darwin + workstation-darwin archetypes with work-specific
-      # providers (Justworks LiteLLM) and vane/opencode customizations
-      "wweaver" = nix-darwin.lib.darwinSystem {
-        specialArgs = {inherit inputs mkUser;};
+      # Uses mkDarwinSystem + developer-laptop-darwin + workstation-darwin archetypes
+      "wweaver" = libraryLib.mkDarwinSystem {
+        inherit inputs;
+        hostname = "wweaver";
+        extraSpecialArgs = {inherit mkUser;};
         modules = [
-          configuration
           ./library/archetypes/base-darwin.nix
           nix-homebrew.darwinModules.nix-homebrew
+          ./library/archetypes/developer-laptop-darwin.nix
           ./library/archetypes/workstation-darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
