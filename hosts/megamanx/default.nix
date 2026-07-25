@@ -60,6 +60,10 @@
         defaultModel = "gemma4-31b";
         embeddingModel = "nomic-embed-text:latest";
         ollamaUrl = "http://localhost:11434";
+        # Point at the searxng service enabled below (myConfig.searxng.enable).
+        # vane no longer auto-derives this from searxng.port — see
+        # modules/services/vane/darwin.nix for why the coupling was severed.
+        searxngUrl = "http://localhost:8080";
       };
 
       bifrost = {
@@ -76,14 +80,6 @@
             ];
           };
         };
-      };
-
-      # Ollama disabled — vllm-mlx handles all local inference
-      ollama = {
-        enable = false;
-        host = "127.0.0.1";
-        port = 11434;
-        keepAlive = "0";
       };
 
       searxng.enable = true;

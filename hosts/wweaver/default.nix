@@ -31,22 +31,14 @@
 
       # Extra roles beyond workstation archetype
       roles.entertainment.enable = true;
-      roles.llm-host.enable = true;
       roles.opencode.enable = true;
 
       vane = {
         enable = true;
         autoStart = true;
-        ollamaUrl = "http://host.docker.internal:11434";
         openaiBaseUrl = "https://litellm.justworksai.net/v1";
-        embeddedSearxng = true;
         defaultModel = "qwen3.5";
         embeddingModel = "nomic-embed-text";
-        colima = {
-          cpu = 6;
-          memory = 12;
-          disk = 60;
-        };
       };
       opencode = {
         model = "just-llms/claude-sonnet-4-6";
@@ -95,15 +87,6 @@
               "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
                 name = "Claude Opus 4.5 (Bedrock)";
               };
-            };
-          };
-          ollama = {
-            npm = "@ai-sdk/openai-compatible";
-            name = "Ollama (local)";
-            baseURL = "http://localhost:11434/v1";
-            models = {
-              "qwen3.5:latest" = {name = "Qwen 3.5 (7B)";};
-              "qwen3.5:2b" = {name = "Qwen 3.5 (2B)";};
             };
           };
         };
