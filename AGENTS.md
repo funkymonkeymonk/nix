@@ -521,6 +521,22 @@ nix build .#target
 devenv tasks run test
 ```
 
+**New files require `git add` before they are visible to Nix flake eval.** `jj describe` only commits files already tracked by git. A file you just created will cause:
+
+```
+error: Path 'path/to/file.nix' in the repository "..." is not tracked by Git.
+```
+
+Fix by staging the file first, then committing:
+
+```bash
+git add path/to/new-file.nix
+jj describe -m "feat: your changes"
+
+# NOW run nix commands
+nix build .#target
+```
+
 **If you must test before committing**, use `--impure`:
 ```bash
 nix build .#target --impure
@@ -675,6 +691,7 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 - Remove dead code (deadnix)
 - Follow existing patterns
 - Conventional commits: `feat:`, `fix:`, `docs:`
+- Do not leave tombstone comments when removing code — the user uses git history for that
 
 ---
 

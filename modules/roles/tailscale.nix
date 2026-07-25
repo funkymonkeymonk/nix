@@ -5,7 +5,7 @@
   options,
   ...
 }: let
-  cfg = config.myConfig.roles.tailscale;
+  cfg = config.myConfig.tailscale;
   # Check if this is NixOS by looking for NixOS-specific options
   isNixOS = builtins.hasAttr "boot" options;
   # Check if the opnix module is available
@@ -23,6 +23,29 @@
     ++ lib.optionals (cfg.advertiseRoutes != []) ["--advertise-routes ${lib.concatStringsSep "," cfg.advertiseRoutes}"]
   );
 in {
+  options.myConfig.tailscale = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Tailscale VPN with auto-connect via 1Password secrets";
+    };
+    authKeyOpnixItem = lib.mkOption {
+      type = lib.types.str;
+      default = "Tailscale/auth-key";
+      description = "1Password item reference for Tailscale auth key. If the value does not start with 'op://', it is treated as 'Item/Field' and the default vault is prepended.";
+    };
+    exitNode = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Advertise this machine as a Tailscale exit node";
+    };
+    advertiseRoutes = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = "Additional routes to advertise (CIDR notation, e.g. [\"10.0.0.0/24\"])";
+    };
+  };
+
   config = lib.mkIf cfg.enable (lib.mkMerge [
     # Common config (packages available on both platforms)
     {

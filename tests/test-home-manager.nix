@@ -2,34 +2,28 @@
 # Tests opencode options, fjj options, aerospace options, and shell alias structure
 {pkgs, ...}: let
   inherit (pkgs) lib;
+  stubs = import ./stubs.nix {inherit pkgs;};
 
-  # Shared stub modules for options-level evaluation
-  stubModules = [
-    ../modules/common/options.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-    }
-    {
-      config._module.args = {inherit pkgs;};
-    }
-  ];
+  # base stubs: options.nix + hostPlatform + environment + programs + homebrew + pkgs args
+  stubModules = stubs.base;
+
+  # aerospace.nix declares myConfig.aerospace and sets services.aerospace +
+  # environment.systemPackages — needs services stub on top of base.
+  aerospaceStubs = stubs.aerospace;
 
   # --- aerospace option tests ---
 
   # Evaluate aerospace with defaults (externalMonitor = null)
   aerospaceDefaults =
     (lib.evalModules {
-      modules = stubModules;
+      modules = aerospaceStubs;
     }).config.myConfig.aerospace;
 
   # Evaluate aerospace with externalMonitor set
   aerospaceCustom =
     (lib.evalModules {
       modules =
-        stubModules
+        aerospaceStubs
         ++ [
           {
             config.myConfig.aerospace = {
@@ -103,26 +97,20 @@
   # Import aliases.nix as a home-manager module to check it defines shellAliases
   # Note: aliases.nix reads from config.myConfig which needs the options module
   aliasesEval = lib.evalModules {
-    modules = [
-      ../modules/common/options.nix
-      {
-        options.nixpkgs.hostPlatform = lib.mkOption {
-          type = lib.types.anything;
-          default = {inherit (pkgs.stdenv.hostPlatform) system;};
-        };
-        # Stub home-manager options that aliases.nix sets
-        options.home.shellAliases = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        # Stub myConfig at the level aliases.nix expects
-        # (aliases.nix accesses config.myConfig.onepassword.enable)
-      }
-      ../modules/home-manager/aliases.nix
-      {
-        config._module.args = {inherit pkgs;};
-      }
-    ];
+    modules =
+      stubModules
+      ++ [
+        {
+          # Stub home-manager options that aliases.nix sets
+          options.home.shellAliases = lib.mkOption {
+            type = lib.types.attrsOf lib.types.str;
+            default = {};
+          };
+          # aliases.nix accesses config.myConfig.onepassword.enable via `or {}`
+          # guard — no explicit onepassword stub needed here.
+        }
+        ../modules/home-manager/aliases.nix
+      ];
   };
   inherit (aliasesEval.config.home) shellAliases;
 in {

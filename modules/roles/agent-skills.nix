@@ -5,6 +5,12 @@
 }: let
   cfg = config.myConfig.roles.agent-skills;
 in {
+  options.myConfig.agent-skills.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Enable agent skills management";
+  };
+
   config = lib.mkIf cfg.enable {
     environment = lib.mkMerge [
       {
