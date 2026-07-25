@@ -3,7 +3,6 @@
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }: let
   cfg = config.myConfig.roles.pi;
@@ -22,10 +21,11 @@ in {
     # Enable pi configuration management via home-manager
     myConfig.pi.enable = true;
 
-    # Install pi-plugins from the locked flake input.
-    # Override in your target to use a local checkout during development:
-    #   myConfig.pi.pluginsSource = /home/you/src/pi-plugins;
-    myConfig.pi.pluginsSource = lib.mkDefault inputs.pi-plugins.outPath;
+    # Default plugin selection. pluginsSource (the flake input providing these
+    # plugins) is set at the composition point (archetype/host), not here —
+    # mirrors how myConfig.skills.superpowersPath is wired, since a role module
+    # should not need `inputs` directly. Override per-machine with a direct
+    # assignment.
     myConfig.pi.plugins = lib.mkDefault ["pi-plugin-yaks"];
 
     # Use mkDefault so opencode wins if both are enabled

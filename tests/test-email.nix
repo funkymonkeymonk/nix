@@ -2,47 +2,11 @@
 # Verifies option defaults, module evaluation, script content, and service configuration
 {pkgs, ...}: let
   inherit (pkgs) lib;
+  stubs = import ./stubs.nix {inherit pkgs;};
 
-  # Shared stub modules (same pattern as test-roles.nix)
-  stubModules = [
-    ../modules/common/options.nix
-    ../modules/roles/default.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-      options.environment = {
-        systemPackages = lib.mkOption {
-          type = lib.types.listOf lib.types.package;
-          default = [];
-        };
-        variables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        sessionVariables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        shellAliases = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-      };
-      options.programs = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = {};
-      };
-      options.homebrew = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-    }
-    {
-      config._module.args = {inherit pkgs;};
-    }
-  ];
+  # withRoles: base + roles/default.nix + onepassword
+  # (foundation role sets myConfig.onepassword.enable; onepassword.nix owns that option)
+  stubModules = stubs.withRoles;
 
   testUser = {
     name = "testuser";

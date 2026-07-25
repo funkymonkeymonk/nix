@@ -80,7 +80,15 @@
     testEval = pkgs.lib.evalModules {
       modules = [
         ../modules/common/options.nix
+        ../modules/common/llm-client.nix
+        ../modules/common/charm.nix
+        ../modules/common/syncthing.nix
+        ../modules/common/zellij.nix
         ../modules/roles/default.nix
+        # roles/foundation.nix (always-enabled by default) writes
+        # myConfig.onepassword.enable = true; that option now lives in
+        # modules/common/onepassword.nix (see options.nix split).
+        ../modules/common/onepassword.nix
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
             type = pkgs.lib.types.anything;
@@ -160,10 +168,38 @@
     testEval = pkgs.lib.evalModules {
       modules = [
         ../modules/common/options.nix
+        ../modules/common/onepassword.nix
+        ../modules/common/charm.nix
+        ../modules/common/syncthing.nix
+        ../modules/common/zellij.nix
+        ../modules/common/llm-client.nix
+        ../modules/roles/agent-skills.nix
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
             type = pkgs.lib.types.anything;
             default = {inherit (pkgs.stdenv.hostPlatform) system;};
+          };
+          options.environment = {
+            variables = pkgs.lib.mkOption {
+              type = pkgs.lib.types.attrsOf pkgs.lib.types.str;
+              default = {};
+            };
+            shellAliases = pkgs.lib.mkOption {
+              type = pkgs.lib.types.attrsOf pkgs.lib.types.str;
+              default = {};
+            };
+            systemPackages = pkgs.lib.mkOption {
+              type = pkgs.lib.types.listOf pkgs.lib.types.package;
+              default = [];
+            };
+          };
+          options.programs = pkgs.lib.mkOption {
+            type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
+            default = {};
+          };
+          options.services = pkgs.lib.mkOption {
+            type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
+            default = {};
           };
         }
         {

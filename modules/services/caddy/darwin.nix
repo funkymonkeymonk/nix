@@ -81,6 +81,32 @@
       --conf-file="${dnsmasqConf}"
   '';
 in {
+  options.myConfig.caddy = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable Caddy reverse proxy with .internal hostnames to local services";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.port;
+      default = 80;
+      description = "Port for Caddy HTTP listener";
+    };
+
+    dataDir = lib.mkOption {
+      type = lib.types.str;
+      default = "$HOME/.local/share/caddy";
+      description = "Directory for Caddy data (certs, config)";
+    };
+
+    hosts = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = {};
+      description = "Additional hostname->upstream mappings (e.g. { \"app.internal\" = \"localhost:9000\"; })";
+    };
+  };
+
   config = lib.mkIf cfg.enable {
     environment.etc."resolver/internal".text = ''
       nameserver 127.0.0.1

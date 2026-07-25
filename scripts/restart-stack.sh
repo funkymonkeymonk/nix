@@ -123,4 +123,4 @@ for port in "${PORTS[@]}"; do
   fi
 done
 echo ""
-echo "Run 'scripts/test-stack-integration.sh' for full integration tests."
+echo "Run 'nix build .#checks.aarch64-darwin.stack-integration' to verify the stack eval."

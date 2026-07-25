@@ -37,6 +37,26 @@
         disabled: false
   '';
 in {
+  options.myConfig.searxng = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable SearXNG privacy-respecting metasearch engine";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.port;
+      default = 8080;
+      description = "Port for SearXNG web interface";
+    };
+
+    secretKey = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Secret key for SearXNG. Auto-generated if empty. Set a stable value to avoid session resets.";
+    };
+  };
+
   config = lib.mkIf cfg.enable {
     launchd.daemons.searxng = {
       command = "${pkgs.searxng}/bin/searxng-run";

@@ -5,6 +5,10 @@
 
   stubModules = [
     ../modules/common/options.nix
+    ../modules/common/llm-client.nix
+    ../modules/common/charm.nix
+    ../modules/common/syncthing.nix
+    ../modules/common/zellij.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;

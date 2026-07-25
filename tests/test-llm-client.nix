@@ -3,57 +3,10 @@
 # variables when any AI agent role is enabled.
 {pkgs, ...}: let
   inherit (pkgs) lib;
+  stubs = import ./stubs.nix {inherit pkgs;};
 
-  # Stub modules for evalModules - provide options needed by roles
-  stubModules = [
-    ../modules/common/options.nix
-    ../modules/common/llm-client.nix
-    ../modules/roles/default.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-      options.environment = {
-        systemPackages = lib.mkOption {
-          type = lib.types.listOf lib.types.package;
-          default = [];
-        };
-        variables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        sessionVariables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        shellAliases = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        etc = lib.mkOption {
-          type = lib.types.attrsOf lib.types.anything;
-          default = {};
-        };
-      };
-      options.programs = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = {};
-      };
-      options.homebrew = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      options.microvm = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      config.microvm.vms = {};
-    }
-    {
-      config._module.args = {inherit pkgs;};
-    }
-  ];
+  # withRoles + llm-client.nix: base + roles/default.nix + onepassword + llm-client
+  stubModules = stubs.withRoles ++ [../modules/common/llm-client.nix];
 
   # Helper: evaluate with a given role enabled
   evalWithRole = roleName:

@@ -80,7 +80,7 @@ with lib; let
           ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix
           ++ optional config.myConfig.claude-code.enable ../../modules/home-manager/claude-code.nix
           ++ optional config.myConfig.pi.enable ../../modules/home-manager/pi-coding-agent.nix
-          ++ optional (config.myConfig.vane.openaiBaseUrlOpnixItem != null) ../../modules/home-manager/vane-secrets.nix
+          ++ optional ((config.myConfig.vane.openaiBaseUrlOpnixItem or null) != null) ../../modules/home-manager/vane-secrets.nix
           ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix
           ++ optional config.myConfig.agent-skills.enable ../../modules/home-manager/skills/install.nix
           ++ optional config.myConfig.email-agent.enable ../../modules/home-manager/email-agent.nix

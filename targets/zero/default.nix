@@ -24,10 +24,10 @@
         developer.enable = true;
         desktop.enable = true;
         opencode.enable = true;
-        tailscale = {
-          enable = true;
-          authKeyOpnixItem = "Tailscale Auth Key/credential";
-        };
+      };
+      tailscale = {
+        enable = true;
+        authKeyOpnixItem = "Tailscale Auth Key/credential";
       };
       desktop = {
         enable = true;

@@ -134,6 +134,109 @@
     echo "Warmup complete"
   '';
 in {
+  options.myConfig.vllmMlx = {
+    enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable vllm-mlx inference server for local MLX models (OpenAI + Anthropic API with multi-model hotswap)";
+    };
+
+    package = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = "Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx (built with Metal GPU support via prebuilt PyPI wheels). Set to an external binary (e.g. uv-installed) only for testing upstream fixes or when the Nix package version is too old.";
+    };
+
+    server = {
+      host = lib.mkOption {
+        type = lib.types.str;
+        default = "0.0.0.0";
+        description = "Bind address for vllm-mlx server";
+      };
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 8300;
+        description = "Bind port for vllm-mlx server";
+      };
+    };
+
+    memoryBudgetGb = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 24;
+      description = "Memory budget in GB for model loading. Idle models are evicted under this budget.";
+    };
+
+    contention = lib.mkOption {
+      type = lib.types.enum ["wait" "preempt" "fail"];
+      default = "preempt";
+      description = "Behavior when a requested model is not loaded and memory is full: wait (queue), preempt (evict current), or fail (reject).";
+    };
+
+    models = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          path = lib.mkOption {
+            type = lib.types.str;
+            description = "Model path or HuggingFace ID (e.g., mlx-community/gemma-4-12B-it-qat-4bit)";
+          };
+          type = lib.mkOption {
+            type = lib.types.enum ["lm" "multimodal" "embedding"];
+            default = "lm";
+            description = "Model type: lm (text), multimodal (vision), or embedding";
+          };
+          estimatedMemoryGb = lib.mkOption {
+            type = lib.types.nullOr lib.types.ints.positive;
+            default = null;
+            description = "Estimated memory in GB for non-local (HuggingFace) models. Required for registry-backed loading so eviction remains deterministic.";
+          };
+          preload = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Load this model into memory at server startup. Useful for keeping frequently-used models resident.";
+          };
+        };
+      });
+      default = {};
+      description = "Model registry. Each key is a model alias used in API requests. vllm-mlx lazily loads models on first use.";
+    };
+
+    enableAutoToolChoice = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Enable automatic tool calling. The model decides when to use tools based on the prompt.";
+    };
+
+    toolCallParser = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum ["auto" "none" "mistral" "qwen" "llama" "hermes" "deepseek" "kimi" "lfm2" "granite" "nemotron" "minimax" "xlam" "functionary" "glm47" "step3p5" "gemma3" "gemma3n" "xml_function" "dsml" "deepseek_v4" "zaya_xml" "hunyuan" "generic" "qwen3" "llama3" "llama4" "nous" "deepseek_v3" "deepseek_r1" "kimi_k2" "moonshot" "liquid" "granite3" "nemotron3" "minimax_m2" "meetkai" "stepfun" "glm4" "gemma4" "hy_v3" "tencent"]);
+      default = null;
+      description = "Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4 models.";
+    };
+
+    reasoningParser = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum ["auto" "none" "gemma4" "deepseek" "qwen3"]);
+      default = null;
+      description = "Reasoning parser for extracting thinking/reasoning content from model output. 'gemma4' for Gemma 4 models.";
+    };
+
+    maxKvSize = lib.mkOption {
+      type = lib.types.nullOr lib.types.ints.positive;
+      default = null;
+      description = "Maximum KV cache size per sequence (number of tokens). When set, oldest tokens roll off to prevent unbounded memory growth.";
+    };
+
+    timeout = lib.mkOption {
+      type = lib.types.ints.unsigned;
+      default = 120;
+      description = "Request timeout in seconds.";
+    };
+
+    logLevel = lib.mkOption {
+      type = lib.types.enum ["DEBUG" "INFO" "WARNING" "ERROR"];
+      default = "INFO";
+      description = "Server log level.";
+    };
+  };
+
   config = lib.mkIf cfg.enable {
     launchd.daemons.vllm-mlx = {
       command = vllmMlxWrapper;

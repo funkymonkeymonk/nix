@@ -14,7 +14,7 @@
       tokenFile = "/etc/opnix/token";
       defaultVault = "Homelab";
     };
-    roles.tailscale = {
+    tailscale = {
       enable = true;
       authKeyOpnixItem = "Tailscale Auth Key/credential";
     };

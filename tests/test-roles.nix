@@ -2,62 +2,12 @@
 # Verifies each role evaluates cleanly and adds its expected packages
 {pkgs, ...}: let
   inherit (pkgs) lib;
+  stubs = import ./stubs.nix {inherit pkgs;};
 
-  # Shared stub modules needed by evalModules to provide options
-  # that role modules may reference (environment, programs, homebrew, etc.)
-  stubModules = [
-    ../modules/common/options.nix
-    ../modules/roles/default.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-      options.environment = {
-        systemPackages = lib.mkOption {
-          type = lib.types.listOf lib.types.package;
-          default = [];
-        };
-        variables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        sessionVariables = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        shellAliases = lib.mkOption {
-          type = lib.types.attrsOf lib.types.str;
-          default = {};
-        };
-        etc = lib.mkOption {
-          type = lib.types.attrsOf lib.types.anything;
-          default = {};
-        };
-      };
-      options.programs = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = {};
-      };
-      options.homebrew = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      # Note: We intentionally do NOT stub NixOS-specific options (boot, networking,
-      # systemd, services). This means on Darwin, microvm-host evaluates as a no-op
-      # since isNixOS = builtins.hasAttr "boot" options => false.
-      # On NixOS (CI), these options exist natively.
-      # Stub for microvm.vms (referenced by microvm-host role, guarded by isNixOS)
-      options.microvm = lib.mkOption {
-        type = lib.types.anything;
-        default = {};
-      };
-      config.microvm.vms = {};
-    }
-    {
-      config._module.args = {inherit pkgs;};
-    }
-  ];
+  # withRoles: base + roles/default.nix + onepassword
+  # (foundation always-on sets myConfig.onepassword.enable; opencode/claude/pi set
+  #  myConfig.agent-skills.enable — both options now live in their owning modules)
+  stubModules = stubs.withRoles;
 
   # Evaluate llm-host role with default sharedModels
   evalWithRole = roleName:
@@ -188,56 +138,34 @@
   # - Stub options.boot so isNixOS = builtins.hasAttr "boot" options is true
   entertainmentNixosEval =
     (lib.evalModules {
-      modules = [
-        ../modules/common/options.nix
-        ../modules/roles/entertainment.nix
-        {
-          options.nixpkgs.hostPlatform = lib.mkOption {
-            type = lib.types.anything;
-            default = {inherit (pkgs.stdenv.hostPlatform) system;};
-          };
-          options.environment = {
-            systemPackages = lib.mkOption {
-              type = lib.types.listOf lib.types.package;
-              default = [];
-            };
-          };
-          options.programs = lib.mkOption {
-            type = lib.types.attrsOf lib.types.anything;
-            default = {};
-          };
-          options.homebrew = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
+      modules =
+        stubs.base
+        ++ [
           # Stub options.boot so isNixOS = builtins.hasAttr "boot" options is true.
-          # Safe here because we do NOT import microvm-host (which needs networking.*).
-          options.boot = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          options.microvm = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          config.microvm.vms = {};
-        }
-        {
-          config._module.args = {inherit pkgs;};
-          config.myConfig = {
-            users = [
-              {
-                name = "testuser";
-                email = "test@example.com";
-                fullName = "Test User";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-            roles.entertainment.enable = true;
-          };
-        }
-      ];
+          # We import only entertainment.nix (not roles/default.nix) so we avoid
+          # pulling in microvm-host which would require networking.* stubs.
+          {
+            options.boot = lib.mkOption {
+              type = lib.types.anything;
+              default = {};
+            };
+          }
+          ../modules/roles/entertainment.nix
+          {
+            config.myConfig = {
+              users = [
+                {
+                  name = "testuser";
+                  email = "test@example.com";
+                  fullName = "Test User";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+              roles.entertainment.enable = true;
+            };
+          }
+        ];
     })
     .config;
   # Combined test: runs all role assertions in a single derivation
@@ -334,27 +262,21 @@
 
     deadDevOptionScript = let
       testEval = pkgs.lib.evalModules {
-        modules = [
-          ../modules/common/options.nix
-          {
-            options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
-              type = pkgs.lib.types.anything;
-              default = {inherit (pkgs.stdenv.hostPlatform) system;};
-            };
-          }
-          {config._module.args = {inherit pkgs;};}
-          {
-            config.myConfig.users = [
-              {
-                name = "testuser";
-                email = "test@example.com";
-                fullName = "Test User";
-                isAdmin = true;
-                sshIncludes = [];
-              }
-            ];
-          }
-        ];
+        modules =
+          stubs.base
+          ++ [
+            {
+              config.myConfig.users = [
+                {
+                  name = "testuser";
+                  email = "test@example.com";
+                  fullName = "Test User";
+                  isAdmin = true;
+                  sshIncludes = [];
+                }
+              ];
+            }
+          ];
       };
       developmentAttr = pkgs.lib.attrByPath ["development"] null testEval.config.myConfig;
       isDead = developmentAttr == null;

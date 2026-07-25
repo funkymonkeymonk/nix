@@ -75,7 +75,6 @@
     "services/ollama/darwin.nix"
     "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
-    "services/vane/common.nix"
     "services/vane/darwin.nix"
     "services/vmlx/darwin.nix"
     # Tested via test-stack-integration.nix (LLM stack composition)

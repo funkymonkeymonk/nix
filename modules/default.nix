@@ -13,6 +13,9 @@
     ./common/cachix.nix
     ./common/motd.nix
     ./common/llm-client.nix
+    ./common/charm.nix
+    ./common/syncthing.nix
+    ./common/zellij.nix
     ./common/agent-user.nix
 
     # Home-manager shared settings

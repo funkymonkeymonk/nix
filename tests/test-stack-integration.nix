@@ -56,7 +56,7 @@
       }
       ../modules/services/bifrost/darwin.nix
       ../modules/services/vane/darwin.nix
-      ../modules/services/vane/common.nix
+      ../modules/services/searxng/darwin.nix
       ../modules/services/caddy/darwin.nix
     ];
   };

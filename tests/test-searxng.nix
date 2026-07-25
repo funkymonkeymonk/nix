@@ -1,14 +1,30 @@
 # SearXNG option tests
-# Validates option defaults and custom values
+# Validates option defaults and custom values from modules/services/searxng/darwin.nix
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
   stubModules = [
-    ../modules/common/options.nix
+    ../modules/services/searxng/darwin.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;
         default = {inherit (pkgs.stdenv.hostPlatform) system;};
+      };
+      options.myConfig.users = lib.mkOption {
+        type = lib.types.listOf lib.types.anything;
+        default = [];
+      };
+      options.myConfig.serviceRegistry = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+      };
+      options.launchd.daemons = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
+      };
+      options.system.activationScripts = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = {};
       };
     }
     {

@@ -6,10 +6,18 @@
   # Stubs for evaluating options.nix in isolation (no platform-specific modules)
   baseStubs = [
     ../modules/common/options.nix
+    ../modules/common/llm-client.nix
+    ../modules/common/charm.nix
+    ../modules/common/syncthing.nix
+    ../modules/common/zellij.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;
         default = {inherit (pkgs.stdenv.hostPlatform) system;};
+      };
+      options.environment.variables = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = {};
       };
       config._module.args = {inherit pkgs;};
       config.myConfig.users = [
