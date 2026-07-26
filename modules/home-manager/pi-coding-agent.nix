@@ -70,39 +70,15 @@ with lib; let
     })
   cfg.models;
 
-  # Build auto-loaded skills content from manifest
-  manifest = import ./skills/manifest.nix;
-  enabledRoles = skillsCfg.enabledRoles or [];
-  superpowersPath = skillsCfg.superpowersPath or null;
-  enabledSkills =
-    lib.filterAttrs (
-      _name: skill:
-        lib.any (role: lib.elem role skill.roles) enabledRoles
-    )
-    manifest;
-  autoLoadSkills =
-    lib.filterAttrs (
-      _name: skill: skill.autoLoad or false
-    )
-    enabledSkills;
-  autoLoadContent = lib.concatStringsSep "\n\n---\n\n" (lib.mapAttrsToList (
-      name: skill: let
-        skillMd =
-          if skill.source.type == "internal"
-          then let
-            skillPath = skill.source.path + "/SKILL.md";
-          in
-            if builtins.pathExists skillPath
-            then builtins.readFile skillPath
-            else "# ${name}\n\n${skill.description}"
-          else if skill.source.type == "superpowers" && superpowersPath != null
-          then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
-          else "# ${name}\n\n${skill.description}";
-      in
-        skillMd
-    )
-    autoLoadSkills);
-  hasAutoLoadSkills = autoLoadSkills != {};
+  # Build auto-loaded skills content from the shared manifest helper
+  inherit
+    (hmLib.mkAutoLoadSkills {
+      enabledRoles = skillsCfg.enabledRoles or [];
+      superpowersPath = skillsCfg.superpowersPath or null;
+    })
+    autoLoadContent
+    hasAutoLoadSkills
+    ;
 
   # Combine user AGENTS.md with auto-loaded skills
   agentsMdWithAutoLoad = let

@@ -527,6 +527,8 @@
             phase3-zero
             phase4-darwin-server
             phase2-cattle
+            mk-darwin-system
+            mk-nixos-system
             claude-code-options
             claude-code-custom-options
             pi-options
