@@ -18,6 +18,7 @@ in {
     jja = "jj absorb";
     jjst = "jj status";
     jjbl = "jj bookmark list";
+    jjbs = "jj bookmark set main -r main@origin";
     jjci = "jj commit";
     jjr = "jj rebase -o";
     jjwa = "jj workspace add";
