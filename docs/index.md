@@ -25,7 +25,7 @@ Procedural guides that solve a specific problem. Pick the one that matches your 
 |----------|--------|
 | **Version Control** | [Use jj Workspaces](how-to/use-workspaces.md), [Create a PR with jj](how-to/create-pr-with-jj.md), [Update an Existing PR](how-to/update-existing-pr.md), [Sync with Main](how-to/sync-with-main.md), [JJ Workflow](how-to/jj-workflow.md) |
 | **Configuration** | [Add a New Role](how-to/add-role.md), [Run CI Locally](how-to/run-ci-locally.md), [Set Up 1Password SSH Signing](how-to/setup-1password.md) |
-| **Infrastructure** | [Manage MicroVMs](how-to/manage-microvms.md), [Configure MicroVM Secrets](how-to/configure-microvm-secrets.md), [Create a Darwin System Daemon](how-to/create-darwin-daemon.md), [Create an Installer USB](how-to/create-installer-usb.md) |
+| **Infrastructure** | [Create a Darwin System Daemon](how-to/create-darwin-daemon.md), [Create an Installer USB](how-to/create-installer-usb.md) |
 | **LLM Stack** | [Configure the LLM Stack](how-to/configure-llm-stack.md) |
 
 ## Reference (Information)

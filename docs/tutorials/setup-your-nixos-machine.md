@@ -42,7 +42,7 @@ You can also use the installer from NixOS Live session or macOS with Balena Etch
 
 The installer TUI shows available targets and machine types.
 
-For headless servers choose `type-server` — it includes MicroVM support, Tailscale, and auto-upgrades, and requires no hardware-configuration.nix because nixos-facter detects the hardware automatically. Notice that a takeout container hostname comes from DHCP.
+For headless servers choose `type-server` — it includes Tailscale and auto-upgrades, and requires no hardware-configuration.nix because nixos-facter detects the hardware automatically. Notice that a takeout container hostname comes from DHCP.
 
 If you added a custom target into `flake.nix` beforehand, its name appears in the installer list too.
 
@@ -132,5 +132,4 @@ Add the target to `flake.nix` under `nixosConfigurations` following the same pat
 ## Next Steps
 
 - **[Add Secrets with opnix](getting-started-opnix.md)** — Configure 1Password secrets management on your NixOS machine
-- **[Deploy MicroVMs](../how-to/manage-microvms.md)** — If using `type-server`, you can host lightweight VMs
 - **Read [Disposable Infrastructure](../explanation/disposable-infrastructure.md)** — Understand the takeout container pattern in depth

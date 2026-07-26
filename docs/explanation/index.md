@@ -35,5 +35,4 @@ Understanding-oriented background reading. These documents do not walk you throu
 
 | Document | What It Covers |
 |----------|---------------|
-| [MicroVM Security Architecture](microvm-security-architecture.md) | Isolation guarantees and network controls for MicroVMs |
 | [opnix Security Model](opnix-security.md) | How opnix fetches, writes, and protects secrets |

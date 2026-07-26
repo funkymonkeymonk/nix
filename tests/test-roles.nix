@@ -65,7 +65,6 @@
                 llm-host.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
-                microvm-host.enable = true;
               };
             };
           }
@@ -89,7 +88,6 @@
     "llm-host"
     "assistant"
     "email-backup"
-    "microvm-host"
   ];
 
   # Map of roles to their expected nix packages (name attr of the derivation)
@@ -108,8 +106,6 @@
     llm-host = []; # ollama now installed via homebrew, not nixpkgs
     assistant = ["himalaya" "gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
-    # microvm-host packages are NixOS-only (guarded by isNixOS check).
-    # On Darwin, the role is a no-op and adds no packages.
   };
 
   # Map of roles to cascade-enabled options
@@ -133,8 +129,8 @@
     };
   };
   # Evaluate entertainment role in a NixOS-like context:
-  # - Import only the modules needed (not via roles/default.nix to avoid
-  #   microvm-host which would require networking.* stubs)
+  # - Import only the modules needed (not via roles/default.nix, to avoid
+  #   pulling in unrelated roles that would require broader stubs)
   # - Stub options.boot so isNixOS = builtins.hasAttr "boot" options is true
   entertainmentNixosEval =
     (lib.evalModules {
@@ -142,8 +138,8 @@
         stubs.base
         ++ [
           # Stub options.boot so isNixOS = builtins.hasAttr "boot" options is true.
-          # We import only entertainment.nix (not roles/default.nix) so we avoid
-          # pulling in microvm-host which would require networking.* stubs.
+          # We import only entertainment.nix (not roles/default.nix) to avoid
+          # pulling in unrelated roles that would require broader stubs.
           {
             options.boot = lib.mkOption {
               type = lib.types.anything;

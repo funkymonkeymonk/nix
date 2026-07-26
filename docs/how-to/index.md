@@ -38,8 +38,6 @@ Procedural guides that solve a concrete task. Choose the guide that matches what
 
 | Guide | What It Does |
 |-------|-------------|
-| [Manage MicroVMs](manage-microvms.md) | Start, stop, and update NixOS MicroVMs |
-| [Configure MicroVM Secrets](configure-microvm-secrets.md) | Push 1Password secrets into a MicroVM guest |
 | [Create a Darwin System Daemon](create-darwin-daemon.md) | Add a launchd service for macOS |
 
 ## LLM Stack

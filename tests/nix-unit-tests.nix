@@ -44,7 +44,6 @@ let
                 llm-host.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
-                microvm-host.enable = true;
               };
             };
           }
@@ -58,7 +57,6 @@ let
   bifrostStubs = stubs.bifrost;
   caddyStubs = stubs.caddy;
   onepasswordStubs = baseStubs ++ stubs.onepassword;
-  microvmStubs = stubs.microvm;
   agentSkillsStubs = stubs.agentSkills;
   # aerospace.nix lives under modules/home-manager/ but is imported at the
   # host-module level (services.aerospace, environment.systemPackages), not
@@ -70,7 +68,6 @@ let
   evalBifrostBase = (lib.evalModules {modules = bifrostStubs;}).config;
   evalCaddyBase = (lib.evalModules {modules = caddyStubs;}).config;
   evalOnepasswordBase = (lib.evalModules {modules = onepasswordStubs;}).config;
-  evalMicrovmBase = (lib.evalModules {modules = microvmStubs;}).config;
   evalAgentSkillsBase = (lib.evalModules {modules = agentSkillsStubs;}).config;
   evalAerospaceBase = (lib.evalModules {modules = aerospaceStubs;}).config;
 
@@ -92,7 +89,6 @@ let
     "llm-host"
     "assistant"
     "email-backup"
-    "microvm-host"
     "homebrew"
   ];
 in {
@@ -309,20 +305,6 @@ in {
   testClaudeCodeDefaults = {
     expr = evalBase.myConfig.claude-code.enable;
     expected = false;
-  };
-
-  # ── Options: microvm ────────────────────────────────────────────
-  testMicrovmDefaults = {
-    expr = {
-      enable = evalMicrovmBase.myConfig.microvm.enable;
-      ipAddress = evalMicrovmBase.myConfig.microvm.ipAddress;
-      gateway = evalMicrovmBase.myConfig.microvm.gateway;
-    };
-    expected = {
-      enable = false;
-      ipAddress = null;
-      gateway = null;
-    };
   };
 
   # ── Options: zellij ─────────────────────────────────────────────

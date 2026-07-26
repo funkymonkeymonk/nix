@@ -9,8 +9,6 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
-    microvm.url = "github:astro/microvm.nix";
-    microvm.inputs.nixpkgs.follows = "nixpkgs";
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
     opnix.url = "github:brizzbuzz/opnix";

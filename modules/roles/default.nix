@@ -22,7 +22,6 @@ in {
     ./assistant.nix
     ./email-backup.nix
     ./llm-host.nix
-    ./microvm-host.nix
     ./tailscale.nix
     # Note: homebrew.nix is imported separately by configurations that use nix-homebrew
   ];

@@ -1,6 +1,6 @@
 ---
 title: "Agents Guide"
-description: "Complete guide for AI agents working with this Nix system configuration repository. Includes testing, workflows, and MicroVM automation."
+description: "Complete guide for AI agents working with this Nix system configuration repository. Includes testing and workflows."
 type: reference
 audience: agent
 last-reviewed: 2026-04-06
@@ -48,10 +48,8 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 │   │   └── skills/             # Agent skills management
 │   ├── roles/                  # Role modules (one per role)
 │   ├── services/               # Service modules (ollama, openclaw, matrix)
-│   ├── microvm/                # MicroVM guest configuration
 │   └── nixos/                  # Linux-specific modules
 ├── targets/                    # Machine configurations
-│   └── microvms/               # MicroVM definitions (dev-vm, openclaw, matrix)
 ├── docs/                       # Documentation (Diataxis framework)
 ├── os/                         # Platform OS configurations
 ├── flake.nix                   # Main flake with helpers
@@ -197,41 +195,41 @@ This repository follows TDD principles. **Write tests before implementation.**
 └─────────────────┘
 ```
 
-### TDD Example: Adding a New MicroVM
+### TDD Example: Adding a New Module Option
 
 **Step 1: Write the test first**
 
 ```bash
-# Create test file tests/test-microvm.nix with tests for your new VM
-# Test hostname, services, ports, etc.
+# Create or extend a test file, e.g. tests/test-roles.nix
+# Assert the new option's expected default and behavior
 ```
 
 **Step 2: Add test to test suite**
 
 ```nix
 # In tests/default.nix, add your test:
-my-microvm-config = testMicrovm.myMicrovmConfigTest;
+my-new-option = testRoles.myNewOptionTest;
 ```
 
 **Step 3: Run test - it should fail**
 
 ```bash
-# This will fail because the MicroVM doesn't exist yet
-nix build .#checks.x86_64-linux.my-microvm-config
+# This will fail because the option doesn't exist yet
+nix build .#checks.x86_64-linux.my-new-option
 ```
 
-**Step 4: Implement the MicroVM**
+**Step 4: Implement the option**
 
 ```nix
-# Create targets/microvms/my-microvm.nix
-# Add to flake.nix microvm.nixosConfigurations
+# Add the option to the relevant modules/ file
+# Wire up its config block
 ```
 
 **Step 5: Run test - it should pass**
 
 ```bash
 # Now the test should pass
-nix build .#checks.x86_64-linux.my-microvm-config
+nix build .#checks.x86_64-linux.my-new-option
 ```
 
 ### Test Types to Write
@@ -269,7 +267,7 @@ assertContains = name: value: list:
 nix flake check
 
 # Run specific check
-nix build .#checks.x86_64-linux.microvm-config --no-link
+nix build .#checks.aarch64-darwin.foundation-options --no-link
 
 # Run all tests via devenv
 devenv tasks run test
@@ -336,8 +334,6 @@ Common traps:
 | Helper | Purpose |
 |--------|---------|
 | `mkUser` | Create user configuration with defaults |
-| `mkNixHomebrew` | Create homebrew config for Darwin |
-| `mkMicrovm` | Create microvm configuration |
 
 ---
 
@@ -352,75 +348,6 @@ Skills auto-install when roles like `developer`, `opencode`, or `claude` are act
 1. Create `modules/home-manager/skills/internal/skill-name/SKILL.md`
 2. Register in `modules/home-manager/skills/manifest.nix`
 3. Rebuild system
-
----
-
-## MicroVM Automation for Agents
-
-<!-- LLM: This section is for deploying yourself in a MicroVM -->
-
-### Automated OpenCode Deployment
-
-If you need to deploy OpenCode (or yourself) in a MicroVM, use the automation guide:
-
-**Document:** [Set Up OpenClaw MicroVM (Automated)](docs/how-to/setup-openclaw-microvm-automated.md)
-
-**Key features for agents:**
-- Cloud-init based configuration (no interactive prompts)
-- Verification at each step
-- No 1Password or Matrix required for basic setup
-- Clear preconditions and error handling
-
-### Quick Deployment
-
-```bash
-# From a NixOS host with MicroVM support:
-
-# 1. Create cloud-init configuration
-sudo tee /etc/cloud-init.yaml << 'EOF'
-#cloud-config
-hostname: opencode-vm
-ssh_authorized_keys:
-  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8
-nix:
-  target: type-server
-  flake: github:funkymonkeymonk/nix
-  roles:
-    - opencode
-microvms:
-  - name: opencode
-    flake: .#microvm.nixosConfigurations.openclaw
-    ipAddress: 192.168.83.16
-    autoStart: true
-EOF
-
-# 2. Build and run
-cd ~/nix
-nix run .#microvm.nixosConfigurations.openclaw.config.microvm.declarationRunner --impure
-
-# 3. Verify
-ssh root@192.168.83.16 "systemctl is-active opencode-gateway"
-```
-
-### Cloud-Init Tool
-
-The repository includes `nix-cloud-init` for managing cloud-init configurations:
-
-```bash
-# Interactive setup (requires gum)
-sudo nix-cloud-init init
-
-# Automated setup
-sudo nix-cloud-init set hostname opencode-vm
-sudo nix-cloud-init set target type-server
-sudo nix-cloud-init validate
-
-# MicroVM management
-sudo nix-cloud-init microvm add opencode .#microvm.nixosConfigurations.openclaw 192.168.83.16
-sudo nix-cloud-init microvm generate
-```
-
-See the full guide for complete automation details.
 
 ---
 
@@ -681,7 +608,7 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 
 **Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
 
-**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task and `apply-config-to-microvms` script use `op` to fetch sudo passwords. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI is likely waiting for browser-based authorization that requires the user to approve a 1Password prompt. Agents cannot complete this step — the user must sign in manually (e.g., `op signin` and approve the browser prompt). Once signed in, the CLI caches the session and subsequent `op` calls work without interaction.
+**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task uses `op` to fetch sudo passwords. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI is likely waiting for browser-based authorization that requires the user to approve a 1Password prompt. Agents cannot complete this step — the user must sign in manually (e.g., `op signin` and approve the browser prompt). Once signed in, the CLI caches the session and subsequent `op` calls work without interaction.
 
 ---
 
@@ -725,7 +652,6 @@ Documentation is organized by type:
 ### Key Documents
 
 - **[docs/index.md](docs/index.md)** - Documentation hub with navigation
-- **[docs/how-to/setup-opencode-microvm-automated.md](docs/how-to/setup-opencode-microvm-automated.md)** - Automated deployment guide
 - **[docs/reference/options.md](docs/reference/options.md)** - Configuration reference
 - **[docs/explanation/architecture.md](docs/explanation/architecture.md)** - System architecture
 

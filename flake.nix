@@ -23,9 +23,6 @@
 
     mac-app-util.url = "github:hraban/mac-app-util";
 
-    microvm.url = "github:astro/microvm.nix";
-    microvm.inputs.nixpkgs.follows = "nixpkgs";
-
     superpowers.url = "github:obra/superpowers";
     superpowers.flake = false;
 
@@ -75,7 +72,6 @@
     home-manager,
     nix-homebrew,
     opnix,
-    microvm,
     ...
   } @ inputs: let
     # Base configuration shared by all systems
@@ -151,66 +147,9 @@
       "x86_64-linux"
     ];
 
-    # Helper to create microvm configuration
-    # Secrets come from 1Password via opnix (host and guest both use it)
-    mkMicrovm = name: roleEnables:
-      nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs // {inherit roleEnables;};
-        modules = [
-          microvm.nixosModules.microvm
-          home-manager.nixosModules.home-manager
-          opnix.nixosModules.default
-          configuration
-          ./modules
-          ./modules/nixos/base.nix
-          ./modules/services/openclaw
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
-          ./os/microvm.nix
-          ./modules/microvm
-          ./targets/microvms/defaults.nix
-          ./targets/microvms/${name}.nix
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-        ];
-      };
     # Library helpers from the new modular library
     inherit (nixpkgs) lib;
     libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
-
-    # Phase 1: MicroVM v2 helper using new library mkNixosSystem
-    _mkMicrovmV2 = name: roleEnables:
-      nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs // {inherit roleEnables;};
-        modules = [
-          microvm.nixosModules.microvm
-          home-manager.nixosModules.home-manager
-          opnix.nixosModules.default
-          configuration
-          ./modules
-          ./modules/nixos/base.nix
-          ./modules/services/openclaw
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
-          ./os/microvm.nix
-          ./modules/microvm
-          ./targets/microvms/defaults.nix
-          ./targets/microvms/${name}.nix
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-          # Resolve pre-existing shell conflict: base.nix sets shell for all
-          # users from myConfig.users. When a VM target also sets shell for the
-          # same user, both definitions at default priority conflict. Force the
-          # VM target's shell to take precedence for the dev user.
-          ({
-            lib,
-            pkgs,
-            ...
-          }: {
-            users.users = lib.optionalAttrs (name == "dev-vm") {
-              dev.shell = lib.mkForce pkgs.zsh;
-            };
-          })
-        ];
-      };
   in {
     packages = forAllSystems (
       system: let
@@ -227,11 +166,6 @@
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
           # ISO installer only for x86_64-linux
           iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
-          # MicroVM declaration runners
-          microvm-dev-vm = self.microvm.nixosConfigurations.dev-vm.config.microvm.declaredRunner;
-          microvm-openclaw = self.microvm.nixosConfigurations.openclaw.config.microvm.declaredRunner;
-          microvm-matrix = self.microvm.nixosConfigurations.matrix.config.microvm.declaredRunner;
-          microvm-media-center = self.microvm.nixosConfigurations.media-center.config.microvm.declaredRunner;
         }
     );
 
@@ -410,93 +344,55 @@
       # These require no hardware-configuration.nix!
       # Use with: ./scripts/install-machine.sh <type> <host> <disk>
 
-      "type-desktop" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs // {inherit inputs;};
-        modules = [
-          configuration
-          ./modules
-          ./modules/nixos/base.nix
-          home-manager.nixosModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-
-          # Disk layout
-          inputs.disko.nixosModules.disko
-          ./disk-configs/zero.nix
-
-          # Machine type configuration (includes myConfig defaults and SSH keys)
-          ./machine-types/desktop.nix
-
-          # Ghostty terminfo for SSH support
-          # https://github.com/ghostty-org/ghostty/discussions/5753
-          ./modules/nixos/ghostty-terminfo.nix
-        ];
-      };
-
       # Foundation-based server configuration
       # Minimal required fields: system architecture, SSH authorized keys
-      "type-server" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs // {inherit inputs;};
+      # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
+      "type-server" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-server";
         modules = [
-          configuration
-          microvm.nixosModules.host
           opnix.nixosModules.default
-          ./modules
           ./modules/nixos/base.nix
-          home-manager.nixosModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-
-          # Disk layout
-          inputs.disko.nixosModules.disko
+          ./library/archetypes/headless-server-nixos.nix
           ./disk-configs/single-disk-ext4.nix
-
-          # Hardware detection via nixos-facter (module is in nixpkgs)
-          # The facter.json file should be generated on the target machine
-          # CI builds use --impure with a stub file
-
-          # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
-          ./machine-types/server.nix
-
-          # Official OpenClaw module
           inputs.nix-openclaw.nixosModules.openclaw-gateway
+          {
+            users.users.admin.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
+          }
         ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+        };
       };
 
       # ARM64 server variant
-      "type-server-arm" = nixpkgs.lib.nixosSystem {
+      # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
+      "type-server-arm" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-server-arm";
         system = "aarch64-linux";
-        specialArgs = inputs // {inherit inputs;};
         modules = [
-          configuration
-          microvm.nixosModules.host
           opnix.nixosModules.default
-          ./modules
           ./modules/nixos/base.nix
-          home-manager.nixosModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-
-          inputs.disko.nixosModules.disko
+          ./library/archetypes/headless-server-nixos.nix
           ./disk-configs/single-disk-ext4.nix
-
           {
-            hardware.cpu.intel.updateMicrocode = nixpkgs.lib.mkForce false;
-            hardware.cpu.amd.updateMicrocode = nixpkgs.lib.mkForce false;
+            users.users.admin.openssh.authorizedKeys.keys = [
+              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+            ];
           }
-
-          # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
-          ./machine-types/server-arm.nix
+          ({lib, ...}: {
+            hardware.cpu.intel.updateMicrocode = lib.mkForce false;
+            hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+          })
         ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+          tailscale.enable = false;
+        };
       };
-
-      # Phase 1: MicroVM v2 configs using new library mkNixosSystem
-      # Runs in parallel with microvm.nixosConfigurations until verified.
-      "dev-vm-v2" = _mkMicrovmV2 "dev-vm" {
-        roles.opencode.enable = true;
-      };
-      "openclaw-v2" = _mkMicrovmV2 "openclaw" {};
-      "matrix-v2" = _mkMicrovmV2 "matrix" {};
-      "media-center-v2" = _mkMicrovmV2 "media-center" {};
 
       # Phase 3: Real-machine migration — zero desktop/workstation
       # Parallel v2 config using new library mkNixosSystem + archetype.
@@ -534,56 +430,8 @@
         };
       };
 
-      # Phase 2: Cattle NixOS v2 configs using new library mkNixosSystem
-      # Runs in parallel with type-server and type-server-arm until verified.
-      "type-server-v2" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "type-server";
-        modules = [
-          microvm.nixosModules.host
-          opnix.nixosModules.default
-          ./modules/nixos/base.nix
-          ./library/archetypes/headless-server-nixos.nix
-          ./disk-configs/single-disk-ext4.nix
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
-          {
-            users.users.admin.openssh.authorizedKeys.keys = [
-              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-            ];
-          }
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-v2";
-        };
-      };
-
-      "type-server-arm-v2" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "type-server-arm";
-        system = "aarch64-linux";
-        modules = [
-          microvm.nixosModules.host
-          opnix.nixosModules.default
-          ./modules/nixos/base.nix
-          ./library/archetypes/headless-server-nixos.nix
-          ./disk-configs/single-disk-ext4.nix
-          {
-            users.users.admin.openssh.authorizedKeys.keys = [
-              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-            ];
-          }
-          ({lib, ...}: {
-            hardware.cpu.intel.updateMicrocode = lib.mkForce false;
-            hardware.cpu.amd.updateMicrocode = lib.mkForce false;
-          })
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm-v2";
-          tailscale.enable = false;
-        };
-      };
-
-      "type-desktop-v2" = libraryLib.mkNixosSystem {
+      # Uses libraryLib.mkNixosSystem + desktop-nixos archetype
+      "type-desktop" = libraryLib.mkNixosSystem {
         inherit inputs;
         hostname = "type-desktop";
         modules = [
@@ -592,31 +440,18 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/ghostty-terminfo.nix
           ./library/archetypes/desktop-nixos.nix
+          inputs.disko.nixosModules.disko
+          ./disk-configs/single-disk-ext4.nix
           {
             users.users.root.openssh.authorizedKeys.keys = [
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
             ];
           }
-          {
-            fileSystems."/" = {
-              device = "/dev/null";
-              fsType = "ext4";
-            };
-          }
         ];
         overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop-v2";
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
         };
       };
-    };
-
-    microvm.nixosConfigurations = {
-      dev-vm = mkMicrovm "dev-vm" {
-        roles.opencode.enable = true;
-      };
-      openclaw = mkMicrovm "openclaw" {};
-      matrix = mkMicrovm "matrix" {};
-      media-center = mkMicrovm "media-center" {};
     };
 
     # Flake checks for CI - run on Linux and Darwin
@@ -679,15 +514,6 @@
             workspace-switch
             fjj-options
             fjj-custom-options
-            microvm-config
-            microvm-jellyfin
-            microvm-arr-services
-            microvm-transmission
-            microvm-nginx
-            microvm-firewall
-            microvm-ip-uniqueness
-            microvm-ssh
-            microvm-dev-vm-stateversion
             vllm-mlx-options
             megamanx-vllm
             llm-client-opencode

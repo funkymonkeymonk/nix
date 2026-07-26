@@ -18,7 +18,7 @@ In this tutorial, you'll learn how to use opnix to securely manage secrets on yo
 ## What You'll Need
 
 - A 1Password account
-- A NixOS machine (physical, VM, or MicroVM)
+- A NixOS machine (physical or VM)
 - About 15 minutes
 
 > **Note:** This tutorial uses a test API key as an example. You can follow along with any secret you have in 1Password.
@@ -160,7 +160,5 @@ Let's break down what opnix did:
 6. **Services**: Any services that depend on the secrets are started after secrets are ready
 
 ## Next Steps
-
-You have opnix working. To manage secrets on a production system, see [Configure MicroVM Secrets](../how-to/configure-microvm-secrets.md) for the full procedure.
 
 For the reference of all opnix options, see [opnix Options Reference](../reference/opnix-options.md).

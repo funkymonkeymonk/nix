@@ -1,5 +1,5 @@
 # Shared OpenClaw configuration module
-# Used by microvms, type-server, and darwin-server
+# Used by type-server and darwin-server
 {
   config,
   lib,

@@ -55,9 +55,6 @@ Push to main:
 ### NixOS (Linux)
 - `zero` - Gaming/desktop (NVIDIA)
 
-### Microvm
-- `dev-vm` - Development VM (validated via `microvm:test`)
-
 ## Lint Checks (check:lint)
 
 - **Formatting**: `alejandra` - Nix code formatting
