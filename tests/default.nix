@@ -31,6 +31,10 @@
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
   testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
+  testLibrary =
+    if self != null
+    then import ./test-library.nix {inherit pkgs self;}
+    else {};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
@@ -137,6 +141,16 @@ in
 
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
+
+    # library/lib/mk-system.nix builder tests
+    mk-darwin-system =
+      if testLibrary != {}
+      then testLibrary.mkDarwinSystemTest
+      else null;
+    mk-nixos-system =
+      if testLibrary != {}
+      then testLibrary.mkNixosSystemTest
+      else null;
 
     # vMLX module tests
 
