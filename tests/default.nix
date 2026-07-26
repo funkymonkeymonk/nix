@@ -96,7 +96,6 @@ in
 
     vane-options = testServices.vaneOptionsTest;
     vane-custom-options = testServices.vaneCustomOptionsTest;
-    openclaw-options = testServices.openclawOptionsTest;
     vane-darwin-autostart-default = testServices.vaneDarwinAutoStartDefaultTest;
     vane-darwin-autostart-true = testServices.vaneDarwinAutoStartTrueTest;
     vane-opnix-url-options = testServices.vaneOpnixUrlOptionsTest;

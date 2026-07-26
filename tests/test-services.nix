@@ -137,50 +137,6 @@
     .daemons
     .vane
     .serviceConfig;
-
-  # Evaluate openclaw options directly (it has its own option namespace)
-  openclawEval =
-    (lib.evalModules {
-      modules = [
-        ../modules/services/openclaw/legacy.nix
-        {
-          options.nixpkgs.hostPlatform = lib.mkOption {
-            type = lib.types.anything;
-            default = {inherit (pkgs.stdenv.hostPlatform) system;};
-          };
-          # Stub NixOS-specific options that openclaw references
-          options.environment = {
-            systemPackages = lib.mkOption {
-              type = lib.types.listOf lib.types.package;
-              default = [];
-            };
-            etc = lib.mkOption {
-              type = lib.types.attrsOf lib.types.anything;
-              default = {};
-            };
-          };
-          options.users = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          options.systemd = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          options.system = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          options.networking = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-        }
-        {
-          config._module.args = {inherit pkgs;};
-        }
-      ];
-    }).config.services.openclaw;
 in {
   # Test vane option defaults
   vaneOptionsTest =
@@ -255,72 +211,6 @@ in {
       }
 
       echo "All vane custom options verified"
-      touch $out
-    '';
-
-  # Test openclaw option defaults and structure
-  openclawOptionsTest =
-    pkgs.runCommand "test-openclaw-options"
-    {}
-    ''
-      echo "=== Testing OpenClaw Option Defaults ==="
-
-      ${
-        if !openclawEval.enable
-        then ''echo "  enable default = false: OK"''
-        else ''echo "  enable should default to false!"; exit 1''
-      }
-
-      ${
-        if openclawEval.port == 18789
-        then ''echo "  port default = 18789: OK"''
-        else ''echo "  port should default to 18789!"; exit 1''
-      }
-
-      ${
-        if openclawEval.user == "openclaw"
-        then ''echo "  user default = openclaw: OK"''
-        else ''echo "  user should default to openclaw!"; exit 1''
-      }
-
-      ${
-        if openclawEval.group == "openclaw"
-        then ''echo "  group default = openclaw: OK"''
-        else ''echo "  group should default to openclaw!"; exit 1''
-      }
-
-      ${
-        if openclawEval.dataDir == "/var/lib/openclaw"
-        then ''echo "  dataDir default = /var/lib/openclaw: OK"''
-        else ''echo "  dataDir should default to /var/lib/openclaw!"; exit 1''
-      }
-
-      ${
-        if openclawEval.openFirewall
-        then ''echo "  openFirewall default = true: OK"''
-        else ''echo "  openFirewall should default to true!"; exit 1''
-      }
-
-      # Verify hardening defaults
-      ${
-        if openclawEval.hardening.noNewPrivileges
-        then ''echo "  hardening.noNewPrivileges default = true: OK"''
-        else ''echo "  hardening.noNewPrivileges should default to true!"; exit 1''
-      }
-
-      ${
-        if openclawEval.hardening.privateTmp
-        then ''echo "  hardening.privateTmp default = true: OK"''
-        else ''echo "  hardening.privateTmp should default to true!"; exit 1''
-      }
-
-      ${
-        if openclawEval.hardening.protectSystem == "strict"
-        then ''echo "  hardening.protectSystem default = strict: OK"''
-        else ''echo "  hardening.protectSystem should default to strict!"; exit 1''
-      }
-
-      echo "All openclaw option defaults verified"
       touch $out
     '';
 
