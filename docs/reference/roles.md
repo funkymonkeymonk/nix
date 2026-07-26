@@ -74,10 +74,6 @@ Local model hosting.
 
 **Packages:** ollama
 
-### microvm-host
-
-### openclaw-server
-
 ### opencode
 
 OpenCode AI assistant with rtk token optimization.

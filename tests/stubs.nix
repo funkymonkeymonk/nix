@@ -23,7 +23,6 @@
 #   stubs.withRoles       — base ++ roles/default.nix ++ onepassword (most role tests)
 #
 # Per-module stubs:
-#   stubs.microvm         — base ++ nixosService ++ microvm/default.nix
 #   stubs.agentSkills     — base ++ roles/agent-skills.nix
 #   stubs.aerospace       — base ++ nixosServices ++ home-manager/aerospace.nix
 #   stubs.vane            — base ++ darwinService ++ services/vane/darwin.nix
@@ -77,7 +76,7 @@
     };
   };
 
-  # Stubs programs, homebrew, users, and microvm — broad options that many
+  # Stubs programs, homebrew, and users — broad options that many
   # role / service modules reference without needing real values.
   broadStub = {
     options.programs = lib.mkOption {
@@ -92,11 +91,6 @@
       type = lib.types.anything;
       default = {};
     };
-    options.microvm = lib.mkOption {
-      type = lib.types.anything;
-      default = {};
-    };
-    config.microvm.vms = {};
   };
 
   # ── Composite stubs ───────────────────────────────────────────────────────
@@ -115,7 +109,7 @@
   };
 
   # NixOS service stubs — required when a module sets networking, systemd
-  # services, or system.stateVersion (e.g. microvm/default.nix).
+  # services, or system.stateVersion.
   nixosServiceStub = {
     options.networking = lib.mkOption {
       type = lib.types.anything;
@@ -148,7 +142,7 @@ in rec {
 
   # base: the universal starting point for every test.
   # Provides: options.nix, hostPlatform, environment.*, programs, homebrew,
-  #           users, microvm, and _module.args.pkgs.
+  #           users, and _module.args.pkgs.
   base = [
     ../modules/common/options.nix
     ../modules/common/llm-client.nix
@@ -166,7 +160,7 @@ in rec {
   darwinService = [darwinServiceStub];
 
   # nixosService: add to base for modules that write networking/systemd/services
-  # (NixOS service modules, e.g. microvm/default.nix).
+  # (NixOS service modules).
   nixosService = [nixosServiceStub];
 
   # services: add to base for modules that only need a bare `services` option
@@ -182,12 +176,6 @@ in rec {
   withRoles = base ++ [../modules/roles/default.nix] ++ onepassword;
 
   # ── Per-module prebuilt stubs ─────────────────────────────────────────────
-
-  # Stubs for modules/microvm/default.nix
-  microvm =
-    base
-    ++ nixosService
-    ++ [../modules/microvm/default.nix];
 
   # Stubs for modules/roles/agent-skills.nix
   agentSkills = base ++ [../modules/roles/agent-skills.nix];

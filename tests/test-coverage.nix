@@ -47,7 +47,6 @@
     "roles/foundation.nix"
     "roles/gaming.nix"
     "roles/llm-host.nix"
-    "roles/microvm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
@@ -65,9 +64,6 @@
     # Tested via test-packages.nix onepasswordGuardTest + onepasswordConfigOutputTest
     # (hasOpnix guard, platform-specific config output)
     # common/onepassword.nix was already listed above via onepasswordOptionsTest
-    # Tested via test-roles.nix (microvm-host added to allRoles)
-    # services/microvm-host tracked via role imports
-    "services/microvm-host/default.nix"
     # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
     "common/lib.nix"
     # Tested via test-services.nix (ollama, vane, openclaw option tests)

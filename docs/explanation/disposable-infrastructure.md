@@ -123,7 +123,7 @@ Convert everything to disposable:
 
 ### `type-server`
 - Headless server (disposable pattern - no hardcoded hostname)
-- MicroVM host support (qemu, virtiofsd, KVM)
+- KVM virtualization support (qemu, virtiofsd)
 - Hardened SSH (keys only, no root login)
 - Auto-upgrade from GitHub daily at 02:00
 - Firewall with SSH access

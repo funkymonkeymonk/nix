@@ -29,7 +29,6 @@ Information-oriented look-up tables. No narrative or opinion — just facts.
 | Document | Contents |
 |----------|----------|
 | [CI/CD Reference](ci.md) | GitHub Actions pipeline stages, triggers, and checks |
-| [MicroVM Modules](microvm-modules.md) | MicroVM guest options and module imports |
 | [Cloud-Init Format](cloud-init-format.md) | YAML schema for cloud-init on Darwin hosts |
 
 ## Version Control

@@ -6,48 +6,34 @@
   hasConfig = name: builtins.hasAttr name self.nixosConfigurations;
 
   phase2CattleTest = pkgs.runCommand "test-phase2-cattle" {} ''
-    echo "=== Testing Phase 2 Cattle NixOS Configs ==="
+    echo "=== Testing Cattle NixOS Configs ==="
     echo ""
 
-    # Test v2 configs exist
-    ${
-      if hasConfig "type-server-v2"
-      then ""
-      else ''echo "FAIL: type-server-v2 not found"; exit 1''
-    }
-    echo "  type-server-v2: defined ✓"
-
-    ${
-      if hasConfig "type-server-arm-v2"
-      then ""
-      else ''echo "FAIL: type-server-arm-v2 not found"; exit 1''
-    }
-    echo "  type-server-arm-v2: defined ✓"
-
-    ${
-      if hasConfig "type-desktop-v2"
-      then ""
-      else ''echo "FAIL: type-desktop-v2 not found"; exit 1''
-    }
-    echo "  type-desktop-v2: defined ✓"
-
-    # Test old configs still exist
+    # type-server, type-server-arm, and type-desktop all use libraryLib.mkNixosSystem
+    # directly now (no more -v2 twins — retired after parity verification)
     ${
       if hasConfig "type-server"
       then ""
       else ''echo "FAIL: type-server not found"; exit 1''
     }
-    echo "  type-server: preserved ✓"
+    echo "  type-server: defined ✓"
 
     ${
       if hasConfig "type-server-arm"
       then ""
       else ''echo "FAIL: type-server-arm not found"; exit 1''
     }
-    echo "  type-server-arm: preserved ✓"
+    echo "  type-server-arm: defined ✓"
+
+    ${
+      if hasConfig "type-desktop"
+      then ""
+      else ''echo "FAIL: type-desktop not found"; exit 1''
+    }
+    echo "  type-desktop: defined ✓"
 
     echo ""
-    echo "All Phase 2 cattle tests passed"
+    echo "All cattle tests passed"
     touch $out
   '';
 in {

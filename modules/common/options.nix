@@ -149,13 +149,6 @@ with lib; {
           description = "Immutable encrypted email backups (mbsync + restic + notmuch) with searchable archive";
         };
       };
-      microvm-host = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "MicroVM host infrastructure (bridge networking, DNS/connection logging, cloud-init VM discovery)";
-        };
-      };
       homebrew = {
         enable = mkOption {
           type = types.bool;

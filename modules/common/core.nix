@@ -1,6 +1,6 @@
 # Core - Absolute minimum for ALL systems
 # These packages are available on every single system including
-# bootstrap, servers, microvms, and personal machines
+# bootstrap, servers, and personal machines
 {pkgs, ...}: {
   # Absolute essentials that should be available on any Unix system
   environment.systemPackages = with pkgs; [

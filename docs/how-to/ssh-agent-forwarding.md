@@ -9,7 +9,7 @@ last-reviewed: 2026-05-04
 
 # Use 1Password SSH Agent Forwarding
 
-This guide shows you how to use your local 1Password SSH keys on remote machines (servers, MicroVMs) without copying private keys to the remote system.
+This guide shows you how to use your local 1Password SSH keys on remote machines without copying private keys to the remote system.
 
 ## Overview
 
@@ -36,28 +36,6 @@ Host protoman
     HostName <protoman-ip-address>
     User monkey
     ForwardAgent yes
-
-# For MicroVMs
-Host dev-vm
-    HostName 192.168.83.10
-    User root
-    ForwardAgent yes
-
-Host openclaw
-    HostName 192.168.83.16
-    User root
-    ForwardAgent yes
-
-Host matrix
-    HostName 192.168.83.15
-    User root
-    ForwardAgent yes
-
-# Or match all MicroVMs in the subnet
-Host 192.168.83.*
-    User root
-    ForwardAgent yes
-    StrictHostKeyChecking no
 ```
 
 ### Option 2: Use Command Line Flag
@@ -66,7 +44,6 @@ For one-time use:
 
 ```bash
 ssh -A monkey@protoman
-ssh -A root@192.168.83.16
 ```
 
 ## Verify Agent Forwarding
@@ -115,8 +92,8 @@ When you commit, `op-ssh-sign` automatically detects the forwarded agent (via `S
 From a remote machine, SSH to another:
 
 ```bash
-# On protoman, SSH to a MicroVM
-ssh root@192.168.83.16
+# On protoman, SSH to another host on the network
+ssh root@<other-host-ip>
 ```
 
 The authentication is forwarded through to your local 1Password.
@@ -169,9 +146,9 @@ services.openssh.settings.AllowAgentForwarding = true;
 
 This includes:
 - `machine-types/server.nix`
-- `machine-types/server-arm.nix`
 - `machine-types/desktop.nix`
-- `modules/microvm/default.nix` (all MicroVMs)
+- `library/archetypes/headless-server-nixos.nix`
+- `library/archetypes/desktop-nixos.nix`
 
 > **See also:**
 > - [1Password SSH Agent Forwarding docs](https://developer.1password.com/docs/ssh/agent/forwarding)

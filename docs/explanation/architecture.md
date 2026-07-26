@@ -145,10 +145,6 @@ mkUser "username" "email@example.com"
 # }
 ```
 
-### mkMicrovm
-
-Creates a microvm configuration for disposable NixOS virtual machines.
-
 ## Option System
 
 The `myConfig` namespace provides type-safe configuration:
@@ -202,7 +198,6 @@ Machines are standardized, disposable, and interchangeable:
 | Use Case | Pattern | Example |
 |----------|---------|---------|
 | Headless servers | Takeout Container | `type-server` |
-| MicroVM hosts | Takeout Container | `type-server` |
 | Gaming workstation | Heirloom | `zero` |
 | Work laptop | Heirloom | `wweaver` |
 | Desktop with unique GPU | Heirloom | Custom target |

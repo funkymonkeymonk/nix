@@ -14,13 +14,12 @@ In this tutorial you will learn what this repository is, see its structure, and 
 
 This repository manages the configuration of multiple machines through a single Nix flake. It supports both macOS (nix-darwin) and NixOS.
 
-The repo follows three patterns:
+The repo follows two patterns:
 
 | Pattern | When to Use | Example |
 |---------|-------------|---------|
 | **Heirloom** | Unique machine with custom settings | Work laptop, gaming desktop |
-| **Takeout Container** | Standardized, replaceable machines | Headless servers, MicroVM hosts |
-| **MicroVM** | Lightweight isolated NixOS VMs | AI tooling, dev environments |
+| **Takeout Container** | Standardized, replaceable machines | Headless servers |
 
 ## Repository Structure at a Glance
 
@@ -30,13 +29,11 @@ The repo follows three patterns:
 │   ├── home-manager/        # User environment (dotfiles, apps)
 │   ├── roles/               # Role modules (package bundles)
 │   ├── services/            # Background service definitions
-│   ├── microvm/             # MicroVM guest configuration
 │   └── nixos/              # NixOS-specific modules
 ├── targets/                 # Machine-specific configurations
 │   ├── wweaver/             # Work laptop (macOS)
 │   ├── MegamanX/            # Personal desktop (macOS)
-│   ├── zero/                # Gaming PC (NixOS)
-│   └── microvms/            # MicroVM definitions
+│   └── zero/                # Gaming PC (NixOS)
 ├── machine-types/           # Generic configurations (type-server, type-desktop)
 ├── disk-configs/            # Disko disk layouts
 ├── os/                      # Platform-specific base configuration
