@@ -1,0 +1,1 @@
+Fix programs.git.enable never set to true - commit signing config silently inactive
