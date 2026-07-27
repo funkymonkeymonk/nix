@@ -1,0 +1,1 @@
+Fix agent-skills.nix reading wrong option path (myConfig.roles.agent-skills vs myConfig.agent-skills)
