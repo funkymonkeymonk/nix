@@ -106,55 +106,9 @@ with lib; let
     Sync Pull
   '';
 
-  # Setup script — initializes restic repo, notmuch db, and mbsync config
-  emailBackupSetupContent = ''
-    #!/usr/bin/env bash
-    # email-backup-setup: Initialize the email backup infrastructure
-    set -euo pipefail
-
-    GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
-    YELLOW='\033[1;33m'
-    NC='\033[0m'
-
-    MAILDIR="${maildirPath}"
-    RESTIC_REPO="${resticRepoPath}"
-    RESTIC_PASSWORD_FILE="${resticPasswordPath}"
-
-    echo -e "''${GREEN}=== Email Backup Setup ===''${NC}"
-    echo ""
-
-    # 1. Create directories
-    echo -e "''${BLUE}Creating directories...''${NC}"
-    mkdir -p "$MAILDIR"
-    mkdir -p "$(dirname "$RESTIC_REPO")"
-    mkdir -p "$(dirname "$RESTIC_PASSWORD_FILE")"
-
-    # 2. Generate restic password if needed
-    if [[ ! -f "$RESTIC_PASSWORD_FILE" ]]; then
-      echo -e "''${BLUE}Generating restic repository password...''${NC}"
-      head -c 32 /dev/urandom | base64 > "$RESTIC_PASSWORD_FILE"
-      chmod 600 "$RESTIC_PASSWORD_FILE"
-      echo -e "''${YELLOW}IMPORTANT: Back up this password file!''${NC}"
-      echo -e "  $RESTIC_PASSWORD_FILE"
-      echo -e "  Without it, your backups are unrecoverable."
-    else
-      echo "  Restic password file already exists."
-    fi
-
-    # 3. Initialize restic repo if needed
-    if [[ ! -d "$RESTIC_REPO" ]] || ! restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" cat config &>/dev/null; then
-      echo -e "''${BLUE}Initializing restic repository...''${NC}"
-      restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" init
-    else
-      echo "  Restic repository already initialized."
-    fi
-
-    # 4. Initialize notmuch if needed
-    if [[ ! -d "$MAILDIR/.notmuch" ]]; then
-      echo -e "''${BLUE}Initializing notmuch database...''${NC}"
-
-      cat > "$HOME/.notmuch-config-backup" << 'NOTMUCH_EOF'
+  # Notmuch config shared between email-backup-setup's first-run heredoc
+  # and the standalone .notmuch-config-backup file written below.
+  notmuchConfigContent = ''
     [database]
     path=${maildirPath}
 
@@ -171,322 +125,37 @@ with lib; let
 
     [maildir]
     synchronize_flags=true
-    NOTMUCH_EOF
-
-      NOTMUCH_CONFIG="$HOME/.notmuch-config-backup" notmuch new
-    else
-      echo "  Notmuch database already initialized."
-    fi
-
-    # 5. Check mbsync password
-    if [[ ! -f "$HOME/.mbsync-passwd" ]]; then
-      echo ""
-      echo -e "''${YELLOW}ACTION REQUIRED: Set up Gmail App Password''${NC}"
-      echo "  1. Enable 2FA on your Google account"
-      echo "  2. Go to https://myaccount.google.com/apppasswords"
-      echo "  3. Create an App Password for 'Mail'"
-      echo "  4. Run: echo 'your-app-password' > ~/.mbsync-passwd && chmod 600 ~/.mbsync-passwd"
-    else
-      echo "  mbsync password file exists."
-    fi
-
-    echo ""
-    echo -e "''${GREEN}Setup complete. Run 'email-backup' to perform first backup.''${NC}"
   '';
+
+  # Setup script — initializes restic repo, notmuch db, and mbsync config.
+  # Script bodies below live in email-backup/*.sh so they get proper bash
+  # syntax highlighting and can be shellchecked directly.
+  emailBackupSetupContent =
+    lib.replaceStrings
+    ["__MAILDIR_PATH__" "__RESTIC_REPO_PATH__" "__RESTIC_PASSWORD_PATH__" "__NOTMUCH_CONFIG__"]
+    [maildirPath resticRepoPath resticPasswordPath (lib.removeSuffix "\n" notmuchConfigContent)]
+    (builtins.readFile ./email-backup/email-backup-setup.sh);
 
   # Main backup script
-  emailBackupContent = ''
-    #!/usr/bin/env bash
-    # email-backup: Pull mail, index, snapshot to restic
-    set -euo pipefail
-
-    LOG_FILE="/tmp/email-backup.log"
-    LOCK_FILE="/tmp/email-backup.lock"
-    MAILDIR="${maildirPath}"
-    ACCOUNT_MAILDIR="${accountMaildir}"
-    RESTIC_REPO="${resticRepoPath}"
-    RESTIC_PASSWORD_FILE="${resticPasswordPath}"
-
-    log() {
-      echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
-    }
-
-    # Acquire exclusive lock (fail immediately if another backup is running)
-    exec 9>"$LOCK_FILE"
-    if ! flock -n 9; then
-      log "SKIPPED: Another backup is already running (lock held on $LOCK_FILE)"
-      exit 0
-    fi
-    # Lock is released automatically when the script exits (fd 9 closes)
-
-    # Preflight checks
-    if [[ ! -f "$RESTIC_PASSWORD_FILE" ]]; then
-      log "ERROR: Restic password file not found. Run 'email-backup-setup' first."
-      exit 1
-    fi
-
-    if [[ ! -f "$HOME/.mbsync-passwd" ]]; then
-      log "ERROR: mbsync password not found. See 'email-backup-setup' for instructions."
-      exit 1
-    fi
-
-    # Ensure directories exist
-    mkdir -p "$ACCOUNT_MAILDIR"
-
-    # Initialize restic repo if needed (handles first run)
-    if ! restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" cat config &>/dev/null; then
-      log "Initializing restic repository..."
-      restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" init
-    fi
-
-    # Initialize notmuch if needed
-    if [[ ! -d "$MAILDIR/.notmuch" ]]; then
-      log "Initializing notmuch..."
-      email-backup-setup
-    fi
-
-    # 1. Pull mail from Gmail (read-only)
-    log "Pulling mail from ${accountName}..."
-    if mbsync --config "$HOME/.mbsyncrc-backup" ${accountName}; then
-      log "mbsync pull completed"
-    else
-      log "ERROR: mbsync failed"
-      exit 1
-    fi
-
-    # 2. Index with notmuch
-    log "Indexing with notmuch..."
-    NOTMUCH_CONFIG="$HOME/.notmuch-config-backup" notmuch new
-
-    # 3. Snapshot to restic
-    log "Creating restic snapshot..."
-    if restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-      backup "$MAILDIR" \
-      --tag email --tag "${accountName}" \
-      --exclude '.notmuch/xapian/flintlock' \
-      --exclude '.notmuch/xapian/postlist.*tmp' \
-      2>> "$LOG_FILE"; then
-      log "Restic snapshot created"
-    else
-      log "ERROR: Restic backup failed"
-      exit 1
-    fi
-
-    # 4. Prune old snapshots (keep hourly for 7 days, daily for ${toString retentionDays} days)
-    log "Pruning old snapshots..."
-    restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-      forget --tag email \
-      --keep-hourly 168 \
-      --keep-daily ${toString retentionDays} \
-      --prune 2>> "$LOG_FILE" || log "WARNING: Prune had errors"
-
-    log "Backup complete"
-  '';
+  emailBackupContent =
+    lib.replaceStrings
+    ["__MAILDIR_PATH__" "__ACCOUNT_MAILDIR__" "__RESTIC_REPO_PATH__" "__RESTIC_PASSWORD_PATH__" "__ACCOUNT_NAME__" "__RETENTION_DAYS__"]
+    [maildirPath accountMaildir resticRepoPath resticPasswordPath accountName (toString retentionDays)]
+    (builtins.readFile ./email-backup/email-backup.sh);
 
   # Restore / search script
-  emailBackupRestoreContent = ''
-    #!/usr/bin/env bash
-    # email-backup-restore: Search and restore from encrypted email backups
-    set -euo pipefail
-
-    GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
-    YELLOW='\033[1;33m'
-    RED='\033[0;31m'
-    NC='\033[0m'
-
-    RESTIC_REPO="${resticRepoPath}"
-    RESTIC_PASSWORD_FILE="${resticPasswordPath}"
-    MAILDIR="${maildirPath}"
-
-    check_repo() {
-      if [[ ! -f "$RESTIC_PASSWORD_FILE" ]]; then
-        echo -e "''${RED}Restic password file not found. Run 'email-backup-setup' first.''${NC}"
-        exit 1
-      fi
-    }
-
-    usage() {
-      cat <<EOF
-    Usage: email-backup-restore <command> [args]
-
-    Commands:
-      list                           List all backup snapshots
-      search <notmuch-query>         Search the current backup index
-      mount <mountpoint>             Mount backup snapshots (FUSE) for browsing
-      restore <snapshot-id> <dest>   Restore a snapshot to a directory
-      diff <snap1> <snap2>           Show what changed between two snapshots
-      stats                          Show backup repository statistics
-
-    Examples:
-      email-backup-restore list
-      email-backup-restore search "from:important@client.com"
-      email-backup-restore search "date:2026-04-01..2026-04-14 AND tag:inbox"
-      email-backup-restore mount /tmp/mail-restore
-      email-backup-restore restore latest ~/recovered-mail
-      email-backup-restore diff abc123 def456
-    EOF
-      exit 1
-    }
-
-    case "''${1:-}" in
-      list)
-        check_repo
-        echo -e "''${BLUE}Backup snapshots:''${NC}"
-        restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-          snapshots --tag email
-        ;;
-
-      search)
-        shift
-        if [[ $# -eq 0 ]]; then
-          echo -e "''${RED}Usage: email-backup-restore search <notmuch-query>''${NC}"
-          exit 1
-        fi
-        QUERY="$*"
-        if [[ ! -d "$MAILDIR/.notmuch" ]]; then
-          echo -e "''${YELLOW}Notmuch database not found. Run 'email-backup' first.''${NC}"
-          exit 1
-        fi
-        echo -e "''${BLUE}Searching backup index for: $QUERY''${NC}"
-        NOTMUCH_CONFIG="$HOME/.notmuch-config-backup" notmuch search "$QUERY"
-        ;;
-
-      show)
-        shift
-        if [[ $# -eq 0 ]]; then
-          echo -e "''${RED}Usage: email-backup-restore show <notmuch-query>''${NC}"
-          exit 1
-        fi
-        QUERY="$*"
-        if [[ ! -d "$MAILDIR/.notmuch" ]]; then
-          echo -e "''${YELLOW}Notmuch database not found. Run 'email-backup' first.''${NC}"
-          exit 1
-        fi
-        NOTMUCH_CONFIG="$HOME/.notmuch-config-backup" notmuch show "$QUERY"
-        ;;
-
-      mount)
-        check_repo
-        MOUNTPOINT="''${2:-/tmp/email-backup-restore}"
-        mkdir -p "$MOUNTPOINT"
-        echo -e "''${GREEN}Mounting backup snapshots at $MOUNTPOINT''${NC}"
-        echo -e "Browse: $MOUNTPOINT/snapshots/<date>/..."
-        echo -e "Press Ctrl+C to unmount."
-        restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-          mount "$MOUNTPOINT"
-        ;;
-
-      restore)
-        check_repo
-        SNAPSHOT="''${2:-latest}"
-        DEST="''${3:-$HOME/recovered-mail}"
-        mkdir -p "$DEST"
-        echo -e "''${GREEN}Restoring snapshot $SNAPSHOT to $DEST...''${NC}"
-        restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-          restore "$SNAPSHOT" --target "$DEST" --tag email
-        echo -e "''${GREEN}Restored to $DEST''${NC}"
-        ;;
-
-      diff)
-        check_repo
-        if [[ $# -lt 3 ]]; then
-          echo -e "''${RED}Usage: email-backup-restore diff <snapshot1> <snapshot2>''${NC}"
-          exit 1
-        fi
-        restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-          diff "$2" "$3"
-        ;;
-
-      stats)
-        check_repo
-        echo -e "''${BLUE}Backup repository statistics:''${NC}"
-        restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-          stats --tag email
-        echo ""
-        echo -e "''${BLUE}Snapshot count:''${NC}"
-        restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
-          snapshots --tag email --compact | tail -1
-        ;;
-
-      -h|--help|"")
-        usage
-        ;;
-
-      *)
-        echo -e "''${RED}Unknown command: $1''${NC}"
-        usage
-        ;;
-    esac
-  '';
+  emailBackupRestoreContent =
+    lib.replaceStrings
+    ["__MAILDIR_PATH__" "__RESTIC_REPO_PATH__" "__RESTIC_PASSWORD_PATH__"]
+    [maildirPath resticRepoPath resticPasswordPath]
+    (builtins.readFile ./email-backup/email-backup-restore.sh);
 
   # Status script
-  emailBackupStatusContent = ''
-    #!/usr/bin/env bash
-    # email-backup-status: Show backup health and stats
-    set -euo pipefail
-
-    GREEN='\033[0;32m'
-    BLUE='\033[0;34m'
-    YELLOW='\033[1;33m'
-    NC='\033[0m'
-
-    MAILDIR="${maildirPath}"
-    RESTIC_REPO="${resticRepoPath}"
-    RESTIC_PASSWORD_FILE="${resticPasswordPath}"
-
-    echo -e "''${GREEN}=== Email Backup Status ===''${NC}"
-    echo ""
-
-    # Staging maildir
-    echo -e "''${BLUE}Staging Maildir:''${NC} $MAILDIR"
-    if [[ -d "$MAILDIR" ]]; then
-      msg_count=$(find "$MAILDIR" -type f -name '*:2,*' -o -name 'tmp' -prune 2>/dev/null | grep -c ':2,' || echo "0")
-      echo "  Messages: ~$msg_count"
-    else
-      echo -e "  ''${YELLOW}Not yet created. Run 'email-backup-setup' first.''${NC}"
-    fi
-    echo ""
-
-    # Notmuch index
-    echo -e "''${BLUE}Search index:''${NC}"
-    if [[ -d "$MAILDIR/.notmuch" ]]; then
-      total=$(NOTMUCH_CONFIG="$HOME/.notmuch-config-backup" notmuch count '*' 2>/dev/null || echo "?")
-      echo "  Indexed messages: $total"
-    else
-      echo "  Not initialized"
-    fi
-    echo ""
-
-    # Restic repo
-    echo -e "''${BLUE}Restic repository:''${NC} $RESTIC_REPO"
-    if [[ -f "$RESTIC_PASSWORD_FILE" ]] && restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" cat config &>/dev/null 2>&1; then
-      snap_count=$(restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" snapshots --tag email --json 2>/dev/null | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "?")
-      echo "  Snapshots: $snap_count"
-
-      latest=$(restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" snapshots --tag email --latest 1 --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['time'][:19] if d else 'never')" 2>/dev/null || echo "?")
-      echo "  Latest snapshot: $latest"
-
-      size=$(restic -r "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" stats --tag email --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"{d.get('total_size',0)/1024/1024:.1f} MB\")" 2>/dev/null || echo "?")
-      echo "  Total size: $size"
-    else
-      echo -e "  ''${YELLOW}Not initialized. Run 'email-backup-setup' first.''${NC}"
-    fi
-    echo ""
-
-    # Backup schedule
-    echo -e "''${BLUE}Backup schedule:''${NC} every ${toString (backupInterval / 60)} minutes"
-    echo "  Retention: hourly for 7 days, daily for ${toString retentionDays} days"
-    echo ""
-
-    # Recent log
-    echo -e "''${BLUE}Recent backup log:''${NC}"
-    if [[ -f /tmp/email-backup.log ]]; then
-      tail -10 /tmp/email-backup.log
-    else
-      echo "  (no log file)"
-    fi
-  '';
+  emailBackupStatusContent =
+    lib.replaceStrings
+    ["__MAILDIR_PATH__" "__RESTIC_REPO_PATH__" "__RESTIC_PASSWORD_PATH__" "__BACKUP_INTERVAL_MINUTES__" "__RETENTION_DAYS__"]
+    [maildirPath resticRepoPath resticPasswordPath (toString (backupInterval / 60)) (toString retentionDays)]
+    (builtins.readFile ./email-backup/email-backup-status.sh);
 in {
   config = mkIf enabled {
     assertions = [
@@ -512,24 +181,7 @@ in {
     home.file.".mbsyncrc-backup".text = mbsyncrcContent;
 
     # Write notmuch config for backup
-    home.file.".notmuch-config-backup".text = ''
-      [database]
-      path=${maildirPath}
-
-      [user]
-      name=${userConfig.fullName or userConfig.name or ""}
-      primary_email=${userEmail}
-
-      [new]
-      tags=${newTag}
-      ignore=.mbsyncstate;.uidvalidity
-
-      [search]
-      exclude_tags=${builtins.concatStringsSep ";" excludeTags}
-
-      [maildir]
-      synchronize_flags=true
-    '';
+    home.file.".notmuch-config-backup".text = notmuchConfigContent;
 
     # launchd agent for macOS
     launchd.agents = mkIf isDarwin {
