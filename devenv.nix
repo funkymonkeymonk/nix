@@ -775,7 +775,6 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.onepassword-config-output" \
           ".#checks.''${CURRENT_SYSTEM}.vane-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.openclaw-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-opnix-url-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-custom-options" \

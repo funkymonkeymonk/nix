@@ -506,7 +506,6 @@
             vane-opnix-url-options
             vane-darwin-autostart-default
             vane-darwin-autostart-true
-            openclaw-options
             opencode-options
             opencode-custom-options
             opencode-provider-opnix-url

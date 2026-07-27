@@ -66,7 +66,9 @@
     # common/onepassword.nix was already listed above via onepasswordOptionsTest
     # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
     "common/lib.nix"
-    # Tested via test-services.nix (ollama, vane, openclaw option tests)
+    # Tested via test-services.nix (ollama, vane option tests) and
+    # indirectly via zero/zero-v2 config eval (openclaw shared config +
+    # hardening options, imported through flake.nix)
     "services/ollama/common.nix"
     "services/ollama/darwin.nix"
     "services/ollama/nixos.nix"
