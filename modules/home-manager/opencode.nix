@@ -7,7 +7,35 @@
 with lib; let
   cfg = osConfig.myConfig.opencode;
   rtkCfg = osConfig.myConfig.llmClient.rtk;
+  skillsCfg = osConfig.myConfig.skills or {};
   hmLib = import ./lib.nix {inherit lib;};
+
+  # Full skill directories (internal + superpowers) for programs.opencode.skills,
+  # and the resolved manifest subset for building bundled commands.
+  inherit
+    (hmLib.mkFullSkillDirs {
+      enabledRoles = skillsCfg.enabledRoles or [];
+      superpowersPath = skillsCfg.superpowersPath or null;
+    })
+    skillDirs
+    allSkills
+    ;
+
+  # Commands bundled with skills (e.g. jj's /finish /pr /push, yak-shaving's /shave)
+  skillCommands = hmLib.mkSkillCommands allSkills;
+
+  # Auto-loaded digest content (subset of skillDirs tagged autoLoad = true,
+  # concatenated into one file). This is a separate opencode feature from
+  # skill directories: opencode.json's `instructions` list points at files
+  # to load unconditionally into every session's context.
+  inherit
+    (hmLib.mkAutoLoadSkills {
+      enabledRoles = skillsCfg.enabledRoles or [];
+      superpowersPath = skillsCfg.superpowersPath or null;
+    })
+    autoLoadContent
+    hasAutoLoadSkills
+    ;
 
   # Filter providers that have 1Password items configured
   providersWithSecrets = lib.filterAttrs (_name: provider: provider.onePasswordItem != "") cfg.providers;
@@ -79,25 +107,24 @@ with lib; let
       }
     );
 
-  # Generate markdown command files
-  commandFiles = lib.mapAttrs' (name: cmd:
-    lib.nameValuePair ".config/opencode/commands/${name}.md" {
-      text = let
-        frontmatter = lib.concatStringsSep "\n" (
-          ["---"]
-          ++ optional (cmd.description != "") "description: ${cmd.description}"
-          ++ optional (cmd.agent != null) "agent: ${cmd.agent}"
-          ++ optional (cmd.subtask != null) "subtask: ${lib.boolToString cmd.subtask}"
-          ++ optional (cmd.model != null) "model: ${cmd.model}"
-          ++ ["---"]
-        );
-      in ''
-        ${frontmatter}
+  # Generate command content (name -> markdown string), consumed by
+  # programs.opencode.commands below.
+  commandFiles =
+    lib.mapAttrs (_name: cmd: let
+      frontmatter = lib.concatStringsSep "\n" (
+        ["---"]
+        ++ optional (cmd.description != "") "description: ${cmd.description}"
+        ++ optional (cmd.agent != null) "agent: ${cmd.agent}"
+        ++ optional (cmd.subtask != null) "subtask: ${lib.boolToString cmd.subtask}"
+        ++ optional (cmd.model != null) "model: ${cmd.model}"
+        ++ ["---"]
+      );
+    in ''
+      ${frontmatter}
 
-        ${cmd.template}
-      '';
-    })
-  cfg.commands;
+      ${cmd.template}
+    '')
+    cfg.commands;
 
   # Build agent config
   agentConfig = lib.mapAttrs (_name: agent:
@@ -313,7 +340,7 @@ in {
       (lib.hiPrio opencodeWrapped)
     ];
 
-    # RTK instructions file for OpenCode (only when RTK is enabled) + command files
+    # RTK instructions file for OpenCode (only when RTK is enabled) + auto-loaded skills digest
     home.file =
       {
         # TUI configuration - must be kept in sync with main config theme
@@ -356,17 +383,28 @@ in {
           '';
         };
       })
-      // commandFiles;
+      // (optionalAttrs hasAutoLoadSkills {
+        # Digest of autoLoad = true skills, referenced via opencode.json's
+        # `instructions` list below. This is separate from the full skill
+        # directories installed via programs.opencode.skills — opencode
+        # reads `instructions` unconditionally into every session's
+        # context, whereas skill directories are discovered on demand.
+        ".config/opencode/skills/auto-loaded.md" = {
+          text = autoLoadContent;
+        };
+      });
 
     programs = {
       # Use home-manager's native programs.opencode
       opencode = {
         enable = true;
+        skills = skillDirs;
+        commands = commandFiles // skillCommands;
         settings = let
           # Build instructions list: RTK docs + any auto-loaded skills
           instructionFiles =
             lib.optional rtkCfg.enable "RTK.md"
-            ++ ["skills/auto-loaded.md"];
+            ++ lib.optional hasAutoLoadSkills "skills/auto-loaded.md";
         in
           settings
           // {instructions = instructionFiles;};
