@@ -474,6 +474,9 @@
             foundation-options
             core-packages
             foundation-packages
+            overlay-rtk
+            overlay-yaks
+            overlay-pi-coding-agent
             config-validation
             all-role-tests
             module-coverage

@@ -748,6 +748,9 @@ in {
         nix build \
           ".#checks.''${CURRENT_SYSTEM}.core-packages" \
           ".#checks.''${CURRENT_SYSTEM}.foundation-packages" \
+          ".#checks.''${CURRENT_SYSTEM}.overlay-rtk" \
+          ".#checks.''${CURRENT_SYSTEM}.overlay-yaks" \
+          ".#checks.''${CURRENT_SYSTEM}.overlay-pi-coding-agent" \
           ".#checks.''${CURRENT_SYSTEM}.foundation-options" \
           ".#checks.''${CURRENT_SYSTEM}.config-validation" \
           ".#checks.''${CURRENT_SYSTEM}.all-role-tests" \
