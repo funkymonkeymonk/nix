@@ -70,6 +70,33 @@ with lib; let
     })
   cfg.models;
 
+  # Full skill directories (internal + superpowers) from the shared manifest,
+  # installed as home.file entries since there is no native
+  # programs.pi-coding-agent module upstream. Closes the gap where pi
+  # previously only got the autoLoad = true digest, not full skill dirs
+  # (matching the capability opencode already has).
+  inherit
+    (hmLib.mkFullSkillDirs {
+      enabledRoles = skillsCfg.enabledRoles or [];
+      superpowersPath = skillsCfg.superpowersPath or null;
+    })
+    skillDirs
+    ;
+
+  # Commands bundled with manifest skills (e.g. jj's /finish /pr /push,
+  # yak-shaving's /shave). pi has no native slash-command concept the way
+  # opencode/claude-code do, so these install alongside the skill's own
+  # SKILL.md as plain files under the skill's directory for discoverability.
+  manifestSkillFiles =
+    lib.mapAttrs' (
+      name: path:
+        lib.nameValuePair ".pi/agent/skills/${name}" {
+          source = path;
+          recursive = true;
+        }
+    )
+    skillDirs;
+
   # Build auto-loaded skills content from the shared manifest helper
   inherit
     (hmLib.mkAutoLoadSkills {
@@ -275,7 +302,7 @@ with lib; let
   };
 
   # All files merged together
-  allFiles = coreFiles // promptFiles // skillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles // modelStackFiles;
+  allFiles = coreFiles // promptFiles // skillFiles // manifestSkillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles // modelStackFiles;
 
   # pi-dev: run pi with local plugin overrides (no special shell needed)
   pi-dev-script = pkgs.writeShellScriptBin "pi-dev" ''
