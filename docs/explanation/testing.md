@@ -27,7 +27,7 @@ This repository uses a layered testing strategy modeled on the Nix community's r
                   (fastest)
 ```
 
-Every layer runs via `flake.checks` and is invoked by `devenv tasks run test` in CI[^1].
+Every layer runs via `flake.checks` and is invoked by `devenv tasks run test:all` in CI[^1].
 
 ## Why This Pyramid?
 
@@ -100,7 +100,7 @@ Following TDD principles, write the test *before* implementing the module or mak
 
 ## CI Wiring
 
-All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test`, which runs the platform-appropriate subset[^1]. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].
+All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test:all`, which runs the platform-appropriate subset[^1]. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].
 
 ## Anti-Patterns to Avoid
 
@@ -111,9 +111,39 @@ All checks are wired into `flake.checks` via the `tests/default.nix` combinator,
 | Manual module coverage updates | Coverage drifts as modules are added/removed | Auto-discover with `builtins.readDir` |
 | Testing implementation details | Tests break when internal structure changes | Test outcomes, not mechanisms (BDD style) |
 
+## BDD Style Guide for New Tests
+
+**Decision (2026-04-07):** BDD-style assertions apply to **new tests only**.
+Existing tests are not being retroactively converted — the churn isn't
+worth it for tests that already pass and aren't being touched.
+
+Tests should describe outcomes in human-readable form, not mechanisms:
+
+```nix
+# ❌ Mechanism-style (don't write this)
+assert config.services.foo.package == pkgs.foo;
+
+# ✅ BDD-style (write this)
+let
+  result = testModule { ... };
+  expected = "foo service uses the configured package";
+in assert result.services.foo.package == configuredPkg
+   || throw "${expected}: got ${result.services.foo.package}";
+```
+
+Naming conventions for new test derivations:
+
+- Start with `when_` or otherwise describe the scenario being tested
+- Assertion failure messages should be full English sentences describing
+  what should have been true, not just variable names
+- Group related assertions under descriptive `let` bindings
+
+When writing or reviewing a PR that adds new tests, reference this section
+in the PR description to confirm the new tests follow this style.
+
 ## Further Reading
 
-- [Reference: Test Patterns](../reference/test-patterns.md) — Concrete examples of each pattern
+- `tests/test-vllm-mlx.nix` — Concrete example of `lib.evalModules` stubbing pattern
 - nix-unit documentation[^2]
 - Nix flake check reference[^1]
 - NixOS Testing Framework[^5]
