@@ -8,7 +8,7 @@ last-reviewed: 2026-04-08
 
 # JJ Commands Reference
 
-Complete reference for Jujutsu (jj) commands. For workflow context see the [JJ Workflow guide](../tutorials/jj-workflow.md) and [how-to guides](../how-to/create-pr-with-jj.md).
+Complete reference for Jujutsu (jj) commands. For workflow context see the [JJ Workflow guide](../how-to/jj-workflow.md) and [how-to guides](../how-to/create-pr-with-jj.md).
 
 ## Core Concepts
 
@@ -164,14 +164,15 @@ These scripts are installed by the `developer` role and wrap common multi-step j
 | `jj-finish [--merge]` | End-to-end: push → PR → watch CI → merge |
 | `jj-stack <type> <desc>` | Create stacked PR on current branch |
 | `jj-workspace <cmd>` | Manage named workspaces |
+| `jj-workspace-session <cmd>` | Manage OpenCode workspace sessions with fast-sync |
 
-See [JJ Workflow guide](../tutorials/jj-workflow.md) — `jj-finish` for end-to-end automation.
+See [JJ Workflow guide](../how-to/jj-workflow.md) — `jj-finish` for end-to-end automation.
 
 ---
 
 ## See Also
 
-- [JJ workflow guide](../tutorials/jj-workflow.md) — hands-on introduction
+- [JJ workflow guide](../how-to/jj-workflow.md) — hands-on introduction
 - [JJ Mental Model](../explanation/jj-mental-model.md) — why jj works the way it does
 - [How to Create a PR](../how-to/create-pr-with-jj.md)
 - [How to Update a PR](../how-to/update-existing-pr.md)

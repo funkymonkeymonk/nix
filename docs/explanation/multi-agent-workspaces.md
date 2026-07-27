@@ -22,7 +22,7 @@ In this tutorial you'll set up a workflow where multiple agents (or you and an a
 
 - This repository cloned and `devenv shell` active
 - `fjj` available (enabled by the developer role)
-- Basic familiarity with jj ([Getting Started with jj](../tutorials/jj-workflow.md))
+- Basic familiarity with jj ([Getting Started with jj](./jj-workflow.md))
 - GitHub CLI (`gh`) authenticated
 
 ## The Key Concept: Nix Reads Git, Not Your Working Copy
@@ -343,5 +343,5 @@ Or rebase your workspace onto a clean commit.
 
 - **[How to Use Workspaces](../how-to/use-workspaces.md)** — reference for all workspace commands
 - **[Yaks in Workspaces](../explanation/yaks-workspaces.md)** — why yaks data is shared across workspaces
-- **[Your First Yak](../tutorials/yak-shaving.md)** — deeper tutorial on the yak task tracker
+- **[Your First Yak](./yak-shaving.md)** — deeper tutorial on the yak task tracker
 - **[JJ Commands Reference](../reference/jj-commands.md)** — every jj command and alias

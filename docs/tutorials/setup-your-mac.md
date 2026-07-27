@@ -53,22 +53,19 @@ Roles bundle packages by purpose. Common picks for a development Mac:
 
 For this tutorial we'll enable `developer`, `desktop`, and `opencode`. You can find the full catalogue in the [Roles Reference](../reference/roles.md).
 
-## Step 4: Create Your Host File
+## Step 4: Create Your Target
 
-Newer machines live under `hosts/<name>/` and compose from shared archetypes
-in `library/archetypes/` — machine-specific overrides only, not a full
-module list. Create your host directory:
+Your target directory holds machine-specific settings. Most config comes from roles, so keep it minimal to start:
 
 ```bash
-mkdir -p hosts/my-mac
+mkdir -p targets/my-mac
 ```
 
-Create `hosts/my-mac/default.nix`:
+Create `targets/my-mac/default.nix`:
 
 ```nix
 {
   mkUser,
-  inputs,
   ...
 }: {
   nixpkgs.hostPlatform = "aarch64-darwin";
@@ -89,37 +86,33 @@ Create `hosts/my-mac/default.nix`:
 
 Replace `your-username` with your macOS username (run `whoami` to find it). Replace the email address too.
 
-## Step 5: Add Your Host to flake.nix
+## Step 5: Add Your Target to flake.nix
 
-Open `flake.nix` and add your machine under `darwinConfigurations`, using
-`libraryLib.mkDarwinSystem` and the `developer-laptop-darwin` archetype
-(the same pattern `wweaver` uses):
+Open `flake.nix` and add your machine under `darwinConfigurations`. Look for the existing entries (`wweaver`, `MegamanX`) and model yours on them:
 
 ```nix
-"my-mac" = libraryLib.mkDarwinSystem {
-  inherit inputs;
-  hostname = "my-mac";
-  extraSpecialArgs = {inherit mkUser;};
+"my-mac" = nix-darwin.lib.darwinSystem {
+  specialArgs = { inherit inputs mkUser; };
   modules = [
-    ./library/archetypes/base-darwin.nix
+    configuration
     nix-homebrew.darwinModules.nix-homebrew
-    ./library/archetypes/developer-laptop-darwin.nix
-    ./hosts/my-mac
+    ./modules
+    ./modules/roles/homebrew.nix
+    ./os/darwin.nix
+    ./targets/my-mac
+    home-manager.darwinModules.home-manager
+    { home-manager.sharedModules = [ opnix.homeManagerModules.default ]; }
   ];
 };
 ```
 
-`base-darwin.nix` provides the shared module tree, Darwin OS defaults, and
-home-manager wiring. `developer-laptop-darwin.nix` provides homebrew,
-desktop, and entertainment roles plus `nixpkgs.config.allowUnfree`. Your
-host file only needs to set the roles and user info specific to this
-machine.
+Notice you need the same module list pattern as the other targets. The key differences per target are the hostname and the target directory path.
 
 ## Step 6: Validate Before Building
 
 ```bash
 devenv tasks run check:lint
-devenv tasks run test:eval
+devenv tasks run test:darwin-eval
 ```
 
 Both commands should complete without errors. If lint fails, fix formatting with the suggested commands. If eval fails, check that username and role names are correct.
@@ -148,8 +141,8 @@ devenv tasks list     # devenv is available
 
 - Installed Nix and cloned the flake
 - Signed in to 1Password and registered an SSH key
-- Created a host file with role selections
-- Added the host to `flake.nix` via `mkDarwinSystem` + archetypes
+- Created a target directory with role selections
+- Added the target to `flake.nix`
 - Built and applied the configuration
 - Verified tools are installed
 
@@ -157,4 +150,4 @@ devenv tasks list     # devenv is available
 
 - **[Create Your First Role](create-your-first-role.md)** — Package your own tools together
 - **[Add Secrets with opnix](getting-started-opnix.md)** — Manage SSH keys, tokens, and passwords through 1Password
-- **Read [Architecture](../explanation/architecture.md)** — Understand how modules, roles, archetypes, and hosts compose
+- **Read [Architecture](../explanation/architecture.md)** — Understand how modules, roles, and targets compose

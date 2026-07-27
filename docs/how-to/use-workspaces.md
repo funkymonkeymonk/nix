@@ -91,11 +91,12 @@ devenv tasks run system:switch
 - Commit your changes first with `jj describe -m "message"`
 - The switch uses your current jj commit, so uncommitted changes won't be included
 
-To test uncommitted changes before committing, use `nix build --impure` from
-within the workspace directory — the `--impure` flag lets Nix read the
-working copy's untracked/uncommitted files instead of requiring a git
-commit. See the [Testing Best Practices](../../AGENTS.md#testing-best-practices-critical)
-section in AGENTS.md for the full commit-first-vs-impure tradeoff.
+**To test uncommitted changes before committing:**
+```bash
+./scripts/switch-workspace-override
+```
+
+This creates a temporary copy of your workspace changes and runs switch from there.
 
 ### 4. Create a Bookmark and PR
 
@@ -155,6 +156,26 @@ Types:
 - `chore/` - Maintenance tasks
 - `release/` - Release preparation
 
+## Session-Based Fast Sync
+
+Enable fast sync for active workspaces (syncs every 5 minutes instead of hourly):
+
+```bash
+# Start a session
+jj-workspace-session start
+
+# Check session status
+jj-workspace-session status
+
+# Sync manually (also resets TTL)
+jj-workspace-session sync
+
+# End session
+jj-workspace-session stop
+```
+
+Sessions automatically expire after 30 minutes of inactivity.
+
 ## Workspace Directory Structure
 
 ```
@@ -171,7 +192,8 @@ Types:
 1. **One feature per workspace** - Keep work isolated
 2. **Use conventional naming** - Makes workspaces easy to identify
 3. **Clean up regularly** - Run `fjj --clean` to remove merged workspaces
-4. **Don't commit in mirror** - Always work in workspaces
+4. **Start sessions for active work** - Enables fast sync
+5. **Don't commit in mirror** - Always work in workspaces
 
 ## Troubleshooting
 
@@ -190,6 +212,16 @@ List all workspaces:
 ```bash
 jj-workspace list
 ```
+
+### "Session not found"
+
+Check if `jj-workspace-session` is installed:
+
+```bash
+which jj-workspace-session
+```
+
+If not found, you may need to install the jj skill.
 
 ## Next Steps
 

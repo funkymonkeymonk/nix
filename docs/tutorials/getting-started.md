@@ -30,16 +30,14 @@ The repo follows two patterns:
 │   ├── roles/               # Role modules (package bundles)
 │   ├── services/            # Background service definitions
 │   └── nixos/              # NixOS-specific modules
-├── hosts/                   # Lean host files for archetype-composed machines
+├── targets/                 # Machine-specific configurations
 │   ├── wweaver/             # Work laptop (macOS)
-│   └── megamanx/            # Personal desktop (macOS)
-├── targets/                 # Machine-specific configurations (older pattern)
-│   ├── darwin-server/       # Headless macOS server
+│   ├── MegamanX/            # Personal desktop (macOS)
 │   └── zero/                # Gaming PC (NixOS)
-├── library/                 # System-building abstractions (archetypes, mkDarwinSystem/mkNixosSystem)
 ├── machine-types/           # Generic configurations (type-server, type-desktop)
 ├── disk-configs/            # Disko disk layouts
 ├── os/                      # Platform-specific base configuration
+├── library/                 # System-building abstractions
 └── flake.nix               # Composes everything together
 ```
 
@@ -53,7 +51,7 @@ The repo follows two patterns:
 - `opencode` / `claude` / `pi` — AI coding agents
 - And more (see [Roles Reference](../reference/roles.md))
 
-**Hosts and targets** hold machine-specific settings. Newer machines (wweaver, MegamanX) use lean host files under `hosts/<name>/` composed from shared archetypes in `library/archetypes/`. Older machines still use the original `targets/<name>/` pattern. Takeout container machines use one of the generic configurations under `machine-types/` instead of a dedicated host/target directory.
+**Targets** hold machine-specific settings in `targets/<name>/`. Heirloom machines have their own target directory; takeout container machines use one of the generic configurations under `machine-types/`.
 
 ## Prerequisites
 
@@ -122,11 +120,9 @@ Before building or applying anything, verify the flake evaluates cleanly:
 # Fast lint check (formatting, dead code)
 devenv tasks run check:lint
 
-# Eval test (evaluates whichever configs are reachable from your platform)
-devenv tasks run test:eval
-
-# NixOS-specific module error check (Linux only)
-devenv tasks run test:nixos-eval
+# Eval test for your platform
+devenv tasks run test:darwin-eval    # on macOS
+devenv tasks run test:nixos-eval     # on Linux
 ```
 
 If both pass, the flake is healthy.

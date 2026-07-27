@@ -22,86 +22,94 @@ dtl
 
 ## Available Tasks
 
-### System Configuration
+### Configuration
 
 | Task | Description |
 |------|-------------|
-| `system:switch` | Apply configuration to current system (platform-aware) |
-| `system:init` | Initial setup commands (Darwin only) |
+| `switch` | Apply configuration to current system |
+| `init` | Initial setup commands for nix-darwin |
+| `build` | Build all configurations (dry-run) |
+| `build:darwin` | Build all Darwin (macOS) configurations |
+| `build:nixos` | Build all NixOS configurations |
 
-### Validation
+### Build
 
 | Task | Description |
 |------|-------------|
-| `validate:disko` | Validate disko disk configurations |
-| `validate:install-script` | Validate install-machine.sh script |
+| `build:all` | Build all configurations (dry-run) |
+| `build:darwin` | Build Darwin configurations (dry-run) |
+| `build:nixos` | Build NixOS configurations (dry-run) |
 
 ### Code Quality
 
 | Task | Description |
 |------|-------------|
-| `check:lint` | Run lint checks (formatting + static analysis) |
-
-### Testing
-
-| Task | Description |
-|------|-------------|
-| `test:eval` | Evaluate all NixOS and Darwin configurations (gates builds) |
-| `test:nixos-eval` | Validate NixOS configs can be evaluated (catches module errors) |
-| `test:checks` | Run nix-unit eval tests (fast, no derivation builds) |
-| `test:all` | Run all tests (eval gates build, optimized for parallel CI) |
-| `test:sketchybar` | Test sketchybar options, theme, and color conversion |
-| `test:onepassword` | Test 1Password options, guard, and config output |
+| `quality` | Run all quality checks (format + lint) |
+| `fmt` | Format all Nix files with alejandra |
 
 ### Flake Management
 
 | Task | Description |
 |------|-------------|
-| `flake:update` | Update the nix flake to latest versions |
+| `flake:update` | Update flake inputs |
+| `devenv update` | Update devenv lock file |
 
-### Documentation
+### Development
 
 | Task | Description |
 |------|-------------|
-| `docs:update` | Update and validate documentation (Diataxis) |
-| `docs:validate` | Validate documentation structure only |
-| `docs:generate` | Generate reference documentation only |
+| `ide` | Launch zellij IDE with file explorer and agent |
+| `pr:review` | Launch PR review dashboard (gh-dash) |
 
 ### Agent Skills
 
 | Task | Description |
 |------|-------------|
-| `agent-skills:status` | Check agent skills status |
-| `agent-skills:update` | Update agent skills from upstream superpowers |
-| `agent-skills:validate` | Validate skills against Agent Skills specification |
+| `agent-skills:status` | Check skills installation status |
+| `agent-skills:update` | Update skills from upstream superpowers |
+| `agent-skills:validate` | Validate skills format |
 
-### Profiling
+### Git Remote
 
 | Task | Description |
 |------|-------------|
-| `profile:llm` | Profile LLM inference performance via env vars (`MODEL`, `PROMPTS`, `MAX_TOKENS`) |
+| `git:set-remote-ssh` | Switch git remote to SSH |
+| `git:set-remote-https` | Switch git remote to HTTPS |
 
-## Shell Commands (Not Tasks)
+### Cachix
 
-These are shell functions/aliases available inside the devenv shell, distinct
-from `devenv tasks run <name>`:
+| Task | Description |
+|------|-------------|
+| `cachix:push` | Build current host config and push to Cachix |
+| `cachix:push:all` | Build all configs for current platform and push |
 
-| Command | What It Does |
-|---------|---------------|
-| `s` / `switch` | Runs `system:switch` (workspace-aware: runs from the jj repo root if you're in a workspace) |
-| `ide` | Launches a zellij session with a file manager, editor, and AI agent panes |
-| `pr-review` | Launches a zellij session running `gh-dash` for reviewing PRs |
-| `skills-list` | Lists installed agent skill names (`SKILL.md` files under the agent skills path) |
-| `agentsudo` | Runs a sudo command using the 1Password-stored sudo password for the current host |
+### Documentation
+
+| Task | Description |
+|------|-------------|
+| `docs:update` | Update and validate documentation |
+| `docs:validate` | Validate documentation structure |
+| `docs:generate` | Generate reference documentation |
+
+## Cross-Platform Validation
+
+The `test:full` task validates both platforms regardless of host:
+
+- On Darwin: Tests Darwin and Linux configurations
+- On Linux: Tests Linux and Darwin configurations
+
+Validation includes:
+- Flake structure and syntax (`nix flake check`)
+- Build plans (`nix build --dry-run`)
+- Configuration evaluation (`nix eval`)
 
 ## Shell Aliases
 
-After entering the devenv shell:
+After configuration is applied:
 
 | Alias | Expands To |
 |-------|------------|
 | `dt <task>` | `devenv tasks run <task>` |
 | `dtr <task>` | `devenv tasks run <task>` |
 | `dtl` | `devenv tasks list` |
-
-> **See also:** [How-To: Run CI Locally](../how-to/run-ci-locally.md) for a task-oriented walkthrough.
+| `skills-list` | List installed agent skills |

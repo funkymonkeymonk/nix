@@ -19,11 +19,10 @@ cd nix
 nix develop
 
 # Run validation
-devenv tasks run check:lint
-devenv tasks run test:eval
+devenv tasks run check:all
 
-# Apply configuration (macOS or NixOS, platform-aware)
-devenv tasks run system:switch
+# Apply configuration (macOS)
+darwin-rebuild switch --flake .#<hostname>
 ```
 
 > **New here?** See the [Getting Started tutorial](docs/tutorials/getting-started.md).
@@ -39,7 +38,7 @@ devenv tasks run system:switch
 
 ### Common Tasks
 
-- [Add a new machine](docs/tutorials/setup-your-mac.md)
+- [Add a new machine](docs/how-to/add-machine.md)
 - [Add a new role](docs/how-to/add-role.md)
 - [Run CI locally](docs/how-to/run-ci-locally.md)
 - [Set up 1Password signing](docs/how-to/setup-1password.md)
@@ -52,9 +51,7 @@ devenv tasks run system:switch
 │   ├── home-manager/ # User environment, skills
 │   ├── roles/        # Role modules (packages, skills per role)
 │   └── nixos/        # NixOS-specific modules
-├── hosts/            # Lean host files for archetype-composed machines
-├── targets/          # Machine-specific configurations (older pattern)
-├── library/          # System-building abstractions (archetypes, mkDarwinSystem/mkNixosSystem)
+├── targets/          # Machine-specific configurations
 ├── flake.nix         # Main flake with helper functions
 └── docs/             # Documentation (Diataxis)
 ```
@@ -65,7 +62,7 @@ devenv tasks run system:switch
 
 | Role | Description |
 |------|-------------|
-| `foundation` | Essential tools (always included) |
+| `base` | Essential tools (always included) |
 | `developer` | Development environment |
 | `creative` | Media tools |
 | `desktop` | Desktop applications |
@@ -86,8 +83,8 @@ After entering devenv shell:
 | Alias | Command |
 |-------|---------|
 | `s` | `devenv tasks run system:switch` |
-| `dt <task>` | `devenv tasks run <task>` |
-| `dtl` | `devenv tasks list` |
+| `q` | `devenv tasks run check:all` |
+| `b` | `devenv tasks run build:all` |
 
 > **All tasks:** [Tasks reference](docs/reference/tasks.md)
 

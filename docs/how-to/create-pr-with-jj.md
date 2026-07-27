@@ -65,7 +65,7 @@ jj bookmark set feat/user-auth -r @
 jj git push --bookmark feat/user-auth
 
 # Create PR
-gh pr create --head feat/user-auth --fill
+g h pr create --head feat/user-auth --fill
 ```
 
 ### 4. Verify the PR

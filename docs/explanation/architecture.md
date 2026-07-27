@@ -93,46 +93,22 @@ Services are launchd system daemons that run on macOS. Each service lives in `mo
 - Log to ephemeral `/tmp/<service>.log`
 
 
-### Hosts and Targets (Machine-Specific Settings)
+### Targets (Machine-Specific Settings)
 
-Hosts and targets define *where* configurations apply for **artisanal**
-machines. Each one represents a specific machine.
-
-Newer artisanal machines use lean **host files** under `hosts/<name>/`,
-composed from shared **archetypes** in `library/archetypes/` (e.g.
-`base-darwin.nix`, `developer-laptop-darwin.nix`,
-`headless-server-darwin.nix`) via `library/lib/mk-system.nix`'s
-`mkDarwinSystem` / `mkNixosSystem` helpers. The archetype provides shared
-boilerplate (module tree, home-manager wiring, default roles); the host
-file only overrides machine-specific settings.
-
-**Location:** `hosts/`
-
-```
-hosts/
-├── wweaver/          # Work laptop (artisanal, uses developer-laptop-darwin archetype)
-└── megamanx/         # Personal desktop (artisanal, uses workstation-darwin archetype)
-```
-
-Older artisanal machines and non-archetype-composed machines still use the
-original **target** pattern — a directory imported directly into a raw
-`nix-darwin.lib.darwinSystem` / `nixpkgs.lib.nixosSystem` module list in
-`flake.nix`, without an archetype layer.
+Targets define *where* configurations apply for **artisanal** machines. Each target represents a specific machine.
 
 **Location:** `targets/`
 
 ```
 targets/
-├── darwin-server/    # Headless macOS VM host (artisanal)
-├── zero/             # NixOS gaming PC (artisanal)
-├── bootstrap/        # Minimal installer-time config
-└── type-*/           # Disposable machine-type configs (see below)
+├── wweaver/          # Work laptop (artisanal)
+├── MegamanX/         # Personal desktop (artisanal)
+└── zero/             # NixOS gaming PC (artisanal)
 ```
 
-Both hosts and targets contain only machine-specific settings like
-hostname, hardware config, and GPU drivers.
+Targets contain only machine-specific settings like hostname, hardware config, and GPU drivers.
 
-**Disposable machines** (type-server, type-desktop) don't need a dedicated host or target directory beyond their `type-*` entry - they use generic configurations from `machine-types/`.
+**Disposable machines** (type-server, type-desktop) don't need targets - they use generic configurations from `machine-types/`.
 
 ## Configuration Flow
 
@@ -193,12 +169,12 @@ The flake supports two approaches to machine management:
 
 Each machine is unique, hand-crafted, named, and cared for individually:
 - Hostname defined in the flake (`networking.hostName`)
-- Per-machine `hosts/<hostname>/` (archetype-composed) or `targets/<hostname>/` (raw module list) directory
+- Per-machine `targets/<hostname>/` directory
 - Hardware-specific settings
 - Impure builds (references local paths like `/etc/nixos/`)
 - If it breaks, you repair it
 
-**Examples**: `wweaver`, `megamanx` (both `hosts/`), `darwin-server`, `zero` (both `targets/`)
+**Examples**: `wweaver`, `MegamanX`, `zero`
 
 ### Takeout Containers (Disposable)
 
