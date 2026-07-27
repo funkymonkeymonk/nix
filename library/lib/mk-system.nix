@@ -1,4 +1,6 @@
-{lib}: rec {
+{lib}: let
+  mkNixpkgsConfigModule = import ./nixpkgs-config.nix;
+in rec {
   mkDarwinSystem = {
     inputs,
     hostname,
@@ -17,38 +19,8 @@
           {
             networking.hostName = hostname;
             system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
-            nixpkgs = {
-              config = {
-                allowUnfree = true;
-                permittedInsecurePackages = [
-                  "electron-39.8.10"
-                  "google-chrome-144.0.7559.97"
-                  "olm-3.2.16"
-                ];
-                allowInsecurePredicate = attrs: let
-                  pname = attrs.pname or attrs.name or "";
-                  fullName = "${pname}-${attrs.version or ""}";
-                in
-                  pname
-                  == "openclaw"
-                  || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
-              };
-              overlays = [
-                (final: _prev: {
-                  stable = import inputs.nixpkgs-stable {
-                    inherit (final) system config;
-                  };
-                })
-                (final: _prev: {
-                  inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
-                })
-                (final: _prev: {
-                  zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
-                })
-                (import ../../overlays {inherit inputs;})
-              ];
-            };
           }
+          (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
         ]
         ++ modules
@@ -78,39 +50,9 @@
           {
             networking.hostName = hostname;
             system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
-            nixpkgs = {
-              config = {
-                allowUnfree = true;
-                permittedInsecurePackages = [
-                  "electron-39.8.10"
-                  "google-chrome-144.0.7559.97"
-                  "olm-3.2.16"
-                ];
-                allowInsecurePredicate = attrs: let
-                  pname = attrs.pname or attrs.name or "";
-                  fullName = "${pname}-${attrs.version or ""}";
-                in
-                  pname
-                  == "openclaw"
-                  || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
-              };
-              hostPlatform = system;
-              overlays = [
-                (final: _prev: {
-                  stable = import inputs.nixpkgs-stable {
-                    inherit (final) system config;
-                  };
-                })
-                (final: _prev: {
-                  inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
-                })
-                (final: _prev: {
-                  zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
-                })
-                (import ../../overlays {inherit inputs;})
-              ];
-            };
+            nixpkgs.hostPlatform = system;
           }
+          (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
           inputs.home-manager.nixosModules.home-manager
           {
