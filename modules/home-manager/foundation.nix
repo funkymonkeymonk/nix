@@ -2,6 +2,7 @@
 # Provides universal development tools on all systems
 {
   lib,
+  pkgs,
   userConfig,
   myConfig,
   earthsong,
@@ -13,6 +14,11 @@
     overrideDevices = false;
     overrideFolders = false;
   };
+
+  # jj-hooks: runs pre-commit/prek/lefthook/hk hooks against jj bookmark
+  # pushes in an ephemeral git worktree. Provides the `jj-hp` binary that
+  # the `push` alias below delegates to.
+  home.packages = [pkgs.jj-hooks];
 
   # Jujutsu version control with Earthsong color-words theme
   programs.jujutsu = lib.mkIf (userConfig.name != "") {
@@ -37,7 +43,15 @@
       };
       aliases = {
         ba = ["bookmark" "advance"];
+        # Delegate `jj push` to jj-hp, which runs the repo's configured
+        # hook runner (pre-commit/prek/lefthook/hk) in an ephemeral git
+        # worktree before pushing. Falls through to plain `jj git push`
+        # when a repo has no hook-runner config.
+        push = ["util" "exec" "--" "jj-hp" "push"];
       };
+      # Automatically advance the local bookmark to the fixup commit when
+      # jj-hooks autofixes files during a push (e.g. alejandra formatting).
+      jj-hooks.advance-bookmarks = true;
       # Treat pushed commits as immutable. Prevents `jj squash`, `jj describe`,
       # `jj rebase`, etc. from rewriting any commit reachable from a remote
       # bookmark. See modules/home-manager/skills/external/jj/SKILL.md
