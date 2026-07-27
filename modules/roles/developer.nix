@@ -21,6 +21,12 @@ in {
       slidev-cli
       temporal-cli
       yaks
+      # AST-aware merge tool. jj ships a default `merge-tools.mergiraf`
+      # entry out of the box (see `jj config list --include-defaults
+      # merge-tools`), so no jj config is needed here -- just the binary
+      # on PATH. Use `jj resolve --tool mergiraf [<path>]` to resolve
+      # conflicts. See https://mergiraf.org/usage.html.
+      mergiraf
     ];
 
     myConfig.fjj.enable = true;
