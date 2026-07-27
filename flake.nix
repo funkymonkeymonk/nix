@@ -477,6 +477,9 @@
             overlay-rtk
             overlay-yaks
             overlay-pi-coding-agent
+            cross-platform-desktop-guard
+            cross-platform-entertainment-guard
+            cross-platform-creative-control
             config-validation
             all-role-tests
             module-coverage

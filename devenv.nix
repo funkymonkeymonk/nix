@@ -751,6 +751,9 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.overlay-rtk" \
           ".#checks.''${CURRENT_SYSTEM}.overlay-yaks" \
           ".#checks.''${CURRENT_SYSTEM}.overlay-pi-coding-agent" \
+          ".#checks.''${CURRENT_SYSTEM}.cross-platform-desktop-guard" \
+          ".#checks.''${CURRENT_SYSTEM}.cross-platform-entertainment-guard" \
+          ".#checks.''${CURRENT_SYSTEM}.cross-platform-creative-control" \
           ".#checks.''${CURRENT_SYSTEM}.foundation-options" \
           ".#checks.''${CURRENT_SYSTEM}.config-validation" \
           ".#checks.''${CURRENT_SYSTEM}.all-role-tests" \
