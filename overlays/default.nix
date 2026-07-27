@@ -3,6 +3,7 @@
 {
   rtk = final.callPackage ../packages/rtk {};
   yaks = final.callPackage ../packages/yaks {};
+  jj-hooks = final.callPackage ../packages/jj-hooks {};
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
   mlx-audio = final.callPackage ../packages/mlx-audio {};
