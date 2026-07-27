@@ -1,0 +1,1 @@
+Fix myConfig.opencode.enable never set to true on wweaver despite roles.opencode.enable
