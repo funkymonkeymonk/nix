@@ -19,10 +19,11 @@ cd nix
 nix develop
 
 # Run validation
-devenv tasks run check:all
+devenv tasks run check:lint
+devenv tasks run test:eval
 
-# Apply configuration (macOS)
-darwin-rebuild switch --flake .#<hostname>
+# Apply configuration (macOS or NixOS, platform-aware)
+devenv tasks run system:switch
 ```
 
 > **New here?** See the [Getting Started tutorial](docs/tutorials/getting-started.md).
@@ -38,7 +39,7 @@ darwin-rebuild switch --flake .#<hostname>
 
 ### Common Tasks
 
-- [Add a new machine](docs/how-to/add-machine.md)
+- [Add a new machine](docs/tutorials/setup-your-mac.md)
 - [Add a new role](docs/how-to/add-role.md)
 - [Run CI locally](docs/how-to/run-ci-locally.md)
 - [Set up 1Password signing](docs/how-to/setup-1password.md)
@@ -51,7 +52,9 @@ darwin-rebuild switch --flake .#<hostname>
 │   ├── home-manager/ # User environment, skills
 │   ├── roles/        # Role modules (packages, skills per role)
 │   └── nixos/        # NixOS-specific modules
-├── targets/          # Machine-specific configurations
+├── hosts/            # Lean host files for archetype-composed machines
+├── targets/          # Machine-specific configurations (older pattern)
+├── library/          # System-building abstractions (archetypes, mkDarwinSystem/mkNixosSystem)
 ├── flake.nix         # Main flake with helper functions
 └── docs/             # Documentation (Diataxis)
 ```
@@ -62,7 +65,7 @@ darwin-rebuild switch --flake .#<hostname>
 
 | Role | Description |
 |------|-------------|
-| `base` | Essential tools (always included) |
+| `foundation` | Essential tools (always included) |
 | `developer` | Development environment |
 | `creative` | Media tools |
 | `desktop` | Desktop applications |
@@ -83,8 +86,8 @@ After entering devenv shell:
 | Alias | Command |
 |-------|---------|
 | `s` | `devenv tasks run system:switch` |
-| `q` | `devenv tasks run check:all` |
-| `b` | `devenv tasks run build:all` |
+| `dt <task>` | `devenv tasks run <task>` |
+| `dtl` | `devenv tasks list` |
 
 > **All tasks:** [Tasks reference](docs/reference/tasks.md)
 

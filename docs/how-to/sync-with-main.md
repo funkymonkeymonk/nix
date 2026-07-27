@@ -99,20 +99,11 @@ jj describe -m "chore: Enable auto-sync"
 jj git push
 ```
 
-### 3. Start a Session (for 5-minute sync)
-
-```bash
-jj-workspace-session start
-```
-
-Now your repository will sync every 5 minutes during active sessions.
-
 ## Sync Modes
 
 | Mode | Frequency | Command |
 |------|-----------|---------|
 | Hourly | Every hour | Enabled by `.jj-autosync` |
-| Fast (Session) | Every 5 min | `jj-workspace-session start` |
 | Manual | On demand | `jj-sync` or `jj git fetch` |
 
 ## Troubleshooting

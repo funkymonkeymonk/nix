@@ -3,7 +3,7 @@ title: "Configuration Options Reference"
 description: "Complete reference for myConfig.* configuration options"
 type: reference
 audience: both
-last-reviewed: 2026-04-06
+last-reviewed: 2026-07-27
 ---
 
 # Configuration Options Reference
@@ -50,17 +50,11 @@ config = mkIf config.myConfig.isDarwin {
 
 ## Feature Toggles
 
-### myConfig.development
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | bool | `false` | Enable development tools |
-
 ### myConfig.agent-skills
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enable` | bool | `false` | Enable agent skills management |
+| `enable` | bool | `false` | AI agent skills management (auto-enabled by opencode/claude/pi roles) |
 
 ### myConfig.zellij
 
@@ -74,11 +68,12 @@ config = mkIf config.myConfig.isDarwin {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enable` | bool | `false` | Enable 1Password integration |
+| `enable` | bool | `true` | Enable 1Password integration |
 | `enableGUI` | bool | `true` | Enable 1Password GUI application |
 | `enableSSHAgent` | bool | `true` | Enable 1Password SSH agent |
 | `enableGitSigning` | bool | `true` | Enable git commit signing |
 | `signingKey` | string | `""` | SSH public key for git signing |
+| `sudoPasswordRef` | string | `""` | 1Password reference for the sudo password used by `system:switch` |
 
 ## OpenCode Configuration
 
@@ -88,7 +83,7 @@ config = mkIf config.myConfig.isDarwin {
 |--------|------|---------|-------------|
 | `enable` | bool | `false` | Enable OpenCode configuration |
 | `model` | string or null | `null` | Default LLM model |
-| `theme` | string | `"opencode"` | UI theme |
+| `theme` | string | `"system"` | UI theme |
 | `autoupdate` | bool | `true` | Enable automatic updates |
 | `enableBrowserAgents` | bool | `false` | Enable browser automation agents |
 | `disabledProviders` | list of strings | `[]` | Built-in providers to disable |
@@ -167,8 +162,8 @@ Shared configuration for LLM client tools (OpenCode, Claude Code).
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `serverHost` | string | `"127.0.0.1"` | Default LLM server host |
-| `serverPort` | string | `"11434"` | Default LLM server port |
+| `serverHost` | string | `"127.0.0.1"` | Default LLM server host for client tools |
+| `serverPort` | string | `"8080"` | Default LLM server port for client tools (bifrost gateway) |
 
 ### myConfig.llmClient.rtk
 
@@ -182,9 +177,16 @@ Shared configuration for LLM client tools (OpenCode, Claude Code).
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enabledRoles` | list of strings | `[]` | Enabled roles (set automatically) |
-| `skillsPath` | string | `".config/opencode/skills"` | Skills installation path |
-| `superpowersPath` | path or null | `null` | Path to superpowers input |
+| `enabledRoles` | list of strings | `[]` | Enabled roles for skills filtering (set automatically by `modules/roles/default.nix`) |
+| `skillsPath` | string | `".config/opencode/skills"` | Path relative to home directory where external skill placeholders are installed |
+| `superpowersPath` | path or null | `null` | Path to the superpowers flake input (set automatically from flake inputs) |
+| `externalInputs` | attrs of path | `{}` | External skill repository flake inputs (e.g. `vercel-skills = inputs.vercel-skills`) |
+
+Internal and superpowers skills for opencode/claude-code are installed via
+home-manager's native `programs.opencode.skills` / `programs.claude-code.skills`
+options (see [Skills Reference](skills.md)), not `skillsPath`. `skillsPath`
+only affects the external-skills placeholder mechanism in
+`modules/home-manager/skills/install.nix`.
 
 ## NixOS-Specific Options
 
@@ -212,15 +214,30 @@ Defined in `modules/nixos/`:
 ## Usage Example
 
 ```nix
-"my-machine" = mkDarwinHost {
-  target = ./targets/my-machine;
-  user = mkUser "username" "email@example.com";
-  roles = ["developer"];
-  extraConfig = {
-    opencode.model = "claude-sonnet";
-    onepassword.signingKey = "ssh-ed25519 ...";
-  };
+# In flake.nix
+"my-machine" = libraryLib.mkDarwinSystem {
+  inherit inputs;
+  hostname = "my-machine";
+  extraSpecialArgs = {inherit mkUser;};
+  modules = [
+    ./library/archetypes/base-darwin.nix
+    ./library/archetypes/developer-laptop-darwin.nix
+    ./hosts/my-machine
+  ];
 };
+
+# In hosts/my-machine/default.nix
+{mkUser, ...}: {
+  myConfig =
+    mkUser "username" "email@example.com"
+    // {
+      roles.developer.enable = true;
+      opencode.model = "claude-sonnet";
+      onepassword.signingKey = "ssh-ed25519 ...";
+    };
+}
 ```
 
-The `mkUser` helper sets common defaults. Use `extraConfig` to override settings.
+The `mkUser` helper sets common defaults (`users`, `onepassword.enable = true`,
+default opencode/rtk config). Merge additional `myConfig` values on top in
+your host file to override settings.

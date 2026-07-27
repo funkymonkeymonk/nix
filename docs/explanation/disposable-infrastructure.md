@@ -93,15 +93,15 @@ Keep `zero` as-is. Use disposable configurations for new machines:
 ```nix
 nixosConfigurations = {
   # Existing (artisanal) - keep working
-  zero = mkNixosHost { ... };
-  
+  zero = nixpkgs.lib.nixosSystem { ... };
+
   # New machines (disposable) - pure, no per-machine config needed
   type-desktop = nixpkgs.lib.nixosSystem { ... };
   type-server = nixpkgs.lib.nixosSystem { ... };  # Hostname from DHCP
 };
 ```
 
-**Key difference**: Disposable machines don't need `targets/<hostname>/` directories. The hostname comes from DHCP, not the flake.
+**Key difference**: Disposable machines don't need `targets/<hostname>/` (or `hosts/<hostname>/`) directories. The hostname comes from DHCP, not the flake.
 
 ### Option 2: Full Migration
 

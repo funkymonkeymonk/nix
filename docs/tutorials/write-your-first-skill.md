@@ -94,7 +94,7 @@ The `roles` list controls which machines get this skill. Anyone with `developer`
 
 ```bash
 devenv tasks run check:lint
-devenv tasks run test:darwin-eval
+devenv tasks run test:eval
 ```
 
 Both should pass. If the eval fails, check that:

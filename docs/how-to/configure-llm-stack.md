@@ -10,13 +10,13 @@ This guide shows how to enable the complete LLM stack on a Darwin (macOS) target
 
 ## Prerequisites
 
-- A Darwin target configuration (e.g., `targets/MegamanX/default.nix`)
+- A Darwin host configuration (e.g., `hosts/megamanx/default.nix`)
 - Apple Silicon Mac (M1/M2/M3/M4) with sufficient RAM for model loading
 - ~30GB free disk space for model downloads
 
 ## Enable the Stack
 
-Add the following to your target's `myConfig`:
+Add the following to your host's `myConfig`:
 
 ```nix
 {
@@ -60,7 +60,9 @@ Add the following to your target's `myConfig`:
       enable = true;
       openaiBaseUrl = "http://bifrost.internal/v1";
       defaultModel = "qwen3.6-35b";
-      embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
+      # embeddingModel uses an Ollama-style model name (e.g. from `ollama pull`),
+      # not a HuggingFace/MLX path — Vane calls Ollama's embeddings API directly.
+      embeddingModel = "nomic-embed-text";
     };
 
     # Layer 2: Reverse Proxy

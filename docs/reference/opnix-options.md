@@ -269,15 +269,15 @@ SSH key name in 1Password for git signing.
 
 ---
 
-### `myConfig.onepassword.enableSudo`
+### `myConfig.onepassword.sudoPasswordRef`
 
-Enable 1Password for sudo authentication (NixOS only).
+1Password reference for the sudo password used by the `system:switch` task.
 
 | Property | Value |
 |----------|-------|
-| Type | `boolean` |
-| Default | `true` |
-| Platform | NixOS only |
+| Type | `string` |
+| Default | `""` (falls back to `op://Private/<hostname> Sudo Password/password`) |
+| Example | `"op://Employee/wweaver Sudo Password/password"` |
 
 ---
 
@@ -364,6 +364,5 @@ sudo journalctl -u opnix-secrets
 
 ## See Also
 
-- [Set up 1Password service account](../how-to/setup-opnix-service-account.md) - How-to guide
 - [Getting started with opnix](../tutorials/getting-started-opnix.md) - Tutorial
 - [opnix security architecture](../explanation/opnix-security.md) - Explanation

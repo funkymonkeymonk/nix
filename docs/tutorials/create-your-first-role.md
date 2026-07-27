@@ -75,8 +75,8 @@ Before applying, verify the flake still evaluates cleanly:
 
 ```bash
 devenv tasks run check:lint
-devenv tasks run test:darwin-eval    # macOS
-devenv tasks run test:nixos-eval     # NixOS
+devenv tasks run test:eval          # evaluates configs reachable from your platform
+devenv tasks run test:nixos-eval     # NixOS-specific module error check
 ```
 
 Both should pass. If you see "option myConfig.roles.writing does not exist", double-check Step 2 for a typo.

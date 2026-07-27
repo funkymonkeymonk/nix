@@ -3,7 +3,7 @@ title: "Getting Started with jj"
 description: "Hands-on tutorial for learning the Jujutsu workflow used in this repository"
 type: tutorial
 audience: developer
-last-reviewed: 2026-04-08
+last-reviewed: 2026-07-27
 ---
 
 # Getting Started with jj

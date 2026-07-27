@@ -113,7 +113,7 @@ All checks are wired into `flake.checks` via the `tests/default.nix` combinator,
 
 ## Further Reading
 
-- [Reference: Test Patterns](../reference/test-patterns.md) — Concrete examples of each pattern
+- `tests/test-vllm-mlx.nix` — Concrete example of `lib.evalModules` stubbing pattern
 - nix-unit documentation[^2]
 - Nix flake check reference[^1]
 - NixOS Testing Framework[^5]
