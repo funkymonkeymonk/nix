@@ -5,13 +5,24 @@
 
   # Auto-discover all .nix files under modules/ without IFD.
   # Uses recursive builtins.readDir helper — no need to manually update this list.
+  #
+  # IMPORTANT: build fullPath with `(toString path) + "/${name}"`, NOT
+  # `"${path}/${name}"`. String-interpolating a Nix `path` value forces
+  # Nix's path-to-string coercion, which copies the path into the Nix
+  # store and yields a `/nix/store/HASH-...` string — completely
+  # different from `basePrefix` below (computed once via `toString
+  # modulesDir`, the plain filesystem path). That mismatch meant
+  # `removePrefix basePrefix p` never actually stripped anything, so
+  # `allModules` silently contained full store paths instead of clean
+  # relative paths, and EVERY module always ended up in
+  # `untestedModules` regardless of whether it was actually tested.
   collectNixFiles = path: let
     entries = builtins.readDir path;
   in
     lib.concatLists (
       lib.mapAttrsToList (
         name: type: let
-          fullPath = "${path}/${name}";
+          fullPath = (toString path) + "/${name}";
         in
           if type == "regular" && lib.hasSuffix ".nix" name
           then [fullPath]
@@ -66,20 +77,17 @@
     # common/onepassword.nix was already listed above via onepasswordOptionsTest
     # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
     "common/lib.nix"
-    # Tested via test-services.nix (ollama, vane option tests) and
+    # Tested via test-services.nix (vane option tests) and
     # indirectly via zero/zero-v2 config eval (openclaw shared config +
     # hardening options, imported through flake.nix)
-    "services/ollama/common.nix"
-    "services/ollama/darwin.nix"
-    "services/ollama/nixos.nix"
     "services/openclaw/default.nix"
     "services/vane/darwin.nix"
-    "services/vmlx/darwin.nix"
+    # Tested via test-vllm-mlx.nix (vllm-mlx option defaults, custom
+    # values, and MegamanX target config)
+    "services/vllm-mlx/darwin.nix"
     # Tested via test-stack-integration.nix (LLM stack composition)
     "services/bifrost/darwin.nix"
     "services/caddy/darwin.nix"
-    # Tested via test-vmlx.nix (vMLX option defaults and custom values)
-    # Tested via test-vllm-mlx.nix (vllm-mlx option defaults and custom values)
     # Tested via test-home-manager.nix (opencode, shell aliases)
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"
@@ -95,6 +103,16 @@
 
   # Integer percentage (avoid floating point in Nix)
   coveragePct = (testedCount * 100) / totalCount;
+
+  # Regression guard: coverage must not drop below this baseline.
+  # Raise this number whenever testedModules grows (i.e. whenever you add
+  # a new test that covers a previously-untested module) — this check
+  # exists to catch coverage silently regressing (e.g. a module getting
+  # added without a matching test, or a testedModules entry going stale
+  # after a rename/deletion so it stops actually matching a real file),
+  # not to block progress. It should almost always be equal to the
+  # current coveragePct, or slightly below it as a small buffer.
+  minCoveragePct = 46;
 in {
   moduleCoverageTest =
     pkgs.runCommand "test-module-coverage"
@@ -114,6 +132,19 @@ in {
       ${lib.concatMapStringsSep "\n" (m: ''echo "  [ ] ${m}"'') untestedModules}
       echo ""
 
+      ${
+        if coveragePct >= minCoveragePct
+        then ''echo "Coverage ${toString coveragePct}% meets the minimum of ${toString minCoveragePct}%: OK"''
+        else ''
+          echo "FAIL: Coverage regressed to ${toString coveragePct}%, below the minimum of ${toString minCoveragePct}%."
+          echo "Either add tests for the newly-untested module(s) above, or if this is"
+          echo "expected (e.g. a module was genuinely removed), lower minCoveragePct in"
+          echo "tests/test-coverage.nix to match the new, deliberate baseline."
+          exit 1
+        ''
+      }
+      echo ""
+
       # Write coverage data for CI consumption
       mkdir -p $out
       echo '${builtins.toJSON {
@@ -121,6 +152,7 @@ in {
         tested = testedCount;
         untested = untestedCount;
         percentage = coveragePct;
+        minPercentage = minCoveragePct;
         untestedList = untestedModules;
       }}' > $out/coverage.json
 
