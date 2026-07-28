@@ -1,0 +1,1 @@
+Fix scripts/docs-update.sh generate_* functions - hardcoded stale content, not real generation
