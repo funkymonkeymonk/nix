@@ -14,6 +14,7 @@
   testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
   testServices = import ./test-services.nix {inherit pkgs;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
+  testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
 
@@ -34,6 +35,10 @@
   testLibrary =
     if self != null
     then import ./test-library.nix {inherit pkgs self;}
+    else {};
+  testFjj =
+    if self != null
+    then import ./test-fjj.nix {inherit pkgs self;}
     else {};
 
   # VM tests only available on x86_64-linux (NixOS testing framework)
@@ -150,6 +155,26 @@ in
       if testLibrary != {}
       then testLibrary.mkNixosSystemTest
       else null;
+
+    # fjj (Fast Jujutsu Workflow) home-manager module tests
+    fjj-mirror-root-default =
+      if testFjj != {}
+      then testFjj.fjjMirrorRootDefaultTest
+      else null;
+    fjj-custom-mirror-root =
+      if testFjj != {}
+      then testFjj.fjjCustomMirrorRootTest
+      else null;
+    fjj-package-and-files =
+      if testFjj != {}
+      then testFjj.fjjPackageAndFilesTest
+      else null;
+
+    # agent-user module tests
+    agent-user-options = testAgentUser.agentUserOptionsTest;
+    agent-user-disabled = testAgentUser.agentUserDisabledTest;
+    agent-user-enabled = testAgentUser.agentUserEnabledTest;
+    agent-user-custom = testAgentUser.agentUserCustomTest;
 
     # vMLX module tests
 
