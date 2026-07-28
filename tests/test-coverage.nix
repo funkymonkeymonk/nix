@@ -45,6 +45,11 @@
     "common/options.nix"
     # Tested via test-packages.nix onepasswordOptionsTest
     "common/onepassword.nix"
+    # Tested via test-agent-user.nix (option defaults, disabled/enabled/custom states)
+    "common/agent-user.nix"
+    # Tested via test-fjj.nix (platform-dependent mirrorRoot default,
+    # custom override, home.packages/home.file/home.activation wiring)
+    "home-manager/fjj.nix"
     # Tested via configValidationTest (imports roles/default.nix)
     "roles/default.nix"
     # All role modules tested via test-roles.nix (evalWithRole imports roles/default.nix
@@ -61,11 +66,16 @@
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"
+    # Tested via test-zero.nix (source-text assertions on opnix secrets
+    # wiring, no silent-warning behavior, and env var absence)
+    "roles/tailscale.nix"
     # Tested via test-email.nix (email-agent and email-backup module tests)
     "roles/assistant.nix"
     "roles/email-backup.nix"
     "home-manager/email-agent.nix"
     "home-manager/email-backup.nix"
+    # Tested via test-llm-client.nix (env var wiring per AI agent role)
+    "common/llm-client.nix"
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
     "common/users.nix"
@@ -103,7 +113,6 @@
 
   # Integer percentage (avoid floating point in Nix)
   coveragePct = (testedCount * 100) / totalCount;
-
   # Regression guard: coverage must not drop below this baseline.
   # Raise this number whenever testedModules grows (i.e. whenever you add
   # a new test that covers a previously-untested module) — this check
@@ -112,7 +121,7 @@
   # after a rename/deletion so it stops actually matching a real file),
   # not to block progress. It should almost always be equal to the
   # current coveragePct, or slightly below it as a small buffer.
-  minCoveragePct = 46;
+  minCoveragePct = 52;
 in {
   moduleCoverageTest =
     pkgs.runCommand "test-module-coverage"

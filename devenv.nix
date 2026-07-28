@@ -798,6 +798,13 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.llm-client-no-ai-roles" \
           ".#checks.''${CURRENT_SYSTEM}.typed-attrs-options" \
           ".#checks.''${CURRENT_SYSTEM}.module-coverage" \
+          ".#checks.''${CURRENT_SYSTEM}.agent-user-options" \
+          ".#checks.''${CURRENT_SYSTEM}.agent-user-disabled" \
+          ".#checks.''${CURRENT_SYSTEM}.agent-user-enabled" \
+          ".#checks.''${CURRENT_SYSTEM}.agent-user-custom" \
+          ".#checks.''${CURRENT_SYSTEM}.fjj-mirror-root-default" \
+          ".#checks.''${CURRENT_SYSTEM}.fjj-custom-mirror-root" \
+          ".#checks.''${CURRENT_SYSTEM}.fjj-package-and-files" \
           --no-link --keep-going --print-build-logs
         BUILD_RESULT=$?
 

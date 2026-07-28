@@ -518,6 +518,13 @@
             phase2-cattle
             mk-darwin-system
             mk-nixos-system
+            fjj-mirror-root-default
+            fjj-custom-mirror-root
+            fjj-package-and-files
+            agent-user-options
+            agent-user-disabled
+            agent-user-enabled
+            agent-user-custom
             claude-code-options
             claude-code-custom-options
             pi-options
