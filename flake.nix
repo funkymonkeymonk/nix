@@ -68,54 +68,34 @@
     self,
     nix-darwin,
     nixpkgs,
-    nixpkgs-stable,
     home-manager,
     nix-homebrew,
     opnix,
     ...
   } @ inputs: let
-    # Base configuration shared by all systems
+    # Base configuration shared by all systems built via raw
+    # nix-darwin.lib.darwinSystem / nixpkgs.lib.nixosSystem calls below
+    # (MegamanX, zero, type-nas). Machines built via library/lib/mk-system.nix's
+    # mkDarwinSystem/mkNixosSystem get the same core nixpkgs.config +
+    # overlays from library/lib/nixpkgs-config.nix directly -- this
+    # `configuration` binding layers a couple of extra overlays
+    # (himalaya-tui, and an explicit claude-code allowUnfreePredicate,
+    # currently redundant since allowUnfree = true already permits it)
+    # on top of that shared module.
     configuration = _: {
       system.configurationRevision = self.rev or self.dirtyRev or null;
       nixpkgs = {
         config = {
-          allowUnfree = true;
           allowUnfreePredicate = pkg:
             builtins.elem (nixpkgs.lib.getName pkg) [
               "claude-code"
             ];
-          permittedInsecurePackages = [
-            "electron-39.8.10"
-            "google-chrome-144.0.7559.97"
-            "olm-3.2.16"
-          ];
-          allowInsecurePredicate = attrs: let
-            pname = attrs.pname or attrs.name or "";
-            fullName = "${pname}-${attrs.version or ""}";
-          in
-            pname
-            == "openclaw"
-            || builtins.elem fullName ["electron-39.8.10" "google-chrome-144.0.7559.97" "olm-3.2.16"];
         };
         overlays = [
-          (final: _prev: {
-            stable = import nixpkgs-stable {
-              inherit (final) system config;
-            };
-          })
-          # Use devenv 2.x from the cachix/devenv flake
-          (final: _prev: {
-            inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
-          })
-          # zellij-pane-tracker WASM plugin from its own flake
-          (final: _prev: {
-            zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
-          })
           # himalaya-tui from upstream Pimalaya flake
           (final: _prev: {
             himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
           })
-          (import ./overlays {inherit inputs;})
         ];
       };
     };
@@ -150,6 +130,7 @@
     # Library helpers from the new modular library
     inherit (nixpkgs) lib;
     libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
+    mkNixpkgsConfigModule = import ./library/lib/nixpkgs-config.nix;
   in {
     packages = forAllSystems (
       system: let
@@ -251,6 +232,7 @@
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          (mkNixpkgsConfigModule {inherit inputs;})
           ./library/archetypes/base-darwin.nix
           nix-homebrew.darwinModules.nix-homebrew
           ./library/archetypes/workstation-darwin.nix
@@ -286,6 +268,7 @@
         specialArgs = {inherit inputs mkUser;};
         modules = [
           configuration
+          (mkNixpkgsConfigModule {inherit inputs;})
           opnix.nixosModules.default
           ./modules
           ./modules/nixos/base.nix
@@ -323,6 +306,7 @@
         specialArgs = inputs // {inherit inputs;};
         modules = [
           configuration
+          (mkNixpkgsConfigModule {inherit inputs;})
           ./modules
           ./modules/nixos/base.nix
           home-manager.nixosModules.home-manager

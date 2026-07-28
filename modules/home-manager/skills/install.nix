@@ -1,8 +1,20 @@
-# Skills installation module
-# Filters skills by enabled roles and installs them to ~/.config/opencode/skills/
-# Also installs bundled commands to ~/.config/opencode/commands/
-# Skills with autoLoad = true are concatenated into an instructions file for each agent
-# External skills (source.type = "external") are installed via npx skills on activation
+# External skills activation module
+#
+# Historically this module also installed internal + superpowers skills
+# as home.file entries for opencode. That responsibility has moved to each
+# agent's own home-manager module (opencode.nix, claude-code.nix,
+# pi-coding-agent.nix), which now uses home-manager's native
+# programs.<agent>.skills option (or, for pi, its own home.file wiring) via
+# the shared modules/home-manager/lib.nix#mkFullSkillDirs helper. Leaving
+# that logic here too would write the exact same target paths twice and
+# trip home-manager's "Conflicting managed target files" assertion.
+#
+# What's left here is genuinely irreplaceable: skills with
+# source.type = "external" are fetched over the network AT ACTIVATION TIME
+# via `npx skills add`, which cannot be expressed as a static Nix value.
+# This module still owns that mechanism, writing placeholder SKILL.md files
+# (replaced by the real content when the activation script runs) and the
+# activation script itself.
 {
   osConfig,
   lib,
@@ -16,12 +28,8 @@
   # Get all enabled roles from config
   enabledRoles = cfg.enabledRoles or [];
 
-  # Get superpowers path from flake input
-  superpowersPath = cfg.superpowersPath or null;
-
   # Use default path if not specified (relative to home directory for home.file)
   skillsPath = cfg.skillsPath or ".config/opencode/skills";
-  commandsPath = cfg.commandsPath or ".config/opencode/commands";
 
   # Filter skills that match any enabled role
   skillsForRoles = roles:
@@ -46,41 +54,6 @@
     inherit name;
     value = manifest.${name};
   }) (lib.unique allSkillNames));
-
-  # Filter auto-loaded skills (must be both enabled AND have autoLoad = true)
-  autoLoadSkills =
-    lib.filterAttrs (
-      _name: skill: skill.autoLoad or false
-    )
-    allSkills;
-
-  # Read and concatenate SKILL.md contents for auto-loaded skills
-  autoLoadContent = lib.concatStringsSep "\n\n---\n\n" (lib.mapAttrsToList (
-      name: skill: let
-        skillMd =
-          if skill.source.type == "internal"
-          then let
-            skillPath = skill.source.path + "/SKILL.md";
-          in
-            if builtins.pathExists skillPath
-            then builtins.readFile skillPath
-            else "# ${name}\n\n${skill.description}"
-          else if skill.source.type == "superpowers" && superpowersPath != null
-          then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
-          else "# ${name}\n\n${skill.description}";
-      in
-        skillMd
-    )
-    autoLoadSkills);
-
-  hasAutoLoadSkills = autoLoadSkills != {};
-
-  # Generate the auto-loaded skills instruction file
-  autoLoadFile = lib.optionalAttrs hasAutoLoadSkills {
-    "${skillsPath}/auto-loaded.md" = {
-      text = autoLoadContent;
-    };
-  };
 
   # --- External skill activation via npx skills ---
 
@@ -127,145 +100,44 @@
   # Build the activation script body
   externalActivationScript = lib.concatStringsSep "\n" externalInstallCommands;
 
-  # --- Generate home.file entries for each skill ---
-  skillFiles =
+  # Placeholder files for external skills only. The real content is
+  # installed by the home.activation script via npx skills; this note
+  # exists so `.../skills/<name>/SKILL.md` is discoverable before the
+  # first activation runs.
+  externalSkillFiles =
     lib.mapAttrs' (
-      name: skill: let
-        skillDir = "${skillsPath}/${name}";
-      in
-        if skill.source.type == "internal"
-        then
-          # Internal: link the directory if it exists, fall back to placeholder
-          let
-            src = skill.source.path;
-          in
-            if builtins.pathExists src
-            then
-              lib.nameValuePair skillDir {
-                source = src;
-                recursive = true;
-              }
-            else
-              lib.nameValuePair "${skillDir}/SKILL.md" {
-                text = "# ${name}\n\n${skill.description}";
-              }
-        else if skill.source.type == "superpowers" && superpowersPath != null
-        then
-          # Superpowers: link from the flake input
-          lib.nameValuePair skillDir {
-            source = "${superpowersPath}/skills/${skill.source.skillName}";
-            recursive = true;
-          }
-        else
-          # External: write a placeholder noting the skill will be installed at activation
-          # The real content is installed by the home.activation script via npx skills
-          lib.nameValuePair "${skillDir}/SKILL.md" {
-            force = true;
-            text = ''
-              # ${name}
+      name: skill:
+        lib.nameValuePair "${skillsPath}/${name}/SKILL.md" {
+          force = true;
+          text = ''
+            # ${name}
 
-              ${skill.description}
+            ${skill.description}
 
-              ## Source
+            ## Source
 
-              External skill from: ${skill.source.url or "unknown"}
+            External skill from: ${skill.source.url or "unknown"}
 
-              **Note**: This skill is installed at system activation via `npx skills`.
-              The placeholder will be replaced when the activation script runs.
-            '';
-          }
-    )
-    allSkills;
-
-  # Generate home.file entries for commands bundled with skills
-  commandFiles = let
-    # Get all skills that have commands defined
-    skillsWithCommands = lib.filterAttrs (_name: skill: skill ? commands) allSkills;
-
-    # Generate file entries for each command in each skill
-    commandEntries = lib.concatLists (lib.mapAttrsToList (
-        _skillName: skill:
-          map (cmdName: {
-            name = "${commandsPath}/${cmdName}.md";
-            value = {
-              source = "${skill.commands.path}/${cmdName}.md";
-            };
-          })
-          skill.commands.list
-      )
-      skillsWithCommands);
-  in
-    lib.listToAttrs commandEntries;
-
-  # Generate README with installed skills info
-  readmeFile = {
-    "${skillsPath}/README.md" = {
-      text = ''
-        # OpenCode Skills
-
-        Skills installed based on enabled roles.
-
-        ## Configuration
-
-        Enabled roles: ${lib.concatStringsSep ", " enabledRoles}
-
-        ## Installed Skills
-
-        ${lib.concatStringsSep "\n" (lib.mapAttrsToList (
-            name: skill: "- **${name}**: ${skill.description} (roles: ${lib.concatStringsSep ", " skill.roles})"
-          )
-          allSkills)}
-
-        ## Installed Commands
-
-        ${
-          let
-            skillsWithCommands = lib.filterAttrs (_name: skill: skill ? commands) allSkills;
-            commandList = lib.concatLists (lib.mapAttrsToList (
-                skillName: skill:
-                  map (cmd: "- **/${cmd}** (from ${skillName})") skill.commands.list
-              )
-              skillsWithCommands);
-          in
-            if commandList == []
-            then "_No commands installed_"
-            else lib.concatStringsSep "\n" commandList
+            **Note**: This skill is installed at system activation via `npx skills`.
+            The placeholder will be replaced when the activation script runs.
+          '';
         }
-
-        ## Adding Skills
-
-        1. Add skill to `modules/home-manager/skills/manifest.nix`
-        2. Assign to relevant role(s)
-        3. Rebuild: `darwin-rebuild switch` or `nixos-rebuild switch`
-
-        ## External Skills
-
-        To import from external repos, add to manifest with:
-        ```nix
-        source = {
-          type = "external";
-          url = "github:owner/repo//path/to/skill.md";
-        };
-        ```
-      '';
-    };
-  };
+    )
+    externalSkills;
 in {
-  config = lib.mkIf (enabledRoles != []) {
-    home.file = skillFiles // commandFiles // readmeFile // autoLoadFile;
+  config = lib.mkIf hasExternalSkills {
+    home.file = externalSkillFiles;
 
-    # Ensure nodejs is available for running npx skills (only when external skills present)
-    home.packages = lib.mkIf hasExternalSkills [pkgs.nodejs];
+    # Ensure nodejs is available for running npx skills
+    home.packages = [pkgs.nodejs];
 
     # Install external skills via npx skills on activation
     # This runs after home-manager writes all files (writeBoundary)
     # npx skills add is idempotent: re-running updates existing skills safely
-    home.activation.installExternalSkills = lib.mkIf hasExternalSkills (
-      lib.hm.dag.entryAfter ["writeBoundary"] ''
-        echo "Installing external skills via npx skills..."
-        ${externalActivationScript}
-        echo "External skills installation complete."
-      ''
-    );
+    home.activation.installExternalSkills = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      echo "Installing external skills via npx skills..."
+      ${externalActivationScript}
+      echo "External skills installation complete."
+    '';
   };
 }
