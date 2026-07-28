@@ -7,6 +7,8 @@
 }: let
   # Test utilities
   testPackages = import ./test-packages.nix {inherit pkgs;};
+  testOverlayPackages = import ./test-overlay-packages.nix {inherit pkgs;};
+  testCrossPlatformGuards = import ./test-cross-platform-guards.nix {inherit pkgs;};
   testRoles = import ./test-roles.nix {inherit pkgs;};
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
   testSkills = import ./test-skills.nix {inherit pkgs;};
@@ -52,6 +54,16 @@ in
     # Package availability tests
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
+
+    # Overlay package build tests (rtk, yaks, pi-coding-agent)
+    overlay-rtk = testOverlayPackages.rtkPackageTest;
+    overlay-yaks = testOverlayPackages.yaksPackageTest;
+    overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
+
+    # Cross-platform option guard tests (Darwin vs Linux branches in role modules)
+    cross-platform-desktop-guard = testCrossPlatformGuards.crossPlatformDesktopGuardTest;
+    cross-platform-entertainment-guard = testCrossPlatformGuards.crossPlatformEntertainmentGuardTest;
+    cross-platform-creative-control = testCrossPlatformGuards.crossPlatformCreativeControlTest;
 
     # Configuration validation tests
     config-validation = testPackages.configValidationTest;
