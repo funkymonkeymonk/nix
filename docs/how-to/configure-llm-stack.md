@@ -199,7 +199,7 @@ sudo ./scripts/restart-stack.sh
 Check the vllm-mlx log for HuggingFace errors:
 
 ```bash
-tail -f /tmp/vllm-mlx.log
+tail -f ~/Library/Logs/vllm-mlx/server.log
 ```
 
 Ensure you have sufficient disk space and network connectivity.
@@ -209,7 +209,7 @@ Ensure you have sufficient disk space and network connectivity.
 Check the error log:
 
 ```bash
-cat /tmp/vllm-mlx.err      # vllm-mlx errors
+cat ~/Library/Logs/vllm-mlx/server.error.log # vllm-mlx errors
 cat /tmp/bifrost.error.log # Bifrost errors
 cat /tmp/caddy.error.log   # Caddy errors
 ```

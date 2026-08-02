@@ -504,6 +504,7 @@
             fjj-options
             fjj-custom-options
             vllm-mlx-options
+            vllm-mlx-launchd
             megamanx-vllm
             llm-client-opencode
             llm-client-claude
