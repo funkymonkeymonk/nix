@@ -1,24 +1,11 @@
-# vllm-mlx inference server option tests
-# Validates option defaults and custom values
+# vllm-mlx inference server tests
+# Validates option defaults, custom values, launchd daemon wiring, and the
+# MegamanX target's Gemma 4 configuration.
 {pkgs, ...}: let
   inherit (pkgs) lib;
+  stubs = import ./stubs.nix {inherit pkgs;};
 
-  stubModules = [
-    ../modules/common/options.nix
-    ../modules/common/llm-client.nix
-    ../modules/common/charm.nix
-    ../modules/common/syncthing.nix
-    ../modules/common/zellij.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-    }
-    {
-      config._module.args = {inherit pkgs;};
-    }
-  ];
+  vllmMlxModule = ../modules/services/vllm-mlx/darwin.nix;
 
   # Stub mkUser matching the flake.nix helper shape
   mkUserStub = name: email: {
@@ -40,58 +27,15 @@
   };
   stubInputs = {superpowers = "/stub/superpowers";};
 
-  # Evaluate the actual MegamanX target to verify its vllm-mlx config
-  megamanxVllmMlx =
-    (lib.evalModules {
-      modules = [
-        ../modules/common/options.nix
-        (import ../hosts/megamanx/default.nix)
-        {
-          options.nixpkgs.hostPlatform = lib.mkOption {
-            type = lib.types.anything;
-            default = {inherit (pkgs.stdenv.hostPlatform) system;};
-          };
-          options.system.stateVersion = lib.mkOption {
-            type = lib.types.anything;
-            default = 4;
-          };
-          options.system.primaryUser = lib.mkOption {
-            type = lib.types.anything;
-            default = "monkey";
-          };
-          options.system.activationScripts = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          # Stubs for nix-darwin options imported by workstation archetype
-          options.launchd = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-          options.homebrew = lib.mkOption {
-            type = lib.types.anything;
-            default = {};
-          };
-        }
-        {
-          config._module.args = {
-            inherit pkgs;
-            mkUser = mkUserStub;
-            inputs = stubInputs;
-          };
-        }
-      ];
-    }).config.myConfig.vllmMlx;
-
   vllmMlxDefaults =
     (lib.evalModules {
-      modules = stubModules;
+      modules = stubs.vllmMlx;
     }).config.myConfig.vllmMlx;
 
   vllmMlxCustom =
     (lib.evalModules {
       modules =
-        stubModules
+        stubs.vllmMlx
         ++ [
           {
             config.myConfig.vllmMlx = {
@@ -111,12 +55,72 @@
               enableAutoToolChoice = true;
               toolCallParser = "gemma4";
               reasoningParser = "gemma4";
+              lockAdmission = "fail_fast";
               timeout = 300;
               logLevel = "DEBUG";
             };
           }
         ];
     }).config.myConfig.vllmMlx;
+
+  # Evaluate the launchd wiring for an enabled server. `extra` is merged into
+  # myConfig.vllmMlx so tests can flip individual knobs.
+  mkLaunchdEval = extra:
+    (lib.evalModules {
+      modules =
+        stubs.vllmMlx
+        ++ [
+          {
+            config.myConfig.users = [{name = "monkey";}];
+            config.myConfig.vllmMlx =
+              {
+                enable = true;
+                models.test-model.path = "mlx-community/test-model-4bit";
+              }
+              // extra;
+          }
+        ];
+    })
+    .config;
+
+  launchdDefault = mkLaunchdEval {};
+  launchdFailFast = mkLaunchdEval {lockAdmission = "fail_fast";};
+
+  # Evaluate the actual MegamanX target to verify its vllm-mlx config
+  megamanxEval = lib.evalModules {
+    modules =
+      stubs.base
+      ++ stubs.darwinService
+      ++ stubs.onepassword
+      ++ [
+        vllmMlxModule
+        ../modules/services/bifrost/darwin.nix
+        ../modules/services/vane/darwin.nix
+        ../modules/services/searxng/darwin.nix
+        ../modules/services/caddy/darwin.nix
+        {
+          options.system.stateVersion = lib.mkOption {
+            type = lib.types.anything;
+            default = 4;
+          };
+          options.system.primaryUser = lib.mkOption {
+            type = lib.types.anything;
+            default = "monkey";
+          };
+        }
+        (import ../hosts/megamanx/default.nix)
+        {
+          # pkgs comes from stubs.base (moduleArgsStub); only add what the
+          # host file needs beyond it.
+          config._module.args = {
+            mkUser = mkUserStub;
+            inputs = stubInputs;
+          };
+        }
+      ];
+  };
+  megamanxVllmMlx = megamanxEval.config.myConfig.vllmMlx;
+  megamanxVllmDaemon = megamanxEval.config.launchd.daemons."vllm-mlx".serviceConfig;
 in {
   vllmMlxOptionsTest =
     pkgs.runCommand "test-vllm-mlx-options"
@@ -170,6 +174,12 @@ in {
         if vllmMlxDefaults.reasoningParser == null
         then ''echo "  reasoningParser default = null: OK"''
         else ''echo "  reasoningParser should default to null!"; exit 1''
+      }
+
+      ${
+        if vllmMlxDefaults.lockAdmission == "wait"
+        then ''echo "  lockAdmission default = wait: OK"''
+        else ''echo "  lockAdmission should default to wait (queue instead of 503)!"; exit 1''
       }
 
       ${
@@ -235,12 +245,75 @@ in {
         else ''echo "  reasoningParser should be gemma4!"; exit 1''
       }
 
+      ${
+        if vllmMlxCustom.lockAdmission == "fail_fast"
+        then ''echo "  lockAdmission = fail_fast: OK"''
+        else ''echo "  lockAdmission should be fail_fast!"; exit 1''
+      }
+
       echo ""
       echo "All vllm-mlx option tests passed"
       touch $out
     '';
 
+  # Verify the launchd daemon wiring: lock-admission env var and durable log
+  # paths (not /tmp, which macOS cleans every 3 days).
+  vllmMlxLaunchdTest = pkgs.runCommand "test-vllm-mlx-launchd" {} ''
+    echo "=== Testing vllm-mlx launchd Wiring ==="
+
+    ${
+      let
+        env = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig.EnvironmentVariables;
+      in
+        if env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "wait"
+        then ''echo "  lock admission env = wait: OK"''
+        else ''echo "  FAIL: VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION should be wait, got ${env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION or "(unset)"}"; exit 1''
+    }
+    ${
+      let
+        env = launchdFailFast.launchd.daemons."vllm-mlx".serviceConfig.EnvironmentVariables;
+      in
+        if env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "fail_fast"
+        then ''echo "  lock admission env = fail_fast (opt-out): OK"''
+        else ''echo "  FAIL: VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION should be fail_fast, got ${env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION or "(unset)"}"; exit 1''
+    }
+    ${
+      let
+        sc = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig;
+      in
+        if sc.StandardOutPath == "/Users/monkey/Library/Logs/vllm-mlx/server.log"
+        then ''echo "  server stdout log durable: OK"''
+        else ''echo "  FAIL: StandardOutPath should be /Users/monkey/Library/Logs/vllm-mlx/server.log, got ${sc.StandardOutPath}"; exit 1''
+    }
+    ${
+      let
+        sc = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig;
+      in
+        if sc.StandardErrorPath == "/Users/monkey/Library/Logs/vllm-mlx/server.error.log"
+        then ''echo "  server stderr log durable: OK"''
+        else ''echo "  FAIL: StandardErrorPath should be /Users/monkey/Library/Logs/vllm-mlx/server.error.log, got ${sc.StandardErrorPath}"; exit 1''
+    }
+    ${
+      let
+        sc = launchdDefault.launchd.daemons."vllm-mlx-warmup".serviceConfig;
+      in
+        if sc.StandardOutPath == "/Users/monkey/Library/Logs/vllm-mlx/warmup.log" && sc.StandardErrorPath == "/Users/monkey/Library/Logs/vllm-mlx/warmup.error.log"
+        then ''echo "  warmup logs durable: OK"''
+        else ''echo "  FAIL: warmup logs should live in /Users/monkey/Library/Logs/vllm-mlx/"; exit 1''
+    }
+    ${
+      if launchdDefault.myConfig.serviceRegistry.vllm-mlx.errorLog == "/Users/monkey/Library/Logs/vllm-mlx/server.error.log"
+      then ''echo "  serviceRegistry errorLog durable: OK"''
+      else ''echo "  FAIL: serviceRegistry errorLog should point at the durable log path"; exit 1''
+    }
+
+    echo ""
+    echo "All vllm-mlx launchd tests passed"
+    touch $out
+  '';
+
   # Verify the actual MegamanX target config targets Gemma 4 with gemma4 parsers
+  # and that its serving limits line up with the pi client's expectations.
   megamanxVllmMlxTest = pkgs.runCommand "test-megamanx-vllm" {} ''
     echo "=== Testing MegamanX vllm-mlx Configuration ==="
     echo ""
@@ -279,14 +352,23 @@ in {
       else ''echo "  FAIL: reasoningParser should be gemma4, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.maxKvSize == 65536
-      then ''echo "  maxKvSize = 65536: OK"''
-      else ''echo "  FAIL: maxKvSize should be 65536, got ${toString megamanxVllmMlx.maxKvSize}"; exit 1''
+      # pi advertises maxTokens = 131072 for the bifrost model; the server KV
+      # cap must match or long sessions silently rotate out the system prompt
+      # and tool definitions.
+      if megamanxVllmMlx.maxKvSize == 131072
+      then ''echo "  maxKvSize = 131072 (matches pi maxTokens): OK"''
+      else ''echo "  FAIL: maxKvSize should be 131072 to match pi maxTokens, got ${toString megamanxVllmMlx.maxKvSize}"; exit 1''
     }
     ${
       if megamanxVllmMlx.memoryBudgetGb == 90
       then ''echo "  memoryBudgetGb = 90: OK"''
       else ''echo "  FAIL: memoryBudgetGb should be 90, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
+    }
+    ${
+      # pi's provider timeout is 600s; the server must not kill requests first.
+      if megamanxVllmMlx.timeout == 600
+      then ''echo "  timeout = 600 (matches pi provider timeout): OK"''
+      else ''echo "  FAIL: timeout should be 600 to match pi provider timeoutMs, got ${toString megamanxVllmMlx.timeout}"; exit 1''
     }
     ${
       if megamanxVllmMlx.enableAutoToolChoice
@@ -297,6 +379,13 @@ in {
       if megamanxVllmMlx.enable
       then ''echo "  enable = true: OK"''
       else ''echo "  FAIL: vllmMlx should be enabled"; exit 1''
+    }
+    ${
+      # Queued admission is the whole fix for the 503 text_generation_busy
+      # storms that broke agent tool use — assert it on the real target.
+      if megamanxVllmDaemon.EnvironmentVariables.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "wait"
+      then ''echo "  daemon lock admission = wait: OK"''
+      else ''echo "  FAIL: daemon should queue concurrent requests (VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION=wait)"; exit 1''
     }
     echo ""
     echo "All MegamanX vllm-mlx tests passed"
