@@ -253,7 +253,7 @@ Use `restart-stack.sh` which properly frees ports between stop and start cycles.
 Check the service log:
 
 ```bash
-cat /tmp/vllm-mlx.err     # vllm-mlx errors
+cat ~/Library/Logs/vllm-mlx/server.error.log # vllm-mlx errors
 cat /tmp/bifrost.error.log  # Bifrost errors
 cat /tmp/caddy.error.log    # Caddy errors
 ```
@@ -263,5 +263,5 @@ cat /tmp/caddy.error.log    # Caddy errors
 vllm-mlx downloads models from HuggingFace on first use. Check download progress:
 
 ```bash
-cat /tmp/vllm-mlx.log | grep -i "loading\|download\|error"
+cat ~/Library/Logs/vllm-mlx/server.log | grep -i "loading\|download\|error"
 ```
