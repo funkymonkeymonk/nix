@@ -29,13 +29,21 @@ with lib; let
     weight = 1.0;
   };
 
+  mkNetworkConfig = upstream: {
+    allow_private_network = upstream.allowPrivateNetwork;
+    default_request_timeout_in_seconds = upstream.requestTimeout;
+    max_retries = upstream.maxRetries;
+    retry_backoff_initial = "${toString upstream.retryBackoffInitialMs}ms";
+    retry_backoff_max = "${toString upstream.retryBackoffMaxMs}ms";
+  };
+
   mkOpenaiProvider = upstreams: {
     keys = map mkOpenaiProviderKey upstreams;
-    network_config = {
-      base_url = (builtins.head upstreams).url;
-      allow_private_network = (builtins.head upstreams).allowPrivateNetwork;
-      default_request_timeout_in_seconds = (builtins.head upstreams).requestTimeout;
-    };
+    network_config =
+      (mkNetworkConfig (builtins.head upstreams))
+      // {
+        base_url = (builtins.head upstreams).url;
+      };
     custom_provider_config = {
       base_provider_type = "openai";
       allowed_requests = {
@@ -69,10 +77,7 @@ with lib; let
     firstUpstream = builtins.head upstreams;
   in {
     keys = upstreamKeys;
-    network_config = {
-      allow_private_network = firstUpstream.allowPrivateNetwork;
-      default_request_timeout_in_seconds = firstUpstream.requestTimeout;
-    };
+    network_config = mkNetworkConfig firstUpstream;
   };
 
   providers = let
@@ -177,6 +182,21 @@ in {
             type = types.ints.unsigned;
             default = 120;
             description = "Default request timeout in seconds";
+          };
+          maxRetries = mkOption {
+            type = types.ints.unsigned;
+            default = 0;
+            description = "Maximum retry attempts for retryable upstream errors (e.g. 503 from a busy local engine). Bifrost's stock default is 0 — a single attempt — so transient failures fail the whole request. Local agent gateways should set 2-3.";
+          };
+          retryBackoffInitialMs = mkOption {
+            type = types.ints.positive;
+            default = 500;
+            description = "Initial retry backoff in milliseconds (matches Bifrost's upstream default of 500ms). Retries back off exponentially up to retryBackoffMaxMs.";
+          };
+          retryBackoffMaxMs = mkOption {
+            type = types.ints.positive;
+            default = 5000;
+            description = "Maximum retry backoff in milliseconds (matches Bifrost's upstream default of 5s).";
           };
           models = mkOption {
             type = types.listOf types.str;
