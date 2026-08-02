@@ -79,6 +79,10 @@
             url = "http://localhost:8300";
             type = "openai";
             requestTimeout = 120;
+            # Retry transient 503s (busy engine, model-swap preemption) so a
+            # single busy window doesn't fail an agent turn. Bifrost's stock
+            # default is 0 retries.
+            maxRetries = 3;
             models = [
               "gemma4-31b"
               "gemma4-e4b"

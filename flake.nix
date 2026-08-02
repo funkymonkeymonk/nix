@@ -532,6 +532,7 @@
             pi-custom-options
             bifrost-options
             bifrost-custom-options
+            bifrost-retry-config
             caddy-options
             caddy-custom-options
             searxng-options
