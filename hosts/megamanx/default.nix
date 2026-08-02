@@ -49,8 +49,13 @@
         enableAutoToolChoice = true;
         toolCallParser = "gemma4";
         reasoningParser = "gemma4";
-        maxKvSize = 65536;
-        timeout = 120;
+        # Must match pi's maxTokens for the bifrost model (131072) — a lower
+        # cap silently rotates the system prompt and tool definitions out of
+        # the KV cache in long agent sessions.
+        maxKvSize = 131072;
+        # Must be >= pi's provider.timeoutMs (600s); queued lock admission
+        # plus long 31B generations would otherwise be killed server-side.
+        timeout = 600;
         logLevel = "INFO";
       };
 

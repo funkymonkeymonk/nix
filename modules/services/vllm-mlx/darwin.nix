@@ -15,6 +15,13 @@
   darwinHomeDir = commonLib.darwinHomeDir config;
   appDir = "${darwinHomeDir}/.config/vllm-mlx";
 
+  # Durable log location. /tmp is cleaned by macOS every 3 days; launchd
+  # keeps writing to the deleted inode and all server output is lost.
+  logDir =
+    if cfg.logDir != null
+    then cfg.logDir
+    else "${darwinHomeDir}/Library/Logs/vllm-mlx";
+
   # Resolve a model path to either a Nix store path (if a matching overlay
   # package exists) or the raw HuggingFace ID for runtime download.
   # Model overlay names are derived from the HuggingFace path segment
@@ -71,6 +78,7 @@
 
     APP_DIR="${appDir}"
     mkdir -p "$APP_DIR"
+    mkdir -p ${logDir}
 
     # Copy registry into writable location
     cat ${registryYaml} > "$APP_DIR/registry.yaml"
@@ -218,6 +226,18 @@ in {
       description = "Reasoning parser for extracting thinking/reasoning content from model output. 'gemma4' for Gemma 4 models.";
     };
 
+    lockAdmission = lib.mkOption {
+      type = lib.types.enum ["wait" "fail_fast"];
+      default = "wait";
+      description = "Admission policy when a request arrives while another generation holds the serialized engine lock. 'wait' queues requests (correct for a single-user local server behind agent traffic, where parallel requests are normal); 'fail_fast' rejects with 503 text_generation_busy. Maps to VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION.";
+    };
+
+    logDir = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Directory for launchd stdout/stderr logs. Defaults to ~/Library/Logs/vllm-mlx for the primary user. Do not use /tmp: macOS cleans it every 3 days and launchd keeps writing to the deleted inode, silently discarding all server logs.";
+    };
+
     maxKvSize = lib.mkOption {
       type = lib.types.nullOr lib.types.ints.positive;
       default = null;
@@ -245,12 +265,13 @@ in {
         RunAtLoad = true;
         KeepAlive = true;
         ExitTimeOut = 30;
-        StandardOutPath = "/tmp/vllm-mlx.log";
-        StandardErrorPath = "/tmp/vllm-mlx.err";
+        StandardOutPath = "${logDir}/server.log";
+        StandardErrorPath = "${logDir}/server.error.log";
         UserName = primaryUser;
         EnvironmentVariables = {
           HOME = darwinHomeDir;
           PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
+          VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION = cfg.lockAdmission;
         };
       };
     };
@@ -262,8 +283,8 @@ in {
         RunAtLoad = true;
         KeepAlive = false;
         ExitTimeOut = 600;
-        StandardOutPath = "/tmp/vllm-mlx-warmup.log";
-        StandardErrorPath = "/tmp/vllm-mlx-warmup.err";
+        StandardOutPath = "${logDir}/warmup.log";
+        StandardErrorPath = "${logDir}/warmup.error.log";
         UserName = primaryUser;
         EnvironmentVariables = {
           HOME = darwinHomeDir;
@@ -273,14 +294,14 @@ in {
     };
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
-      mkdir -p "${appDir}"
+      mkdir -p "${appDir}" "${logDir}"
     '';
 
     myConfig.serviceRegistry = commonLib.mkServiceRegistry "vllm-mlx" {
       displayName = "vllm-mlx";
       port = cfg.server.port;
       label = "org.vllm-mlx.server";
-      errorLog = "/tmp/vllm-mlx.err";
+      errorLog = "${logDir}/server.error.log";
       enabled = cfg.enable;
     };
   };

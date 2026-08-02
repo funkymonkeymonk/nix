@@ -29,6 +29,7 @@
 #   stubs.searxng         — base ++ darwinService ++ services/searxng/darwin.nix
 #   stubs.bifrost         — base ++ darwinService ++ services/bifrost/darwin.nix
 #   stubs.caddy           — base ++ darwinService ++ services/caddy/darwin.nix
+#   stubs.vllmMlx         — base ++ darwinService ++ services/vllm-mlx/darwin.nix
 #
 {pkgs}: let
   lib = pkgs.lib;
@@ -193,4 +194,5 @@ in rec {
   searxng = base ++ darwinService ++ [../modules/services/searxng/darwin.nix];
   bifrost = base ++ darwinService ++ [../modules/services/bifrost/darwin.nix];
   caddy = base ++ darwinService ++ [../modules/services/caddy/darwin.nix];
+  vllmMlx = base ++ darwinService ++ [../modules/services/vllm-mlx/darwin.nix];
 }

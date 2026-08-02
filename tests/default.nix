@@ -192,6 +192,7 @@ in
 
     # vllm-mlx module tests
     vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
+    vllm-mlx-launchd = testVllmMlx.vllmMlxLaunchdTest;
     megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
 
     # Claude Code module tests
