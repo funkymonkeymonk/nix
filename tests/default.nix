@@ -205,6 +205,7 @@ in
     # Bifrost AI gateway module tests
     bifrost-options = testBifrost.bifrostOptionsTest;
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
+    bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
 
     # Caddy reverse proxy module tests
     caddy-options = testCaddy.caddyOptionsTest;
