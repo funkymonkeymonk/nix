@@ -450,7 +450,7 @@
           inherit pkgs self;
           inherit (nixpkgs) lib;
         };
-        inherit (pkgs.stdenv.hostPlatform) isLinux;
+        inherit (pkgs.stdenv.hostPlatform) isLinux isDarwin;
       in
         {
           inherit
@@ -540,6 +540,10 @@
             lume-options
             lume-custom-options
             ;
+        }
+        // nixpkgs.lib.optionalAttrs isDarwin {
+          # Builds the darwin-only vllm-mlx package; excluded on Linux.
+          inherit (tests) vllm-mlx-finish-reason;
         }
         // nixpkgs.lib.optionalAttrs isLinux {
           inherit
