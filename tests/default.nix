@@ -21,6 +21,7 @@
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
 
   testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
+  testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
   testBifrost = import ./test-bifrost.nix {inherit pkgs;};
@@ -194,6 +195,9 @@ in
     vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
     vllm-mlx-launchd = testVllmMlx.vllmMlxLaunchdTest;
     megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
+
+    # vllm-mlx package streaming tests (builds the package; darwin-only)
+    vllm-mlx-finish-reason = testVllmMlxStream.vllmMlxFinishReasonTest;
 
     # Claude Code module tests
     claude-code-options = testClaudeCode.claudeCodeOptionsTest;

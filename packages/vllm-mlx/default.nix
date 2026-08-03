@@ -27,6 +27,14 @@ python3Packages.buildPythonApplication rec {
     pythonRelaxDepsHook
   ];
 
+  # Emit a terminal finish_reason chunk when the engine's finished output is
+  # swallowed by a parser `continue` in stream_chat_completion (e.g. a bare
+  # <turn|> end-of-turn token after a completed tool call). Without it the
+  # stream ends tool_calls(finish_reason=null) -> [DONE] and OpenAI clients
+  # (pi) abort with "Stream ended without finish_reason". Not fixed upstream
+  # as of v0.4.0.
+  patches = [./emit-terminal-finish-chunk.patch];
+
   pythonRemoveDeps = [
     "gradio"
     "opencv-python"
