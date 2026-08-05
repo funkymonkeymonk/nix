@@ -463,6 +463,17 @@ generate_skills_reference() {
         return 1
     fi
     
+    # PARSE: Extract REAL skill names from manifest.nix
+    # Pattern: matches top-level entries only (2 spaces indentation): "skill-name" = { or skill-name = {
+    local skills
+    skills=$(grep -oP '^\s{2}(?:"[^"]+"|\w+(?:-\w+)*)\s*(?=\s*=\s*\{)' "$manifest_file" | sed 's/"//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort)
+    
+    if [[ -z "$skills" ]]; then
+        log_error "No skills found in manifest.nix - parsing failed"
+        return 1
+    fi
+    
+    # Generate header
     cat > "$output_file" << 'EOF'
 # Skills Reference
 
@@ -472,17 +483,34 @@ Agent skills are defined in `modules/home-manager/skills/manifest.nix` and insta
 
 | Skill | Description | Roles |
 |-------|-------------|-------|
-| `brainstorming` | Collaborative design dialogue | developer, creative |
-| `debugging` | Systematic debugging approach | developer |
-| `diataxis-docs` | Documentation restructuring (Diataxis framework) | developer, creative, llm-client, llm-claude |
-| `jj` | Jujutsu version control | developer, llm-client, llm-claude |
-| `receiving-code-review` | Process review feedback | developer, workstation |
-| `requesting-code-review` | Prepare and request reviews | developer, workstation |
-| `tdd` | Test-driven development workflow | developer |
-| `using-superpowers` | Access available skills | llm-client, llm-claude |
-| `verification-before-completion` | Pre-completion verification | developer |
-| `writing-plans` | Implementation plan creation | developer |
-| `writing-skills` | Documentation and skill writing | developer, creative, llm-client, llm-claude |
+EOF
+
+    # Extract and output each skill with its description and roles
+    while IFS= read -r skill; do
+        # Extract description and roles using sed (more efficient than awk in a loop)
+        local description
+        local roles
+        
+        # Use sed to find the skill section and extract description
+        description=$(sed -n "/^\s*[\"]*$skill[\"]*\s*=\s*{/,/^[[:space:]]*};/p" "$manifest_file" | grep -oP 'description = "\K[^"]+' | head -1)
+        
+        # Use sed to find the skill section and extract roles
+        roles=$(sed -n "/^\s*[\"]*$skill[\"]*\s*=\s*{/,/^[[:space:]]*};/p" "$manifest_file" | grep -oP 'roles = \[\K[^\]]+' | head -1)
+        
+        # Clean up roles - convert from ["role1" "role2"] format to comma-separated
+        if [[ -n "$roles" ]]; then
+            roles=$(echo "$roles" | sed 's/"//g' | sed 's/\s\+/, /g')
+        fi
+        
+        # Clean up description and roles
+        description="${description:-}"
+        roles="${roles:-}"
+        
+        echo "| \`$skill\` | $description | $roles |" >> "$output_file"
+    done <<< "$skills"
+    
+    # Add footer sections
+    cat >> "$output_file" << 'EOF'
 
 ## Skill Structure
 
