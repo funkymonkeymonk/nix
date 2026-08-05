@@ -19,7 +19,7 @@
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
-  testGitEnable = import ./test-git-enable.nix {inherit pkgs; lib = pkgs.lib;};
+  testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
 
   testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
   testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};

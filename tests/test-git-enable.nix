@@ -1,4 +1,4 @@
-{pkgs, lib, ...}: let
+{pkgs, ...}: let
   usersNixPath = builtins.toString ./../modules/common/users.nix;
   usersNixContent = builtins.readFile usersNixPath;
 in {
