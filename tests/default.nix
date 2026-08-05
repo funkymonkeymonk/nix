@@ -19,6 +19,7 @@
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
+  testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
 
   testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
   testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};
@@ -139,6 +140,13 @@ in
     llm-client-pi = testLlmClient.llmClientPiTest;
     llm-client-custom-host = testLlmClient.llmClientCustomHostTest;
     llm-client-no-ai-roles = testLlmClient.llmClientNoAiRolesTest;
+
+    # Git configuration tests
+    git-enable = testGitEnable.gitEnableSimpleTest;
+    git-settings-exist = testGitEnable.gitSettingsExistTest;
+    git-commit-signing = testGitEnable.gitCommitSigningExistsTest;
+    git-config-generation = testGitEnable.gitConfigGenerationTest;
+    git-user-config = testGitEnable.gitUserConfigTest;
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;

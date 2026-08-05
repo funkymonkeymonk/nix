@@ -24,6 +24,7 @@ with lib; let
         };
 
         programs.git = {
+          enable = true;
           settings =
             {
               user = {
