@@ -33,7 +33,16 @@ python3Packages.buildPythonApplication rec {
   # stream ends tool_calls(finish_reason=null) -> [DONE] and OpenAI clients
   # (pi) abort with "Stream ended without finish_reason". Not fixed upstream
   # as of v0.4.0.
-  patches = [./emit-terminal-finish-chunk.patch];
+  #
+  # Allow system-prompt KV cache snapshots when the model mixes plain KVCache
+  # and RotatingKVCache (e.g. Gemma 4). The upstream 0.4.0 probe disables
+  # snapshots for any non-KVCache class, forcing a full re-prefill on every
+  # turn. mlx-lm exposes the extra cursor metadata via meta_state, so capture
+  # and restore it alongside the array state. Not fixed upstream as of v0.4.0.
+  patches = [
+    ./emit-terminal-finish-chunk.patch
+    ./snapshot-rotating-kv-cache.patch
+  ];
 
   pythonRemoveDeps = [
     "gradio"
