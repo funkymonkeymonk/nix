@@ -6,6 +6,8 @@
   jj-hooks = final.callPackage ../packages/jj-hooks {};
   lume = final.callPackage ../packages/lume {};
   vane = final.callPackage ../packages/vane {};
+  lm-eval = final.callPackage ../packages/benchmarks/lm-eval {};
+  lighteval = final.callPackage ../packages/benchmarks/lighteval {};
   mlx-audio = final.callPackage ../packages/mlx-audio {};
   mlx-lm = final.callPackage ../packages/mlx-lm {};
   mlx-vlm = final.callPackage ../packages/mlx-vlm {};
