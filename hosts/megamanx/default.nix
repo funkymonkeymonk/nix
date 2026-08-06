@@ -49,9 +49,12 @@
         enableAutoToolChoice = true;
         toolCallParser = "gemma4";
         reasoningParser = "gemma4";
-        # Must match pi's maxTokens for the bifrost model (131072) — a lower
-        # cap silently rotates the system prompt and tool definitions out of
-        # the KV cache in long agent sessions.
+        # maxKvSize caps the per-sequence KV cache. It must be >= pi's maxTokens
+        # for the bifrost model (131072) so a long agent session does not silently
+        # rotate the system prompt and tool definitions out of the KV cache.
+        # The bundled vllm-mlx patch supports system-prompt snapshots even when the
+        # model uses RotatingKVCache (Gemma 4's sliding-window layers), so the full
+        # prefix is reused each turn instead of re-prefilled.
         maxKvSize = 131072;
         # Must be >= pi's provider.timeoutMs (600s); queued lock admission
         # plus long 31B generations would otherwise be killed server-side.
