@@ -78,7 +78,11 @@
           vllm-mlx-local = {
             url = "http://localhost:8300";
             type = "openai";
-            requestTimeout = 120;
+            # Bifrost's per-upstream request timeout. Must be >= pi's provider
+            # timeout (600s) and vllm-mlx's server timeout (600s). Generations
+            # for large agent contexts can run 100-300s on a full prefill, so
+            # 120s was aborting valid mid-stream requests.
+            requestTimeout = 600;
             # Retry transient 503s (busy engine, model-swap preemption) so a
             # single busy window doesn't fail an agent turn. Bifrost's stock
             # default is 0 retries.
