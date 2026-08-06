@@ -17,6 +17,13 @@ with lib; let
   darwinHomeDir = commonLib.darwinHomeDir config;
   appDir = cfg.appDir;
 
+  # Durable log location. /tmp is cleaned by macOS every 3 days; launchd
+  # keeps writing to the deleted inode and all service output is lost.
+  logDir =
+    if cfg.logDir != null
+    then cfg.logDir
+    else "${darwinHomeDir}/Library/Logs/bifrost";
+
   upstreamList = mapAttrsToList (name: value: value // {inherit name;}) cfg.upstreams;
 
   mkOpenaiProviderKey = upstream: {
@@ -150,6 +157,12 @@ in {
       description = "Bifrost log level";
     };
 
+    logDir = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "Directory for launchd stdout/stderr logs. Defaults to ~/Library/Logs/bifrost for the primary user. Do not use /tmp: macOS cleans it every 3 days and launchd keeps writing to the deleted inode, silently discarding all service logs.";
+    };
+
     appDir = mkOption {
       type = types.str;
       default = "$HOME/.config/bifrost";
@@ -218,8 +231,8 @@ in {
         RunAtLoad = true;
         KeepAlive = true;
         UserName = primaryUser;
-        StandardOutPath = "/tmp/bifrost.log";
-        StandardErrorPath = "/tmp/bifrost.error.log";
+        StandardOutPath = "${logDir}/bifrost.log";
+        StandardErrorPath = "${logDir}/bifrost.error.log";
         WorkingDirectory = darwinHomeDir;
         EnvironmentVariables = {
           HOME = darwinHomeDir;
@@ -229,7 +242,7 @@ in {
     };
 
     system.activationScripts.postActivation.text = mkAfter ''
-      mkdir -p "${appDir}"
+      mkdir -p "${appDir}" "${logDir}"
     '';
 
     # Register in service registry for port conflict detection and readiness checks
@@ -237,7 +250,7 @@ in {
       displayName = "Bifrost";
       port = cfg.port;
       label = "com.bifrost.service";
-      errorLog = "/tmp/bifrost.error.log";
+      errorLog = "${logDir}/bifrost.error.log";
       enabled = cfg.enable;
     };
   };
