@@ -49,17 +49,10 @@
         enableAutoToolChoice = true;
         toolCallParser = "gemma4";
         reasoningParser = "gemma4";
-        # maxKvSize caps the per-sequence KV cache (using RotatingKVCache) and
-        # must be >= pi's maxTokens for the bifrost model (131072). However, the
-        # current vllm-mlx 0.4.0 snapshot probe disables the system-prompt KV cache
-        # when RotatingKVCache is enabled, causing every agent turn to re-prefill
-        # the whole conversation. This is currently far worse than rotation:
-        # generations run 100-300s and time out. Leave maxKvSize unset to keep
-        # the system-prefix KV cache active. Upstream PR #574 (prefix-trie cache)
-        # may resolve this when released; until then, accept unbounded KV growth
-        # (the 90GB memory budget can absorb it; restart the service if needed).
-        #
-        # maxKvSize = 131072;
+        # Must match pi's maxTokens for the bifrost model (131072) — a lower
+        # cap silently rotates the system prompt and tool definitions out of
+        # the KV cache in long agent sessions.
+        maxKvSize = 131072;
         # Must be >= pi's provider.timeoutMs (600s); queued lock admission
         # plus long 31B generations would otherwise be killed server-side.
         timeout = 600;
@@ -80,21 +73,12 @@
 
       bifrost = {
         enable = true;
-        # Bifrost's log level. 'debug' produced ~99MB in 4 days; use 'info' for
-        # normal operations. The logs now live in ~/Library/Logs/bifrost instead
-        # of /tmp so they survive macOS's periodic /tmp cleanup.
-        logLevel = "info";
-        # Module defaults to ~/Library/Logs/bifrost for the primary user.
-        logDir = null;
+        logLevel = "debug";
         upstreams = {
           vllm-mlx-local = {
             url = "http://localhost:8300";
             type = "openai";
-            # Bifrost's per-upstream request timeout. Must be >= pi's provider
-            # timeout (600s) and vllm-mlx's server timeout (600s). Generations
-            # for large agent contexts can run 100-300s on a full prefill, so
-            # 120s was aborting valid mid-stream requests.
-            requestTimeout = 600;
+            requestTimeout = 120;
             # Retry transient 503s (busy engine, model-swap preemption) so a
             # single busy window doesn't fail an agent turn. Bifrost's stock
             # default is 0 retries.
