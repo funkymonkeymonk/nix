@@ -1,5 +1,10 @@
 {pkgs, ...}: let
   devBase = import ./library/dev-base.nix {inherit pkgs;};
+
+  # Benchmarking suites are not in upstream nixpkgs; call them directly from
+  # the repo packages so they are available in the devenv shell and tasks.
+  lm-eval = pkgs.callPackage ./packages/benchmarks/lm-eval {};
+  lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
 in {
   packages =
     devBase.packages
@@ -16,6 +21,10 @@ in {
       # CI and deployment
       pkgs.cachix
       pkgs.deploy-rs
+
+      # LLM benchmarking suites
+      lm-eval
+      lighteval
 
       # Utility
       pkgs.rsync
@@ -945,6 +954,158 @@ in {
         echo ""
 
         ./scripts/profile-llm.sh "$MODEL" --prompts "$PROMPTS" --max-tokens "$MAX_TOKENS" --output-dir ./profiling
+      '';
+    };
+
+    "smoke:llm-stack" = {
+      description = "Smoke test the local LLM stack (vllm-mlx + bifrost)";
+      exec = ''
+        set -euo pipefail
+
+        BIFROST_URL="''${BIFROST_URL:-http://bifrost.internal/v1}"
+        VLLM_URL="''${VLLM_URL:-http://localhost:8300/v1}"
+        MODEL="''${MODEL:-gemma4-31b}"
+        TIMEOUT="''${TIMEOUT:-120}"
+
+        echo "=== LLM Stack Smoke Test ==="
+        echo "vllm-mlx:  $VLLM_URL"
+        echo "bifrost:   $BIFROST_URL"
+        echo "model:     $MODEL"
+        echo ""
+
+        echo "-- vllm-mlx /v1/models --"
+        curl -sf --max-time "$TIMEOUT" "$VLLM_URL/models" | jq -e '.data | length > 0'
+        echo "vllm-mlx models OK"
+        echo ""
+
+        echo "-- vllm-mlx /v1/chat/completions --"
+        curl -sf --max-time "$TIMEOUT" "$VLLM_URL/chat/completions" \
+          -H "Content-Type: application/json" \
+          -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":5}" \
+          | jq -e '.choices[0].message.content != null'
+        echo "vllm-mlx chat completion OK"
+        echo ""
+
+        echo "-- bifrost /v1/models --"
+        curl -sf --max-time "$TIMEOUT" "$BIFROST_URL/models" | jq -e '.data | length > 0'
+        echo "bifrost models OK"
+        echo ""
+
+        echo "-- bifrost /v1/chat/completions --"
+        curl -sf --max-time "$TIMEOUT" "$BIFROST_URL/chat/completions" \
+          -H "Content-Type: application/json" \
+          -d "{\"model\":\"vllm-mlx-local/$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":5}" \
+          | jq -e '.choices[0].message.content != null'
+        echo "bifrost chat completion OK"
+        echo ""
+
+        echo "=== LLM stack smoke test passed ==="
+      '';
+    };
+
+    "benchmark:lm-eval-gsm8k" = {
+      description = "Run lm-eval GSM8K (math reasoning) against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1/chat/completions}"
+        MODEL="''${MODEL:-gemma4-31b}"
+        LIMIT="''${LIMIT:-50}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-gsm8k}"
+
+        echo "=== lm-eval GSM8K against $BASE_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        lm-eval run \
+          --model local-chat-completions \
+          --model_args model="$MODEL",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
+          --tasks gsm8k \
+          --limit "$LIMIT" \
+          --batch_size 1 \
+          --output_path "$OUTPUT_DIR" \
+          --log_samples
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:lm-eval-mini" = {
+      description = "Quick lm-eval smoke benchmark (small subsets) against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
+        MODEL="''${MODEL:-gemma4-31b}"
+        LIMIT="''${LIMIT:-10}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-mini}"
+
+        echo "=== lm-eval mini benchmark against $BASE_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        lm-eval run \
+          --model local-completions \
+          --model_args model="$MODEL",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
+          --tasks mmlu,arc_easy,hellaswag \
+          --limit "$LIMIT" \
+          --batch_size 1 \
+          --apply_chat_template \
+          --output_path "$OUTPUT_DIR" \
+          --log_samples
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:lm-eval-leaderboard" = {
+      description = "Run the HuggingFace Open LLM Leaderboard v2 task group against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
+        MODEL="''${MODEL:-gemma4-31b}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-leaderboard}"
+
+        echo "=== lm-eval Open LLM Leaderboard v2 against $BASE_URL (model: $MODEL) ==="
+        echo "This is a long-running benchmark. Set LIMIT=N for a quick subset."
+        echo ""
+        mkdir -p "$OUTPUT_DIR"
+
+        lm-eval run \
+          --model local-completions \
+          --model_args model="$MODEL",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
+          --tasks leaderboard \
+          --batch_size 1 \
+          --apply_chat_template \
+          --output_path "$OUTPUT_DIR" \
+          --log_samples
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:lighteval-gsm8k" = {
+      description = "Run lighteval GSM8K against a local OpenAI-compatible endpoint";
+      exec = ''
+        set -euo pipefail
+
+        API_BASE="''${API_BASE:-http://localhost:8300/v1}"
+        MODEL="''${MODEL:-gemma4-31b}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lighteval-gsm8k}"
+        MAX_SAMPLES="''${MAX_SAMPLES:-50}"
+
+        echo "=== lighteval GSM8K against $API_BASE (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        lighteval endpoint litellm \
+          "provider=openai,model_name=$MODEL,api_base=$API_BASE" \
+          "gsm8k|0|0|$MAX_SAMPLES" \
+          --output-dir "$OUTPUT_DIR"
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
       '';
     };
 
