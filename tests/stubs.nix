@@ -109,6 +109,40 @@
     };
   };
 
+  # Minimal stubs for service options that caddy reads (searxng, bifrost, vane).
+  caddyDependencyStub = {
+    options.myConfig.searxng = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+      };
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 8080;
+      };
+    };
+    options.myConfig.bifrost = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+      };
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 8080;
+      };
+    };
+    options.myConfig.vane = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+      };
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 8080;
+      };
+    };
+  };
+
   # NixOS service stubs — required when a module sets networking, systemd
   # services, or system.stateVersion.
   nixosServiceStub = {
@@ -193,6 +227,6 @@ in rec {
   vane = base ++ darwinService ++ [../modules/services/vane/darwin.nix];
   searxng = base ++ darwinService ++ [../modules/services/searxng/darwin.nix];
   bifrost = base ++ darwinService ++ [../modules/services/bifrost/darwin.nix];
-  caddy = base ++ darwinService ++ [../modules/services/caddy/darwin.nix];
+  caddy = base ++ darwinService ++ [caddyDependencyStub ../modules/services/caddy/darwin.nix];
   vllmMlx = base ++ darwinService ++ [../modules/services/vllm-mlx/darwin.nix];
 }
