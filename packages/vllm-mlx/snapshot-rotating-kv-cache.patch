@@ -1,5 +1,5 @@
---- /Users/monkey/workspaces/fix-agent-pi-bifrost-vllm-mlx/tmp-patchgen/simple.py.orig	2026-08-06 00:25:46.448811097 -0400
-+++ /Users/monkey/workspaces/fix-agent-pi-bifrost-vllm-mlx/tmp-patchgen/simple.py.patched	2026-08-06 00:26:02.878066042 -0400
+--- a/vllm_mlx/engine/simple.py	2026-08-06 00:25:46.448811097 -0400
++++ b/vllm_mlx/engine/simple.py	2026-08-06 00:26:02.878066042 -0400
 @@ -249,16 +249,18 @@
              "evictions": 0,
          }
