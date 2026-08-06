@@ -48,83 +48,9 @@
   # The module is loaded via homeManagerModules.openclaw in flake.nix
   # Note: Darwin uses home-manager module, NixOS uses system module
   home-manager.users.monkey = {
-    programs.openclaw = {
-      enable = true;
-
-      # Documents directory with wadsworth's personality and instructions
-      documents = ./documents;
-
-      # Wadsworth instance - personal AI assistant
-      instances.wadsworth = {
-        enable = true;
-        gatewayPort = 18789;
-
-        config = {
-          gateway = {
-            mode = "local";
-            # Bind to LAN for network access (dashboard available at http://192.168.1.229:18789)
-            bind = "lan";
-            # Auth token will be auto-generated on first run
-            # CLI can connect using: export OPENCLAW_GATEWAY_TOKEN=$(jq -r '.gateway.auth.token' ~/.openclaw-wadsworth/openclaw.json)
-          };
-
-          # Secrets provider configuration
-          secrets = {
-            providers = {
-              file = {
-                source = "file";
-                path = "/Users/monkey/.config/openclaw/secrets.json";
-                mode = "json";
-              };
-            };
-            defaults = {
-              file = "file";
-            };
-          };
-
-          # Discord channel config using SecretRef
-          channels.discord = {
-            token = {
-              source = "file";
-              provider = "file";
-              id = "/discord/token";
-            };
-            allowFrom = ["279110923438915586"];
-            dmPolicy = "pairing";
-          };
-
-          agents = {
-            defaults = {
-              # Use local Ollama with Qwen3 14B (auto-discovery mode)
-              # Ollama must be running and OLLAMA_API_KEY env var set
-              model = "ollama/qwen3:14b";
-            };
-          };
-        };
-
-        # Environment for Ollama connection
-        environment = {
-          OLLAMA_HOST = "127.0.0.1:11434";
-          # Required for local Ollama auth (not a real API key, just a marker)
-          OLLAMA_API_KEY = "ollama-local";
-        };
-      };
-    };
-
-    # 1Password secrets for wadsworth (Discord bot token)
-    # Writes token to a file that gets formatted into JSON for OpenClaw
-    programs.onepassword-secrets = {
-      enable = true;
-      tokenFile = "/Users/monkey/.config/opnix/token";
-      secrets = {
-        # Write raw token first, then activation script creates JSON
-        openclawDiscordToken = {
-          reference = "op://openclaw/Wadsworth - Discord API Token/credential";
-          path = ".config/openclaw/secrets/discord-token-raw";
-          mode = "0600";
-        };
-      };
-    };
+    # programs.openclaw disabled - nix-openclaw broken in current flake (openclawPackages missing)
+    # Wadsworth bot disabled until upstream is fixed
+    # TODO: Re-enable once nix-openclaw fixes openclawPackages
 
     # Activation script to create JSON secrets file for OpenClaw SecretRef
     # This runs on every activation to ensure secrets.json is up to date
