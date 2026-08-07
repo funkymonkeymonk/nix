@@ -981,8 +981,8 @@ in {
         echo "-- vllm-mlx /v1/chat/completions --"
         curl -sf --max-time "$TIMEOUT" "$VLLM_URL/chat/completions" \
           -H "Content-Type: application/json" \
-          -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":5}" \
-          | jq -e '.choices[0].message.content != null'
+          -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":40}" \
+          | jq -e '(.choices[0].message.content != null) or (.choices[0].message.reasoning_content != null)'
         echo "vllm-mlx chat completion OK"
         echo ""
 
@@ -994,8 +994,8 @@ in {
         echo "-- bifrost /v1/chat/completions --"
         curl -sf --max-time "$TIMEOUT" "$BIFROST_URL/chat/completions" \
           -H "Content-Type: application/json" \
-          -d "{\"model\":\"vllm-mlx-local/$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":5}" \
-          | jq -e '.choices[0].message.content != null'
+          -d "{\"model\":\"vllm-mlx-local/$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":40}" \
+          | jq -e '(.choices[0].message.content != null) or (.choices[0].message.reasoning_content != null)'
         echo "bifrost chat completion OK"
         echo ""
 

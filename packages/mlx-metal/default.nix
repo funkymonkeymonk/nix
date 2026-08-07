@@ -47,7 +47,7 @@ in
         format
         platform
         ;
-      hash = "sha256-NLAXHNnrXEP92CCR9hNdbMxaBlNjpKPmj6xk+05T03w=";
+      hash = "sha256-sHZL8R/Dpx3umI4ZJ17vZ3dcq2MRLYu37xc8qLKhJHw=";
       python = pythonTag;
       dist = pythonTag;
       abi = pythonTag;
