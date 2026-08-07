@@ -19,6 +19,7 @@ in {
             # Tracked: libuv kqueue.c:279 errno == EINTR
             # super-productivity
           ];
+          myConfig.obsidian.enable = true;
         }
         (lib.mkIf (!isDarwin) {
           environment.systemPackages = with pkgs; [

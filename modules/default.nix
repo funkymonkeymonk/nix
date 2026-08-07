@@ -16,6 +16,7 @@
     ./common/charm.nix
     ./common/syncthing.nix
     ./common/zellij.nix
+    ./common/obsidian.nix
     ./common/agent-user.nix
 
     # Home-manager shared settings

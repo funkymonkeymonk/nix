@@ -19,6 +19,8 @@
     // {
       skills.superpowersPath = inputs.superpowers;
 
+      obsidian.vaults = ["personal"];
+
       # Extra role beyond workstation archetype
       roles.entertainment.enable = true;
 
