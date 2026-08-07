@@ -585,6 +585,9 @@ jobs:
           nix profile add --accept-flake-config \
             "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Run foundation tests
+        env:
+          SKIP_CONFIG_EVAL: "true"
         run: |
           echo "Running foundation test suite..."
+          echo "SKIP_CONFIG_EVAL=true (configs already validated in discover-targets job)"
           devenv tasks run test:all

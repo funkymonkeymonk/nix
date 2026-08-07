@@ -650,7 +650,7 @@ in {
 
     "test:all" = {
       description = "Run all tests (eval + build + module tests)";
-      after = ["test:eval" "test:build" "test:sketchybar" "test:onepassword"];
+      after = ["test:eval" "test:build-packages" "test:build-checks"];
       exec = ''
         echo "=== Final Results ==="
         echo "All tests passed"
@@ -660,6 +660,14 @@ in {
     "test:eval" = {
       description = "Evaluate all NixOS and Darwin configurations (gates builds)";
       exec = ''
+        set -euo pipefail
+
+        # Skip in CI when configs were already evaluated by discover-targets job
+        if [[ "''${SKIP_CONFIG_EVAL:-}" == "true" ]]; then
+          echo "SKIP_CONFIG_EVAL=true — skipping config evaluation (already validated in CI discover step)"
+          exit 0
+        fi
+
         echo "=== Configuration Evaluation ==="
         echo ""
 
@@ -693,7 +701,11 @@ in {
             };
           in
             map tryConfig names
-        ' 2>/dev/null)
+        ' 2>/dev/null) || {
+          echo ""
+          echo "✗ NixOS configuration evaluation command failed"
+          exit 1
+        }
 
         NIXOS_FAILED=0
         NIXOS_SKIPPED=0
@@ -715,28 +727,42 @@ in {
               NIXOS_FAILED=$((NIXOS_FAILED + 1))
             fi
           done < <(echo "$NIXOS_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        else
+          echo "  ⚠ No NixOS results returned (evaluation may have failed silently)"
+          NIXOS_FAILED=1
         fi
 
         echo ""
         echo "Evaluating Darwin configurations..."
-        DARWIN_RESULTS=$(nix eval --impure --json --expr '
-          let
-            flake = builtins.getFlake (toString ./.);
-            names = builtins.attrNames flake.darwinConfigurations;
-            tryConfig = name: {
-              inherit name;
-              success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
-            };
-          in
-            map tryConfig names
-        ' 2>/dev/null)
-
         DARWIN_FAILED=0
-        if [ -n "$DARWIN_RESULTS" ]; then
-          while IFS=: read -r name success; do
-            if [ "$success" = "true" ]; then echo "  $name ✓"
-            else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
-          done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        if [[ "$(uname)" == "Darwin" ]]; then
+          DARWIN_RESULTS=$(nix eval --impure --json --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              names = builtins.attrNames flake.darwinConfigurations;
+              tryConfig = name: {
+                inherit name;
+                success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
+              };
+            in
+              map tryConfig names
+          ' 2>/dev/null) || {
+            echo ""
+            echo "✗ Darwin configuration evaluation command failed"
+            exit 1
+          }
+
+          if [ -n "$DARWIN_RESULTS" ]; then
+            while IFS=: read -r name success; do
+              if [ "$success" = "true" ]; then echo "  $name ✓"
+              else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
+            done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+          else
+            echo "  ⚠ No Darwin results returned"
+            DARWIN_FAILED=1
+          fi
+        else
+          echo "  ⊘ Darwin configs: skipped (not on macOS)"
         fi
 
         if [ $NIXOS_FAILED -gt 0 ] || [ $DARWIN_FAILED -gt 0 ]; then
@@ -749,17 +775,15 @@ in {
       '';
     };
 
-    "test:build" = {
-      description = "Build all check targets (single flake evaluation)";
+    "test:build-packages" = {
+      description = "Build package checks (real derivation builds — slowest)";
       after = ["test:eval"];
       exec = ''
         set -euo pipefail
 
-        echo "=== Build Checks (single flake evaluation) ==="
+        echo "=== Package Build Checks ==="
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "System: $CURRENT_SYSTEM"
-        echo ""
-        echo "Building all check targets in one nix build to avoid repeated flake evaluation."
         echo ""
 
         nix build \
@@ -768,6 +792,26 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.overlay-rtk" \
           ".#checks.''${CURRENT_SYSTEM}.overlay-yaks" \
           ".#checks.''${CURRENT_SYSTEM}.overlay-pi-coding-agent" \
+          --no-link --max-jobs auto --print-build-logs
+
+        echo "✓ Package build checks passed"
+      '';
+    };
+
+    "test:build-checks" = {
+      description = "Build all remaining check targets (runCommand eval tests)";
+      after = ["test:eval"];
+      exec = ''
+        set -euo pipefail
+
+        echo "=== Check Targets ==="
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        echo "System: $CURRENT_SYSTEM"
+        echo ""
+        echo "Building all remaining check targets in one nix build invocation."
+        echo ""
+
+        nix build \
           ".#checks.''${CURRENT_SYSTEM}.cross-platform-desktop-guard" \
           ".#checks.''${CURRENT_SYSTEM}.cross-platform-entertainment-guard" \
           ".#checks.''${CURRENT_SYSTEM}.cross-platform-creative-control" \
@@ -799,6 +843,8 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.vane-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.vane-opnix-url-options" \
+          ".#checks.''${CURRENT_SYSTEM}.vane-darwin-autostart-default" \
+          ".#checks.''${CURRENT_SYSTEM}.vane-darwin-autostart-true" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-custom-options" \
           ".#checks.''${CURRENT_SYSTEM}.opencode-provider-opnix-url" \
@@ -822,20 +868,41 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.fjj-mirror-root-default" \
           ".#checks.''${CURRENT_SYSTEM}.fjj-custom-mirror-root" \
           ".#checks.''${CURRENT_SYSTEM}.fjj-package-and-files" \
-          --no-link --keep-going --print-build-logs
+          ".#checks.''${CURRENT_SYSTEM}.caddy-options" \
+          ".#checks.''${CURRENT_SYSTEM}.caddy-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.searxng-options" \
+          ".#checks.''${CURRENT_SYSTEM}.searxng-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.lume-options" \
+          ".#checks.''${CURRENT_SYSTEM}.lume-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.stack-integration" \
+          ".#checks.''${CURRENT_SYSTEM}.claude-code-options" \
+          ".#checks.''${CURRENT_SYSTEM}.claude-code-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.pi-options" \
+          ".#checks.''${CURRENT_SYSTEM}.pi-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.bifrost-options" \
+          ".#checks.''${CURRENT_SYSTEM}.bifrost-custom-options" \
+          ".#checks.''${CURRENT_SYSTEM}.bifrost-retry-config" \
+          ".#checks.''${CURRENT_SYSTEM}.git-enable" \
+          ".#checks.''${CURRENT_SYSTEM}.git-settings-exist" \
+          ".#checks.''${CURRENT_SYSTEM}.git-commit-signing" \
+          ".#checks.''${CURRENT_SYSTEM}.git-config-generation" \
+          ".#checks.''${CURRENT_SYSTEM}.git-user-config" \
+          --no-link --max-jobs auto --print-build-logs
 
         echo ""
         echo "NOTE: VM integration tests (test:vm) are not included here."
         echo "They require Linux + KVM and run separately in CI via nix flake check."
         echo ""
 
-        echo "✓ All build checks passed"
+        echo "✓ All check targets passed"
       '';
     };
 
     "test:sketchybar" = {
-      description = "Test sketchybar options, theme, and color conversion";
+      description = "Test sketchybar options, theme, and color conversion (standalone)";
       exec = ''
+        set -euo pipefail
+
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
         for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
@@ -849,8 +916,10 @@ in {
     };
 
     "test:onepassword" = {
-      description = "Test 1Password options, guard, and config output";
+      description = "Test 1Password options, guard, and config output (standalone)";
       exec = ''
+        set -euo pipefail
+
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Running 1Password tests ($CURRENT_SYSTEM)..."
         for test in onepassword-guard onepassword-config-output; do
