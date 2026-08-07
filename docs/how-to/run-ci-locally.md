@@ -34,22 +34,19 @@ devenv tasks run check:all
 ```
 
 This includes:
-- Lint checks
-- Platform-specific build validation (Darwin on macOS, NixOS on Linux)
+- Lint checks (`check:lint`)
+- nix-unit eval tests (`check:unit`)
+- Configuration evaluation (`test:eval`)
 
 ## Platform-Specific Validation
 
-### Darwin Only
+### Configuration Evaluation
 
 ```bash
-devenv tasks run build:darwin
+devenv tasks run test:eval
 ```
 
-### NixOS Only
-
-```bash
-devenv tasks run build:nixos
-```
+Evaluates all NixOS and Darwin configurations without building. This is the fastest way to catch option errors and missing references.
 
 ## Fixing Issues
 
@@ -60,7 +57,7 @@ devenv tasks run build:nixos
 devenv tasks run check:lint
 
 # Auto-fix formatting
-devenv tasks run format:all
+alejandra .
 ```
 
 ### Dead Code Warnings
@@ -90,11 +87,11 @@ CI validates both platforms using separate runners:
 
 ## Shell Aliases
 
-After applying the configuration, these shortcuts are available:
+After entering the devenv shell, these shortcuts are available:
 
 ```bash
 q       # devenv tasks run check:all
-b       # devenv tasks run build:all
+t       # devenv tasks run test:all
 ```
 
 > **See also:** [Tasks Reference](../reference/tasks.md) for the full task list

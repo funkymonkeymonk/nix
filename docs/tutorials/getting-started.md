@@ -121,8 +121,7 @@ Before building or applying anything, verify the flake evaluates cleanly:
 devenv tasks run check:lint
 
 # Eval test for your platform
-devenv tasks run test:darwin-eval    # on macOS
-devenv tasks run test:nixos-eval     # on Linux
+devenv tasks run test:eval           # All platforms
 ```
 
 If both pass, the flake is healthy.

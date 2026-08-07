@@ -277,7 +277,7 @@ jj workspace add --name <type>-<slug> .workspaces/<type>-<slug>
 
 # 3. Validate
 devenv tasks run check:lint
-devenv tasks run test:darwin-eval
+devenv tasks run test:eval
 git add -A && nix build --impire ".#checks.aarch64-darwin.<test>" --no-link
 
 # 4. Commit + push + PR

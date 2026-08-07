@@ -321,15 +321,15 @@ EOF
 
 generate_tasks_reference() {
     log_info "Generating tasks reference from devenv.nix..."
-    
+
     local output_file="$DOCS_DIR/reference/tasks.md"
     local devenv_file="$PROJECT_ROOT/devenv.nix"
-    
+
     if [[ ! -f "$devenv_file" ]]; then
         log_error "devenv.nix not found"
         return 1
     fi
-    
+
     cat > "$output_file" << 'EOF'
 # Tasks Reference
 
@@ -353,99 +353,118 @@ devenv tasks list
 dtl
 ```
 
+## Task Conventions
+
+Tasks follow a `namespace:action` naming convention:
+
+| Pattern | Meaning | Example |
+|---------|---------|---------|
+| `*:all` | **Aggregate** — runs all tasks in the namespace | `check:all`, `test:all` |
+| `*:name` | **Leaf** — specific operation | `check:lint`, `test:eval` |
+
+Run the aggregate when you want everything in a category. Run the leaf when you want a specific thing.
+
 ## Available Tasks
 
-### Configuration
+### Quality Checks
 
-| Task | Description |
-|------|-------------|
-| `switch` | Apply configuration to current system |
-| `init` | Initial setup commands for nix-darwin |
-| `build` | Build all configurations (dry-run) |
-| `build:darwin` | Build all Darwin (macOS) configurations |
-| `build:nixos` | Build all NixOS configurations |
+| Task | Description | Typical Duration |
+|------|-------------|-----------------|
+| `check:all` | Lint + unit tests + config eval | ~30s |
+| `check:lint` | Formatting (alejandra), dead code (deadnix), static analysis (statix), YAML | ~10s |
+| `check:unit` | nix-unit eval tests (fast, no builds) | ~5s |
 
-### Build
+### Testing
 
-| Task | Description |
-|------|-------------|
-| `build:all` | Build all configurations (dry-run) |
-| `build:darwin` | Build Darwin configurations (dry-run) |
-| `build:nixos` | Build NixOS configurations (dry-run) |
-
-### Code Quality
-
-| Task | Description |
-|------|-------------|
-| `quality` | Run all quality checks (format + lint) |
-| `fmt` | Format all Nix files with alejandra |
-
-### Flake Management
-
-| Task | Description |
-|------|-------------|
-| `flake:update` | Update flake inputs |
-| `devenv update` | Update devenv lock file |
-
-### Development
-
-| Task | Description |
-|------|-------------|
-| `ide` | Launch zellij IDE with file explorer and agent |
-| `pr:review` | Launch PR review dashboard (gh-dash) |
-
-### Agent Skills
-
-| Task | Description |
-|------|-------------|
-| `agent-skills:status` | Check skills installation status |
-| `agent-skills:update` | Update skills from upstream superpowers |
-| `agent-skills:validate` | Validate skills format |
-
-### Git Remote
-
-| Task | Description |
-|------|-------------|
-| `git:set-remote-ssh` | Switch git remote to SSH |
-| `git:set-remote-https` | Switch git remote to HTTPS |
-
-### Cachix
-
-| Task | Description |
-|------|-------------|
-| `cachix:push` | Build current host config and push to Cachix |
-| `cachix:push:all` | Build all configs for current platform and push |
+| Task | Description | Typical Duration |
+|------|-------------|-----------------|
+| `test:all` | Eval + build checks + module tests | 2–10min |
+| `test:eval` | Evaluate all NixOS and Darwin configurations | ~10s |
+| `test:build` | Build all flake check targets (single eval) | 2–10min |
+| `test:sketchybar` | Sketchybar module tests | ~30s |
+| `test:onepassword` | 1Password module tests | ~30s |
 
 ### Documentation
 
 | Task | Description |
 |------|-------------|
-| `docs:update` | Update and validate documentation |
-| `docs:validate` | Validate documentation structure |
-| `docs:generate` | Generate reference documentation |
+| `docs:all` | Update + validate + generate |
+| `docs:update` | Update and validate documentation (Diataxis) |
+| `docs:validate` | Validate documentation structure only |
+| `docs:generate` | Generate reference documentation only |
 
-## Cross-Platform Validation
+### System
 
-The `test:full` task validates both platforms regardless of host:
+| Task | Description |
+|------|-------------|
+| `system:switch` | Apply configuration to current system (platform-aware) |
+| `system:init` | Initial nix-darwin setup (macOS only) |
 
-- On Darwin: Tests Darwin and Linux configurations
-- On Linux: Tests Linux and Darwin configurations
+### Validation
 
-Validation includes:
-- Flake structure and syntax (`nix flake check`)
-- Build plans (`nix build --dry-run`)
-- Configuration evaluation (`nix eval`)
+| Task | Description |
+|------|-------------|
+| `validate:all` | Disko + install-script validation |
+| `validate:disko` | Validate disko disk configurations |
+| `validate:install-script` | Validate install-machine.sh syntax |
+
+### Agent Skills
+
+| Task | Description |
+|------|-------------|
+| `agent-skills:all` | Status + update + validate |
+| `agent-skills:status` | Check skills installation status |
+| `agent-skills:update` | Update skills from upstream superpowers |
+| `agent-skills:validate` | Validate skills format |
+
+### LLM / Benchmarking
+
+| Task | Description |
+|------|-------------|
+| `benchmark:all` | Run all benchmark suites |
+| `benchmark:lm-eval-gsm8k` | lm-eval GSM8K against local vllm-mlx |
+| `benchmark:lm-eval-mini` | Quick lm-eval smoke benchmark |
+| `benchmark:lm-eval-leaderboard` | HuggingFace Open LLM Leaderboard v2 |
+| `benchmark:lighteval-gsm8k` | lighteval GSM8K |
+| `profile:llm` | Profile LLM inference performance |
+| `smoke:llm-stack` | Smoke test vllm-mlx + bifrost |
+
+### Maintenance
+
+| Task | Description |
+|------|-------------|
+| `flake:update` | Update flake inputs to latest versions |
+
+## Dependency Graph
+
+The `*:all` aggregates use devenv's `after` mechanism to run leaves in the correct order:
+
+```
+check:all
+├── check:lint
+└── check:unit
+    └── test:eval
+
+test:all
+├── test:eval
+├── test:build
+├── test:sketchybar
+└── test:onepassword
+```
+
+Dependencies are declared, not orchestrated via shell — devenv handles scheduling.
 
 ## Shell Aliases
 
-After configuration is applied:
+After entering the devenv shell:
 
 | Alias | Expands To |
 |-------|------------|
 | `dt <task>` | `devenv tasks run <task>` |
 | `dtr <task>` | `devenv tasks run <task>` |
 | `dtl` | `devenv tasks list` |
-| `skills-list` | List installed agent skills |
+| `s` | `devenv tasks run system:switch` |
+| `switch` | `devenv tasks run system:switch` |
 EOF
 
     log_success "Generated $output_file"

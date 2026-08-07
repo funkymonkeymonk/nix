@@ -614,7 +614,7 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 
 ## Code Style
 
-- Use alejandra formatter (`quality:check`)
+- Use alejandra formatter (`check:lint`)
 - Remove dead code (deadnix)
 - Follow existing patterns
 - Conventional commits: `feat:`, `fix:`, `docs:`
