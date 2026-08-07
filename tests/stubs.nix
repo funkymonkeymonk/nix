@@ -184,6 +184,7 @@ in rec {
     ../modules/common/charm.nix
     ../modules/common/syncthing.nix
     ../modules/common/zellij.nix
+    ../modules/common/obsidian.nix
     hostPlatformStub
     envStub
     broadStub
