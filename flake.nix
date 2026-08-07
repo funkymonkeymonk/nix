@@ -539,6 +539,11 @@
             searxng-custom-options
             lume-options
             lume-custom-options
+            git-enable
+            git-settings-exist
+            git-commit-signing
+            git-config-generation
+            git-user-config
             ;
         }
         // nixpkgs.lib.optionalAttrs isDarwin {
