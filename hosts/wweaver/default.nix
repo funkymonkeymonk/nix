@@ -28,6 +28,8 @@
       };
       onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
 
+      obsidian.vaults = ["personal"];
+
       # Roles beyond developer-laptop-darwin archetype (homebrew, desktop, entertainment already set)
       roles.developer.enable = true;
       roles.workstation.enable = true;

@@ -7,12 +7,42 @@
   myConfig,
   earthsong,
   ...
-}: {
+}: let
+  obsCfg = myConfig.obsidian;
+
+  # Vaults to register as Syncthing folders:
+  # - Always include vaults this machine runs Obsidian for.
+  # - When syncAllVaults = true, also include any vaults in allVaults that
+  #   aren't already covered (for backup/mirror machines without Obsidian).
+  syncedVaultNames = lib.unique (
+    obsCfg.vaults
+    ++ (lib.optionals obsCfg.syncAllVaults obsCfg.allVaults)
+  );
+
+  # Build syncthing folder entries: one per synced vault.
+  # path uses the same vaultRoot as obsidian.nix; id is stable across machines.
+  syncthingVaultFolders = lib.listToAttrs (
+    map (name: {
+      inherit name;
+      value = {
+        path = "${obsCfg.vaultRoot}/${name}";
+        id = "obsidian-${name}";
+        label = "Obsidian: ${name}";
+      };
+    })
+    syncedVaultNames
+  );
+
+  hasSyncedVaults = syncedVaultNames != [];
+in {
   # Syncthing for file synchronization
   services.syncthing = lib.mkIf myConfig.syncthing.enable {
     enable = true;
     overrideDevices = false;
-    overrideFolders = false;
+    # Override folders only when we have Nix-managed vault folders, so manually
+    # added folders are preserved on machines with no vaults configured.
+    overrideFolders = hasSyncedVaults;
+    settings.folders = lib.mkIf hasSyncedVaults syncthingVaultFolders;
   };
 
   # jj-hooks: runs pre-commit/prek/lefthook/hk hooks against jj bookmark
