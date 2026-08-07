@@ -85,7 +85,7 @@
       ((inputs.bifrost.packages.${final.system}.bifrost-http).override {
         bifrost-ui = final.runCommand "bifrost-ui-dummy" {} "mkdir $out";
       }).overrideAttrs (_prev: {
-        vendorHash = "sha256-apPaRE3ZOaXrETX5EbhvPsgKdQa8IXoe4epeudytOUI=";
+        vendorHash = "sha256-7zW7gDcADny78KAc2y6C2Zv1Eh0dylpGe9FjBWkfbCs=";
       });
   }
   else {}

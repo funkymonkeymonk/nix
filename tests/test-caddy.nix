@@ -3,28 +3,17 @@
 {pkgs, ...}: let
   inherit (pkgs) lib;
 
-  stubModules = [
-    ../modules/common/options.nix
-    {
-      options.nixpkgs.hostPlatform = lib.mkOption {
-        type = lib.types.anything;
-        default = {inherit (pkgs.stdenv.hostPlatform) system;};
-      };
-    }
-    {
-      config._module.args = {inherit pkgs;};
-    }
-  ];
+  stubs = import ./stubs.nix {inherit pkgs;};
 
   caddyDefaults =
     (lib.evalModules {
-      modules = stubModules;
+      modules = stubs.caddy;
     }).config.myConfig.caddy;
 
   caddyCustom =
     (lib.evalModules {
       modules =
-        stubModules
+        stubs.caddy
         ++ [
           {
             config.myConfig.caddy = {
