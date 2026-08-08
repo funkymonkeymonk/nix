@@ -782,97 +782,12 @@ in {
         set -euo pipefail
 
         echo "=== Check Targets ==="
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "System: $CURRENT_SYSTEM"
-        echo ""
-        echo "Building all remaining check targets in one nix build invocation."
+        echo "Running nix flake check (builds checks for current system only)."
         echo ""
 
-        nix build \
-          ".#checks.''${CURRENT_SYSTEM}.cross-platform-desktop-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.cross-platform-entertainment-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.cross-platform-creative-control" \
-          ".#checks.''${CURRENT_SYSTEM}.foundation-options" \
-          ".#checks.''${CURRENT_SYSTEM}.config-validation" \
-          ".#checks.''${CURRENT_SYSTEM}.all-role-tests" \
-          ".#checks.''${CURRENT_SYSTEM}.zsh-enable-single-location" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-manifest" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-autoload-filtering" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-autoload-content" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-role-filtering" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-external-identification" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-external-command-generation" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-external-empty-case" \
-          ".#checks.''${CURRENT_SYSTEM}.email-agent-options" \
-          ".#checks.''${CURRENT_SYSTEM}.email-backup-options" \
-          ".#checks.''${CURRENT_SYSTEM}.email-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.email-composition" \
-          ".#checks.''${CURRENT_SYSTEM}.email-backup-scripts" \
-          ".#checks.''${CURRENT_SYSTEM}.email-separation" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-options" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-theme" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-color-conversion" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-platform-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-entrypoint" \
-          ".#checks.''${CURRENT_SYSTEM}.onepassword-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.onepassword-config-output" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-options" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-opnix-url-options" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-darwin-autostart-default" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-darwin-autostart-true" \
-          ".#checks.''${CURRENT_SYSTEM}.opencode-options" \
-          ".#checks.''${CURRENT_SYSTEM}.opencode-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.opencode-provider-opnix-url" \
-          ".#checks.''${CURRENT_SYSTEM}.shell-aliases" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-options" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.aerospace-options" \
-          ".#checks.''${CURRENT_SYSTEM}.aerospace-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.workspace-switch" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-opencode" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-claude" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-pi" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-custom-host" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-no-ai-roles" \
-          ".#checks.''${CURRENT_SYSTEM}.typed-attrs-options" \
-          ".#checks.''${CURRENT_SYSTEM}.module-coverage" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-options" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-disabled" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-enabled" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-custom" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-mirror-root-default" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-custom-mirror-root" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-package-and-files" \
-          ".#checks.''${CURRENT_SYSTEM}.caddy-options" \
-          ".#checks.''${CURRENT_SYSTEM}.caddy-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.searxng-options" \
-          ".#checks.''${CURRENT_SYSTEM}.searxng-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.lume-options" \
-          ".#checks.''${CURRENT_SYSTEM}.lume-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.stack-integration" \
-          ".#checks.''${CURRENT_SYSTEM}.claude-code-options" \
-          ".#checks.''${CURRENT_SYSTEM}.claude-code-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.pi-options" \
-          ".#checks.''${CURRENT_SYSTEM}.pi-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.bifrost-options" \
-          ".#checks.''${CURRENT_SYSTEM}.bifrost-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.bifrost-retry-config" \
-          ".#checks.''${CURRENT_SYSTEM}.git-enable" \
-          ".#checks.''${CURRENT_SYSTEM}.git-settings-exist" \
-          ".#checks.''${CURRENT_SYSTEM}.git-commit-signing" \
-          ".#checks.''${CURRENT_SYSTEM}.git-config-generation" \
-          ".#checks.''${CURRENT_SYSTEM}.git-user-config" \
-          ".#checks.''${CURRENT_SYSTEM}.obsidian-options" \
-          ".#checks.''${CURRENT_SYSTEM}.obsidian-custom-options" \
-          --no-link --max-jobs auto --print-build-logs
+        nix flake check --max-jobs auto --print-build-logs
 
         echo ""
-        echo "NOTE: VM integration tests (test:vm) are not included here."
-        echo "They require Linux + KVM and run separately in CI via nix flake check."
-        echo ""
-
         echo "✓ All check targets passed"
       '';
     };
