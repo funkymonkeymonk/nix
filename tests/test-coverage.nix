@@ -121,7 +121,9 @@
   # after a rename/deletion so it stops actually matching a real file),
   # not to block progress. It should almost always be equal to the
   # current coveragePct, or slightly below it as a small buffer.
-  minCoveragePct = 52;
+  # Current: 50% (modules/common/obsidian.nix + home-manager/obsidian.nix
+  # added by PR #392 without matching tests).
+  minCoveragePct = 50;
 in {
   moduleCoverageTest =
     pkgs.runCommand "test-module-coverage"
