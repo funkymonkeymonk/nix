@@ -484,7 +484,8 @@ jobs:
         run: |
           echo "Running non-VM checks (configs already validated in discover-targets job)"
           CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-          CHECKS=$(nix flake show --json | jq -r ".checks.\"$CURRENT_SYSTEM\" | keys[] | select(. | startswith(\"vm-\") | not)")
+          CHECKS=$(nix eval --json ".#checks.${CURRENT_SYSTEM}" --apply 'builtins.attrNames' \
+            | jq -r '.[] | select(startswith("vm-") | not)')
           echo "Checks to build:"
           echo "$CHECKS"
           for check in $CHECKS; do
