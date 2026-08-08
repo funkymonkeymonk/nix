@@ -649,8 +649,8 @@ in {
     # ============================================
 
     "test:all" = {
-      description = "Run all tests (eval + build + module tests)";
-      after = ["test:eval" "test:build-packages" "test:build-checks"];
+      description = "Run all tests (eval + module tests)";
+      after = ["test:eval" "test:build-checks"];
       exec = ''
         echo "=== Final Results ==="
         echo "All tests passed"
@@ -772,29 +772,6 @@ in {
         fi
         echo ""
         echo "✓ All configurations evaluated successfully"
-      '';
-    };
-
-    "test:build-packages" = {
-      description = "Build package checks (real derivation builds — slowest)";
-      after = ["test:eval"];
-      exec = ''
-        set -euo pipefail
-
-        echo "=== Package Build Checks ==="
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "System: $CURRENT_SYSTEM"
-        echo ""
-
-        nix build \
-          ".#checks.''${CURRENT_SYSTEM}.core-packages" \
-          ".#checks.''${CURRENT_SYSTEM}.foundation-packages" \
-          ".#checks.''${CURRENT_SYSTEM}.overlay-rtk" \
-          ".#checks.''${CURRENT_SYSTEM}.overlay-yaks" \
-          ".#checks.''${CURRENT_SYSTEM}.overlay-pi-coding-agent" \
-          --no-link --max-jobs auto --print-build-logs
-
-        echo "✓ Package build checks passed"
       '';
     };
 

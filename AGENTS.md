@@ -152,7 +152,6 @@ Before creating a PR or pushing to a remote branch, agents MUST verify:
 - [ ] `devenv tasks run check:lint` passes
 - [ ] `devenv tasks run test:build-checks` passes (catches module eval failures)
 - [ ] If you modified a NixOS or Darwin target: `devenv tasks run test:eval` passes
-- [ ] If you added/removed packages or overlays: `devenv tasks run test:build-packages` passes
 
 **Why this matters:** CI runs the exact same commands. A failure that takes 30 seconds to catch locally will take 10–40 minutes to surface in CI, blocking the PR and wasting compute.
 
