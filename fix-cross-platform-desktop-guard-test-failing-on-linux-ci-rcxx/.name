@@ -1,0 +1,1 @@
+Fix cross-platform-desktop-guard test failing on Linux CI
