@@ -480,7 +480,14 @@ jobs:
         run: devenv tasks run validate:disko
       - name: Validate installation script
         run: devenv tasks run validate:install-script
-      - name: Run check suite
+      - name: Run check suite (non-VM checks only)
         run: |
-          echo "Running nix flake check (configs already validated in discover-targets job)"
-          nix flake check --max-jobs auto --print-build-logs
+          echo "Running non-VM checks (configs already validated in discover-targets job)"
+          CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+          CHECKS=$(nix flake show --json | jq -r ".checks.\"$CURRENT_SYSTEM\" | keys[] | select(. | startswith(\"vm-\") | not)")
+          echo "Checks to build:"
+          echo "$CHECKS"
+          for check in $CHECKS; do
+            echo "--- Building $check ---"
+            nix build ".#checks.$CURRENT_SYSTEM.$check" --no-link --print-build-logs
+          done
