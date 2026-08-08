@@ -83,7 +83,7 @@ in {
       echo "=== LLM Stack Integration Test ==="
       echo ""
       ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: value: ''
-          if [ "${builtins.toString value}" = "true" ]; then
+          if [ "${lib.boolToString value}" = "true" ]; then
             echo "  [PASS] ${name}"
           else
             echo "  [FAIL] ${name}"

@@ -21,7 +21,9 @@ Check the collection for the latest MLX-converted models before choosing alterna
 | Task | Command |
 |------|---------|
 | Run lint check | `devenv tasks run check:lint` |
-| Run all tests | `devenv tasks run test` |
+| Run all tests | `devenv tasks run test:all` |
+| Run eval only | `devenv tasks run test:eval` |
+| Run build checks only | `devenv tasks run test:build-checks` |
 | Apply config | `devenv tasks run system:switch` |
 
 ---
@@ -69,8 +71,11 @@ devenv tasks run <task>        # Run a task
 
 | Task | Description |
 |------|-------------|
-| `check:lint` | Lint only |
-| `test` | Run all foundation checks (eval + build) |
+| `check:lint` | Lint only (alejandra + statix) |
+| `test:all` | Run all tests (eval + build packages + build checks) |
+| `test:eval` | Evaluate all NixOS/Darwin configurations |
+| `test:build-packages` | Build package availability checks |
+| `test:build-checks` | Build all runCommand eval tests |
 | `system:switch` | Apply configuration |
 
 ### Shell Aliases
@@ -113,12 +118,21 @@ This solves the Nix flake "untracked files" error when running from workspaces.
 
 #### Required Local Tests (Run These Before Every Push)
 
+**Agents MUST run these commands before pushing any changes to CI.**
+
 ```bash
-# 1. Fast lint check (catches formatting and syntax errors)
+# 1. Fast lint check (catches formatting and syntax errors) — ~10s
 devenv tasks run check:lint
 
-# 2. Run all foundation tests (eval + build checks, single flake evaluation)
-devenv tasks run test
+# 2. Run all foundation tests (eval + build checks) — ~60s
+devenv tasks run test:all
+```
+
+**If you are short on time, run the minimum:**
+```bash
+# Minimum viable pre-push test — catches 90% of CI failures
+devenv tasks run check:lint
+devenv tasks run test:build-checks
 ```
 
 #### What These Tests Catch
@@ -126,7 +140,42 @@ devenv tasks run test
 | Test | Catches |
 |------|---------|
 | `check:lint` | Formatting errors, dead code, syntax issues |
-| `test` | Eval errors on all platforms + package availability, option definitions |
+| `test:eval` | NixOS/Darwin configuration eval failures |
+| `test:build-packages` | Missing packages, overlay breakages |
+| `test:build-checks` | Module option errors, role config errors, missing imports |
+| `test:all` | Everything above in one command |
+
+#### Pre-Push Testing Checklist
+
+Before creating a PR or pushing to a remote branch, agents MUST verify:
+
+- [ ] `devenv tasks run check:lint` passes
+- [ ] `devenv tasks run test:build-checks` passes (catches module eval failures)
+- [ ] If you modified a NixOS or Darwin target: `devenv tasks run test:eval` passes
+
+**Why this matters:** CI runs the exact same commands. A failure that takes 30 seconds to catch locally will take 10–40 minutes to surface in CI, blocking the PR and wasting compute.
+
+#### Running Specific Checks
+
+When you know what changed, run only the relevant check for faster feedback:
+
+```bash
+CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+
+# Added a role? Test role config
+nix build ".#checks.${CURRENT_SYSTEM}.all-role-tests" --no-link
+
+# Added options? Test option definitions
+nix build ".#checks.${CURRENT_SYSTEM}.foundation-options" --no-link
+
+# Added a service module? Test service options
+nix build ".#checks.${CURRENT_SYSTEM}.<service>-options" --no-link
+```
+
+List all available checks:
+```bash
+nix eval --json ".#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw)" | jq -r 'keys | sort | .[]'
+```
 
 #### Common Module Errors to Avoid
 
@@ -158,8 +207,16 @@ devenv tasks run test
 
 ### Making Changes
 1. Modify files as needed
-2. Run local tests (lint + foundation tests)
-3. Commit with conventional commit messages
+2. **Run `devenv tasks run check:lint` after every meaningful change**
+3. **Before committing, run `devenv tasks run test:build-checks`**
+4. Commit with conventional commit messages
+
+### Before Pushing (MANDATORY)
+```bash
+# Full validation — same suite CI runs
+devenv tasks run check:lint
+devenv tasks run test:all
+```
 
 ---
 
@@ -614,7 +671,7 @@ sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impur
 
 ## Code Style
 
-- Use alejandra formatter (`quality:check`)
+- Use alejandra formatter (`check:lint`)
 - Remove dead code (deadnix)
 - Follow existing patterns
 - Conventional commits: `feat:`, `fix:`, `docs:`

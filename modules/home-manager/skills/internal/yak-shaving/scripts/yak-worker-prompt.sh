@@ -105,7 +105,7 @@ The pattern used in this codebase:
 \`\`\`bash
 # From repo root:
 devenv tasks run check:lint
-devenv tasks run test:darwin-eval   # catches module errors
+devenv tasks run test:eval            # catches module errors
 # Build the new check:
 git add -A
 nix build --impure ".#checks.aarch64-darwin.<test-name>" --no-link

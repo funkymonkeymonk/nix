@@ -20,6 +20,7 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
+  testObsidian = import ./test-obsidian.nix {inherit pkgs;};
 
   testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
   testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};
@@ -51,8 +52,31 @@
     if isLinux && self != null
     then import ./vm {inherit pkgs self;}
     else {};
+
+  # nix-unit eval-time tests (fast, no derivation builds)
+  # Copies the full repo into the build dir so relative imports resolve.
+  nix-unit-tests = let
+    src = builtins.path {
+      path = ../.;
+      name = "source";
+    };
+  in
+    pkgs.runCommand "nix-unit-tests"
+    {
+      nativeBuildInputs = [pkgs.nix-unit pkgs.nix];
+      NIX_PATH = "nixpkgs=${toString pkgs.path}";
+    }
+    ''
+      cp -r ${src} source
+      export HOME=$(mktemp -d)
+      nix-unit source/tests/nix-unit-tests.nix --eval-store "$HOME"
+      touch $out
+    '';
 in
   {
+    # nix-unit eval-time tests (fast, no derivation builds)
+    inherit nix-unit-tests;
+
     # Package availability tests
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
@@ -147,6 +171,10 @@ in
     git-commit-signing = testGitEnable.gitCommitSigningExistsTest;
     git-config-generation = testGitEnable.gitConfigGenerationTest;
     git-user-config = testGitEnable.gitUserConfigTest;
+
+    # Obsidian option tests
+    obsidian-options = testObsidian.obsidianOptionsTest;
+    obsidian-custom-options = testObsidian.obsidianCustomOptionsTest;
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;

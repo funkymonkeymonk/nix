@@ -32,7 +32,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
@@ -95,10 +95,10 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
-      # Restore cached derivation hashes
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+      # Restore cached derivation hashes from previous runs
       - name: Restore derivation cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         id: drv-cache
         with:
           path: .drv-cache
@@ -236,13 +236,14 @@ jobs:
           # Save current config lists to staging
           echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
           echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache-staging/nixos-configs
-      # Upload staging cache as artifact (will be committed to cache after successful builds)
-      - name: Upload staging cache
-        uses: actions/upload-artifact@v4
+      # Always save drv hashes so iterative PR commits can skip unchanged configs.
+      # Uses if: always() so the cache is saved even if downstream jobs fail.
+      - name: Save derivation cache
+        if: always()
+        uses: actions/cache/save@v4
         with:
-          name: drv-cache-staging
-          path: .drv-cache-staging/
-          retention-days: 1
+          path: .drv-cache
+          key: drv-${{ github.ref }}-${{ github.sha }}
   # Build all Darwin configurations that changed
   build-darwin:
     name: Build Darwin - ${{ matrix.config }}
@@ -267,7 +268,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Build ${{ matrix.config }}
         id: build
         run: |
@@ -305,7 +306,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
@@ -346,7 +347,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
@@ -371,71 +372,10 @@ jobs:
       - build-nixos
       - build-nixos-arm
       - discover-targets
-      - test-foundation
-      - validate-auxiliary
+      - test-and-validate
     if: always()
     steps:
-      - name: Download staging cache
-        uses: actions/download-artifact@v4
-        with:
-          name: drv-cache-staging
-          path: .drv-cache-new
-        continue-on-error: true
-      - name: Commit cache on success
-        if: >
-          ${{
-            (needs.build-darwin.result == 'success' ||
-             needs.build-darwin.result == 'skipped') &&
-            (needs.build-nixos.result == 'success' ||
-             needs.build-nixos.result == 'skipped') &&
-            (needs.build-nixos-arm.result == 'success' ||
-             needs.build-nixos-arm.result == 'skipped') &&
-            (needs.test-foundation.result == 'success' ||
-             needs.test-foundation.result == 'skipped') &&
-            (needs.validate-auxiliary.result == 'success' ||
-             needs.validate-auxiliary.result == 'skipped')
-          }}
-        run: |
-          echo "Builds succeeded - committing new derivation hashes to cache"
-          mkdir -p .drv-cache
-          if [ -d .drv-cache-new ]; then
-            cp -r .drv-cache-new/* .drv-cache/
-            echo "Cache updated with new derivation hashes"
-          fi
-      - name: Save derivation cache
-        if: >
-          ${{
-            (needs.build-darwin.result == 'success' ||
-             needs.build-darwin.result == 'skipped') &&
-            (needs.build-nixos.result == 'success' ||
-             needs.build-nixos.result == 'skipped') &&
-            (needs.build-nixos-arm.result == 'success' ||
-             needs.build-nixos-arm.result == 'skipped') &&
-            (needs.test-foundation.result == 'success' ||
-             needs.test-foundation.result == 'skipped') &&
-            (needs.validate-auxiliary.result == 'success' ||
-             needs.validate-auxiliary.result == 'skipped')
-          }}
-        uses: actions/cache@v4
-        with:
-          path: .drv-cache
-          key: drv-${{ github.ref }}-${{ github.sha }}
-      - name: Save derivation cache
-        if: >
-          ${{
-            (needs.build-darwin.result == 'success' ||
-             needs.build-darwin.result == 'skipped') &&
-            (needs.build-nixos.result == 'success' ||
-             needs.build-nixos.result == 'skipped') &&
-            (needs.test-foundation.result == 'success' ||
-             needs.test-foundation.result == 'skipped') &&
-            (needs.validate-auxiliary.result == 'success' ||
-             needs.validate-auxiliary.result == 'skipped')
-          }}
-        uses: actions/cache@v4
-        with:
-          path: .drv-cache
-          key: drv-${{ github.ref }}-${{ github.sha }}
+
       - name: Report build results
         run: |
           echo "## Build Report" >> $GITHUB_STEP_SUMMARY
@@ -443,8 +383,7 @@ jobs:
           DARWIN_RESULT="${{ needs.build-darwin.result }}"
           NIXOS_RESULT="${{ needs.build-nixos.result }}"
           NIXOS_ARM_RESULT="${{ needs.build-nixos-arm.result }}"
-          TEST_FOUNDATION_RESULT="${{ needs.test-foundation.result }}"
-          VALIDATE_AUX_RESULT="${{ needs.validate-auxiliary.result }}"
+          TEST_AND_VALIDATE_RESULT="${{ needs.test-and-validate.result }}"
           DARWIN_CHANGED='${{ needs.discover-targets.outputs.darwin-changed }}'
           NIXOS_CHANGED='${{ needs.discover-targets.outputs.nixos-changed }}'
           NIXOS_ARM_CHANGED='${{ needs.discover-targets.outputs.nixos-arm-changed }}'
@@ -464,23 +403,13 @@ jobs:
           echo "$SUMMARY configs changed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           # Report validation results
-          echo "### Validation" >> $GITHUB_STEP_SUMMARY
-          if [ "$VALIDATE_AUX_RESULT" = "success" ]; then
-            echo "✅ Auxiliary validation passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "$VALIDATE_AUX_RESULT" = "skipped" ]; then
-            echo "⏭️ Auxiliary validation skipped" >> $GITHUB_STEP_SUMMARY
+          echo "### Tests & Validation" >> $GITHUB_STEP_SUMMARY
+          if [ "$TEST_AND_VALIDATE_RESULT" = "success" ]; then
+            echo "✅ Tests and validation passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$TEST_AND_VALIDATE_RESULT" = "skipped" ]; then
+            echo "⏭️ Tests and validation skipped" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Auxiliary validation failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          # Report test results
-          echo "### Tests" >> $GITHUB_STEP_SUMMARY
-          if [ "$TEST_FOUNDATION_RESULT" = "success" ]; then
-            echo "✅ Foundation tests passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "$TEST_FOUNDATION_RESULT" = "skipped" ]; then
-            echo "⏭️ Foundation tests skipped" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Foundation tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Tests and validation failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$DARWIN_CHANGED" = "[]" ] && [ "$NIXOS_CHANGED" = "[]" ]; then
@@ -501,14 +430,9 @@ jobs:
             echo "❌ NixOS (ARM) builds failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
-          if [ "$TEST_FOUNDATION_RESULT" != "success" ] \
-            && [ "$TEST_FOUNDATION_RESULT" != "skipped" ]; then
-            echo "❌ Foundation tests failed" >> $GITHUB_STEP_SUMMARY
-            ALL_SUCCESS=false
-          fi
-          if [ "$VALIDATE_AUX_RESULT" != "success" ] \
-            && [ "$VALIDATE_AUX_RESULT" != "skipped" ]; then
-            echo "❌ Auxiliary validation failed" >> $GITHUB_STEP_SUMMARY
+          if [ "$TEST_AND_VALIDATE_RESULT" != "success" ] \
+            && [ "$TEST_AND_VALIDATE_RESULT" != "skipped" ]; then
+            echo "❌ Tests and validation failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
           fi
           if [ "$ALL_SUCCESS" = "true" ]; then
@@ -516,9 +440,11 @@ jobs:
           else
             exit 1
           fi
-  # Validate auxiliary components (only when nix files changed)
-  validate-auxiliary:
-    name: Validate Shared Components
+  # Run foundation tests and auxiliary validation in a single job.
+  # Both need identical setup (Nix + Cachix + devenv) and run on the same
+  # runner, so merging them saves ~2.5 minutes of redundant setup per PR.
+  test-and-validate:
+    name: Tests & Validation
     runs-on: ubuntu-latest
     needs: [lint, changes]
     if: >
@@ -540,7 +466,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
@@ -548,43 +474,21 @@ jobs:
           NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
           nix profile add --accept-flake-config \
             "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
+      - name: Create stub facter.json
+        run: bash .github/scripts/create-facter-stub.sh
       - name: Validate Disko configurations
         run: devenv tasks run validate:disko
       - name: Validate installation script
         run: devenv tasks run validate:install-script
-  # Run foundation tests (only when nix files changed)
-  test-foundation:
-    name: Foundation Tests
-    runs-on: ubuntu-latest
-    needs: [lint, changes]
-    if: >
-      ${{
-        needs.changes.outputs.nix-files == 'true' ||
-        needs.changes.outputs.workflows == 'true'
-      }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
-        with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-            sandbox = false
-            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
-        with:
-          name: funkymonkeymonk
-          skipPush: true
-      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
+      - name: Run check suite (non-VM checks only)
         run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          nix profile add --accept-flake-config \
-            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
-      - name: Run foundation tests
-        run: |
-            echo "Running foundation test suite..."
-            devenv tasks run test:eval test:checks
+          echo "Running non-VM checks (configs already validated in discover-targets job)"
+          CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+          CHECKS=$(nix eval --json ".#checks.${CURRENT_SYSTEM}" --apply 'builtins.attrNames' \
+            | jq -r '.[] | select(startswith("vm-") | not)')
+          echo "Checks to build:"
+          echo "$CHECKS"
+          for check in $CHECKS; do
+            echo "--- Building $check ---"
+            nix build ".#checks.$CURRENT_SYSTEM.$check" --no-link --print-build-logs
+          done

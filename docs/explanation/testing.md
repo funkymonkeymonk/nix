@@ -27,7 +27,7 @@ This repository uses a layered testing strategy modeled on the Nix community's r
                   (fastest)
 ```
 
-Every layer runs via `flake.checks` and is invoked by `devenv tasks run test:all` in CI[^1].
+Every layer runs via `flake.checks` and is invoked by `devenv tasks run test:all` in CI[^1]. The `test:all` aggregate depends on `test:eval` (gates), `test:build` (derivations), and module-specific tests.
 
 ## Why This Pyramid?
 
@@ -100,7 +100,7 @@ Following TDD principles, write the test *before* implementing the module or mak
 
 ## CI Wiring
 
-All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test:all`, which runs the platform-appropriate subset[^1]. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].
+All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test:all`, which runs the platform-appropriate subset[^1]. The `test:all` aggregate declares `after = ["test:eval" "test:build" "test:sketchybar" "test:onepassword"]` — devenv handles the scheduling. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].
 
 ## Anti-Patterns to Avoid
 

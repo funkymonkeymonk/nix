@@ -288,8 +288,8 @@ Four stages, each gating the next:
 
 ```
 check:lint         ~1s      syntax, formatting (alejandra), dead code (deadnix)
-test:nixos-eval    ~90s     module errors, option conflicts, type mismatches
-test:darwin-eval   ~90s     Darwin-specific option availability
+test:eval          ~90s     module errors, option conflicts, type mismatches
+test:eval          ~90s     Darwin-specific option availability
 build:nixos        ~5-15m   full derivation via Determinate nix-builder (macOS native)
 build:darwin       ~5-15m   full Darwin derivation
 ```
@@ -338,7 +338,7 @@ jj-workspace create feat/new-role
 
 # 2. Fast feedback during development
 devenv tasks run check:lint
-devenv tasks run test:nixos-eval
+devenv tasks run test:eval
 
 # 3. Full build before pushing (NIX_LIBRARY_BRANCH auto-set by direnv)
 devenv tasks run build:nixos

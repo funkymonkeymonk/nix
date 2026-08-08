@@ -102,6 +102,9 @@
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"
     "home-manager/skills/manifest.nix"
+    # Tested via test-obsidian.nix (option defaults and custom values)
+    "common/obsidian.nix"
+    "home-manager/obsidian.nix"
   ];
 
   # Modules not yet covered by tests

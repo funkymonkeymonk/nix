@@ -84,7 +84,7 @@ After entering devenv shell:
 |-------|---------|
 | `s` | `devenv tasks run system:switch` |
 | `q` | `devenv tasks run check:all` |
-| `b` | `devenv tasks run build:all` |
+| `t` | `devenv tasks run test:all` |
 
 > **All tasks:** [Tasks reference](docs/reference/tasks.md)
 

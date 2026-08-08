@@ -455,6 +455,7 @@
         {
           inherit
             (tests)
+            nix-unit-tests
             foundation-options
             core-packages
             foundation-packages
@@ -544,6 +545,8 @@
             git-commit-signing
             git-config-generation
             git-user-config
+            obsidian-options
+            obsidian-custom-options
             ;
         }
         // nixpkgs.lib.optionalAttrs isDarwin {

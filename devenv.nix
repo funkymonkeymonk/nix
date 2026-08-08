@@ -245,6 +245,12 @@ in {
     # DOCUMENTATION TASKS
     # ============================================
 
+    "docs:all" = {
+      description = "Run all documentation tasks (update + validate + generate)";
+      after = ["docs:update" "docs:validate" "docs:generate"];
+      exec = "echo '✓ All documentation tasks complete'";
+    };
+
     "docs:update" = {
       description = "Update and validate documentation (Diataxis)";
       exec = ''
@@ -421,6 +427,16 @@ in {
       '';
     };
 
+    # ============================================
+    # VALIDATION TASKS
+    # ============================================
+
+    "validate:all" = {
+      description = "Run all validation tasks (disko + install-script)";
+      after = ["validate:disko" "validate:install-script"];
+      exec = "echo '✓ All validation tasks complete'";
+    };
+
     "validate:disko" = {
       description = "Validate disko disk configurations";
       exec = ''
@@ -492,6 +508,12 @@ in {
     # ============================================
     # AGENT SKILLS TASKS
     # ============================================
+
+    "agent-skills:all" = {
+      description = "Run all agent-skills tasks (status + update + validate)";
+      after = ["agent-skills:status" "agent-skills:update" "agent-skills:validate"];
+      exec = "echo '✓ All agent-skills tasks complete'";
+    };
 
     "agent-skills:status" = {
       description = "Check agent skills status";
@@ -574,6 +596,16 @@ in {
       '';
     };
 
+    # ============================================
+    # CHECK TASKS (fast, no derivation builds)
+    # ============================================
+
+    "check:all" = {
+      description = "Run all fast checks (lint + unit tests + eval)";
+      after = ["check:lint" "check:unit" "test:eval"];
+      exec = "echo '✓ All checks passed'";
+    };
+
     "check:lint" = {
       description = "Run lint checks (formatting + static analysis)";
       exec = ''
@@ -603,9 +635,39 @@ in {
       '';
     };
 
+    "check:unit" = {
+      description = "Run nix-unit eval tests (fast, no derivation builds)";
+      after = ["test:eval"];
+      exec = ''
+        echo "=== Running nix-unit tests ==="
+        nix-unit ./tests/nix-unit-tests.nix
+      '';
+    };
+
+    # ============================================
+    # TEST TASKS (eval gates build)
+    # ============================================
+
+    "test:all" = {
+      description = "Run all tests (eval + module tests)";
+      after = ["test:eval" "test:build-checks"];
+      exec = ''
+        echo "=== Final Results ==="
+        echo "All tests passed"
+      '';
+    };
+
     "test:eval" = {
       description = "Evaluate all NixOS and Darwin configurations (gates builds)";
       exec = ''
+        set -euo pipefail
+
+        # Skip in CI when configs were already evaluated by discover-targets job
+        if [[ "''${SKIP_CONFIG_EVAL:-}" == "true" ]]; then
+          echo "SKIP_CONFIG_EVAL=true — skipping config evaluation (already validated in CI discover step)"
+          exit 0
+        fi
+
         echo "=== Configuration Evaluation ==="
         echo ""
 
@@ -639,7 +701,11 @@ in {
             };
           in
             map tryConfig names
-        ' 2>/dev/null)
+        ' 2>/dev/null) || {
+          echo ""
+          echo "✗ NixOS configuration evaluation command failed"
+          exit 1
+        }
 
         NIXOS_FAILED=0
         NIXOS_SKIPPED=0
@@ -661,28 +727,42 @@ in {
               NIXOS_FAILED=$((NIXOS_FAILED + 1))
             fi
           done < <(echo "$NIXOS_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        else
+          echo "  ⚠ No NixOS results returned (evaluation may have failed silently)"
+          NIXOS_FAILED=1
         fi
 
         echo ""
         echo "Evaluating Darwin configurations..."
-        DARWIN_RESULTS=$(nix eval --impure --json --expr '
-          let
-            flake = builtins.getFlake (toString ./.);
-            names = builtins.attrNames flake.darwinConfigurations;
-            tryConfig = name: {
-              inherit name;
-              success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
-            };
-          in
-            map tryConfig names
-        ' 2>/dev/null)
-
         DARWIN_FAILED=0
-        if [ -n "$DARWIN_RESULTS" ]; then
-          while IFS=: read -r name success; do
-            if [ "$success" = "true" ]; then echo "  $name ✓"
-            else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
-          done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+        if [[ "$(uname)" == "Darwin" ]]; then
+          DARWIN_RESULTS=$(nix eval --impure --json --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              names = builtins.attrNames flake.darwinConfigurations;
+              tryConfig = name: {
+                inherit name;
+                success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
+              };
+            in
+              map tryConfig names
+          ' 2>/dev/null) || {
+            echo ""
+            echo "✗ Darwin configuration evaluation command failed"
+            exit 1
+          }
+
+          if [ -n "$DARWIN_RESULTS" ]; then
+            while IFS=: read -r name success; do
+              if [ "$success" = "true" ]; then echo "  $name ✓"
+              else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
+            done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
+          else
+            echo "  ⚠ No Darwin results returned"
+            DARWIN_FAILED=1
+          fi
+        else
+          echo "  ⊘ Darwin configs: skipped (not on macOS)"
         fi
 
         if [ $NIXOS_FAILED -gt 0 ] || [ $DARWIN_FAILED -gt 0 ]; then
@@ -695,9 +775,28 @@ in {
       '';
     };
 
-    "test:sketchybar" = {
-      description = "Test sketchybar options, theme, and color conversion";
+    "test:build-checks" = {
+      description = "Build all remaining check targets (runCommand eval tests)";
+      after = ["test:eval"];
       exec = ''
+        set -euo pipefail
+
+        echo "=== Check Targets ==="
+        echo "Running nix flake check (builds checks for current system only)."
+        echo ""
+
+        nix flake check --max-jobs auto --print-build-logs
+
+        echo ""
+        echo "✓ All check targets passed"
+      '';
+    };
+
+    "test:sketchybar" = {
+      description = "Test sketchybar options, theme, and color conversion (standalone)";
+      exec = ''
+        set -euo pipefail
+
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
         for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
@@ -711,8 +810,10 @@ in {
     };
 
     "test:onepassword" = {
-      description = "Test 1Password options, guard, and config output";
+      description = "Test 1Password options, guard, and config output (standalone)";
       exec = ''
+        set -euo pipefail
+
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
         echo "Running 1Password tests ($CURRENT_SYSTEM)..."
         for test in onepassword-guard onepassword-config-output; do
@@ -725,215 +826,19 @@ in {
       '';
     };
 
-    "test:all" = {
-      description = "Run all tests (eval gates build, optimized for parallel CI)";
-      exec = ''
-        echo "=== Phase 1: Evaluation Checks ==="
-        echo "Eval checks gate the build. Build runs only if all pass."
-        echo ""
+    # ============================================
+    # LLM / BENCHMARK TASKS
+    # ============================================
 
-        devenv tasks run test:eval
-        EVAL_RESULT=$?
-
-        if [ $EVAL_RESULT -ne 0 ]; then
-          echo ""
-          echo "=== Eval Results: FAILED ==="
-          echo ""
-          echo "Skipping build - eval failures must be fixed first."
-          exit 1
-        fi
-
-        echo ""
-        echo "All evaluation checks passed."
-
-        echo ""
-        echo "=== Phase 2: Build Checks (single flake evaluation) ==="
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "System: $CURRENT_SYSTEM"
-        echo ""
-        echo "Building all check targets in one nix build to avoid repeated flake evaluation."
-        echo ""
-
-        nix build \
-          ".#checks.''${CURRENT_SYSTEM}.core-packages" \
-          ".#checks.''${CURRENT_SYSTEM}.foundation-packages" \
-          ".#checks.''${CURRENT_SYSTEM}.overlay-rtk" \
-          ".#checks.''${CURRENT_SYSTEM}.overlay-yaks" \
-          ".#checks.''${CURRENT_SYSTEM}.overlay-pi-coding-agent" \
-          ".#checks.''${CURRENT_SYSTEM}.cross-platform-desktop-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.cross-platform-entertainment-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.cross-platform-creative-control" \
-          ".#checks.''${CURRENT_SYSTEM}.foundation-options" \
-          ".#checks.''${CURRENT_SYSTEM}.config-validation" \
-          ".#checks.''${CURRENT_SYSTEM}.all-role-tests" \
-          ".#checks.''${CURRENT_SYSTEM}.zsh-enable-single-location" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-manifest" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-autoload-filtering" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-autoload-content" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-role-filtering" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-external-identification" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-external-command-generation" \
-          ".#checks.''${CURRENT_SYSTEM}.skills-external-empty-case" \
-          ".#checks.''${CURRENT_SYSTEM}.email-agent-options" \
-          ".#checks.''${CURRENT_SYSTEM}.email-backup-options" \
-          ".#checks.''${CURRENT_SYSTEM}.email-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.email-composition" \
-          ".#checks.''${CURRENT_SYSTEM}.email-backup-scripts" \
-          ".#checks.''${CURRENT_SYSTEM}.email-separation" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-options" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-theme" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-color-conversion" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-platform-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.sketchybar-entrypoint" \
-          ".#checks.''${CURRENT_SYSTEM}.onepassword-guard" \
-          ".#checks.''${CURRENT_SYSTEM}.onepassword-config-output" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-options" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.vane-opnix-url-options" \
-          ".#checks.''${CURRENT_SYSTEM}.opencode-options" \
-          ".#checks.''${CURRENT_SYSTEM}.opencode-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.opencode-provider-opnix-url" \
-          ".#checks.''${CURRENT_SYSTEM}.shell-aliases" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-options" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.aerospace-options" \
-          ".#checks.''${CURRENT_SYSTEM}.aerospace-custom-options" \
-          ".#checks.''${CURRENT_SYSTEM}.workspace-switch" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-opencode" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-claude" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-pi" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-custom-host" \
-          ".#checks.''${CURRENT_SYSTEM}.llm-client-no-ai-roles" \
-          ".#checks.''${CURRENT_SYSTEM}.typed-attrs-options" \
-          ".#checks.''${CURRENT_SYSTEM}.module-coverage" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-options" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-disabled" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-enabled" \
-          ".#checks.''${CURRENT_SYSTEM}.agent-user-custom" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-mirror-root-default" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-custom-mirror-root" \
-          ".#checks.''${CURRENT_SYSTEM}.fjj-package-and-files" \
-          --no-link --keep-going --print-build-logs
-        BUILD_RESULT=$?
-
-        echo ""
-        echo "NOTE: VM integration tests (test:vm) are not included here."
-        echo "They require Linux + KVM and run separately in CI via nix flake check."
-        echo ""
-
-        echo "=== Final Results ==="
-        if [ $BUILD_RESULT -eq 0 ]; then
-          echo "All tests passed"
-          exit 0
-        else
-          echo "Build checks: FAILED"
-          exit 1
-        fi
-      '';
-    };
-
-    "test:nixos-eval" = {
-      description = "Validate NixOS configs can be evaluated (catches module errors)";
-      exec = ''
-        echo "=== Testing NixOS Configuration Evaluation ==="
-        echo ""
-        echo "This test validates that all NixOS configurations can be evaluated"
-        echo "without errors. It catches issues like:"
-        echo "  - Missing home-manager references in modules"
-        echo "  - Invalid option definitions"
-        echo "  - Import errors"
-        echo ""
-
-        echo "Testing NixOS configurations..."
-
-        # Create a minimal facter.json for testing (required by some NixOS configs)
-        # This is the same approach used in CI builds
-        # On macOS, skip this step (sudo not available) — configs needing facter will soft-fail
-        HAS_FACTER=false
-        if [ -f /etc/nixos/facter.json ]; then
-          HAS_FACTER=true
-        elif sudo -n mkdir -p /etc/nixos 2>/dev/null; then
-          sudo tee /etc/nixos/facter.json > /dev/null << 'EOF'
-        {
-          "version": 1,
-          "hardware": {
-            "cpu": {"vendor": "GenuineIntel", "brand": "Intel"},
-            "memory": {"size": 16384}
-          },
-          "networking": {
-            "defaultGateway": {"interface": "eth0"}
-          }
-        }
-        EOF
-          HAS_FACTER=true
-        fi
-
-        echo "Evaluating NixOS configurations..."
-        NIXOS_RESULTS=$(nix eval --impure --json --expr '
-          let
-            flake = builtins.getFlake (toString ./.);
-            names = builtins.attrNames flake.nixosConfigurations;
-            tryConfig = name: {
-              inherit name;
-              success = (builtins.tryEval (flake.nixosConfigurations.''${name}.config.system.build.toplevel != null)).success;
-            };
-          in
-            map tryConfig names
-        ' 2>/dev/null)
-
-        NIXOS_FAILED=0
-        NIXOS_SKIPPED=0
-        if [ -n "$NIXOS_RESULTS" ]; then
-          while IFS=: read -r name success; do
-            if [ "$success" = "true" ]; then
-              echo "  $name ✓"
-            elif [[ "$HAS_FACTER" != "true" ]]; then
-              case "$name" in
-                type-*|installer-*|bootstrap)
-                  echo "  $name ⊘ skipped"
-                  NIXOS_SKIPPED=$((NIXOS_SKIPPED + 1)) ;;
-                *)
-                  echo "  $name ✗"
-                  NIXOS_FAILED=$((NIXOS_FAILED + 1)) ;;
-              esac
-            else
-              echo "  $name ✗"
-              NIXOS_FAILED=$((NIXOS_FAILED + 1))
-            fi
-          done < <(echo "$NIXOS_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
-        fi
-
-        echo ""
-        echo "Evaluating Darwin configurations..."
-        DARWIN_RESULTS=$(nix eval --impure --json --expr '
-          let
-            flake = builtins.getFlake (toString ./.);
-            names = builtins.attrNames flake.darwinConfigurations;
-            tryConfig = name: {
-              inherit name;
-              success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
-            };
-          in
-            map tryConfig names
-        ' 2>/dev/null)
-
-        DARWIN_FAILED=0
-        if [ -n "$DARWIN_RESULTS" ]; then
-          while IFS=: read -r name success; do
-            if [ "$success" = "true" ]; then echo "  $name ✓"
-            else echo "  $name ✗"; DARWIN_FAILED=$((DARWIN_FAILED + 1)); fi
-          done < <(echo "$DARWIN_RESULTS" | jq -r '.[] | "\(.name):\(.success)"')
-        fi
-
-        if [ $NIXOS_FAILED -gt 0 ] || [ $DARWIN_FAILED -gt 0 ]; then
-          echo ""
-          echo "✗ $NIXOS_FAILED NixOS + $DARWIN_FAILED Darwin config(s) failed evaluation"
-          exit 1
-        fi
-        echo ""
-        echo "✓ All configurations evaluated successfully"
-      '';
+    "benchmark:all" = {
+      description = "Run all benchmark tasks";
+      after = [
+        "benchmark:lm-eval-gsm8k"
+        "benchmark:lm-eval-mini"
+        "benchmark:lm-eval-leaderboard"
+        "benchmark:lighteval-gsm8k"
+      ];
+      exec = "echo '✓ All benchmark tasks complete'";
     };
 
     "profile:llm" = {
@@ -1106,15 +1011,6 @@ in {
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
-      '';
-    };
-
-    "test:checks" = {
-      description = "Run nix-unit eval tests (fast, no derivation builds)";
-      after = ["test:eval"];
-      exec = ''
-        echo "=== Running nix-unit tests ==="
-        nix-unit ./tests/nix-unit-tests.nix
       '';
     };
   };

@@ -39,12 +39,13 @@ Push to main:
 | Task | Duration | Description |
 |------|----------|-------------|
 | `check:lint` | ~10s | Formatting, dead code, static analysis, YAML |
-| `check:all` | 5-10min | Lint + platform builds |
-| `format:all` | ~5s | Apply formatting fixes |
-| `check:flake` | ~30s | Validate flake structure |
-| `build:darwin` | 2-5min | Darwin configurations (dry-run) |
-| `build:nixos` | 2-5min | NixOS configurations (dry-run) |
-| `build:all` | 5-10min | All configurations (dry-run) |
+| `check:all` | ~30s | Lint + nix-unit + config eval |
+| `check:unit` | ~5s | nix-unit eval tests (no builds) |
+| `test:eval` | ~10s | Evaluate all configurations |
+| `test:build` | 2–10min | Build all check targets |
+| `test:all` | 2–10min | Eval + build + module tests |
+| `test:sketchybar` | ~30s | Sketchybar module tests |
+| `test:onepassword` | ~30s | 1Password module tests |
 
 ## Validated Configurations
 
@@ -55,7 +56,7 @@ Push to main:
 ### NixOS (Linux)
 - `zero` - Gaming/desktop (NVIDIA)
 
-## Lint Checks (check:lint)
+## Lint Checks (`check:lint`)
 
 - **Formatting**: `alejandra` - Nix code formatting
 - **Dead Code**: `deadnix` - Unused code detection

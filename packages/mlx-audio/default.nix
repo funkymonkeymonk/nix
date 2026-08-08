@@ -15,8 +15,13 @@ python3Packages.buildPythonPackage rec {
     hash = "sha256-imcGbafAbRZn5fnPws67+HKxNIomU7GaGzz5Vpfktlg=";
   };
 
-  nativeBuildInputs = with python3Packages; [setuptools];
+  nativeBuildInputs = with python3Packages; [
+    setuptools
+    pythonRelaxDepsHook
+  ];
   build-system = with python3Packages; [setuptools];
+
+  pythonRelaxDeps = ["transformers"];
 
   dependencies = with python3Packages; [
     huggingface-hub

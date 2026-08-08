@@ -54,8 +54,7 @@ Create a new role module that groups related packages, then enable it on one or 
 
     ```bash
     devenv tasks run check:lint
-    devenv tasks run test:darwin-eval   # macOS
-    devenv tasks run test:nixos-eval    # NixOS
+    devenv tasks run test:eval          # All platforms
     ```
 
 ## Platform-Specific Packages

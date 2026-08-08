@@ -112,7 +112,7 @@ Notice you need the same module list pattern as the other targets. The key diffe
 
 ```bash
 devenv tasks run check:lint
-devenv tasks run test:darwin-eval
+devenv tasks run test:eval
 ```
 
 Both commands should complete without errors. If lint fails, fix formatting with the suggested commands. If eval fails, check that username and role names are correct.

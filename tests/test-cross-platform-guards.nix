@@ -19,11 +19,28 @@
 {pkgs, ...}: let
   lib = pkgs.lib;
 
-  # A pkgs value that reports as x86_64-linux for hostPlatform purposes,
-  # without doing any actual cross-compilation. Everything else (the
-  # actual packages used in nativeBuildInputs, etc.) still resolves
-  # against the real (Darwin) pkgs set — we only need the platform
-  # string to flip isDarwin's default.
+  # pkgs values that report as a specific host platform without doing any
+  # actual cross-compilation. Everything else (the actual packages used in
+  # nativeBuildInputs, etc.) still resolves against the real pkgs set — we
+  # only need the platform string to flip isDarwin's default.
+  #
+  # IMPORTANT: These must override the system string explicitly; the test
+  # runs on CI (x86_64-linux) where the ambient pkgs is Linux, so relying
+  # on the ambient pkgs would make the "Darwin" test evaluate as Linux.
+  darwinLikePkgs =
+    pkgs
+    // {
+      stdenv =
+        pkgs.stdenv
+        // {
+          hostPlatform =
+            pkgs.stdenv.hostPlatform
+            // {
+              system = "aarch64-darwin";
+            };
+        };
+    };
+
   linuxLikePkgs =
     pkgs
     // {
@@ -38,7 +55,7 @@
         };
     };
 
-  darwinStubs = import ./stubs.nix {inherit pkgs;};
+  darwinStubs = import ./stubs.nix {pkgs = darwinLikePkgs;};
   linuxStubs = import ./stubs.nix {pkgs = linuxLikePkgs;};
 
   mkRoleEval = stubs: roleName:
