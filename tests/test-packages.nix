@@ -25,8 +25,10 @@
       touch $out
     '';
 
-  # Test that foundation packages are instantiable
-  # Including them in nativeBuildInputs forces Nix to evaluate each one
+  # Test that foundation packages are instantiable.
+  # Including them in nativeBuildInputs forces Nix to build each one.
+  # We omit heavy packages with long check phases (jujutsu runs 3000+
+  # cargo tests) — those are covered by overlay-specific checks.
   foundationPackagesTest =
     pkgs.runCommand "test-foundation-packages"
     {
@@ -37,7 +39,6 @@
         jq
         _1password-cli
         gh
-        jujutsu
         delta
         tree
         zoxide
@@ -61,7 +62,7 @@
       echo "=== Testing Foundation Packages ==="
 
       # Spot-check key foundation tools are on PATH
-      for cmd in hx jq gh jj delta rg fd fzf zoxide bat devenv direnv zellij; do
+      for cmd in hx jq gh delta rg fd fzf zoxide bat devenv direnv zellij; do
         if command -v "$cmd" > /dev/null 2>&1; then
           echo "  $cmd: found"
         else
