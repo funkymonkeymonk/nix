@@ -11,11 +11,21 @@
   }:
     pkgs.testers.nixosTest {
       inherit name;
-      nodes.machine = {...}: {
+      nodes.machine = {lib, ...}: {
         imports =
           [
             ../../modules/common/options.nix
+            ../../modules/common/cachix.nix
+            ../../modules/common/llm-client.nix
+            ../../modules/common/onepassword.nix
             ../../modules/common/shell.nix
+            ../../modules/common/users.nix
+            ../../modules/common/zellij.nix
+            ../../modules/common/obsidian.nix
+            ../../modules/common/charm.nix
+            ../../modules/common/syncthing.nix
+            ../../modules/common/motd.nix
+            ../../modules/common/agent-user.nix
             ../../modules/roles/default.nix
             ../../modules/nixos/base.nix
           ]
@@ -33,8 +43,7 @@
               }
             ];
             # Disable features that need external dependencies
-            onepassword.enable = false;
-            cachix.enable = false;
+            onepassword.enable = lib.mkForce false;
             inherit roles;
           };
 

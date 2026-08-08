@@ -455,6 +455,7 @@
         {
           inherit
             (tests)
+            nix-unit-tests
             foundation-options
             core-packages
             foundation-packages

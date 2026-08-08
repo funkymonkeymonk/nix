@@ -52,8 +52,31 @@
     if isLinux && self != null
     then import ./vm {inherit pkgs self;}
     else {};
+
+  # nix-unit eval-time tests (fast, no derivation builds)
+  # Copies the full repo into the build dir so relative imports resolve.
+  nix-unit-tests = let
+    src = builtins.path {
+      path = ../.;
+      name = "source";
+    };
+  in
+    pkgs.runCommand "nix-unit-tests"
+    {
+      nativeBuildInputs = [pkgs.nix-unit pkgs.nix];
+      NIX_PATH = "nixpkgs=${toString pkgs.path}";
+    }
+    ''
+      cp -r ${src} source
+      export HOME=$(mktemp -d)
+      nix-unit source/tests/nix-unit-tests.nix --eval-store "$HOME"
+      touch $out
+    '';
 in
   {
+    # nix-unit eval-time tests (fast, no derivation builds)
+    inherit nix-unit-tests;
+
     # Package availability tests
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;

@@ -474,14 +474,13 @@ jobs:
           NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
           nix profile add --accept-flake-config \
             "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
+      - name: Create stub facter.json
+        run: bash .github/scripts/create-facter-stub.sh
       - name: Validate Disko configurations
         run: devenv tasks run validate:disko
       - name: Validate installation script
         run: devenv tasks run validate:install-script
-      - name: Run foundation tests
-        env:
-          SKIP_CONFIG_EVAL: "true"
+      - name: Run check suite
         run: |
-          echo "Running foundation test suite..."
-          echo "SKIP_CONFIG_EVAL=true (configs already validated in discover-targets job)"
-          devenv tasks run test:all
+          echo "Running nix flake check (configs already validated in discover-targets job)"
+          nix flake check --max-jobs auto --print-build-logs
