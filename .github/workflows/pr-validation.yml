@@ -32,7 +32,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
@@ -95,7 +95,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       # Restore cached derivation hashes
       - name: Restore derivation cache
         uses: actions/cache@v4
@@ -267,7 +267,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Build ${{ matrix.config }}
         id: build
         run: |
@@ -305,7 +305,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
@@ -346,7 +346,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
@@ -505,7 +505,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: true
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
       - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
