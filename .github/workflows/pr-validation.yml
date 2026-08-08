@@ -96,9 +96,9 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: ${{ github.ref != 'refs/heads/main' }}
-      # Restore cached derivation hashes
+      # Restore cached derivation hashes from previous runs
       - name: Restore derivation cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         id: drv-cache
         with:
           path: .drv-cache
@@ -236,13 +236,14 @@ jobs:
           # Save current config lists to staging
           echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
           echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache-staging/nixos-configs
-      # Upload staging cache as artifact (will be committed to cache after successful builds)
-      - name: Upload staging cache
-        uses: actions/upload-artifact@v4
+      # Always save drv hashes so iterative PR commits can skip unchanged configs.
+      # Uses if: always() so the cache is saved even if downstream jobs fail.
+      - name: Save derivation cache
+        if: always()
+        uses: actions/cache/save@v4
         with:
-          name: drv-cache-staging
-          path: .drv-cache-staging/
-          retention-days: 1
+          path: .drv-cache
+          key: drv-${{ github.ref }}-${{ github.sha }}
   # Build all Darwin configurations that changed
   build-darwin:
     name: Build Darwin - ${{ matrix.config }}
@@ -374,47 +375,7 @@ jobs:
       - test-and-validate
     if: always()
     steps:
-      - name: Download staging cache
-        uses: actions/download-artifact@v4
-        with:
-          name: drv-cache-staging
-          path: .drv-cache-new
-        continue-on-error: true
-      - name: Commit cache on success
-        if: >
-          ${{
-            (needs.build-darwin.result == 'success' ||
-             needs.build-darwin.result == 'skipped') &&
-            (needs.build-nixos.result == 'success' ||
-             needs.build-nixos.result == 'skipped') &&
-            (needs.build-nixos-arm.result == 'success' ||
-             needs.build-nixos-arm.result == 'skipped') &&
-            (needs.test-and-validate.result == 'success' ||
-             needs.test-and-validate.result == 'skipped')
-          }}
-        run: |
-          echo "Builds succeeded - committing new derivation hashes to cache"
-          mkdir -p .drv-cache
-          if [ -d .drv-cache-new ]; then
-            cp -r .drv-cache-new/* .drv-cache/
-            echo "Cache updated with new derivation hashes"
-          fi
-      - name: Save derivation cache
-        if: >
-          ${{
-            (needs.build-darwin.result == 'success' ||
-             needs.build-darwin.result == 'skipped') &&
-            (needs.build-nixos.result == 'success' ||
-             needs.build-nixos.result == 'skipped') &&
-            (needs.build-nixos-arm.result == 'success' ||
-             needs.build-nixos-arm.result == 'skipped') &&
-            (needs.test-and-validate.result == 'success' ||
-             needs.test-and-validate.result == 'skipped')
-          }}
-        uses: actions/cache@v4
-        with:
-          path: .drv-cache
-          key: drv-${{ github.ref }}-${{ github.sha }}
+
       - name: Report build results
         run: |
           echo "## Build Report" >> $GITHUB_STEP_SUMMARY
