@@ -20,6 +20,7 @@
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
+  testObsidian = import ./test-obsidian.nix {inherit pkgs;};
 
   testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
   testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};
@@ -147,6 +148,10 @@ in
     git-commit-signing = testGitEnable.gitCommitSigningExistsTest;
     git-config-generation = testGitEnable.gitConfigGenerationTest;
     git-user-config = testGitEnable.gitUserConfigTest;
+
+    # Obsidian option tests
+    obsidian-options = testObsidian.obsidianOptionsTest;
+    obsidian-custom-options = testObsidian.obsidianCustomOptionsTest;
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;

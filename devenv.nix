@@ -887,6 +887,8 @@ in {
           ".#checks.''${CURRENT_SYSTEM}.git-commit-signing" \
           ".#checks.''${CURRENT_SYSTEM}.git-config-generation" \
           ".#checks.''${CURRENT_SYSTEM}.git-user-config" \
+          ".#checks.''${CURRENT_SYSTEM}.obsidian-options" \
+          ".#checks.''${CURRENT_SYSTEM}.obsidian-custom-options" \
           --no-link --max-jobs auto --print-build-logs
 
         echo ""

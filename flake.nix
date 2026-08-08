@@ -544,6 +544,8 @@
             git-commit-signing
             git-config-generation
             git-user-config
+            obsidian-options
+            obsidian-custom-options
             ;
         }
         // nixpkgs.lib.optionalAttrs isDarwin {

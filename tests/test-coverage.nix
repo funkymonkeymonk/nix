@@ -102,6 +102,9 @@
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"
     "home-manager/skills/manifest.nix"
+    # Tested via test-obsidian.nix (option defaults and custom values)
+    "common/obsidian.nix"
+    "home-manager/obsidian.nix"
   ];
 
   # Modules not yet covered by tests
@@ -121,9 +124,7 @@
   # after a rename/deletion so it stops actually matching a real file),
   # not to block progress. It should almost always be equal to the
   # current coveragePct, or slightly below it as a small buffer.
-  # Current: 50% (modules/common/obsidian.nix + home-manager/obsidian.nix
-  # added by PR #392 without matching tests).
-  minCoveragePct = 50;
+  minCoveragePct = 52;
 in {
   moduleCoverageTest =
     pkgs.runCommand "test-module-coverage"
