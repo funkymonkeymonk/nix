@@ -84,6 +84,7 @@
         ../modules/common/charm.nix
         ../modules/common/syncthing.nix
         ../modules/common/zellij.nix
+        ../modules/common/obsidian.nix
         ../modules/roles/default.nix
         # roles/foundation.nix (always-enabled by default) writes
         # myConfig.onepassword.enable = true; that option now lives in
