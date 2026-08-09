@@ -1,6 +1,7 @@
 # Caddy reverse proxy + dnsmasq DNS resolver for Darwin (macOS)
-# dnsmasq resolves *.internal → 127.0.0.1 (via /etc/resolver/internal)
-# Caddy routes hostnames to local services on port 80.
+# Runs as a user agent (launchd.user.agents) for persistent local dev DNS names.
+# dnsmasq resolves *.localhost and *.internal → 127.0.0.1
+# Caddy routes hostnames to local services on port 80 with admin API on 2019.
 {
   config,
   lib,
@@ -23,15 +24,15 @@
   serviceRoutes =
     []
     ++ lib.optional (searxngCfg.enable && searxngCfg.port != cfg.port) {
-      host = "searxng.internal";
+      host = "searxng.localhost";
       upstream = "localhost:${toString searxngCfg.port}";
     }
     ++ lib.optional (bifrostCfg.enable && bifrostCfg.port != cfg.port) {
-      host = "bifrost.internal";
+      host = "bifrost.localhost";
       upstream = "localhost:${toString bifrostCfg.port}";
     }
     ++ lib.optional (vaneCfg.enable && vaneCfg.port != cfg.port) {
-      host = "vane.internal";
+      host = "vane.localhost";
       upstream = "localhost:${toString vaneCfg.port}";
     };
 
@@ -47,6 +48,7 @@
     {
       auto_https off
       http_port ${toString cfg.port}
+      admin localhost:2019
     }
 
     ${lib.concatMapStrings routeBlock allRoutes}
@@ -108,31 +110,36 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    environment.etc."resolver/localhost".text = ''
+      nameserver 127.0.0.1
+      port ${toString dnsPort}
+    '';
+
     environment.etc."resolver/internal".text = ''
       nameserver 127.0.0.1
       port ${toString dnsPort}
     '';
 
-    launchd.daemons.dnsmasq = {
+    launchd.user.agents.dnsmasq = {
       command = dnsmasqScript;
       serviceConfig = {
-        Label = "com.dnsmasq.service";
+        Label = "org.nixos.dnsmasq";
         RunAtLoad = true;
         KeepAlive = true;
-        StandardOutPath = "/tmp/dnsmasq.log";
-        StandardErrorPath = "/tmp/dnsmasq.error.log";
+        StandardOutPath = "${cfg.dataDir}/dnsmasq.log";
+        StandardErrorPath = "${cfg.dataDir}/dnsmasq.error.log";
         WorkingDirectory = darwinHomeDir;
       };
     };
 
-    launchd.daemons.caddy = {
+    launchd.user.agents.caddy = {
       command = caddyScript;
       serviceConfig = {
-        Label = "com.caddy.service";
+        Label = "org.nixos.caddy";
         RunAtLoad = true;
         KeepAlive = true;
-        StandardOutPath = "/tmp/caddy.log";
-        StandardErrorPath = "/tmp/caddy.error.log";
+        StandardOutPath = "${cfg.dataDir}/caddy.log";
+        StandardErrorPath = "${cfg.dataDir}/caddy.error.log";
         WorkingDirectory = darwinHomeDir;
       };
     };
@@ -146,15 +153,15 @@ in {
       (mkServiceRegistry "caddy" {
         displayName = "Caddy";
         port = cfg.port;
-        label = "com.caddy.service";
-        errorLog = "/tmp/caddy.error.log";
+        label = "org.nixos.caddy";
+        errorLog = "${cfg.dataDir}/caddy.error.log";
         enabled = cfg.enable;
       })
       (mkServiceRegistry "dnsmasq" {
         displayName = "dnsmasq";
         port = dnsPort;
-        label = "com.dnsmasq.service";
-        errorLog = "/tmp/dnsmasq.error.log";
+        label = "org.nixos.dnsmasq";
+        errorLog = "${cfg.dataDir}/dnsmasq.error.log";
         enabled = cfg.enable;
       })
     ];

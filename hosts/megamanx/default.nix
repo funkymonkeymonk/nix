@@ -1,11 +1,7 @@
 # MegamanX (personal desktop) target configuration
 # Thin host file — imports workstation archetype, adds machine-specific
 # LLM stack (vllm-mlx, bifrost, vane) and pi customizations.
-{
-  mkUser,
-  inputs,
-  ...
-}: {
+{mkUser, ...}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
@@ -17,7 +13,7 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      skills.superpowersPath = inputs.superpowers;
+      # superpowersPath provided by workstation-darwin archetype
 
       obsidian.vaults = ["personal"];
 

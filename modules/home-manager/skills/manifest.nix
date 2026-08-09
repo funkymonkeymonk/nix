@@ -256,4 +256,85 @@
     };
     deps = [];
   };
+
+  # Personal skills - managed in this repository
+  "creating-user-manual" = {
+    description = "Use when creating a personal user manual, manager README, or working-with-me document. Use when someone wants to document their working style, communication preferences, or collaboration patterns for colleagues";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./creating-user-manual;
+    };
+    deps = [];
+  };
+
+  "devenv" = {
+    description = "Use when working with devenv developer environments. Covers setup, packages, scripts, tasks, processes, services, git-hooks, and file generation. Use when initializing devenv, adding packages, configuring services like postgres/redis, running processes, or troubleshooting devenv issues";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./devenv;
+    };
+    deps = [];
+  };
+
+  "infra-investigation" = {
+    description = "Use when investigating errors, incidents, or performance issues that span Datadog logs/metrics, AWS infrastructure, Terraform/terrasaur config, and Kubernetes Helm values. Use when diagnosing root causes that require correlating multiple sources. Use when infrastructure facts need to be verified before being used in analysis";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./infra-investigation;
+    };
+    deps = [];
+  };
+
+  "innersource-pr-haiku" = {
+    description = "Use when given a GitHub PR link and asked to thank a contributor with a haiku and approve the PR";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./innersource-pr-haiku;
+    };
+    deps = [];
+  };
+
+  "open-url-new-window" = {
+    description = "Open URLs in a new browser window using macOS native commands";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./open-url-new-window;
+    };
+    deps = [];
+  };
+
+  "shave-yaks" = {
+    description = "Use when managing yak tasks, backlog tracking, or coordinating work on shared projects";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./shave-yaks;
+    };
+    deps = [];
+  };
+
+  "vendor-technical-evaluation" = {
+    description = "Use when evaluating third-party vendors for a Buy decision, driving or participating in a vendor technical evaluation, navigating the Draft/Review/Revision/Decision lifecycle, or handling escalations, score ties, author replacement, or failed security assessments";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./vendor-technical-evaluation;
+    };
+    deps = [];
+  };
+
+  "yak-jira-sync" = {
+    description = "Use when creating Jira tickets from a yak backlog, syncing yaks to Jira, auditing whether open yaks have corresponding tickets, or ensuring a yak backlog and Jira board reflect the same work";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./yak-jira-sync;
+    };
+    deps = [];
+  };
 }
