@@ -400,11 +400,57 @@ Skills auto-install when roles like `developer`, `opencode`, or `claude` are act
 
 **Location:** `~/.config/opencode/skills/`
 
+### Skill Priority (THIS REPOSITORY)
+
+**Agents: PREFER skills defined in this repo over superpowers.**
+
+Skill resolution priority:
+1. **Project-local repo skills** ← Start here (`modules/home-manager/skills/internal/`)
+2. **Agent global skills** (`~/.config/opencode/skills/`)
+3. **Superpowers** (built-in skills)
+
+**Why:** This repo has a tight feedback loop for skill development. When you refine a skill here, it auto-deploys on `system:switch`. Use superpowers only if the repo doesn't define the skill.
+
+### Repo Skills Structure
+
+All skills defined in this repo are in `modules/home-manager/skills/`:
+
+```
+modules/home-manager/skills/
+├── README.md           ← Full documentation
+├── manifest.nix        ← Skill registry
+├── install.nix
+├── internal/           ← All skills (organized by name)
+│   ├── brainstorming/
+│   ├── debugging/
+│   ├── devenv/         ← Your skills
+│   ├── tdd/
+│   └── ... (30+ skills)
+└── external/           ← Skills fetched from GitHub
+    └── jj/
+```
+
+See `modules/home-manager/skills/README.md` for complete documentation.
+
 ### Adding Skills
 
 1. Create `modules/home-manager/skills/internal/skill-name/SKILL.md`
-2. Register in `modules/home-manager/skills/manifest.nix`
-3. Rebuild system
+2. Register in `modules/home-manager/skills/manifest.nix` with roles
+3. Run `system:switch` to deploy
+4. Test: `cat ~/.config/opencode/skills/skill-name/SKILL.md`
+
+Example manifest entry:
+```nix
+"my-skill" = {
+  description = "What this skill does";
+  roles = ["developer" "opencode"];
+  source = {
+    type = "internal";
+    path = ./internal/my-skill;
+  };
+  deps = [];
+};
+```
 
 ---
 

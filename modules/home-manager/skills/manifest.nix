@@ -263,7 +263,7 @@
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
-      path = ./creating-user-manual;
+      path = ./internal/creating-user-manual;
     };
     deps = [];
   };
@@ -273,7 +273,7 @@
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
-      path = ./devenv;
+      path = ./internal/devenv;
     };
     deps = [];
   };
@@ -283,7 +283,7 @@
     roles = ["developer" "workstation"];
     source = {
       type = "internal";
-      path = ./infra-investigation;
+      path = ./internal/infra-investigation;
     };
     deps = [];
   };
@@ -293,7 +293,7 @@
     roles = ["developer" "workstation"];
     source = {
       type = "internal";
-      path = ./innersource-pr-haiku;
+      path = ./internal/innersource-pr-haiku;
     };
     deps = [];
   };
@@ -303,7 +303,7 @@
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
-      path = ./open-url-new-window;
+      path = ./internal/open-url-new-window;
     };
     deps = [];
   };
@@ -313,7 +313,7 @@
     roles = ["developer" "opencode" "claude"];
     source = {
       type = "internal";
-      path = ./shave-yaks;
+      path = ./internal/shave-yaks;
     };
     deps = [];
   };
@@ -323,7 +323,7 @@
     roles = ["developer" "workstation"];
     source = {
       type = "internal";
-      path = ./vendor-technical-evaluation;
+      path = ./internal/vendor-technical-evaluation;
     };
     deps = [];
   };
@@ -333,7 +333,7 @@
     roles = ["developer" "workstation"];
     source = {
       type = "internal";
-      path = ./yak-jira-sync;
+      path = ./internal/yak-jira-sync;
     };
     deps = [];
   };
