@@ -40,8 +40,35 @@ python3Packages.buildPythonApplication rec {
   # turn. mlx-lm exposes the extra cursor metadata via meta_state, so capture
   # and restore it alongside the array state. Not fixed upstream as of v0.4.0.
   patches = [
+    # fix(server): emit terminal finish_reason chunk when parsers swallow the
+    # finished output.  A finished=True engine output consumed by a parser
+    # `continue` (e.g. gemma4 emits the complete tool call in one delta, then
+    # a bare <turn|> end-of-turn token as the terminal delta) ends the stream
+    # with the tool_calls chunk (finish_reason=null) followed by [DONE] and no
+    # finish_reason chunk.  Strict OpenAI clients abort with "Stream ended
+    # without finish_reason".  Track whether any emitted chunk carried a
+    # non-null finish_reason; after the streaming loop, if the engine's
+    # finished output was suppressed, emit the terminal chunk.  Refs #672.
     ./emit-terminal-finish-chunk.patch
+
+    # Allow system-prompt KV cache snapshots when the model mixes plain KVCache
+    # and RotatingKVCache (e.g. Gemma 4). The upstream 0.4.0 probe disables
+    # snapshots for any non-KVCache class, forcing a full re-prefill on every
+    # turn. mlx-lm exposes the extra cursor metadata via meta_state, so capture
+    # and restore it alongside the array state. Not fixed upstream as of v0.4.0.
     ./snapshot-rotating-kv-cache.patch
+
+    # fix(simple-engine): preserve streaming finish reasons.  Natural generator
+    # exhaustion currently emits a final chunk with no finish reason.  Strict
+    # OpenAI clients treat that as a truncated stream.  This stamps natural
+    # exhaustion as `stop`, and fixes the engine-enforced token-limit fallback
+    # so a backend chunk with no reason is reported as `length`, while
+    # preserving explicit backend reasons.  Refs #628.
+    #
+    # This is the engine half of the #672 fix; the server half above handles
+    # finish_reasons that are swallowed by parser `continue`.  Both patches
+    # are needed for a complete fix.
+    ./fix-engine-finish-reason.patch
   ];
 
   pythonRemoveDeps = [
