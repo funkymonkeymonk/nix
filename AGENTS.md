@@ -39,24 +39,9 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 - **Targets**: Machine-specific configurations (`targets/`)
 - **Options**: Type-safe configuration (`modules/common/options.nix`)
 
-## Directory Structure
+## Principles
 
-```
-.
-├── .github/                    # GitHub Actions workflows
-├── modules/
-│   ├── common/                 # Shared: options, users, shell, onepassword
-│   ├── home-manager/           # User environment
-│   │   └── skills/             # Agent skills management
-│   ├── roles/                  # Role modules (one per role)
-│   ├── services/               # Service modules (ollama, openclaw, matrix)
-│   └── nixos/                  # Linux-specific modules
-├── targets/                    # Machine configurations
-├── docs/                       # Documentation (Diataxis framework)
-├── os/                         # Platform OS configurations
-├── flake.nix                   # Main flake with helpers
-└── devenv.nix                  # Tasks and dev environment
-```
+**Do not document directory structures.** Agents reviewing code can use `ls`, `find`, or file exploration tools to traverse the codebase. Tree diagrams in documentation rot quickly and add noise. Document *concepts* and *relationships*, not folder listings.
 
 ---
 

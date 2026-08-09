@@ -292,17 +292,8 @@ with lib; let
   in
     lib.optionalAttrs hasSource (lib.listToAttrs (extEntries ++ skillEntries));
 
-  # Model-stack skill (directory with scripts)
-  modelStackPath = ../../skills/model-stack;
-  modelStackFiles = lib.optionalAttrs (builtins.pathExists modelStackPath) {
-    ".pi/agent/skills/model-stack" = {
-      source = modelStackPath;
-      recursive = true;
-    };
-  };
-
   # All files merged together
-  allFiles = coreFiles // promptFiles // skillFiles // manifestSkillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles // modelStackFiles;
+  allFiles = coreFiles // promptFiles // skillFiles // manifestSkillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles;
 
   # pi-dev: run pi with local plugin overrides (no special shell needed)
   pi-dev-script = pkgs.writeShellScriptBin "pi-dev" ''
