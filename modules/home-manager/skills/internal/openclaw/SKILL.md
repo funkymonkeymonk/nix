@@ -1,3 +1,8 @@
+---
+name: openclaw
+description: Guidelines for working with OpenClaw AI assistant configuration and deployment
+---
+
 # OpenClaw Development
 
 Guidelines for working with OpenClaw AI assistant in this repository.

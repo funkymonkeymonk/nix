@@ -1,3 +1,8 @@
+---
+name: debugging
+description: Systematic debugging approach for bugs, test failures, and unexpected behavior
+---
+
 # Debugging
 
 ## Overview

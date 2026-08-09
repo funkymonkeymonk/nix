@@ -1,3 +1,8 @@
+---
+name: receiving-code-review
+description: Process code review feedback with technical rigor
+---
+
 # Receiving Code Review
 
 ## Overview

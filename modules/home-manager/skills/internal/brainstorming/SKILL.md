@@ -1,3 +1,8 @@
+---
+name: brainstorming
+description: Help turn ideas into fully formed designs through collaborative dialogue
+---
+
 # Brainstorming
 
 ## Overview

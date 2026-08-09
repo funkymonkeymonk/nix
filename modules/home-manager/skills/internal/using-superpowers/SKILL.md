@@ -1,3 +1,8 @@
+---
+name: using-superpowers
+description: Access and use available skills for the current task. Check which skills are installed and select the appropriate one before starting work
+---
+
 # Using Superpowers
 
 ## Overview

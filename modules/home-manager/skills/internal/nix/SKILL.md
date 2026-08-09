@@ -1,4 +1,5 @@
 ---
+name: nix
 description: Nix development skill for working with flakes, modules, and configurations
 ---
 

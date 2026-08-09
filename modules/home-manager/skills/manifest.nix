@@ -1,6 +1,48 @@
 # Skill manifest - defines all available skills with metadata
 # Skills are installed based on enabled roles in the bundle configuration
 {
+  pkgs ? null,
+  inputs ? null,
+}: let
+  # Build writing-skills with vendored references from upstream repos.
+  # Vendored files are pinned by the flake.lock sha of their respective inputs.
+  writingSkillsDir =
+    if pkgs != null && inputs != null && inputs ? agentskills
+    then
+      pkgs.runCommand "writing-skills" {} ''
+        mkdir -p $out
+        cp ${./internal/writing-skills/SKILL.md} $out/SKILL.md
+        mkdir -p $out/references
+        # Vendor agentskills.io specification
+        for f in docs/specification.mdx specification.md README.md; do
+          if [ -f "${inputs.agentskills}/$f" ]; then
+            cp "${inputs.agentskills}/$f" $out/references/agentskills-spec.mdx
+            break
+          fi
+        done
+        # Vendor superpowers writing-skills reference files
+        ${
+          if inputs ? superpowers
+          then ''
+            sp="${inputs.superpowers}/skills/writing-skills"
+            if [ -f "$sp/SKILL.md" ]; then
+              cp "$sp/SKILL.md" $out/references/superpowers-writing-skills.md
+            fi
+            if [ -f "$sp/testing-skills-with-subagents.md" ]; then
+              cp "$sp/testing-skills-with-subagents.md" $out/references/testing-skills-with-subagents.md
+            fi
+            if [ -f "$sp/anthropic-best-practices.md" ]; then
+              cp "$sp/anthropic-best-practices.md" $out/references/anthropic-best-practices.md
+            fi
+            if [ -f "$sp/persuasion-principles.md" ]; then
+              cp "$sp/persuasion-principles.md" $out/references/persuasion-principles.md
+            fi
+          ''
+          else ""
+        }
+      ''
+    else ./internal/writing-skills;
+in {
   # Internal skills - defined in this repository
   brainstorming = {
     description = "Help turn ideas into fully formed designs through collaborative dialogue";
@@ -53,11 +95,11 @@
   };
 
   "writing-skills" = {
-    description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment";
-    roles = ["developer" "creative" "opencode" "claude"];
+    description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment in this repository. Follows agentskills.io specification with vendored upstream references pinned by sha";
+    roles = ["developer" "creative" "opencode" "claude" "pi"];
     source = {
-      type = "superpowers";
-      skillName = "writing-skills";
+      type = "internal";
+      path = writingSkillsDir;
     };
     deps = [];
   };

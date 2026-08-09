@@ -1,3 +1,8 @@
+---
+name: open-url-new-window
+description: Open URLs in a new browser window using macOS native commands
+---
+
 # open-url-new-window
 
 Opens a URL in a new browser window (not a new tab in existing window) on macOS.
