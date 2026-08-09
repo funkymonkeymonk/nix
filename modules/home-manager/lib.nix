@@ -61,10 +61,8 @@ with lib; rec {
   mkAutoLoadSkills = {
     enabledRoles,
     superpowersPath ? null,
-    pkgs ? null,
-    inputs ? null,
   }: let
-    manifest = import ./skills/manifest.nix {inherit pkgs inputs;};
+    manifest = import ./skills/manifest.nix;
     enabledSkills =
       lib.filterAttrs (
         _name: skill:
@@ -120,10 +118,8 @@ with lib; rec {
   mkFullSkillDirs = {
     enabledRoles,
     superpowersPath ? null,
-    pkgs ? null,
-    inputs ? null,
   }: let
-    manifest = import ./skills/manifest.nix {inherit pkgs inputs;};
+    manifest = import ./skills/manifest.nix;
     enabledSkills =
       lib.filterAttrs (
         _name: skill:

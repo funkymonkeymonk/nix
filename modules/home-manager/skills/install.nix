@@ -19,12 +19,11 @@
   osConfig,
   lib,
   pkgs,
-  inputs ? null,
   ...
 }: let
   # Get skills config from OS config
   cfg = osConfig.myConfig.skills or {};
-  manifest = import ./manifest.nix {inherit pkgs inputs;};
+  manifest = import ./manifest.nix;
 
   # Get all enabled roles from config
   enabledRoles = cfg.enabledRoles or [];

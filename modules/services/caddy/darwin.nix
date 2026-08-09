@@ -126,8 +126,8 @@ in {
         Label = "org.nixos.dnsmasq";
         RunAtLoad = true;
         KeepAlive = true;
-        StandardOutPath = "${cfg.dataDir}/dnsmasq.log";
-        StandardErrorPath = "${cfg.dataDir}/dnsmasq.error.log";
+        StandardOutPath = "${darwinHomeDir}/.local/share/caddy/dnsmasq.log";
+        StandardErrorPath = "${darwinHomeDir}/.local/share/caddy/dnsmasq.error.log";
         WorkingDirectory = darwinHomeDir;
       };
     };
@@ -138,14 +138,14 @@ in {
         Label = "org.nixos.caddy";
         RunAtLoad = true;
         KeepAlive = true;
-        StandardOutPath = "${cfg.dataDir}/caddy.log";
-        StandardErrorPath = "${cfg.dataDir}/caddy.error.log";
+        StandardOutPath = "${darwinHomeDir}/.local/share/caddy/caddy.log";
+        StandardErrorPath = "${darwinHomeDir}/.local/share/caddy/caddy.error.log";
         WorkingDirectory = darwinHomeDir;
       };
     };
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
-      mkdir -p "${cfg.dataDir}"
+      mkdir -p "${darwinHomeDir}/.local/share/caddy"
     '';
 
     # Register caddy + dnsmasq in service registry
@@ -154,14 +154,14 @@ in {
         displayName = "Caddy";
         port = cfg.port;
         label = "org.nixos.caddy";
-        errorLog = "${cfg.dataDir}/caddy.error.log";
+        errorLog = "${darwinHomeDir}/.local/share/caddy/caddy.error.log";
         enabled = cfg.enable;
       })
       (mkServiceRegistry "dnsmasq" {
         displayName = "dnsmasq";
         port = dnsPort;
         label = "org.nixos.dnsmasq";
-        errorLog = "${cfg.dataDir}/dnsmasq.error.log";
+        errorLog = "${darwinHomeDir}/.local/share/caddy/dnsmasq.error.log";
         enabled = cfg.enable;
       })
     ];

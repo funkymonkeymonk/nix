@@ -2,7 +2,6 @@
   osConfig,
   lib,
   pkgs,
-  inputs ? null,
   ...
 }:
 with lib; let
@@ -17,7 +16,6 @@ with lib; let
     (hmLib.mkFullSkillDirs {
       enabledRoles = skillsCfg.enabledRoles or [];
       superpowersPath = skillsCfg.superpowersPath or null;
-      inherit pkgs inputs;
     })
     skillDirs
     allSkills
@@ -34,7 +32,6 @@ with lib; let
     (hmLib.mkAutoLoadSkills {
       enabledRoles = skillsCfg.enabledRoles or [];
       superpowersPath = skillsCfg.superpowersPath or null;
-      inherit pkgs inputs;
     })
     autoLoadContent
     hasAutoLoadSkills
