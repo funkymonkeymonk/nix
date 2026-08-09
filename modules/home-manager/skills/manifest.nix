@@ -1,6 +1,11 @@
 # Skill manifest - defines all available skills with metadata
 # Skills are installed based on enabled roles in the bundle configuration
-{
+let
+  # Path to the writing-skills directory, which may be a plain directory
+  # or a derivation that vendors upstream references (built at flake level).
+  # Default: use local skill; overridden by flake.nix when inputs available.
+  writingSkillsDir = ./internal/writing-skills;
+in {
   # Internal skills - defined in this repository
   brainstorming = {
     description = "Help turn ideas into fully formed designs through collaborative dialogue";
@@ -53,11 +58,11 @@
   };
 
   "writing-skills" = {
-    description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment";
-    roles = ["developer" "creative" "opencode" "claude"];
+    description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment in this repository. Follows agentskills.io specification with vendored upstream references pinned by sha";
+    roles = ["developer" "creative" "opencode" "claude" "pi"];
     source = {
-      type = "superpowers";
-      skillName = "writing-skills";
+      type = "internal";
+      path = writingSkillsDir;
     };
     deps = [];
   };
@@ -253,6 +258,77 @@
     source = {
       type = "internal";
       path = ./internal/zellij;
+    };
+    deps = [];
+  };
+
+  # Personal skills - managed in this repository
+  "creating-user-manual" = {
+    description = "Use when creating a personal user manual, manager README, or working-with-me document. Use when someone wants to document their working style, communication preferences, or collaboration patterns for colleagues";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/creating-user-manual;
+    };
+    deps = [];
+  };
+
+  "devenv" = {
+    description = "Use when working with devenv developer environments. Covers setup, packages, scripts, tasks, processes, services, git-hooks, and file generation. Use when initializing devenv, adding packages, configuring services like postgres/redis, running processes, or troubleshooting devenv issues";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/devenv;
+    };
+    deps = [];
+  };
+
+  "infra-investigation" = {
+    description = "Use when investigating errors, incidents, or performance issues that span Datadog logs/metrics, AWS infrastructure, Terraform/terrasaur config, and Kubernetes Helm values. Use when diagnosing root causes that require correlating multiple sources. Use when infrastructure facts need to be verified before being used in analysis";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./internal/infra-investigation;
+    };
+    deps = [];
+  };
+
+  "innersource-pr-haiku" = {
+    description = "Use when given a GitHub PR link and asked to thank a contributor with a haiku and approve the PR";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./internal/innersource-pr-haiku;
+    };
+    deps = [];
+  };
+
+  "open-url-new-window" = {
+    description = "Open URLs in a new browser window using macOS native commands";
+    roles = ["developer" "opencode" "claude"];
+    source = {
+      type = "internal";
+      path = ./internal/open-url-new-window;
+    };
+    deps = [];
+  };
+
+  "vendor-technical-evaluation" = {
+    description = "Use when evaluating third-party vendors for a Buy decision, driving or participating in a vendor technical evaluation, navigating the Draft/Review/Revision/Decision lifecycle, or handling escalations, score ties, author replacement, or failed security assessments";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./internal/vendor-technical-evaluation;
+    };
+    deps = [];
+  };
+
+  "yak-jira-sync" = {
+    description = "Use when creating Jira tickets from a yak backlog, syncing yaks to Jira, auditing whether open yaks have corresponding tickets, or ensuring a yak backlog and Jira board reflect the same work";
+    roles = ["developer" "workstation"];
+    source = {
+      type = "internal";
+      path = ./internal/yak-jira-sync;
     };
     deps = [];
   };

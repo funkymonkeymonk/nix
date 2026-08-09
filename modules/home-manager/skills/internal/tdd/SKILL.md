@@ -1,3 +1,8 @@
+---
+name: tdd
+description: Test-driven development workflow for implementing features and bugfixes. Write failing tests first, then minimal implementation, then refactor while keeping tests green
+---
+
 # Test-Driven Development (TDD)
 
 ## Overview

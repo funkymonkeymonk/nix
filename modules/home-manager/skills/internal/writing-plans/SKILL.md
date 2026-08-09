@@ -1,3 +1,8 @@
+---
+name: writing-plans
+description: Create detailed implementation plans from specs and requirements. Break down features into specific, verifiable, estimated tasks with dependencies
+---
+
 # Writing Plans
 
 ## Overview

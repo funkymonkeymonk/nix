@@ -3,7 +3,7 @@ description: Autonomously triage and implement yaks until all are shaved or flag
 agent: build
 ---
 
-Work through the yak backlog autonomously using the `shave-yaks` skill.
+Work through the yak backlog autonomously using the `yak-shaving` skill.
 
 ## Your Mission
 
@@ -17,7 +17,7 @@ Loop through all actionable yaks until none remain. For each yak:
 
 Locate the skill scripts:
 ```bash
-SKILL_DIR="$HOME/.config/opencode/skills/shave-yaks/scripts"
+SKILL_DIR="$HOME/.config/opencode/skills/yak-shaving/scripts"
 ```
 
 ## The Loop
@@ -39,7 +39,7 @@ done
 
 ## Implementation Rules
 
-Load the `shave-yaks` skill for the full workflow. Key requirements:
+Load the `yak-shaving` skill for the full workflow. Key requirements:
 
 1. **Sync first** — `yx sync` before every triage pass
 2. **Triage before acting** — use `yak-triage.sh` to find actionable yaks
