@@ -1,7 +1,7 @@
 # Caddy reverse proxy + dnsmasq DNS resolver for Darwin (macOS)
 # Runs as a user agent (launchd.user.agents) for persistent local dev DNS names.
-# dnsmasq resolves *.localhost and *.internal → 127.0.0.1
-# Caddy routes hostnames to local services on port 80 with admin API on 2019.
+# dnsmasq resolves *.internal → 127.0.0.1
+# Caddy routes *.internal hostnames to local services on port 80 with admin API on 2019.
 {
   config,
   lib,
@@ -24,15 +24,15 @@
   serviceRoutes =
     []
     ++ lib.optional (searxngCfg.enable && searxngCfg.port != cfg.port) {
-      host = "searxng.localhost";
+      host = "searxng.internal";
       upstream = "localhost:${toString searxngCfg.port}";
     }
     ++ lib.optional (bifrostCfg.enable && bifrostCfg.port != cfg.port) {
-      host = "bifrost.localhost";
+      host = "bifrost.internal";
       upstream = "localhost:${toString bifrostCfg.port}";
     }
     ++ lib.optional (vaneCfg.enable && vaneCfg.port != cfg.port) {
-      host = "vane.localhost";
+      host = "vane.internal";
       upstream = "localhost:${toString vaneCfg.port}";
     };
 
