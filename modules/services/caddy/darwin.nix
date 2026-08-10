@@ -47,6 +47,12 @@
     {
       auto_https off
       http_port ${toString cfg.port}
+      admin localhost:2019
+    }
+
+    # Root route for health checks
+    http://localhost {
+      respond 200 "Caddy running"
     }
 
     ${lib.concatMapStrings routeBlock allRoutes}
@@ -125,7 +131,7 @@ in {
       };
     };
 
-    launchd.daemons.caddy = {
+    launchd.user.agents.caddy = {
       command = caddyScript;
       serviceConfig = {
         Label = "com.caddy.service";
