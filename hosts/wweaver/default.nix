@@ -9,6 +9,10 @@
   lib,
   ...
 }: {
+  imports = [
+    ../../library/archetypes/developer-laptop-darwin.nix
+  ];
+
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "wweaver";
@@ -21,7 +25,6 @@
     mkUser "wweaver" "wweaver@justworks.com"
     // {
       skills = {
-        superpowersPath = inputs.superpowers;
         externalInputs = {
           inherit (inputs) vercel-skills;
         };
