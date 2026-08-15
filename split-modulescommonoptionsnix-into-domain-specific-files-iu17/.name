@@ -1,1 +1,1 @@
-Split modules/common/options.nix into domain-specific files
+Finish migrating options.nix domains to owning modules
