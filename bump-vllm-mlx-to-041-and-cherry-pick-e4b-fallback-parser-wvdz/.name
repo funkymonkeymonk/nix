@@ -1,0 +1,1 @@
+bump vllm-mlx to 0.4.1 and cherry-pick e4b fallback parser
