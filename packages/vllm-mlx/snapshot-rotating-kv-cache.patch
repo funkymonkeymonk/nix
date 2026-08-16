@@ -75,3 +75,42 @@
  
      @classmethod
      def _probe_system_kv_cache_support(cls, model: Any, route: str) -> bool:
+@@ -503,36 +519,36 @@
+                         # Under bounded-KV serving (max_kv_size > 0) make_prompt_cache
+                         # returns RotatingKVCache for models without a custom
+                         # make_cache; probing with default args would mis-classify that
+                         # path as snapshot-safe.
+                         try:
+-                            from mlx_lm.models.cache import KVCache, make_prompt_cache
++                            from mlx_lm.models.cache import make_prompt_cache
+ 
+                             probe_cache = make_prompt_cache(
+                                 self._text_model, max_kv_size=self._max_kv_size or None
+                             )
+                             self._supports_system_kv_cache = bool(probe_cache) and all(
+-                                isinstance(c, KVCache) for c in probe_cache
++                                self._cache_class_is_system_snapshot_safe(c) for c in probe_cache
+                             )
+                             if not self._supports_system_kv_cache:
+                                 cache_types = sorted(
+                                     {type(c).__name__ for c in probe_cache}
+                                 )
+                                 logger.info(
+                                     "System KV cache snapshot disabled for MLLM "
+                                     "text routing: TextModel returned non-KVCache "
+                                     "entries (%s); _stream_generate_text will use "
+                                     "the uncached path",
+                                     cache_types,
+                                 )
+                         except Exception as e:
+                             logger.debug(
+                                 "MLLM TextModel KV cache support probe failed "
+                                 "(%s); disabling snapshot path",
+                                 e,
+                             )
+                             self._supports_system_kv_cache = False
+ 
+                         has_mtp = (
+                             hasattr(self._text_model, "mtp")
+                             and self._text_model.mtp is not None
+                         )
