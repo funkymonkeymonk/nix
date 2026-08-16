@@ -47,3 +47,6 @@ tmp
 profiling/
 *.profile.json
 *.profile.md
+
+# Subagent runtime artifacts
+.pi-subagents/
