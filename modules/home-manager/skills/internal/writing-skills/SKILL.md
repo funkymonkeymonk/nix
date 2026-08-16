@@ -7,7 +7,7 @@ description: Use when creating new skills, editing existing skills, or verifying
 
 ## Overview
 
-Skills in this repo are managed declaratively via `modules/home-manager/skills/manifest.nix` and deployed to both OpenCode and Pi agents. They must follow the [agentskills.io specification](references/agentskills-spec.mdx) (vendored in this skill) and this repo's conventions.
+Skills in this repo are managed declaratively via `modules/home-manager/skills/manifest.nix` and deployed to both OpenCode and Pi agents. They follow conventions established in this repository (see `docs/reference/skill-development.md` for full guidelines).
 
 **Core principle:** Every skill must have `name` + `description` YAML frontmatter, a `SKILL.md` under 500 lines, and appropriate roles in the manifest.
 
@@ -71,18 +71,6 @@ Follow TDD adapted for documentation:
 3. **REFACTOR**: Close loopholes. Re-test.
 
 For discipline-enforcing skills, test with pressure scenarios. For technique skills, test with application scenarios.
-
-## Vendored References
-
-This skill includes vendored specifications from upstream repos (pinned by sha in `flake.lock`):
-
-- `references/agentskills-spec.mdx` — agentskills.io format specification
-- `references/superpowers-writing-skills.md` — obra/superpowers detailed skill authoring guide
-- `references/testing-skills-with-subagents.md` — testing methodology
-- `references/anthropic-best-practices.md` — Anthropic's official best practices
-- `references/persuasion-principles.md` — psychology of rationalization resistance
-
-Update vendored files by bumping the input sha in `flake.nix` or running `nix flake lock --update-input agentskills`.
 
 ## Anti-Patterns
 
