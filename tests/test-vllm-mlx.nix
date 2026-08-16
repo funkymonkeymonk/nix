@@ -312,22 +312,22 @@ in {
     touch $out
   '';
 
-  # Verify the actual MegamanX target config targets Gemma 4 with gemma4 parsers
+  # Verify the actual MegamanX target config targets Qwen 3.8 with qwen3 parsers
   # and that its serving limits line up with the pi client's expectations.
   megamanxVllmMlxTest = pkgs.runCommand "test-megamanx-vllm" {} ''
     echo "=== Testing MegamanX vllm-mlx Configuration ==="
     echo ""
     ${
       let
-        hasModel = builtins.elem "gemma4-31b" (builtins.attrNames megamanxVllmMlx.models);
+        hasModel = builtins.elem "qwen3.8-27b" (builtins.attrNames megamanxVllmMlx.models);
         modelPath =
           if hasModel
-          then megamanxVllmMlx.models."gemma4-31b".path
+          then megamanxVllmMlx.models."qwen3.8-27b".path
           else null;
       in
-        if hasModel && modelPath == "mlx-community/gemma-4-31b-it-4bit"
-        then ''echo "  model = gemma-4-31b-it-4bit: OK"''
-        else ''echo "  FAIL: model should be mlx-community/gemma-4-31b-it-4bit, got ${toString modelPath}"; exit 1''
+        if hasModel && modelPath == "mlx-community/Qwen3.8-27B-4bit"
+        then ''echo "  model = Qwen3.8-27B-4bit: OK"''
+        else ''echo "  FAIL: model should be mlx-community/Qwen3.8-27B-4bit, got ${toString modelPath}"; exit 1''
     }
     ${
       let
@@ -342,14 +342,14 @@ in {
         else ''echo "  FAIL: e4b model should be mlx-community/gemma-4-e4b-it-4bit, got ${toString e4bPath}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.toolCallParser == "gemma4"
-      then ''echo "  toolCallParser = gemma4: OK"''
-      else ''echo "  FAIL: toolCallParser should be gemma4, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
+      if megamanxVllmMlx.toolCallParser == "qwen"
+      then ''echo "  toolCallParser = qwen: OK"''
+      else ''echo "  FAIL: toolCallParser should be qwen, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.reasoningParser == "gemma4"
-      then ''echo "  reasoningParser = gemma4: OK"''
-      else ''echo "  FAIL: reasoningParser should be gemma4, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
+      if megamanxVllmMlx.reasoningParser == "qwen3"
+      then ''echo "  reasoningParser = qwen3: OK"''
+      else ''echo "  FAIL: reasoningParser should be qwen3, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
     }
     ${
       # pi advertises maxTokens = 131072 for the bifrost model; the server KV

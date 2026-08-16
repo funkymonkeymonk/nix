@@ -36,12 +36,11 @@ in {
 
     # Auto-configure bifrost as a model provider.
     # modelId must be a model alias served by the local stack — the vllm-mlx
-    # registry on megamanx serves gemma4-31b/gemma4-e4b (the old gemma4:26b
-    # ollama-style tag predates the vllm-mlx stack and matched nothing).
+    # registry on megamanx serves qwen3.8-27b/gemma4-e4b.
     myConfig.pi.models.bifrost = lib.mkDefault {
       name = "Bifrost AI Gateway";
       provider = "bifrost";
-      modelId = "gemma4-31b";
+      modelId = "qwen3.8-27b";
       baseUrl = "http://${host}:${port}/v1";
     };
 

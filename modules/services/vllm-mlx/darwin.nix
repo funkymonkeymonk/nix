@@ -38,11 +38,16 @@
       # Known overlays in this repo:
       #   gemma4-31B-4bit  -> mlx-community/gemma-4-31b-it-4bit
       #   gemma4-e4B-4bit  -> mlx-community/gemma-4-e4b-it-4bit
+      #   qwen3_8-27B-8bit -> mlx-community/Qwen3.8-27B-8bit
       overlayName =
         if modelName == "gemma-4-31b-it-4bit"
         then "gemma4-31B-4bit"
         else if modelName == "gemma-4-e4b-it-4bit"
         then "gemma4-e4B-4bit"
+        else if modelName == "Qwen3.8-27B-8bit"
+        then "qwen3_8-27B-8bit"
+        else if modelName == "Qwen3.8-27B-4bit"
+        then "qwen3_8-27B-4bit"
         else null;
     in
       if overlayName != null && pkgs ? ${overlayName}
@@ -106,7 +111,14 @@
       ${lib.optionalString cfg.enableAutoToolChoice "--enable-auto-tool-choice"} \
       ${lib.optionalString (cfg.toolCallParser != null) "--tool-call-parser ${cfg.toolCallParser}"} \
       ${lib.optionalString (cfg.reasoningParser != null) "--reasoning-parser ${cfg.reasoningParser}"} \
-      ${lib.optionalString (cfg.maxKvSize != null) "--max-kv-size ${toString cfg.maxKvSize}"}
+      ${lib.optionalString (cfg.maxKvSize != null) "--max-kv-size ${toString cfg.maxKvSize}"} \
+      ${lib.optionalString cfg.enableMetrics "--enable-metrics"} \
+      ${lib.optionalString cfg.enableContinuousBatching "--continuous-batching"} \
+      ${lib.optionalString cfg.enablePrefixCache "--enable-prefix-cache"} \
+      ${lib.optionalString (cfg.chunkedPrefillTokens != null) "--chunked-prefill-tokens ${toString cfg.chunkedPrefillTokens}"} \
+      ${lib.optionalString cfg.enableMtp "--enable-mtp"} \
+      ${lib.optionalString cfg.enableMtp "--mtp-num-draft-tokens ${toString cfg.mtpNumDraftTokens}"} \
+      ${lib.optionalString (cfg.enableMtp && cfg.mtpOptimistic) "--mtp-optimistic"}
   '';
 
   # Warmup script: pre-load model weights into memory after service start
@@ -215,15 +227,15 @@ in {
     };
 
     toolCallParser = lib.mkOption {
-      type = lib.types.nullOr (lib.types.enum ["auto" "none" "mistral" "qwen" "llama" "hermes" "deepseek" "kimi" "lfm2" "granite" "nemotron" "minimax" "xlam" "functionary" "glm47" "step3p5" "gemma3" "gemma3n" "xml_function" "dsml" "deepseek_v4" "zaya_xml" "hunyuan" "generic" "qwen3" "llama3" "llama4" "nous" "deepseek_v3" "deepseek_r1" "kimi_k2" "moonshot" "liquid" "granite3" "nemotron3" "minimax_m2" "meetkai" "stepfun" "glm4" "gemma4" "hy_v3" "tencent"]);
+      type = lib.types.nullOr (lib.types.enum ["auto" "mistral" "qwen" "qwen3_coder" "llama" "hermes" "harmony" "gpt-oss" "deepseek" "kimi" "granite" "nemotron" "xlam" "functionary" "gemma4" "glm47" "minimax"]);
       default = null;
-      description = "Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4 models.";
+      description = "Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4, 'qwen' for Qwen2/3.";
     };
 
     reasoningParser = lib.mkOption {
-      type = lib.types.nullOr (lib.types.enum ["auto" "none" "gemma4" "deepseek" "qwen3"]);
+      type = lib.types.nullOr (lib.types.enum ["qwen3" "deepseek_r1" "gpt_oss" "harmony" "gemma4" "glm4" "mistral" "poolside_v1"]);
       default = null;
-      description = "Reasoning parser for extracting thinking/reasoning content from model output. 'gemma4' for Gemma 4 models.";
+      description = "Reasoning parser for extracting thinking/reasoning content from model output. 'qwen3' for Qwen3, 'gemma4' for Gemma 4.";
     };
 
     lockAdmission = lib.mkOption {
@@ -254,6 +266,48 @@ in {
       type = lib.types.enum ["DEBUG" "INFO" "WARNING" "ERROR"];
       default = "INFO";
       description = "Server log level.";
+    };
+
+    enableMetrics = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Expose Prometheus metrics on /metrics endpoint.";
+    };
+
+    enableContinuousBatching = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable continuous batching (BatchedEngine) for concurrent requests. Allows prefix caching across turns but adds per-request overhead.";
+    };
+
+    enablePrefixCache = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable prefix caching in BatchedEngine mode. Reuses KV cache blocks for common prompt prefixes across requests/conversations. Requires --continuous-batching.";
+    };
+
+    chunkedPrefillTokens = lib.mkOption {
+      type = lib.types.nullOr (lib.types.addCheck lib.types.int (x: x >= 0));
+      default = null;
+      description = "Chunk size for prefill processing in BatchedEngine mode (0 disables chunked prefill). May be needed to avoid crashes with large prompts when prefix caching is enabled.";
+    };
+
+    enableMtp = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Enable Multi-Token Prediction (MTP) for models with built-in MTP heads such as Qwen3.8. Can significantly increase generation throughput.";
+    };
+
+    mtpNumDraftTokens = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 1;
+      description = "Number of draft tokens to predict per MTP step. Higher values increase speed when acceptance rate is high.";
+    };
+
+    mtpOptimistic = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Skip MTP acceptance verification for maximum speed. May produce ~5-10% incorrect tokens; use with caution.";
     };
   };
 

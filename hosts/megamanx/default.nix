@@ -20,7 +20,7 @@
       # Extra role beyond workstation archetype
       roles.entertainment.enable = true;
 
-      # vllm-mlx serves Gemma 4 with native tool/reasoning parsers
+      # vllm-mlx serves Qwen 3.8 with native tool/reasoning parsers
       # Built from source with Metal-enabled mlx (prebuilt wheels merged in Nix).
       vllmMlx = {
         enable = true;
@@ -31,10 +31,10 @@
         memoryBudgetGb = 90;
         contention = "preempt";
         models = {
-          "gemma4-31b" = {
-            path = "mlx-community/gemma-4-31b-it-4bit";
+          "qwen3.8-27b" = {
+            path = "mlx-community/Qwen3.8-27B-4bit";
             type = "lm";
-            estimatedMemoryGb = 18;
+            estimatedMemoryGb = 16;
             preload = true;
           };
           "gemma4-e4b" = {
@@ -45,8 +45,8 @@
           };
         };
         enableAutoToolChoice = true;
-        toolCallParser = "gemma4";
-        reasoningParser = "gemma4";
+        toolCallParser = "qwen";
+        reasoningParser = "qwen3";
         # maxKvSize caps the per-sequence KV cache. It must be >= pi's maxTokens
         # for the bifrost model (131072) so a long agent session does not silently
         # rotate the system prompt and tool definitions out of the KV cache.
@@ -58,12 +58,23 @@
         # plus long 31B generations would otherwise be killed server-side.
         timeout = 600;
         logLevel = "INFO";
+        # Switch to BatchedEngine for prefix caching across conversation turns.
+        # This lets the engine reuse KV cache blocks for the growing prefix,
+        # avoiding full prefill on every turn.
+        enableContinuousBatching = true;
+        enablePrefixCache = true;
+        # Disable chunked prefill to avoid crash with large prompts (>19k tokens)
+        # when prefix cache is enabled. See vllm-mlx issue #178.
+        chunkedPrefillTokens = 0;
+        # Enable Multi-Token Prediction for Qwen3.8's built-in MTP heads.
+        # This can significantly increase generation throughput (tok/s).
+        enableMtp = true;
       };
 
       vane = {
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "gemma4-31b";
+        defaultModel = "qwen3.8-27b";
         embeddingModel = "nomic-embed-text:latest";
         ollamaUrl = "http://localhost:11434";
         # Point at the searxng service enabled below (myConfig.searxng.enable).
@@ -74,18 +85,28 @@
 
       bifrost = {
         enable = true;
+        # UI for request tracing, logs, token analytics:
+        #   http://localhost:8081/
+        # Prometheus metrics: http://localhost:8081/metrics
         logLevel = "debug";
         upstreams = {
           vllm-mlx-local = {
             url = "http://localhost:8300";
             type = "openai";
-            requestTimeout = 120;
+            # Must be >= vllm-mlx timeout (600s) so Bifrost doesn't abort
+            # requests that are still prefill/working in the engine.
+            requestTimeout = 600;
+            # Idle timeout for streaming — must be >= longest prefill time.
+            # Bifrost default is 60s, but vllm-mlx can take 150–200s to prefill
+            # 22k+ tokens in BatchedEngine. Without this, Bifrost closes the
+            # connection mid-prefill and returns 500.
+            streamIdleTimeoutInSeconds = 600;
             # Retry transient 503s (busy engine, model-swap preemption) so a
             # single busy window doesn't fail an agent turn. Bifrost's stock
             # default is 0 retries.
             maxRetries = 3;
             models = [
-              "gemma4-31b"
+              "qwen3.8-27b"
               "gemma4-e4b"
             ];
           };
@@ -144,7 +165,7 @@
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "vllm-mlx-local/gemma4-31b";
+          modelId = "vllm-mlx-local/qwen3.8-27b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = false;
           maxTokens = 131072;

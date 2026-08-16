@@ -169,3 +169,23 @@ Potential future enhancements:
 - **Model caching**: Pre-download models at build time
 - **Metrics dashboard**: Grafana for request latency and throughput
 - **Auto-scaling**: Spawn multiple vllm-mlx instances for load
+
+## Recent Changes
+
+### BatchedEngine Migration (2026-08)
+
+Switched from `SimpleEngine` (default) to `BatchedEngine` (`--continuous-batching`) on the primary workstation target to enable prefix caching across conversation turns. This addresses the intra-session prefill bottleneck where every turn re-processed the entire message history.
+
+| Before (SimpleEngine) | After (BatchedEngine) |
+|---|---|
+| System-prompt snapshot only | Prefix trie cache across turns |
+| ~166s prefill every turn | ~166s first turn, ~5–20s subsequent turns |
+| Single-request serialization | Concurrent request batching |
+| No prefix cache support | `--enable-prefix-cache` active |
+
+**Known risks:**
+- Prefix cache crash with prompts >19k tokens ([vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)) — workaround: `chunkedPrefillTokens = 0`
+- ~10–20% per-request throughput reduction vs SimpleEngine
+- MLLM text routing still lacks intra-session prefix reuse ([vllm-mlx#567](https://github.com/waybarrios/vllm-mlx/issues/567))
+
+See [Known Issues](../reference/known-issues.md) for full tracking.

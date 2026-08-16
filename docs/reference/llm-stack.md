@@ -78,6 +78,18 @@ Caddy runs as a **root daemon** and proxies `.internal` hostnames to their respe
 
 vllm-mlx runs as a **user daemon**. The Nix build uses `mlx-metal`, which pulls prebuilt PyPI wheels with Metal GPU support. The running process maps the Apple GPU driver (`AGXMetalG13X.bundle`) and `mlx.metallib`. Text-only requests achieve 60+ tok/s on Apple Silicon.
 
+**Engine modes:**
+
+| Mode | Flag | Use When |
+|------|------|----------|
+| **SimpleEngine** (default) | *(none)* | Single-user, max per-request throughput. Serializes all requests behind one `asyncio.Lock`. |
+| **BatchedEngine** | `--continuous-batching` | Multiple concurrent users, or when prefix caching across conversation turns is needed. |
+
+**Prefix caching:**
+
+- **System-prompt snapshot** (SimpleEngine): Caches the system prompt KV state across requests with the same prefix hash. Works for repeating system prompts (sub-agent dispatch, retries). Does **not** cache conversation history — every new turn re-prefills the full message list.
+- **Prefix trie cache** (BatchedEngine): Uses `LRUPromptCache` to find the longest matching prefix from prior requests. Can reuse KV cache across turns in the same conversation. Requires `--continuous-batching --enable-prefix-cache`.
+
 **Binary selection:**
 
 | Mode | Binary | Metal | Notes |
@@ -102,9 +114,10 @@ vllm-mlx supports:
 
 - Multi-model registry (lazy loading on first use)
 - Tool calling (with configurable parser: `qwen`, `gemma4`, etc.)
-- Continuous batching
-- Prefix caching
+- Continuous batching (BatchedEngine)
+- Prefix caching (BatchedEngine only)
 - Paged attention
+- System-prompt KV snapshot caching (SimpleEngine)
 
 ### Layer 4: AI Gateway (Bifrost)
 
@@ -154,6 +167,10 @@ myConfig = {
     toolCallParser = "qwen";
     timeout = 120;
     logLevel = "INFO";
+    # Enable BatchedEngine + prefix cache for conversation turn reuse
+    enableContinuousBatching = true;
+    enablePrefixCache = true;
+    chunkedPrefillTokens = 0;  # workaround for large-prompt crash (#178)
   };
 
   bifrost = {
@@ -241,6 +258,42 @@ This tests all layers from DNS resolution through to chat completions.
 | 3000 | Vane | HTTP (Next.js) |
 | 8080 | SearXNG | HTTP |
 
+## Known Issues & Risks
+
+| Issue | Status | Impact | Workaround |
+|-------|--------|--------|------------|
+| **Prefix cache + large prompts crash** ([vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)) | Open | Segfault when `--enable-prefix-cache` + prompts >19k tokens | Set `chunkedPrefillTokens = 0` |
+| **Prefix cache not in SimpleEngine** ([vllm-mlx#567](https://github.com/waybarrios/vllm-mlx/issues/567)) | PR #574 open | No cross-turn prefix reuse in default mode | Use `enableContinuousBatching = true` |
+| **MLLM text routing disables system KV cache** | Unmerged | RotatingKVCache blocks snapshot path for Qwen MLLM models | Patched locally; upstream still uses hardcoded `isinstance(c, KVCache)` |
+| **BatchedEngine throughput lower** | Expected | ~10-20% per-request slowdown vs SimpleEngine | Acceptable trade-off for multi-turn prefix reuse |
+
+## System Prompt Inventory
+
+The 25 agent skills installed on this target contribute approximately **36,000 tokens** to the system prompt (measured at ~146,500 characters). This is the dominant contributor to long prefill times.
+
+**Active skills** (filtered by roles `developer`, `workstation`, `pi`):
+
+| Skill | Size (chars) | Role |
+|-------|-------------|------|
+| `watch-ci-jobs` | 16,270 | developer, workstation |
+| `jj` | 11,819 | developer |
+| `yak-shaving` | 10,570 | developer, pi |
+| `nix-adding-services` | 10,286 | developer, pi |
+| `zellij` | 10,736 | developer |
+| `refining-specs` | 7,167 | developer |
+| `ralph-specs` | 6,800 | developer |
+| `diataxis-docs` | 6,316 | developer |
+| `prd-review` | 5,388 | developer |
+| `nix-hf-models` | 5,359 | developer, pi |
+| `vendor-technical-evaluation` | 6,188 | developer, workstation |
+| `infra-investigation` | 7,211 | developer, workstation |
+| ... + 19 more | | |
+
+**To reduce prefill time:**
+1. Remove unused roles from the target (e.g. `workstation` if not needed)
+2. Override `myConfig.skills.enabledRoles` to a subset
+3. Use a smaller model (gemma4-e4b, ~5GB vs qwen's 16GB)
+
 ## Troubleshooting
 
 ### Port Conflicts
@@ -265,3 +318,14 @@ vllm-mlx downloads models from HuggingFace on first use. Check download progress
 ```bash
 cat ~/Library/Logs/vllm-mlx/server.log | grep -i "loading\|download\|error"
 ```
+
+### Crash with Prefix Cache + Large Prompts
+
+If vllm-mlx crashes during prefill with `Segmentation fault` when using `--enable-prefix-cache`:
+
+```bash
+# Check if chunked prefill was re-enabled internally
+grep "mid_prefill_cache\|chunked_prefill" ~/Library/Logs/vllm-mlx/server.error.log
+```
+
+Ensure `chunkedPrefillTokens = 0` is set in your target config (workaround for [vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)).

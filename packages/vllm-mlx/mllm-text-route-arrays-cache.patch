@@ -1,0 +1,18 @@
+--- a/vllm_mlx/engine/simple.py
++++ b/vllm_mlx/engine/simple.py
+@@ -523,11 +523,11 @@
+                         # make_cache; probing with default args would mis-classify that
+                         # path as snapshot-safe.
+                         try:
+-                            from mlx_lm.models.cache import KVCache, make_prompt_cache
++                            from mlx_lm.models.cache import make_prompt_cache
+ 
+                             probe_cache = make_prompt_cache(
+                                 self._text_model, max_kv_size=self._max_kv_size or None
+                             )
+                             self._supports_system_kv_cache = bool(probe_cache) and all(
+-                                isinstance(c, KVCache) for c in probe_cache
++                                self._cache_class_is_system_snapshot_safe(c) for c in probe_cache
+                             )
+                             if not self._supports_system_kv_cache:
+                                 cache_types = sorted(

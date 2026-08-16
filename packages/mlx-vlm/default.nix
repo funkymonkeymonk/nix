@@ -1,4 +1,4 @@
-# mlx-vlm 0.6.4 — Required by vllm-mlx 0.4.0 for Gemma 4 support
+# mlx-vlm 0.6.5 — Required by vllm-mlx 0.4.1 for Gemma 4 support
 # nixpkgs has 0.4.4 which lacks ScaledLinear quantization needed for Gemma 4.
 {
   lib,
@@ -8,13 +8,13 @@
 }:
 python3Packages.buildPythonPackage rec {
   pname = "mlx-vlm";
-  version = "0.6.4";
+  version = "0.6.5";
   pyproject = true;
 
   src = fetchPypi {
     pname = "mlx_vlm";
     inherit version;
-    hash = "sha256-KpEWkq7cOGGuJvQFexwF3Lmr+5VNUBI98+9j6rDFjik=";
+    hash = "sha256-J1ottr5EImrg2EkvTsxeW5ZldE3o2h9lqWuf4c47wT0=";
   };
 
   nativeBuildInputs = with python3Packages; [pythonRelaxDepsHook setuptools];

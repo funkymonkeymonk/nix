@@ -121,8 +121,8 @@
       "pi.enable" = true;
       # Default local model served by the vllm-mlx registry via Bifrost.
       # Must match a model alias in myConfig.vllmMlx.models on hosts that
-      # run the local stack (megamanx serves gemma4-31b).
-      "pi.models.bifrost.modelId" = "gemma4-31b";
+      # run the local stack (megamanx serves qwen3.8-27b).
+      "pi.models.bifrost.modelId" = "qwen3.8-27b";
     };
     # llm-host no longer cascades to ollama.enable (service option removed)
     assistant = {"email-agent.enable" = true;};
