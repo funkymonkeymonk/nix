@@ -32,9 +32,9 @@
         contention = "preempt";
         models = {
           "qwen3.8-27b" = {
-            path = "mlx-community/Qwen3.8-27B-4bit";
+            path = "mlx-community/Qwen3.8-27B-8bit";
             type = "lm";
-            estimatedMemoryGb = 16;
+            estimatedMemoryGb = 28;
             preload = true;
           };
           "gemma4-e4b" = {
@@ -66,9 +66,12 @@
         # Disable chunked prefill to avoid crash with large prompts (>19k tokens)
         # when prefix cache is enabled. See vllm-mlx issue #178.
         chunkedPrefillTokens = 0;
-        # Enable Multi-Token Prediction for Qwen3.8's built-in MTP heads.
-        # This can significantly increase generation throughput (tok/s).
-        enableMtp = true;
+        # Use the external Qwen3.8-27B-MTP-8bit mlx-vlm draft model for
+        # speculative decoding. This is not a standalone model; it must be
+        # paired with a compatible Qwen3.8 27B target checkpoint.
+        mllmDraftModel = "mlx-community/Qwen3.8-27B-MTP-8bit";
+        mllmDraftKind = "mtp";
+        mllmDraftBlockSize = 3;
       };
 
       vane = {

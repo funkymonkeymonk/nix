@@ -36,9 +36,11 @@
       modelName = lib.last segments;
       # Convert HF name to overlay-style name.
       # Known overlays in this repo:
-      #   gemma4-31B-4bit  -> mlx-community/gemma-4-31b-it-4bit
-      #   gemma4-e4B-4bit  -> mlx-community/gemma-4-e4b-it-4bit
-      #   qwen3_8-27B-8bit -> mlx-community/Qwen3.8-27B-8bit
+      #   gemma4-31B-4bit      -> mlx-community/gemma-4-31b-it-4bit
+      #   gemma4-e4B-4bit      -> mlx-community/gemma-4-e4b-it-4bit
+      #   qwen3_8-27B-8bit     -> mlx-community/Qwen3.8-27B-8bit
+      #   qwen3_8-27B-MTP-8bit -> mlx-community/Qwen3.8-27B-MTP-8bit
+      #   qwen3_8-27B-MTP-4bit -> mlx-community/Qwen3.8-27B-MTP-4bit
       overlayName =
         if modelName == "gemma-4-31b-it-4bit"
         then "gemma4-31B-4bit"
@@ -48,6 +50,10 @@
         then "qwen3_8-27B-8bit"
         else if modelName == "Qwen3.8-27B-4bit"
         then "qwen3_8-27B-4bit"
+        else if modelName == "Qwen3.8-27B-MTP-8bit"
+        then "qwen3_8-27B-MTP-8bit"
+        else if modelName == "Qwen3.8-27B-MTP-4bit"
+        then "qwen3_8-27B-MTP-4bit"
         else null;
     in
       if overlayName != null && pkgs ? ${overlayName}
@@ -118,7 +124,10 @@
       ${lib.optionalString (cfg.chunkedPrefillTokens != null) "--chunked-prefill-tokens ${toString cfg.chunkedPrefillTokens}"} \
       ${lib.optionalString cfg.enableMtp "--enable-mtp"} \
       ${lib.optionalString cfg.enableMtp "--mtp-num-draft-tokens ${toString cfg.mtpNumDraftTokens}"} \
-      ${lib.optionalString (cfg.enableMtp && cfg.mtpOptimistic) "--mtp-optimistic"}
+      ${lib.optionalString (cfg.enableMtp && cfg.mtpOptimistic) "--mtp-optimistic"} \
+      ${lib.optionalString (cfg.mllmDraftModel != null) "--mllm-draft-model ${lib.escapeShellArg (resolveModelPath cfg.mllmDraftModel)}"} \
+      ${lib.optionalString (cfg.mllmDraftModel != null && cfg.mllmDraftKind != null) "--mllm-draft-kind ${cfg.mllmDraftKind}"} \
+      ${lib.optionalString (cfg.mllmDraftModel != null && cfg.mllmDraftBlockSize != null) "--mllm-draft-block-size ${toString cfg.mllmDraftBlockSize}"}
   '';
 
   # Warmup script: pre-load model weights into memory after service start
@@ -308,6 +317,35 @@ in {
       type = lib.types.bool;
       default = false;
       description = "Skip MTP acceptance verification for maximum speed. May produce ~5-10% incorrect tokens; use with caution.";
+    };
+
+    mllmDraftModel = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Path or HuggingFace repo ID of an mlx-vlm MLLM draft/assistant model.
+        Used for speculative decoding with --mllm-draft-kind. For example, the
+        Qwen3.8-27B-MTP-8bit drafter weights are used alongside a compatible
+        Qwen3.8 27B target checkpoint; they are not a standalone model.
+      '';
+    };
+
+    mllmDraftKind = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum ["mtp"]);
+      default =
+        if cfg.mllmDraftModel != null
+        then "mtp"
+        else null;
+      description = "mlx-vlm draft kind for --mllm-draft-model. Only 'mtp' is supported.";
+    };
+
+    mllmDraftBlockSize = lib.mkOption {
+      type = lib.types.nullOr lib.types.ints.positive;
+      default =
+        if cfg.mllmDraftModel != null
+        then 3
+        else null;
+      description = "Draft block size passed to mlx-vlm for --mllm-draft-model.";
     };
   };
 

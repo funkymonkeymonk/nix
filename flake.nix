@@ -140,7 +140,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit lm-eval lighteval;
+          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }

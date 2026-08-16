@@ -325,9 +325,9 @@ in {
           then megamanxVllmMlx.models."qwen3.8-27b".path
           else null;
       in
-        if hasModel && modelPath == "mlx-community/Qwen3.8-27B-4bit"
-        then ''echo "  model = Qwen3.8-27B-4bit: OK"''
-        else ''echo "  FAIL: model should be mlx-community/Qwen3.8-27B-4bit, got ${toString modelPath}"; exit 1''
+        if hasModel && modelPath == "mlx-community/Qwen3.8-27B-8bit"
+        then ''echo "  model = Qwen3.8-27B-8bit: OK"''
+        else ''echo "  FAIL: model should be mlx-community/Qwen3.8-27B-8bit, got ${toString modelPath}"; exit 1''
     }
     ${
       let
