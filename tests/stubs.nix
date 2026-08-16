@@ -96,10 +96,14 @@
 
   # ── Composite stubs ───────────────────────────────────────────────────────
 
-  # Darwin launchd service stubs — required when a module sets launchd.daemons
-  # or system.activationScripts (e.g. vane, searxng, bifrost, caddy).
+  # Darwin launchd service stubs — required when a module sets launchd.daemons,
+  # launchd.user.agents, or system.activationScripts (e.g. vane, searxng, bifrost, caddy).
   darwinServiceStub = {
     options.launchd.daemons = lib.mkOption {
+      type = lib.types.attrsOf lib.types.anything;
+      default = {};
+    };
+    options.launchd.user.agents = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
       default = {};
     };

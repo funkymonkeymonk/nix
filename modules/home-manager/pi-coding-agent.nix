@@ -224,7 +224,18 @@ with lib; let
                 console.error(`[bifrost-discovery] HTTP ''${response.status}`);
                 return;
               }
-              const payload = await response.json();
+              const bodyText = await response.text();
+              if (!bodyText) {
+                console.error("[bifrost-discovery] Empty response body from /models");
+                return;
+              }
+              let payload;
+              try {
+                payload = JSON.parse(bodyText);
+              } catch (parseErr) {
+                console.error("[bifrost-discovery] Invalid JSON from /models:", parseErr);
+                return;
+              }
               if (!Array.isArray(payload.data)) {
                 console.error("[bifrost-discovery] Unexpected response format");
                 return;
@@ -292,17 +303,8 @@ with lib; let
   in
     lib.optionalAttrs hasSource (lib.listToAttrs (extEntries ++ skillEntries));
 
-  # Model-stack skill (directory with scripts)
-  modelStackPath = ../../skills/model-stack;
-  modelStackFiles = lib.optionalAttrs (builtins.pathExists modelStackPath) {
-    ".pi/agent/skills/model-stack" = {
-      source = modelStackPath;
-      recursive = true;
-    };
-  };
-
   # All files merged together
-  allFiles = coreFiles // promptFiles // skillFiles // manifestSkillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles // modelStackFiles;
+  allFiles = coreFiles // promptFiles // skillFiles // manifestSkillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles;
 
   # pi-dev: run pi with local plugin overrides (no special shell needed)
   pi-dev-script = pkgs.writeShellScriptBin "pi-dev" ''

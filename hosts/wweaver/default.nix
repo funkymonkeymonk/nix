@@ -44,12 +44,11 @@
       vane = {
         enable = true;
         autoStart = true;
-        openaiBaseUrl = "https://litellm.justworksai.net/v1";
         defaultModel = "qwen3.5";
         embeddingModel = "nomic-embed-text";
       };
       opencode = {
-        model = "just-llms/claude-sonnet-4-6";
+        enable = true;
         disabledProviders = ["opencode"];
         extraMcpServers = {
           github = {
@@ -84,20 +83,7 @@
             '';
           };
         };
-        providers = {
-          just-llms = {
-            npm = "@ai-sdk/openai-compatible";
-            name = "Just LLMs";
-            baseURL = "https://litellm.justworksai.net/v1";
-            onePasswordItem = "op://Justworks/Justworks LiteLLM/wweaver-poweruser-key";
-            dynamicModels = true;
-            models = {
-              "us.anthropic.claude-opus-4-5-20251101-v1:0" = {
-                name = "Claude Opus 4.5 (Bedrock)";
-              };
-            };
-          };
-        };
+        providers = {};
       };
       claude-code = {
         enable = false;

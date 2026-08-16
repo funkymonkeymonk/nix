@@ -1,3 +1,8 @@
+---
+name: verification-before-completion
+description: Run verification commands before claiming work is complete. Check requirements, run tests, check for regressions, and self-review before submitting
+---
+
 # Verification Before Completion
 
 ## Overview

@@ -1,0 +1,105 @@
+---
+name: writing-skills
+description: Use when creating new skills, editing existing skills, or verifying skills work before deployment in this repository
+---
+
+# Writing Skills
+
+## Overview
+
+Skills in this repo are managed declaratively via `modules/home-manager/skills/manifest.nix` and deployed to both OpenCode and Pi agents. They must follow the [agentskills.io specification](references/agentskills-spec.mdx) (vendored in this skill) and this repo's conventions.
+
+**Core principle:** Every skill must have `name` + `description` YAML frontmatter, a `SKILL.md` under 500 lines, and appropriate roles in the manifest.
+
+## Repository Conventions
+
+### SKILL.md Requirements
+
+**YAML frontmatter (required):**
+
+```yaml
+---
+name: skill-name          # Must match directory name. lowercase, hyphens only
+description: Use when...  # Triggering conditions ONLY. Never summarize workflow.
+---
+```
+
+- `name`: Must match the directory name exactly. Max 64 chars. `a-z`, `0-9`, hyphens only.
+- `description`: Start with "Use when...". Describe triggering conditions, symptoms, contexts. **Never summarize the skill's workflow or process** — agents may follow the description instead of reading the full skill.
+- Keep under 500 lines. Move heavy reference material to `references/`.
+
+### Manifest Registration
+
+Every skill must be registered in `modules/home-manager/skills/manifest.nix`:
+
+```nix
+"skill-name" = {
+  description = "Same as SKILL.md description";
+  roles = ["developer" "opencode" "claude" "pi"];  # Add pi for general-purpose skills
+  source = {
+    type = "internal";
+    path = ./internal/skill-name;
+  };
+  deps = [];
+};
+```
+
+**Role guidelines:**
+- `"pi"` — add to general-purpose skills (debugging, tdd, writing-plans, etc.)
+- `"workstation"` — work-specific skills (infra-investigation, vendor-eval, etc.)
+- `"opencode"`, `"claude"` — agent-specific skills
+- Keep roles minimal; agents load all matching skills
+
+### Progressive Disclosure
+
+1. **Metadata** (~100 tokens): `name` + `description` loaded at startup
+2. **Instructions** (< 5000 tokens): Full `SKILL.md` loaded when activated
+3. **Resources** (as needed): `references/`, `scripts/` loaded on demand
+
+Keep `SKILL.md` focused. One excellent example beats five mediocre ones.
+
+### Documentation Principles
+
+**Do not document directory structures in `SKILL.md`.** Agents reviewing code can use `ls`, `find`, or file exploration tools to traverse the codebase. Tree diagrams in documentation rot quickly and add noise. Document *concepts* and *relationships*, not folder listings.
+
+### Testing Skills
+
+Follow TDD adapted for documentation:
+
+1. **RED**: Run a scenario WITHOUT the skill. Document baseline failures.
+2. **GREEN**: Write minimal skill addressing those failures.
+3. **REFACTOR**: Close loopholes. Re-test.
+
+For discipline-enforcing skills, test with pressure scenarios. For technique skills, test with application scenarios.
+
+## Vendored References
+
+This skill includes vendored specifications from upstream repos (pinned by sha in `flake.lock`):
+
+- `references/agentskills-spec.mdx` — agentskills.io format specification
+- `references/superpowers-writing-skills.md` — obra/superpowers detailed skill authoring guide
+- `references/testing-skills-with-subagents.md` — testing methodology
+- `references/anthropic-best-practices.md` — Anthropic's official best practices
+- `references/persuasion-principles.md` — psychology of rationalization resistance
+
+Update vendored files by bumping the input sha in `flake.nix` or running `nix flake lock --update-input agentskills`.
+
+## Anti-Patterns
+
+| Anti-Pattern | Fix |
+|---|---|
+| Summarizing workflow in `description` | Change to triggering conditions only |
+| `SKILL.md` over 500 lines | Move heavy reference to `references/` |
+| Documenting directory trees | Remove — agents use `ls`/`find` |
+| Multi-language examples | One excellent example is enough |
+| Narrative storytelling | Focus on reusable techniques |
+| Missing `"pi"` role | Add for general-purpose skills |
+
+## Deployment Checklist
+
+- [ ] `name` matches directory name
+- [ ] `description` starts with "Use when..." and doesn't summarize workflow
+- [ ] `SKILL.md` under 500 lines
+- [ ] Registered in `manifest.nix` with correct roles
+- [ ] `devenv tasks run check:lint` passes
+- [ ] Tested with baseline scenario (RED → GREEN → REFACTOR)

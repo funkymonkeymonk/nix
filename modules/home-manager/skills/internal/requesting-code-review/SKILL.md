@@ -1,3 +1,8 @@
+---
+name: requesting-code-review
+description: Properly request code reviews and prepare PRs
+---
+
 # Requesting Code Review
 
 ## Overview

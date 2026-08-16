@@ -1,6 +1,8 @@
---- a/vllm_mlx/server.py	2026-08-02 21:45:45.790750141 -0400
-+++ b/vllm_mlx/server.py	2026-08-02 21:47:32.600047111 -0400
-@@ -6036,6 +6036,11 @@
+diff --git a/vllm_mlx/server.py b/vllm_mlx/server.py
+index 5ce0f90..fd6ba9c 100644
+--- a/vllm_mlx/server.py
++++ b/vllm_mlx/server.py
+@@ -6036,6 +6036,11 @@ async def stream_chat_completion(
      tool_calls_detected = False
      tool_markup_possible = False  # Fast path: skip parsing until markers appear
      tool_parser = _get_streaming_tool_parser(request, engine)
@@ -12,47 +14,61 @@
  
      try:
          # Stream content
-@@ -6152,6 +6157,9 @@
+@@ -6152,6 +6157,12 @@ async def stream_chat_completion(
                                  usage=get_usage(output) if output.finished else None,
                              )
                              yield f"data: {chunk.model_dump_json()}\n\n"
-+                            finish_reason_emitted = (
-+                                finish_reason_emitted or bool(output.finished)
++                            # Track actual serialized finish_reason, not just
++                            # output.finished — SimpleEngine natural stops can
++                            # have finished=True with finish_reason=None.
++                            finish_reason_emitted = finish_reason_emitted or bool(
++                                output.finished and tool_calls_detected
 +                            )
                              continue
  
                          # Normal content from tool parser
-@@ -6187,6 +6195,9 @@
+@@ -6187,6 +6198,13 @@ async def stream_chat_completion(
                      usage=get_usage(output) if output.finished else None,
                  )
                  yield f"data: {chunk.model_dump_json()}\n\n"
-+                finish_reason_emitted = finish_reason_emitted or bool(
-+                    output.finished
++                # Track actual serialized finish_reason, not just
++                # output.finished — SimpleEngine natural stops can have
++                # finished=True with finish_reason=None.
++                _had_reason = output.finished and (
++                    tool_calls_detected or output.finish_reason is not None
 +                )
++                finish_reason_emitted = finish_reason_emitted or bool(_had_reason)
              else:
                  # Standard path without reasoning parsing
                  content = delta_text
-@@ -6254,6 +6265,9 @@
+@@ -6254,6 +6272,12 @@ async def stream_chat_completion(
                                  usage=get_usage(output) if output.finished else None,
                              )
                              yield f"data: {chunk.model_dump_json()}\n\n"
-+                            finish_reason_emitted = (
-+                                finish_reason_emitted or bool(output.finished)
++                            # Track actual serialized finish_reason, not just
++                            # output.finished — SimpleEngine natural stops can
++                            # have finished=True with finish_reason=None.
++                            finish_reason_emitted = finish_reason_emitted or bool(
++                                output.finished and tool_calls_detected
 +                            )
                              continue
  
                          # Normal content from tool parser
-@@ -6288,6 +6302,9 @@
+@@ -6288,6 +6312,13 @@ async def stream_chat_completion(
                      usage=get_usage(output) if output.finished else None,
                  )
                  yield f"data: {chunk.model_dump_json()}\n\n"
-+                finish_reason_emitted = finish_reason_emitted or bool(
-+                    output.finished
++                # Track actual serialized finish_reason, not just
++                # output.finished — SimpleEngine natural stops can have
++                # finished=True with finish_reason=None.
++                _had_reason = output.finished and (
++                    tool_calls_detected or output.finish_reason is not None
 +                )
++                finish_reason_emitted = finish_reason_emitted or bool(_had_reason)
  
          # Fallback: if tool parser accumulated text but never emitted tool_calls
          # (e.g., </tool_call> never arrived, or <function= block still incomplete)
-@@ -6327,6 +6344,37 @@
+@@ -6327,6 +6358,37 @@ async def stream_chat_completion(
                      ],
                  )
                  yield f"data: {tool_chunk.model_dump_json()}\n\n"

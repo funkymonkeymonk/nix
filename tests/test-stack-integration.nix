@@ -49,6 +49,10 @@
           type = lib.types.attrsOf lib.types.anything;
           default = {};
         };
+        options.launchd.user.agents = lib.mkOption {
+          type = lib.types.attrsOf lib.types.anything;
+          default = {};
+        };
         options.system.activationScripts = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
           default = {};
