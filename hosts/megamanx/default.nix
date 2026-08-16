@@ -58,6 +58,7 @@
         # plus long 31B generations would otherwise be killed server-side.
         timeout = 600;
         logLevel = "INFO";
+        enableMetrics = true;
         # Switch to BatchedEngine for prefix caching across conversation turns.
         # This lets the engine reuse KV cache blocks for the growing prefix,
         # avoiding full prefill on every turn.
@@ -69,6 +70,17 @@
         # Enable Multi-Token Prediction for Qwen3.8's built-in MTP heads.
         # This can significantly increase generation throughput (tok/s).
         enableMtp = true;
+      };
+
+      # Prometheus scrapes bifrost, vllm-mlx, and node-exporter metrics
+      prometheus = {
+        enable = true;
+        retention = "7d";
+      };
+
+      # System metrics exporter for Prometheus
+      nodeExporter = {
+        enable = true;
       };
 
       vane = {

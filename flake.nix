@@ -241,6 +241,8 @@
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
           ./modules/services/vllm-mlx/darwin.nix
+          ./modules/services/prometheus/darwin.nix
+          ./modules/services/node-exporter/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./hosts/megamanx
         ];
