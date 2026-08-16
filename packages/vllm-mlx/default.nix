@@ -33,20 +33,16 @@ python3Packages.buildPythonApplication rec {
 
   # PR #673 is now merged upstream (commit 61c78dc).  v0.4.1 includes
   # the engine-side fixes (#681, #629) and the Gemma 4 fallback parser
-  # (#622).  The patches below remain unmerged upstream:
+  # (#622).  The patch below remains unmerged upstream:
   patches = [
-    # Allow system-prompt KV cache snapshots when the model mixes plain KVCache
-    # and RotatingKVCache (e.g. Gemma 4). The upstream 0.4.0/0.4.1 probe
-    # disables snapshots for any non-KVCache class, forcing a full re-prefill
-    # on every turn. mlx-lm exposes the extra cursor metadata via meta_state,
-    # so capture and restore it alongside the array state.
+    # Allow system-prompt KV cache snapshots when the model mixes plain KVCache,
+    # RotatingKVCache (e.g. Gemma 4), or ArraysCache (MLLM text routing for
+    # Qwen3.5/3.6/3.8). The upstream 0.4.1 probe disables snapshots for any
+    # non-KVCache class and does not capture RotatingKVCache cursor metadata,
+    # forcing a full re-prefill on every turn. This patch captures both state
+    # and meta_state and uses _cache_class_is_system_snapshot_safe for the
+    # MLLM text-routing probe.
     ./snapshot-rotating-kv-cache.patch
-    # Fix MLLM text routing to accept ArraysCache (used by Qwen3.5/3.6/3.8
-    # vision models when their TextModel is extracted for text-only requests).
-    # The upstream probe hardcodes isinstance(c, KVCache) which permanently
-    # disables system KV caching for all hybrid/vision models, even though
-    # _cache_class_is_system_snapshot_safe already knows ArraysCache is safe.
-    ./mllm-text-route-arrays-cache.patch
   ];
 
   pythonRemoveDeps = [

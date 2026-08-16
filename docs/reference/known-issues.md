@@ -66,7 +66,7 @@ This document tracks upstream bugs and architectural limitations that affect the
 | | |
 |---|---|
 | **Upstream** | Hardcoded probe in `SimpleEngine.start()` |
-| **Local patch** | `mllm-text-route-arrays-cache.patch` |
+| **Local patch** | `snapshot-rotating-kv-cache.patch` (combined with RotatingKVCache meta_state fix) |
 | **Status** | Patched locally; upstream still hardcodes `isinstance(c, KVCache)` |
 | **Severity** | Medium (performance) |
 | **First observed** | 2026-03 |
@@ -74,7 +74,7 @@ This document tracks upstream bugs and architectural limitations that affect the
 
 **Symptom:** vllm-mlx loads Qwen3.5/3.6/3.8 as MLLM (`MLLM=True`) even for text-only requests, then routes them through `mlx_vlm` → extracted `TextModel`. The system KV cache probe in `_stream_generate_text` hardcodes `isinstance(c, KVCache)` and rejects `ArraysCache` entries, disabling snapshots for all hybrid models.
 
-**Local patch:** `packages/vllm-mlx/mllm-text-route-arrays-cache.patch` replaces the hardcoded probe with `self._cache_class_is_system_snapshot_safe(c)`, which already knows `ArraysCache` is safe.
+**Local patch:** `packages/vllm-mlx/snapshot-rotating-kv-cache.patch` replaces the hardcoded probe with `self._cache_class_is_system_snapshot_safe(c)`, which already knows `ArraysCache` is safe.
 
 **Upstream gap:** The upstream code at `vllm_mlx/engine/simple.py:~518` still uses the hardcoded `isinstance(c, KVCache)` check. The patch must be reapplied on every vllm-mlx version bump until upstream aligns the probe with `_cache_class_is_system_snapshot_safe`.
 
