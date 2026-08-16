@@ -95,6 +95,10 @@
     # Tested via test-vllm-mlx.nix (vllm-mlx option defaults, custom
     # values, and MegamanX target config)
     "services/vllm-mlx/darwin.nix"
+    "services/vllm-mlx/darwin-instances-options.nix"
+    "services/vllm-mlx/darwin-instances-config.nix"
+    "services/vllm-mlx/instance-options.nix"
+    "services/vllm-mlx/lib.nix"
     # Tested via test-stack-integration.nix (LLM stack composition)
     "services/bifrost/darwin.nix"
     "services/caddy/darwin.nix"

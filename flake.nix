@@ -240,7 +240,9 @@
           ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
+          ./modules/services/vllm-mlx/darwin-instances-options.nix
           ./modules/services/vllm-mlx/darwin.nix
+          ./modules/services/vllm-mlx/darwin-instances-config.nix
           ./modules/home-manager/aerospace.nix
           ./hosts/megamanx
         ];
