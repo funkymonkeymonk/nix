@@ -7,56 +7,6 @@ let
   writingSkillsDir = ./internal/writing-skills;
 in {
   # Internal skills - defined in this repository
-  brainstorming = {
-    description = "Help turn ideas into fully formed designs through collaborative dialogue";
-    roles = ["developer" "creative"];
-    source = {
-      type = "internal";
-      path = ./internal/brainstorming;
-    };
-    deps = [];
-  };
-
-  debugging = {
-    description = "Systematic debugging approach for bugs, test failures, unexpected behavior";
-    roles = ["developer"];
-    source = {
-      type = "internal";
-      path = ./internal/debugging;
-    };
-    deps = [];
-  };
-
-  tdd = {
-    description = "Test-driven development workflow for implementing features and bugfixes";
-    roles = ["developer"];
-    source = {
-      type = "internal";
-      path = ./internal/tdd;
-    };
-    deps = [];
-  };
-
-  openclaw = {
-    description = "Guidelines for working with OpenClaw AI assistant configuration and deployment";
-    roles = ["developer" "opencode" "claude"];
-    source = {
-      type = "internal";
-      path = ./internal/openclaw;
-    };
-    deps = [];
-  };
-
-  "writing-plans" = {
-    description = "Create detailed implementation plans from specs and requirements";
-    roles = ["developer"];
-    source = {
-      type = "internal";
-      path = ./internal/writing-plans;
-    };
-    deps = [];
-  };
-
   "writing-skills" = {
     description = "Use when creating new skills, editing existing skills, or verifying skills work before deployment in this repository. Follows agentskills.io specification with vendored upstream references pinned by sha";
     roles = ["developer" "creative" "opencode" "claude" "pi"];
@@ -73,36 +23,6 @@ in {
     source = {
       type = "internal";
       path = ./internal/diataxis-docs;
-    };
-    deps = [];
-  };
-
-  "verification-before-completion" = {
-    description = "Run verification commands before claiming work is complete";
-    roles = ["developer"];
-    source = {
-      type = "internal";
-      path = ./internal/verification-before-completion;
-    };
-    deps = [];
-  };
-
-  "receiving-code-review" = {
-    description = "Process code review feedback with technical rigor";
-    roles = ["developer" "workstation"];
-    source = {
-      type = "internal";
-      path = ./internal/receiving-code-review;
-    };
-    deps = [];
-  };
-
-  "requesting-code-review" = {
-    description = "Properly request code reviews and prepare PRs";
-    roles = ["developer" "workstation"];
-    source = {
-      type = "internal";
-      path = ./internal/requesting-code-review;
     };
     deps = [];
   };
@@ -217,16 +137,6 @@ in {
     deps = [];
   };
 
-  "watch-ci-jobs" = {
-    description = "Monitor GitHub Actions CI jobs with intelligent polling that adapts to historical run times";
-    roles = ["developer" "workstation"];
-    source = {
-      type = "internal";
-      path = ./internal/watch-ci-jobs;
-    };
-    deps = [];
-  };
-
   "yak-shaving" = {
     description = "Use when tracking, planning, implementing, or reviewing work using yx (yaks) with the autonomous /shave loop, or when multiple agents need to coordinate on shared tasks";
     roles = ["developer" "opencode" "claude" "pi"];
@@ -234,7 +144,7 @@ in {
       type = "internal";
       path = ./internal/yak-shaving;
     };
-    deps = ["jj" "watch-ci-jobs"];
+    deps = ["jj"];
     autoLoad = true;
     commands = {
       path = ./internal/yak-shaving/commands;
@@ -283,16 +193,6 @@ in {
     deps = [];
   };
 
-  "infra-investigation" = {
-    description = "Use when investigating errors, incidents, or performance issues that span Datadog logs/metrics, AWS infrastructure, Terraform/terrasaur config, and Kubernetes Helm values. Use when diagnosing root causes that require correlating multiple sources. Use when infrastructure facts need to be verified before being used in analysis";
-    roles = ["developer" "workstation"];
-    source = {
-      type = "internal";
-      path = ./internal/infra-investigation;
-    };
-    deps = [];
-  };
-
   "innersource-pr-haiku" = {
     description = "Use when given a GitHub PR link and asked to thank a contributor with a haiku and approve the PR";
     roles = ["developer" "workstation"];
@@ -309,26 +209,6 @@ in {
     source = {
       type = "internal";
       path = ./internal/open-url-new-window;
-    };
-    deps = [];
-  };
-
-  "vendor-technical-evaluation" = {
-    description = "Use when evaluating third-party vendors for a Buy decision, driving or participating in a vendor technical evaluation, navigating the Draft/Review/Revision/Decision lifecycle, or handling escalations, score ties, author replacement, or failed security assessments";
-    roles = ["developer" "workstation"];
-    source = {
-      type = "internal";
-      path = ./internal/vendor-technical-evaluation;
-    };
-    deps = [];
-  };
-
-  "yak-jira-sync" = {
-    description = "Use when creating Jira tickets from a yak backlog, syncing yaks to Jira, auditing whether open yaks have corresponding tickets, or ensuring a yak backlog and Jira board reflect the same work";
-    roles = ["developer" "workstation"];
-    source = {
-      type = "internal";
-      path = ./internal/yak-jira-sync;
     };
     deps = [];
   };

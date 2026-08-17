@@ -10,7 +10,7 @@
 }: let
   inherit (python3Packages) buildPythonPackage fetchPypi python;
 
-  version = "0.31.2";
+  version = "0.32.0";
   format = "wheel";
   platform = "macosx_15_0_arm64";
   pyVersion = lib.versions.majorMinor python.version;
@@ -27,7 +27,7 @@
         format
         platform
         ;
-      hash = "sha256-6dTl/ObKEKh6DjiFl/mVGa1ZTQnmdHCLUxK9i9T1mX0=";
+      hash = "sha256-G9lKHOWwOgyJh3Gj51nwEkMAxqtRVRJ5BqHVCx8/zxk=";
       python = "py3";
       dist = "py3";
     };
@@ -47,7 +47,7 @@ in
         format
         platform
         ;
-      hash = "sha256-sHZL8R/Dpx3umI4ZJ17vZ3dcq2MRLYu37xc8qLKhJHw=";
+      hash = "sha256-4NtVgme7LRP6xPhWdEVq2+DwhcVwuSGeA9TpX9wRxNA=";
       python = pythonTag;
       dist = pythonTag;
       abi = pythonTag;

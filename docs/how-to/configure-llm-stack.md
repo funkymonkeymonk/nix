@@ -41,6 +41,14 @@ Add the following to your target's `myConfig`:
       toolCallParser = "qwen";
       timeout = 120;
       logLevel = "INFO";
+      # Switch to BatchedEngine for prefix caching across conversation turns.
+      # This reuses KV cache blocks for the growing prefix, avoiding full
+      # prefill on every turn. Slight per-request throughput reduction.
+      enableContinuousBatching = true;
+      enablePrefixCache = true;
+      # Disable chunked prefill to avoid crash with large prompts (>19k tokens)
+      # when prefix cache is enabled. See vllm-mlx issue #178.
+      chunkedPrefillTokens = 0;
     };
 
     # Layer 4: AI Gateway
@@ -214,6 +222,35 @@ cat /tmp/bifrost.error.log # Bifrost errors
 cat /tmp/caddy.error.log   # Caddy errors
 ```
 
+### Slow Prefill on Long Conversations
+
+**Symptom:** Every turn in a long conversation takes 150–300s before the first token appears. Prometheus shows `bifrost_stream_first_token_latency_seconds` > 160s. System CPU is 90% idle.
+
+**Root cause:** With `SimpleEngine` (default), only the system prompt KV cache is snapshotted. The conversation history (all prior turns) must be re-prefilled from scratch every request. With 25 agent skills contributing ~36K tokens to the system prompt plus growing conversation history, each turn prefills ~21k–38k tokens.
+
+**Fix:** Switch to `BatchedEngine` with prefix caching:
+```nix
+vllmMlx = {
+  enable = true;
+  enableContinuousBatching = true;
+  enablePrefixCache = true;
+  chunkedPrefillTokens = 0;  # workaround for vllm-mlx#178
+};
+```
+
+**Trade-offs:**
+- BatchedEngine adds ~10–20% per-request overhead vs SimpleEngine
+- Prefix cache only works in BatchedEngine mode
+- `chunkedPrefillTokens = 0` is required to avoid crashes with prompts >19k tokens
+
+### vllm-mlx Crashes with Prefix Cache Enabled
+
+**Symptom:** Segfault during prefill when `--enable-prefix-cache` is set.
+
+**Root cause:** vllm-mlx internally enables `mid_prefill_cache` when prefix caching is active, which re-enables chunked prefill even if `--chunked-prefill-tokens 0` was passed. This crashes on prompts >19k tokens ([vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)).
+
+**Workaround:** Set `chunkedPrefillTokens = 0` in your Nix config. The generated launch script passes this flag explicitly.
+
 ### Gemma 4 Models Hang or Time Out
 
 **Symptom:** Requests to `gemma4-31b` with tools enabled hang indefinitely and return 503/timeout. `gemma4-e4b` and text-only `gemma4-31b` requests work normally.
@@ -233,7 +270,7 @@ cat /tmp/caddy.error.log   # Caddy errors
      toolCallParser = null;
    };
    ```
-3. **Reduce tool schema size** — fewer tools or shorter descriptions reduce prefill pressure.
+3. **Reduce tool schema size** — fewer tools or shorter descriptions reduce prefill pressure. See [System Prompt Inventory](../reference/llm-stack.md#system-prompt-inventory) for per-skill sizes.
 
 If you need a patched vllm-mlx outside Nix (e.g., to test upstream fixes):
 

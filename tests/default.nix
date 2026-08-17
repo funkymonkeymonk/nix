@@ -30,6 +30,7 @@
   testCaddy = import ./test-caddy.nix {inherit pkgs;};
   testSearxng = import ./test-searxng.nix {inherit pkgs;};
   testLume = import ./test-lume.nix {inherit pkgs;};
+  testObservability = import ./test-observability.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
@@ -259,6 +260,14 @@ in
     # Lume module tests
     lume-options = testLume.lumeOptionsTest;
     lume-custom-options = testLume.lumeCustomOptionsTest;
+
+    # Observability module tests
+    node-exporter-options = testObservability.nodeExporterOptionsTest;
+    node-exporter-custom-options = testObservability.nodeExporterCustomOptionsTest;
+    prometheus-options = testObservability.prometheusOptionsTest;
+    prometheus-custom-options = testObservability.prometheusCustomOptionsTest;
+    prometheus-generated-script = testObservability.prometheusGeneratedScriptTest;
+    prometheus-scrape-config = testObservability.prometheusScrapeConfigTest;
 
     # LLM stack integration test
     stack-integration = testStackIntegration.stackIntegrationTest;

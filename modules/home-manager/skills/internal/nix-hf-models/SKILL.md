@@ -5,6 +5,10 @@ description: >
   local inference servers (vllm-mlx, ollama, mlx-lm). Covers the hf
   download CLI, fixed-output derivations, hash computation, and
   handling CDN/auth issues that break plain curl.
+  
+  **Loading mode:** On-demand — this skill is NOT injected into the
+  system prompt. The agent loads it explicitly when you ask about
+  model downloads, HF caching, or adding a new model to the flake.
 ---
 
 # Pre-Downloading HuggingFace Models in Nix

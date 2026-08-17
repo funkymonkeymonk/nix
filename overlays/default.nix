@@ -43,6 +43,26 @@
     modelPath = "mlx-community/gemma-4-e4b-it-4bit";
     outputHash = "sha256-7xQPqimzrXlumA3aaI/sBux1wZlrxRKarPX2fxtKgW0=";
   };
+  qwen3_8-27B-8bit = final.mlx-models.fetchModel {
+    name = "qwen3_8-27B-8bit";
+    modelPath = "mlx-community/Qwen3.8-27B-8bit";
+    outputHash = "sha256-zTs3ZI27cVeHV35bhDCKMiK2MCDlE1iW6gMQ39i1Nws=";
+  };
+  qwen3_8-27B-4bit = final.mlx-models.fetchModel {
+    name = "qwen3_8-27B-4bit";
+    modelPath = "mlx-community/Qwen3.8-27B-4bit";
+    outputHash = "sha256-1AZjlDLkca3d8SUM4ibKb8MjrUBsoboRiZvXdOsfhTg=";
+  };
+  qwen3_8-27B-MTP-8bit = final.mlx-models.fetchModel {
+    name = "qwen3_8-27B-MTP-8bit";
+    modelPath = "mlx-community/Qwen3.8-27B-MTP-8bit";
+    outputHash = "sha256-hyCLI6p7Tc44pC3LigDY2dXarcCUx/lmB7AvtsPHLWY=";
+  };
+  qwen3_8-27B-MTP-4bit = final.mlx-models.fetchModel {
+    name = "qwen3_8-27B-MTP-4bit";
+    modelPath = "mlx-community/Qwen3.8-27B-MTP-4bit";
+    outputHash = "sha256-i+g9zo8XyR9fbD7EEHRu2Zd5s+ZBEayn+TJdgnU581Q=";
+  };
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation
 
@@ -81,9 +101,17 @@
 // (
   if inputs ? bifrost
   then {
+    bifrost-ui = (inputs.bifrost.packages.${final.system}.bifrost-ui).overrideAttrs (oldAttrs: {
+      npmDeps = final.fetchNpmDeps {
+        inherit (oldAttrs) src sourceRoot;
+        name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
+        hash = "sha256-k+JOPF+sQTAFcojNF6N1xpxPa6MKTvFGKj9zmoBmf6w=";
+      };
+    });
+
     bifrost-http =
       ((inputs.bifrost.packages.${final.system}.bifrost-http).override {
-        bifrost-ui = final.runCommand "bifrost-ui-dummy" {} "mkdir $out";
+        bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (_prev: {
         vendorHash = "sha256-1Y3LiFMfjRsdcfo09M/4g+q0VJ789tC0xOQkf3EgIL4=";
       });

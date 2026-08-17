@@ -2,6 +2,12 @@
 # Runs bifrost-http as a foreground process, managed by launchd.
 # Bifrost proxies all AI requests to upstream inference servers (vMLX, ds4, etc.)
 # and exposes them through a single OpenAI-compatible API.
+#
+# The Bifrost web UI (request tracing, log streaming, token analytics) is
+# served at the root path on the same port as the API.  Default location:
+#   http://localhost:8081/
+# Prometheus metrics: http://localhost:8081/metrics
+# OpenAI-compatible API: http://localhost:8081/v1/
 {
   config,
   lib,
@@ -32,6 +38,7 @@ with lib; let
   mkNetworkConfig = upstream: {
     allow_private_network = upstream.allowPrivateNetwork;
     default_request_timeout_in_seconds = upstream.requestTimeout;
+    stream_idle_timeout_in_seconds = upstream.streamIdleTimeoutInSeconds;
     max_retries = upstream.maxRetries;
     retry_backoff_initial = "${toString upstream.retryBackoffInitialMs}ms";
     retry_backoff_max = "${toString upstream.retryBackoffMaxMs}ms";
@@ -197,6 +204,17 @@ in {
             type = types.ints.positive;
             default = 5000;
             description = "Maximum retry backoff in milliseconds (matches Bifrost's upstream default of 5s).";
+          };
+          streamIdleTimeoutInSeconds = mkOption {
+            type = types.ints.unsigned;
+            default = 60;
+            description = ''
+              Idle timeout for streaming responses. If no chunk arrives from the
+              upstream within this window, Bifrost closes the connection.
+              Must be >= the upstream's longest prefill time. For vllm-mlx with
+              long system prompts (22k+ tokens), set to 600s to avoid 500 errors
+              during chunked prefill. Bifrost default is 60s.
+            '';
           };
           models = mkOption {
             type = types.listOf types.str;
