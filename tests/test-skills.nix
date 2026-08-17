@@ -168,12 +168,6 @@ in {
         else ''echo "  devenv should NOT be in autoLoad skills!"; exit 1''
       }
 
-      ${
-        if !(builtins.hasAttr "openclaw" autoLoadSkills)
-        then ''echo "  openclaw NOT in autoLoad skills: OK"''
-        else ''echo "  openclaw should NOT be in autoLoad skills!"; exit 1''
-      }
-
       # Verify autoLoad count is reasonable (should be small)
       echo "  AutoLoad skills count: ${toString (builtins.length autoLoadNames)}"
       echo "  AutoLoad skills: ${lib.concatStringsSep ", " autoLoadNames}"

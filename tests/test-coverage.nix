@@ -87,10 +87,7 @@
     # common/onepassword.nix was already listed above via onepasswordOptionsTest
     # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
     "common/lib.nix"
-    # Tested via test-services.nix (vane option tests) and
-    # indirectly via zero/zero-v2 config eval (openclaw shared config +
-    # hardening options, imported through flake.nix)
-    "services/openclaw/default.nix"
+    # Tested via test-services.nix (vane option tests)
     "services/vane/darwin.nix"
     # Tested via test-vllm-mlx.nix (vllm-mlx option defaults, custom
     # values, and MegamanX target config)

@@ -89,7 +89,7 @@ The coverage tracker in `tests/test-coverage.nix` auto-discovers modules so cove
 
 Each test file corresponds to a module or role group:
 - `test-roles.nix` — all roles and their cascades
-- `test-services.nix` — vane, ollama, openclaw modules
+- `test-services.nix` — vane and ollama modules
 - `test-sketchybar.nix` — sketchybar configuration testing
 
 This matches the nix-unit recommendation that tests live near the logic they're testing[^2], adapted for a flat `tests/` tree.

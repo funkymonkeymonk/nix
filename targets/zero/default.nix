@@ -1,4 +1,4 @@
-# Zero - Gaming/desktop NixOS machine (NVMe + NVIDIA + AMD CPU)
+# Zero - Gaming/desktop NixOS machine (NVMe + AMD CPU/GPU)
 {
   config,
   pkgs,
@@ -59,7 +59,7 @@
     discord
   ];
 
-  # Hardware: NVMe, AMD CPU, NVIDIA GPU
+  # Hardware: NVMe, AMD CPU/GPU
   boot.initrd.availableKernelModules = [
     "nvme"
     "xhci_pci"
@@ -68,6 +68,8 @@
     "usb_storage"
     "sd_mod"
   ];
+  boot.initrd.kernelModules = ["amdgpu"];
+  services.xserver.videoDrivers = ["amdgpu"];
   hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
   # Disable sleep/hibernate (always-on machine)
@@ -76,15 +78,5 @@
     AllowHibernation = false;
     AllowHybridSleep = false;
     AllowSuspendThenHibernate = false;
-  };
-
-  # NVIDIA GPU
-  services.xserver.videoDrivers = ["nvidia"];
-  hardware = {
-    graphics.enable = true;
-    nvidia = {
-      open = false;
-      package = config.boot.kernelPackages.nvidiaPackages.stable;
-    };
   };
 }
