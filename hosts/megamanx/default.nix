@@ -45,6 +45,7 @@
         maxKvSize = 131072;
         timeout = 600;
         logLevel = "INFO";
+        enableMetrics = true;
         # Use the external Qwen3.8-27B-MTP-8bit mlx-vlm draft model for
         # speculative decoding. This is not a standalone model; it must be
         # paired with a compatible Qwen3.8 27B target checkpoint.
@@ -78,11 +79,23 @@
         maxKvSize = 131072;
         timeout = 600;
         logLevel = "INFO";
+        enableMetrics = true;
         # BatchedEngine + prefix cache for concurrent requests and conversation
         # turn reuse on the Gemma instance.
         enableContinuousBatching = true;
         enablePrefixCache = true;
         chunkedPrefillTokens = 0;
+      };
+
+      # Prometheus scrapes bifrost, vllm-mlx, and node-exporter metrics
+      prometheus = {
+        enable = true;
+        retention = "7d";
+      };
+
+      # System metrics exporter for Prometheus
+      nodeExporter = {
+        enable = true;
       };
 
       vane = {

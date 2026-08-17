@@ -100,6 +100,8 @@
         ../modules/services/vane/darwin.nix
         ../modules/services/searxng/darwin.nix
         ../modules/services/caddy/darwin.nix
+        ../modules/services/prometheus/darwin.nix
+        ../modules/services/node-exporter/darwin.nix
         {
           options.system.stateVersion = lib.mkOption {
             type = lib.types.anything;
