@@ -140,7 +140,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit lm-eval lighteval;
+          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
@@ -240,7 +240,9 @@
           ./modules/services/bifrost/darwin.nix
           ./modules/services/searxng/darwin.nix
           ./modules/services/caddy/darwin.nix
+          ./modules/services/vllm-mlx/darwin-instances-options.nix
           ./modules/services/vllm-mlx/darwin.nix
+          ./modules/services/vllm-mlx/darwin-instances-config.nix
           ./modules/services/prometheus/darwin.nix
           ./modules/services/node-exporter/darwin.nix
           ./modules/home-manager/aerospace.nix

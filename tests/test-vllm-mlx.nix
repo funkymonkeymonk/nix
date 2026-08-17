@@ -93,7 +93,9 @@
       ++ stubs.darwinService
       ++ stubs.onepassword
       ++ [
+        ../modules/services/vllm-mlx/darwin-instances-options.nix
         vllmMlxModule
+        ../modules/services/vllm-mlx/darwin-instances-config.nix
         ../modules/services/bifrost/darwin.nix
         ../modules/services/vane/darwin.nix
         ../modules/services/searxng/darwin.nix
@@ -122,6 +124,7 @@
       ];
   };
   megamanxVllmMlx = megamanxEval.config.myConfig.vllmMlx;
+  megamanxVllmMlxInstances = megamanxEval.config.myConfig.vllmMlxInstances;
   megamanxVllmDaemon = megamanxEval.config.launchd.daemons."vllm-mlx".serviceConfig;
 in {
   vllmMlxOptionsTest =
@@ -327,21 +330,39 @@ in {
           then megamanxVllmMlx.models."qwen3.8-27b".path
           else null;
       in
-        if hasModel && modelPath == "mlx-community/Qwen3.8-27B-4bit"
-        then ''echo "  model = Qwen3.8-27B-4bit: OK"''
-        else ''echo "  FAIL: model should be mlx-community/Qwen3.8-27B-4bit, got ${toString modelPath}"; exit 1''
+        if hasModel && modelPath == "mlx-community/Qwen3.8-27B-8bit"
+        then ''echo "  model = Qwen3.8-27B-8bit: OK"''
+        else ''echo "  FAIL: model should be mlx-community/Qwen3.8-27B-8bit, got ${toString modelPath}"; exit 1''
     }
     ${
       let
-        hasE4b = builtins.elem "gemma4-e4b" (builtins.attrNames megamanxVllmMlx.models);
+        hasGemmaInstance = builtins.hasAttr "gemma" megamanxVllmMlxInstances;
+        gemmaInstance = megamanxVllmMlxInstances.gemma or {};
+        hasE4b = builtins.elem "gemma4-e4b" (builtins.attrNames (gemmaInstance.models or {}));
         e4bPath =
           if hasE4b
-          then megamanxVllmMlx.models."gemma4-e4b".path
+          then gemmaInstance.models."gemma4-e4b".path
           else null;
       in
-        if hasE4b && e4bPath == "mlx-community/gemma-4-e4b-it-4bit"
-        then ''echo "  e4b model = gemma-4-e4b-it-4bit: OK"''
-        else ''echo "  FAIL: e4b model should be mlx-community/gemma-4-e4b-it-4bit, got ${toString e4bPath}"; exit 1''
+        if hasGemmaInstance && hasE4b && e4bPath == "mlx-community/gemma-4-e4b-it-4bit"
+        then ''echo "  gemma instance e4b model = gemma-4-e4b-it-4bit: OK"''
+        else ''echo "  FAIL: gemma instance should serve mlx-community/gemma-4-e4b-it-4bit, got ${toString e4bPath}"; exit 1''
+    }
+    ${
+      let
+        gemmaInstance = megamanxVllmMlxInstances.gemma or {};
+      in
+        if gemmaInstance.toolCallParser or null == "gemma4"
+        then ''echo "  gemma instance toolCallParser = gemma4: OK"''
+        else ''echo "  FAIL: gemma instance toolCallParser should be gemma4, got ${toString gemmaInstance.toolCallParser}"; exit 1''
+    }
+    ${
+      let
+        gemmaInstance = megamanxVllmMlxInstances.gemma or {};
+      in
+        if gemmaInstance.enableContinuousBatching or false
+        then ''echo "  gemma instance enableContinuousBatching = true: OK"''
+        else ''echo "  FAIL: gemma instance should use BatchedEngine for concurrent requests"; exit 1''
     }
     ${
       if megamanxVllmMlx.toolCallParser == "qwen"
@@ -362,9 +383,9 @@ in {
       else ''echo "  FAIL: maxKvSize should be 131072 to match pi maxTokens, got ${toString megamanxVllmMlx.maxKvSize}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.memoryBudgetGb == 90
-      then ''echo "  memoryBudgetGb = 90: OK"''
-      else ''echo "  FAIL: memoryBudgetGb should be 90, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
+      if megamanxVllmMlx.memoryBudgetGb == 64
+      then ''echo "  memoryBudgetGb = 64: OK"''
+      else ''echo "  FAIL: memoryBudgetGb should be 64, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
     }
     ${
       # pi's provider timeout is 600s; the server must not kill requests first.

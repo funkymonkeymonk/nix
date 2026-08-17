@@ -20,23 +20,52 @@
       # Extra role beyond workstation archetype
       roles.entertainment.enable = true;
 
-      # vllm-mlx serves Qwen 3.8 with native tool/reasoning parsers
-      # Built from source with Metal-enabled mlx (prebuilt wheels merged in Nix).
+      # Default vllm-mlx instance: Qwen 3.8 with external MTP draft model.
+      # Runs in single-model mode because --mllm-draft-model is incompatible
+      # with --models-config.
       vllmMlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 90;
+        memoryBudgetGb = 64;
         contention = "preempt";
         models = {
           "qwen3.8-27b" = {
-            path = "mlx-community/Qwen3.8-27B-4bit";
+            path = "mlx-community/Qwen3.8-27B-8bit";
             type = "lm";
-            estimatedMemoryGb = 16;
+            estimatedMemoryGb = 28;
             preload = true;
           };
+        };
+        enableAutoToolChoice = true;
+        toolCallParser = "qwen";
+        reasoningParser = "qwen3";
+        maxKvSize = 131072;
+        timeout = 600;
+        logLevel = "INFO";
+        enableMetrics = true;
+        # Use the external Qwen3.8-27B-MTP-8bit mlx-vlm draft model for
+        # speculative decoding. This is not a standalone model; it must be
+        # paired with a compatible Qwen3.8 27B target checkpoint.
+        mllmDraftModel = "mlx-community/Qwen3.8-27B-MTP-8bit";
+        mllmDraftKind = "mtp";
+        mllmDraftBlockSize = 3;
+      };
+
+      # Second vllm-mlx instance: Gemma 4 e4b with BatchedEngine for concurrent
+      # requests. Runs on a separate port so both models are available on demand
+      # without reloading.
+      vllmMlxInstances.gemma = {
+        enable = true;
+        server = {
+          host = "0.0.0.0";
+          port = 8301;
+        };
+        memoryBudgetGb = 24;
+        contention = "preempt";
+        models = {
           "gemma4-e4b" = {
             path = "mlx-community/gemma-4-e4b-it-4bit";
             type = "lm";
@@ -45,31 +74,17 @@
           };
         };
         enableAutoToolChoice = true;
-        toolCallParser = "qwen";
-        reasoningParser = "qwen3";
-        # maxKvSize caps the per-sequence KV cache. It must be >= pi's maxTokens
-        # for the bifrost model (131072) so a long agent session does not silently
-        # rotate the system prompt and tool definitions out of the KV cache.
-        # The bundled vllm-mlx patch supports system-prompt snapshots even when the
-        # model uses RotatingKVCache (Gemma 4's sliding-window layers), so the full
-        # prefix is reused each turn instead of re-prefilled.
+        toolCallParser = "gemma4";
+        reasoningParser = "gemma4";
         maxKvSize = 131072;
-        # Must be >= pi's provider.timeoutMs (600s); queued lock admission
-        # plus long 31B generations would otherwise be killed server-side.
         timeout = 600;
         logLevel = "INFO";
         enableMetrics = true;
-        # Switch to BatchedEngine for prefix caching across conversation turns.
-        # This lets the engine reuse KV cache blocks for the growing prefix,
-        # avoiding full prefill on every turn.
+        # BatchedEngine + prefix cache for concurrent requests and conversation
+        # turn reuse on the Gemma instance.
         enableContinuousBatching = true;
         enablePrefixCache = true;
-        # Disable chunked prefill to avoid crash with large prompts (>19k tokens)
-        # when prefix cache is enabled. See vllm-mlx issue #178.
         chunkedPrefillTokens = 0;
-        # Enable Multi-Token Prediction for Qwen3.8's built-in MTP heads.
-        # This can significantly increase generation throughput (tok/s).
-        enableMtp = true;
       };
 
       # Prometheus scrapes bifrost, vllm-mlx, and node-exporter metrics
@@ -102,23 +117,23 @@
         # Prometheus metrics: http://localhost:8081/metrics
         logLevel = "debug";
         upstreams = {
-          vllm-mlx-local = {
+          vllm-mlx-qwen = {
             url = "http://localhost:8300";
             type = "openai";
-            # Must be >= vllm-mlx timeout (600s) so Bifrost doesn't abort
-            # requests that are still prefill/working in the engine.
             requestTimeout = 600;
-            # Idle timeout for streaming — must be >= longest prefill time.
-            # Bifrost default is 60s, but vllm-mlx can take 150–200s to prefill
-            # 22k+ tokens in BatchedEngine. Without this, Bifrost closes the
-            # connection mid-prefill and returns 500.
             streamIdleTimeoutInSeconds = 600;
-            # Retry transient 503s (busy engine, model-swap preemption) so a
-            # single busy window doesn't fail an agent turn. Bifrost's stock
-            # default is 0 retries.
             maxRetries = 3;
             models = [
               "qwen3.8-27b"
+            ];
+          };
+          vllm-mlx-gemma = {
+            url = "http://localhost:8301";
+            type = "openai";
+            requestTimeout = 600;
+            streamIdleTimeoutInSeconds = 600;
+            maxRetries = 3;
+            models = [
               "gemma4-e4b"
             ];
           };
@@ -177,7 +192,7 @@
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "vllm-mlx-local/qwen3.8-27b";
+          modelId = "vllm-mlx-qwen/qwen3.8-27b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = false;
           maxTokens = 131072;

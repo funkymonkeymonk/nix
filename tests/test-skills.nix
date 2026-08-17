@@ -163,15 +163,15 @@ in {
 
       # Verify non-autoLoad skills are excluded
       ${
-        if !(builtins.hasAttr "debugging" autoLoadSkills)
-        then ''echo "  debugging NOT in autoLoad skills: OK"''
-        else ''echo "  debugging should NOT be in autoLoad skills!"; exit 1''
+        if !(builtins.hasAttr "devenv" autoLoadSkills)
+        then ''echo "  devenv NOT in autoLoad skills: OK"''
+        else ''echo "  devenv should NOT be in autoLoad skills!"; exit 1''
       }
 
       ${
-        if !(builtins.hasAttr "tdd" autoLoadSkills)
-        then ''echo "  tdd NOT in autoLoad skills: OK"''
-        else ''echo "  tdd should NOT be in autoLoad skills!"; exit 1''
+        if !(builtins.hasAttr "openclaw" autoLoadSkills)
+        then ''echo "  openclaw NOT in autoLoad skills: OK"''
+        else ''echo "  openclaw should NOT be in autoLoad skills!"; exit 1''
       }
 
       # Verify autoLoad count is reasonable (should be small)
@@ -229,15 +229,15 @@ in {
 
       # Verify developer role gets expected skills
       ${
-        if builtins.hasAttr "debugging" allSkills
-        then ''echo "  developer gets debugging: OK"''
-        else ''echo "  developer should get debugging!"; exit 1''
+        if builtins.hasAttr "devenv" allSkills
+        then ''echo "  developer gets devenv: OK"''
+        else ''echo "  developer should get devenv!"; exit 1''
       }
 
       ${
-        if builtins.hasAttr "tdd" allSkills
-        then ''echo "  developer gets tdd: OK"''
-        else ''echo "  developer should get tdd!"; exit 1''
+        if builtins.hasAttr "nix-adding-services" allSkills
+        then ''echo "  developer gets nix-adding-services: OK"''
+        else ''echo "  developer should get nix-adding-services!"; exit 1''
       }
 
       ${
