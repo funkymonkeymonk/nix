@@ -54,6 +54,7 @@ in rec {
           }
           (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
+          inputs.opnix.nixosModules.default
           inputs.home-manager.nixosModules.home-manager
           {
             home-manager.sharedModules = [

@@ -3,7 +3,9 @@
   lib,
   ...
 }: {
-  imports = [];
+  imports = [
+    ../../modules/nixos/base.nix
+  ];
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers or null;

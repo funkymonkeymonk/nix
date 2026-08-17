@@ -1,31 +1,13 @@
 # vllm-mlx inference server tests
 # Validates option defaults, custom values, launchd daemon wiring, and the
 # MegamanX target's Gemma 4 configuration.
-{pkgs, ...}: let
+{
+  pkgs,
+  self ? null,
+  ...
+}: let
   inherit (pkgs) lib;
   stubs = import ./stubs.nix {inherit pkgs;};
-
-  vllmMlxModule = ../modules/services/vllm-mlx/darwin.nix;
-
-  # Stub mkUser matching the flake.nix helper shape
-  mkUserStub = name: email: {
-    users = [
-      {
-        inherit name email;
-        fullName = "Will Weaver";
-        isAdmin = true;
-        sshIncludes = [];
-      }
-    ];
-    onepassword.enable = true;
-    opencode = {
-      enable = true;
-      model = "opencode/big-pickle";
-    };
-    claude-code = {enable = false;};
-    llmClient.rtk.enable = true;
-  };
-  stubInputs = {superpowers = "/stub/superpowers";};
 
   vllmMlxDefaults =
     (lib.evalModules {
@@ -86,46 +68,16 @@
   launchdDefault = mkLaunchdEval {};
   launchdFailFast = mkLaunchdEval {lockAdmission = "fail_fast";};
 
-  # Evaluate the actual MegamanX target to verify its vllm-mlx config
-  megamanxEval = lib.evalModules {
-    modules =
-      stubs.base
-      ++ stubs.darwinService
-      ++ stubs.onepassword
-      ++ [
-        ../modules/services/vllm-mlx/darwin-instances-options.nix
-        vllmMlxModule
-        ../modules/services/vllm-mlx/darwin-instances-config.nix
-        ../modules/services/bifrost/darwin.nix
-        ../modules/services/vane/darwin.nix
-        ../modules/services/searxng/darwin.nix
-        ../modules/services/caddy/darwin.nix
-        ../modules/services/prometheus/darwin.nix
-        ../modules/services/node-exporter/darwin.nix
-        {
-          options.system.stateVersion = lib.mkOption {
-            type = lib.types.anything;
-            default = 4;
-          };
-          options.system.primaryUser = lib.mkOption {
-            type = lib.types.anything;
-            default = "monkey";
-          };
-        }
-        (import ../hosts/megamanx/default.nix)
-        {
-          # pkgs comes from stubs.base (moduleArgsStub); only add what the
-          # host file needs beyond it.
-          config._module.args = {
-            mkUser = mkUserStub;
-            inputs = stubInputs;
-          };
-        }
-      ];
-  };
-  megamanxVllmMlx = megamanxEval.config.myConfig.vllmMlx;
-  megamanxVllmMlxInstances = megamanxEval.config.myConfig.vllmMlxInstances;
-  megamanxVllmDaemon = megamanxEval.config.launchd.daemons."vllm-mlx".serviceConfig;
+  # Evaluate the actual MegamanX target to verify its vllm-mlx config.
+  # Uses the flake's real Darwin configuration so the test follows the same
+  # archetype + service composition path as the actual system build.
+  megamanxConfig =
+    if self != null
+    then self.darwinConfigurations.MegamanX.config
+    else {};
+  megamanxVllmMlx = megamanxConfig.myConfig.vllmMlx or {};
+  megamanxVllmMlxInstances = megamanxConfig.myConfig.vllmMlxInstances or {};
+  megamanxVllmDaemon = (megamanxConfig.launchd.daemons."vllm-mlx" or {}).serviceConfig or {};
 in {
   vllmMlxOptionsTest =
     pkgs.runCommand "test-vllm-mlx-options"

@@ -6,6 +6,7 @@
 }: {
   imports = [
     inputs.disko.nixosModules.disko
+    ../../modules/nixos/base.nix
   ];
 
   myConfig = {

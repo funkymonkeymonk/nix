@@ -6,27 +6,27 @@
   hasConfig = name: builtins.hasAttr name self.nixosConfigurations;
 
   phase3ZeroTest = pkgs.runCommand "test-phase3-zero" {} ''
-    echo "=== Testing Phase 3 Zero NixOS v2 Config ==="
+    echo "=== Testing Zero NixOS Config ==="
     echo ""
 
-    # Test zero-v2 config exists
-    ${
-      if hasConfig "zero-v2"
-      then ""
-      else ''echo "FAIL: zero-v2 not found"; exit 1''
-    }
-    echo "  zero-v2: defined ✓"
-
-    # Test old zero config still exists
+    # Test zero config exists and uses the new archetype-based composition.
     ${
       if hasConfig "zero"
       then ""
       else ''echo "FAIL: zero not found"; exit 1''
     }
-    echo "  zero: preserved ✓"
+    echo "  zero: defined ✓"
+
+    # The old zero-v2 scratch output has been retired (Phase 8 cleanup).
+    ${
+      if hasConfig "zero-v2"
+      then ''echo "FAIL: zero-v2 should be retired"; exit 1''
+      else ""
+    }
+    echo "  zero-v2: retired ✓"
 
     echo ""
-    echo "All Phase 3 zero tests passed"
+    echo "All zero tests passed"
     touch $out
   '';
 in {

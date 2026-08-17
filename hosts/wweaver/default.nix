@@ -1,8 +1,5 @@
 # wweaver — work laptop (Will Weaver)
-# Machine-specific overrides only — developer-laptop-darwin archetype provides
-# the base (homebrew, desktop, entertainment roles, superpowersPath).
-# Hardware-specific: vane colima sizing, onepassword.sudoPasswordRef.
-# User preference: opencode providers, commands, MCP servers → profile data here.
+# Machine-specific overrides on top of workstation-darwin archetype.
 {
   mkUser,
   inputs,
@@ -10,7 +7,7 @@
   ...
 }: {
   imports = [
-    ../../library/archetypes/developer-laptop-darwin.nix
+    ../../library/archetypes/workstation-darwin.nix
   ];
 
   nixpkgs.hostPlatform = "aarch64-darwin";
@@ -33,11 +30,8 @@
 
       obsidian.vaults = ["personal"];
 
-      # Roles beyond developer-laptop-darwin archetype (homebrew, desktop, entertainment already set)
-      roles.developer.enable = true;
-      roles.workstation.enable = true;
+      # Work-specific role beyond the workstation archetype
       roles.opencode.enable = true;
-      roles.pi.enable = true;
 
       pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
 

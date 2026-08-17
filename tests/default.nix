@@ -22,7 +22,10 @@
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
 
-  testVllmMlx = import ./test-vllm-mlx.nix {inherit pkgs;};
+  testVllmMlx =
+    if self != null
+    then import ./test-vllm-mlx.nix {inherit pkgs self;}
+    else {};
   testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};

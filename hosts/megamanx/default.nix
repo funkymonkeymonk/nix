@@ -15,9 +15,6 @@
     // {
       obsidian.vaults = ["personal"];
 
-      # Extra role beyond workstation archetype
-      roles.entertainment.enable = true;
-
       # Default vllm-mlx instance: Qwen 3.8 with external MTP draft model.
       # Runs in single-model mode because --mllm-draft-model is incompatible
       # with --models-config.

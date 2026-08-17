@@ -1,13 +1,15 @@
-# darwin-server target configuration
-# Headless Darwin (macOS) server for macOS VM management via Lume
-# Hardware: Mac M4 with 24GB RAM
-# Primary User: monkey (admin)
+# darwin-server — headless macOS server for VM hosting
+# Machine-specific overrides on top of headless-server-darwin archetype.
 {
   mkUser,
   inputs,
   pkgs,
   ...
 }: {
+  imports = [
+    ../../library/archetypes/headless-server-darwin.nix
+  ];
+
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
@@ -16,23 +18,10 @@
     mkUser "monkey" "me@willweaver.dev"
     // {
       skills.superpowersPath = inputs.superpowers;
-      roles = {
-        developer.enable = true;
-        opencode.enable = true;
-      };
+      # Headless servers have no default OpenCode model; user selects on first run.
       opencode = {
         enable = true;
-        # Local Ollama is now available, but user can still select
-        model = null; # User will select on first run
-      };
-      llmClient.rtk.enable = true;
-      lume = {
-        enable = true;
-        enableBackgroundService = true;
-        port = 7777;
-        enableAutoUpdater = true;
-        # Pre-pull macOS Tahoe vanilla image
-        prePullImages = ["macos-tahoe-vanilla:latest"];
+        model = null;
       };
     };
 
@@ -42,7 +31,6 @@
   ];
 
   # Cloud-init support - apply configuration from /etc/cloud-init.yaml
-  # Applied on boot via launchd
   launchd.daemons.apply-cloud-init = {
     serviceConfig = {
       Label = "com.funkymonkeymonk.cloud-init";
@@ -61,7 +49,6 @@
           if [[ -f "$CONFIG_FILE" ]]; then
             log "Applying cloud-init configuration from $CONFIG_FILE"
 
-            # Set hostname if specified
             hostname=$(grep -E '^hostname:' "$CONFIG_FILE" | head -1 | sed 's/^hostname:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
             if [[ -n "$hostname" ]]; then
               scutil --set HostName "$hostname"
@@ -70,7 +57,6 @@
               log "Set hostname to: $hostname"
             fi
 
-            # Execute bootcmd commands if present
             if grep -q "^bootcmd:" "$CONFIG_FILE"; then
               log "Executing bootcmd commands..."
               awk '/^bootcmd:/{found=1; next} found && /^  - /{gsub(/^  - /, ""); print}' "$CONFIG_FILE" | while read -r cmd; do
@@ -81,7 +67,6 @@
               done
             fi
 
-            # Execute runcmd commands if present
             if grep -q "^runcmd:" "$CONFIG_FILE"; then
               log "Executing runcmd commands..."
               awk '/^runcmd:/{found=1; next} found && /^  - /{gsub(/^  - /, ""); print}' "$CONFIG_FILE" | while read -r cmd; do
@@ -104,14 +89,12 @@
     };
   };
 
-  # Also apply cloud-init on every darwin-rebuild switch
   system.activationScripts.cloud-init = {
     text = ''
       echo "Applying cloud-init configuration during activation..."
       CONFIG_FILE="/etc/cloud-init.yaml"
 
       if [[ -f "$CONFIG_FILE" ]]; then
-        # Set hostname if specified
         hostname=$(grep -E '^hostname:' "$CONFIG_FILE" | head -1 | sed 's/^hostname:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
         if [[ -n "$hostname" ]]; then
           echo "Setting hostname to: $hostname"
@@ -120,7 +103,6 @@
           scutil --set ComputerName "$hostname"
         fi
 
-        # Execute bootcmd commands if present
         if grep -q "^bootcmd:" "$CONFIG_FILE"; then
           echo "Executing bootcmd commands..."
           awk '/^bootcmd:/{found=1; next} found && /^  - /{gsub(/^  - /, ""); print}' "$CONFIG_FILE" | while read -r cmd; do
@@ -130,10 +112,6 @@
             fi
           done
         fi
-
-        # Execute runcmd commands if present (only on first boot or explicitly requested)
-        # Note: runcmd is typically for first-boot only, so we skip it during activation
-        # to avoid re-running potentially destructive commands
 
         echo "Cloud-init configuration applied during activation"
       else
