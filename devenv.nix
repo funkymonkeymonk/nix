@@ -855,7 +855,7 @@ in {
         echo "Prompts:    $PROMPTS"
         echo "Max tokens: $MAX_TOKENS"
         echo ""
-        echo "Usage: MODEL=gemma4-31b PROMPTS=3 MAX_TOKENS=128 devenv tasks run profile:llm"
+        echo "Usage: MODEL=qwen3.8-27b PROMPTS=3 MAX_TOKENS=128 devenv tasks run profile:llm"
         echo ""
 
         ./scripts/profile-llm.sh "$MODEL" --prompts "$PROMPTS" --max-tokens "$MAX_TOKENS" --output-dir ./profiling
@@ -869,7 +869,7 @@ in {
 
         BIFROST_URL="''${BIFROST_URL:-http://bifrost.internal/v1}"
         VLLM_URL="''${VLLM_URL:-http://localhost:8300/v1}"
-        MODEL="''${MODEL:-gemma4-31b}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
         TIMEOUT="''${TIMEOUT:-120}"
 
         echo "=== LLM Stack Smoke Test ==="
@@ -914,7 +914,7 @@ in {
         set -euo pipefail
 
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1/chat/completions}"
-        MODEL="''${MODEL:-gemma4-31b}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
         LIMIT="''${LIMIT:-50}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-gsm8k}"
 
@@ -941,7 +941,7 @@ in {
         set -euo pipefail
 
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
-        MODEL="''${MODEL:-gemma4-31b}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
         LIMIT="''${LIMIT:-10}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-mini}"
 
@@ -969,7 +969,7 @@ in {
         set -euo pipefail
 
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
-        MODEL="''${MODEL:-gemma4-31b}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-leaderboard}"
 
         echo "=== lm-eval Open LLM Leaderboard v2 against $BASE_URL (model: $MODEL) ==="
@@ -997,7 +997,7 @@ in {
         set -euo pipefail
 
         API_BASE="''${API_BASE:-http://localhost:8300/v1}"
-        MODEL="''${MODEL:-gemma4-31b}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lighteval-gsm8k}"
         MAX_SAMPLES="''${MAX_SAMPLES:-50}"
 

@@ -20,23 +20,51 @@
       # Extra role beyond workstation archetype
       roles.entertainment.enable = true;
 
-      # vllm-mlx serves Gemma 4 with native tool/reasoning parsers
-      # Built from source with Metal-enabled mlx (prebuilt wheels merged in Nix).
+      # Default vllm-mlx instance: Qwen 3.8 with external MTP draft model.
+      # Runs in single-model mode because --mllm-draft-model is incompatible
+      # with --models-config.
       vllmMlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 90;
+        memoryBudgetGb = 64;
         contention = "preempt";
         models = {
-          "gemma4-31b" = {
-            path = "mlx-community/gemma-4-31b-it-4bit";
+          "qwen3.8-27b" = {
+            path = "mlx-community/Qwen3.8-27B-8bit";
             type = "lm";
-            estimatedMemoryGb = 18;
+            estimatedMemoryGb = 28;
             preload = true;
           };
+        };
+        enableAutoToolChoice = true;
+        toolCallParser = "qwen";
+        reasoningParser = "qwen3";
+        maxKvSize = 131072;
+        timeout = 600;
+        logLevel = "INFO";
+        # Use the external Qwen3.8-27B-MTP-8bit mlx-vlm draft model for
+        # speculative decoding. This is not a standalone model; it must be
+        # paired with a compatible Qwen3.8 27B target checkpoint.
+        mllmDraftModel = "mlx-community/Qwen3.8-27B-MTP-8bit";
+        mllmDraftKind = "mtp";
+        mllmDraftBlockSize = 3;
+      };
+
+      # Second vllm-mlx instance: Gemma 4 e4b with BatchedEngine for concurrent
+      # requests. Runs on a separate port so both models are available on demand
+      # without reloading.
+      vllmMlxInstances.gemma = {
+        enable = true;
+        server = {
+          host = "0.0.0.0";
+          port = 8301;
+        };
+        memoryBudgetGb = 24;
+        contention = "preempt";
+        models = {
           "gemma4-e4b" = {
             path = "mlx-community/gemma-4-e4b-it-4bit";
             type = "lm";
@@ -47,23 +75,20 @@
         enableAutoToolChoice = true;
         toolCallParser = "gemma4";
         reasoningParser = "gemma4";
-        # maxKvSize caps the per-sequence KV cache. It must be >= pi's maxTokens
-        # for the bifrost model (131072) so a long agent session does not silently
-        # rotate the system prompt and tool definitions out of the KV cache.
-        # The bundled vllm-mlx patch supports system-prompt snapshots even when the
-        # model uses RotatingKVCache (Gemma 4's sliding-window layers), so the full
-        # prefix is reused each turn instead of re-prefilled.
         maxKvSize = 131072;
-        # Must be >= pi's provider.timeoutMs (600s); queued lock admission
-        # plus long 31B generations would otherwise be killed server-side.
         timeout = 600;
         logLevel = "INFO";
+        # BatchedEngine + prefix cache for concurrent requests and conversation
+        # turn reuse on the Gemma instance.
+        enableContinuousBatching = true;
+        enablePrefixCache = true;
+        chunkedPrefillTokens = 0;
       };
 
       vane = {
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "gemma4-31b";
+        defaultModel = "qwen3.8-27b";
         embeddingModel = "nomic-embed-text:latest";
         ollamaUrl = "http://localhost:11434";
         # Point at the searxng service enabled below (myConfig.searxng.enable).
@@ -74,18 +99,28 @@
 
       bifrost = {
         enable = true;
+        # UI for request tracing, logs, token analytics:
+        #   http://localhost:8081/
+        # Prometheus metrics: http://localhost:8081/metrics
         logLevel = "debug";
         upstreams = {
-          vllm-mlx-local = {
+          vllm-mlx-qwen = {
             url = "http://localhost:8300";
             type = "openai";
-            requestTimeout = 120;
-            # Retry transient 503s (busy engine, model-swap preemption) so a
-            # single busy window doesn't fail an agent turn. Bifrost's stock
-            # default is 0 retries.
+            requestTimeout = 600;
+            streamIdleTimeoutInSeconds = 600;
             maxRetries = 3;
             models = [
-              "gemma4-31b"
+              "qwen3.8-27b"
+            ];
+          };
+          vllm-mlx-gemma = {
+            url = "http://localhost:8301";
+            type = "openai";
+            requestTimeout = 600;
+            streamIdleTimeoutInSeconds = 600;
+            maxRetries = 3;
+            models = [
               "gemma4-e4b"
             ];
           };
@@ -144,7 +179,7 @@
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "vllm-mlx-local/gemma4-31b";
+          modelId = "vllm-mlx-qwen/qwen3.8-27b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = false;
           maxTokens = 131072;

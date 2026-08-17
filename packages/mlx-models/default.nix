@@ -17,7 +17,7 @@
     name,
     modelPath,
     outputHash,
-    _include ? ["*.safetensors" "*.json" "*.jinja"],
+    include ? ["*.safetensors" "*.json" "*.jinja"],
     extraHook ? "",
   }:
     stdenvNoCC.mkDerivation {
@@ -40,9 +40,7 @@
 
         ${lib.getExe python3Packages.huggingface-hub} download "${modelPath}" \
           --local-dir "$out" \
-          --include "*.safetensors" \
-          --include "*.json" \
-          --include "*.jinja"
+          ${lib.concatStringsSep " " (map (pattern: ''--include "${pattern}"'') include)}
 
         # Remove HF cache metadata — not deterministic across builds
         rm -rf "$out/.cache"

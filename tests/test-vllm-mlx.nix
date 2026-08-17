@@ -93,7 +93,9 @@
       ++ stubs.darwinService
       ++ stubs.onepassword
       ++ [
+        ../modules/services/vllm-mlx/darwin-instances-options.nix
         vllmMlxModule
+        ../modules/services/vllm-mlx/darwin-instances-config.nix
         ../modules/services/bifrost/darwin.nix
         ../modules/services/vane/darwin.nix
         ../modules/services/searxng/darwin.nix
@@ -120,6 +122,7 @@
       ];
   };
   megamanxVllmMlx = megamanxEval.config.myConfig.vllmMlx;
+  megamanxVllmMlxInstances = megamanxEval.config.myConfig.vllmMlxInstances;
   megamanxVllmDaemon = megamanxEval.config.launchd.daemons."vllm-mlx".serviceConfig;
 in {
   vllmMlxOptionsTest =
@@ -312,44 +315,62 @@ in {
     touch $out
   '';
 
-  # Verify the actual MegamanX target config targets Gemma 4 with gemma4 parsers
+  # Verify the actual MegamanX target config targets Qwen 3.8 with qwen3 parsers
   # and that its serving limits line up with the pi client's expectations.
   megamanxVllmMlxTest = pkgs.runCommand "test-megamanx-vllm" {} ''
     echo "=== Testing MegamanX vllm-mlx Configuration ==="
     echo ""
     ${
       let
-        hasModel = builtins.elem "gemma4-31b" (builtins.attrNames megamanxVllmMlx.models);
+        hasModel = builtins.elem "qwen3.8-27b" (builtins.attrNames megamanxVllmMlx.models);
         modelPath =
           if hasModel
-          then megamanxVllmMlx.models."gemma4-31b".path
+          then megamanxVllmMlx.models."qwen3.8-27b".path
           else null;
       in
-        if hasModel && modelPath == "mlx-community/gemma-4-31b-it-4bit"
-        then ''echo "  model = gemma-4-31b-it-4bit: OK"''
-        else ''echo "  FAIL: model should be mlx-community/gemma-4-31b-it-4bit, got ${toString modelPath}"; exit 1''
+        if hasModel && modelPath == "mlx-community/Qwen3.8-27B-8bit"
+        then ''echo "  model = Qwen3.8-27B-8bit: OK"''
+        else ''echo "  FAIL: model should be mlx-community/Qwen3.8-27B-8bit, got ${toString modelPath}"; exit 1''
     }
     ${
       let
-        hasE4b = builtins.elem "gemma4-e4b" (builtins.attrNames megamanxVllmMlx.models);
+        hasGemmaInstance = builtins.hasAttr "gemma" megamanxVllmMlxInstances;
+        gemmaInstance = megamanxVllmMlxInstances.gemma or {};
+        hasE4b = builtins.elem "gemma4-e4b" (builtins.attrNames (gemmaInstance.models or {}));
         e4bPath =
           if hasE4b
-          then megamanxVllmMlx.models."gemma4-e4b".path
+          then gemmaInstance.models."gemma4-e4b".path
           else null;
       in
-        if hasE4b && e4bPath == "mlx-community/gemma-4-e4b-it-4bit"
-        then ''echo "  e4b model = gemma-4-e4b-it-4bit: OK"''
-        else ''echo "  FAIL: e4b model should be mlx-community/gemma-4-e4b-it-4bit, got ${toString e4bPath}"; exit 1''
+        if hasGemmaInstance && hasE4b && e4bPath == "mlx-community/gemma-4-e4b-it-4bit"
+        then ''echo "  gemma instance e4b model = gemma-4-e4b-it-4bit: OK"''
+        else ''echo "  FAIL: gemma instance should serve mlx-community/gemma-4-e4b-it-4bit, got ${toString e4bPath}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.toolCallParser == "gemma4"
-      then ''echo "  toolCallParser = gemma4: OK"''
-      else ''echo "  FAIL: toolCallParser should be gemma4, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
+      let
+        gemmaInstance = megamanxVllmMlxInstances.gemma or {};
+      in
+        if gemmaInstance.toolCallParser or null == "gemma4"
+        then ''echo "  gemma instance toolCallParser = gemma4: OK"''
+        else ''echo "  FAIL: gemma instance toolCallParser should be gemma4, got ${toString gemmaInstance.toolCallParser}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.reasoningParser == "gemma4"
-      then ''echo "  reasoningParser = gemma4: OK"''
-      else ''echo "  FAIL: reasoningParser should be gemma4, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
+      let
+        gemmaInstance = megamanxVllmMlxInstances.gemma or {};
+      in
+        if gemmaInstance.enableContinuousBatching or false
+        then ''echo "  gemma instance enableContinuousBatching = true: OK"''
+        else ''echo "  FAIL: gemma instance should use BatchedEngine for concurrent requests"; exit 1''
+    }
+    ${
+      if megamanxVllmMlx.toolCallParser == "qwen"
+      then ''echo "  toolCallParser = qwen: OK"''
+      else ''echo "  FAIL: toolCallParser should be qwen, got ${toString megamanxVllmMlx.toolCallParser}"; exit 1''
+    }
+    ${
+      if megamanxVllmMlx.reasoningParser == "qwen3"
+      then ''echo "  reasoningParser = qwen3: OK"''
+      else ''echo "  FAIL: reasoningParser should be qwen3, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
     }
     ${
       # pi advertises maxTokens = 131072 for the bifrost model; the server KV
@@ -360,9 +381,9 @@ in {
       else ''echo "  FAIL: maxKvSize should be 131072 to match pi maxTokens, got ${toString megamanxVllmMlx.maxKvSize}"; exit 1''
     }
     ${
-      if megamanxVllmMlx.memoryBudgetGb == 90
-      then ''echo "  memoryBudgetGb = 90: OK"''
-      else ''echo "  FAIL: memoryBudgetGb should be 90, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
+      if megamanxVllmMlx.memoryBudgetGb == 64
+      then ''echo "  memoryBudgetGb = 64: OK"''
+      else ''echo "  FAIL: memoryBudgetGb should be 64, got ${toString megamanxVllmMlx.memoryBudgetGb}"; exit 1''
     }
     ${
       # pi's provider timeout is 600s; the server must not kill requests first.
