@@ -53,7 +53,7 @@
       --config.file ${configFile} \
       --storage.tsdb.path "${dataDir}" \
       --storage.tsdb.retention.time ${cfg.retention} \
-      --web.listen-address=${lib.escapeShellArg cfg.listenAddress} \
+      --web.listen-address=0.0.0.0:${toString cfg.port} \
       --web.console.templates=${pkgs.prometheus}/etc/prometheus/consoles \
       --web.console.libraries=${pkgs.prometheus}/etc/prometheus/console_libraries
   '';
@@ -69,12 +69,6 @@ in {
       type = lib.types.port;
       default = 9090;
       description = "Port for Prometheus HTTP server";
-    };
-
-    listenAddress = lib.mkOption {
-      type = lib.types.str;
-      default = "0.0.0.0:9090";
-      description = "Bind address for Prometheus HTTP server";
     };
 
     dataDir = lib.mkOption {

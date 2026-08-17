@@ -544,6 +544,12 @@
             searxng-custom-options
             lume-options
             lume-custom-options
+            node-exporter-options
+            node-exporter-custom-options
+            prometheus-options
+            prometheus-custom-options
+            prometheus-generated-script
+            prometheus-scrape-config
             git-enable
             git-settings-exist
             git-commit-signing
