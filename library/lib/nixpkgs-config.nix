@@ -46,6 +46,10 @@
       (final: _prev: {
         zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
       })
+      # himalaya-tui from upstream Pimalaya flake
+      (final: _prev: {
+        himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
+      })
       (import ../../overlays {inherit inputs;})
     ];
   };

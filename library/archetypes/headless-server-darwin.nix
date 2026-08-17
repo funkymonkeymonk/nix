@@ -11,6 +11,7 @@
   ...
 }: {
   imports = [
+    ./base-darwin.nix
     ../../modules/services/lume/darwin.nix
   ];
 

@@ -1,11 +1,12 @@
-# Workstation Darwin archetype — personal developer workstation
+# Workstation Darwin archetype — developer workstation/desktop
 {
   inputs,
   lib,
   ...
 }: {
   imports = [
-    ../../modules/roles/homebrew.nix
+    ./base-darwin.nix
+    inputs.nix-homebrew.darwinModules.nix-homebrew
   ];
 
   myConfig = {
@@ -17,6 +18,7 @@
       workstation.enable = true;
       pi.enable = true;
       homebrew.enable = true;
+      entertainment.enable = true;
     };
 
     # pi-plugins flake input, provided here (not in modules/roles/pi.nix) so
@@ -25,4 +27,6 @@
     # assignment, e.g. for a local pi-plugins checkout during development.
     pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
   };
+
+  time.timeZone = "America/New_York";
 }

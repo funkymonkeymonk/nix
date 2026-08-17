@@ -66,40 +66,9 @@
 
   outputs = {
     self,
-    nix-darwin,
     nixpkgs,
-    home-manager,
-    nix-homebrew,
-    opnix,
     ...
   } @ inputs: let
-    # Base configuration shared by all systems built via raw
-    # nix-darwin.lib.darwinSystem / nixpkgs.lib.nixosSystem calls below
-    # (MegamanX, zero, type-nas). Machines built via library/lib/mk-system.nix's
-    # mkDarwinSystem/mkNixosSystem get the same core nixpkgs.config +
-    # overlays from library/lib/nixpkgs-config.nix directly -- this
-    # `configuration` binding layers a couple of extra overlays
-    # (himalaya-tui, and an explicit claude-code allowUnfreePredicate,
-    # currently redundant since allowUnfree = true already permits it)
-    # on top of that shared module.
-    configuration = _: {
-      system.configurationRevision = self.rev or self.dirtyRev or null;
-      nixpkgs = {
-        config = {
-          allowUnfreePredicate = pkg:
-            builtins.elem (nixpkgs.lib.getName pkg) [
-              "claude-code"
-            ];
-        };
-        overlays = [
-          # himalaya-tui from upstream Pimalaya flake
-          (final: _prev: {
-            himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
-          })
-        ];
-      };
-    };
-
     # Helper to create user config
     mkUser = name: email: {
       users = [
@@ -130,7 +99,6 @@
     # Library helpers from the new modular library
     inherit (nixpkgs) lib;
     libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
-    mkNixpkgsConfigModule = import ./library/lib/nixpkgs-config.nix;
   in {
     packages = forAllSystems (
       system: let
@@ -183,15 +151,12 @@
 
     darwinConfigurations = {
       # wweaver — work laptop (Will Weaver)
-      # Uses mkDarwinSystem + developer-laptop-darwin + workstation-darwin archetypes
+      # Composed from workstation-darwin archetype + machine-specific overrides.
       "wweaver" = libraryLib.mkDarwinSystem {
         inherit inputs;
         hostname = "wweaver";
         extraSpecialArgs = {inherit mkUser;};
         modules = [
-          ./library/archetypes/base-darwin.nix
-          nix-homebrew.darwinModules.nix-homebrew
-          ./library/archetypes/developer-laptop-darwin.nix
           ./library/archetypes/workstation-darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
@@ -201,20 +166,15 @@
       };
 
       # darwin-server — headless macOS server for VM hosting
-      # Uses libraryLib.mkDarwinSystem + headless-server-darwin archetype
+      # Composed from headless-server-darwin archetype + machine-specific overrides.
       "darwin-server" = libraryLib.mkDarwinSystem {
         inherit inputs;
         hostname = "darwin-server";
         extraSpecialArgs = {inherit mkUser;};
         modules = [
           ./library/archetypes/headless-server-darwin.nix
-          ./modules/services/lume/darwin.nix
-          ./os/darwin.nix
-          ./targets/darwin-server
-          home-manager.darwinModules.home-manager
           {
             home-manager.sharedModules = [
-              opnix.homeManagerModules.default
               inputs.nix-openclaw.homeManagerModules.openclaw
             ];
           }
@@ -223,18 +183,16 @@
               "olm-3.2.16"
             ];
           }
+          ./hosts/darwin-server
         ];
       };
       # MegamanX — personal desktop/workstation
-      # Uses base-darwin archetype (modules, os/darwin, home-manager) +
-      # workstation-darwin archetype (roles, ollama, pi) with machine-specific services
-      "MegamanX" = nix-darwin.lib.darwinSystem {
-        specialArgs = {inherit inputs mkUser;};
+      # Composed from workstation-darwin archetype + local LLM stack services.
+      "MegamanX" = libraryLib.mkDarwinSystem {
+        inherit inputs;
+        hostname = "MegamanX";
+        extraSpecialArgs = {inherit mkUser;};
         modules = [
-          configuration
-          (mkNixpkgsConfigModule {inherit inputs;})
-          ./library/archetypes/base-darwin.nix
-          nix-homebrew.darwinModules.nix-homebrew
           ./library/archetypes/workstation-darwin.nix
           ./modules/services/vane/darwin.nix
           ./modules/services/bifrost/darwin.nix
@@ -247,6 +205,18 @@
           ./modules/services/node-exporter/darwin.nix
           ./modules/home-manager/aerospace.nix
           ./hosts/megamanx
+        ];
+      };
+
+      # type-darwin-server — generic headless macOS server template
+      # Composed from headless-server-darwin archetype + minimal overrides.
+      "type-darwin-server" = libraryLib.mkDarwinSystem {
+        inherit inputs;
+        hostname = "type-darwin-server";
+        extraSpecialArgs = {inherit mkUser;};
+        modules = [
+          ./library/archetypes/headless-server-darwin.nix
+          ./targets/type-darwin-server
         ];
       };
     };
@@ -267,14 +237,14 @@
         ];
       };
 
-      "zero" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = {inherit inputs mkUser;};
+      # zero — Gaming/desktop NixOS machine
+      # Composed from desktop-nixos archetype + machine-specific modules.
+      "zero" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "zero";
+        extraSpecialArgs = {inherit mkUser;};
         modules = [
-          configuration
-          (mkNixpkgsConfigModule {inherit inputs;})
-          opnix.nixosModules.default
-          ./modules
+          ./library/archetypes/desktop-nixos.nix
           ./modules/nixos/base.nix
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
@@ -282,50 +252,41 @@
           ./modules/services/openclaw
           inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
-          ./targets/zero
-          home-manager.nixosModules.home-manager
+          inputs.disko.nixosModules.disko
+          ./disk-configs/zero.nix
+          ./machine-types/desktop.nix
+          ./modules/nixos/ghostty-terminfo.nix
           {
             home-manager.sharedModules = [
-              opnix.homeManagerModules.default
               inputs.nix-openclaw.homeManagerModules.openclaw
             ];
           }
-
-          # Disk layout (zero-specific: NVMe, 1G ESP, 17G swap)
-          inputs.disko.nixosModules.disko
-          ./disk-configs/zero.nix
-
-          # Machine type configuration (includes myConfig defaults and SSH keys)
-          ./machine-types/desktop.nix
-
-          # Ghostty terminfo for SSH support
-          # https://github.com/ghostty-org/ghostty/discussions/5753
-          ./modules/nixos/ghostty-terminfo.nix
+          {
+            nixpkgs.config.permittedInsecurePackages = [
+              "openclaw-2026.4.22"
+            ];
+          }
+          ./targets/zero
         ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
+        };
       };
 
       # NAS - Network Attached Storage with ZFS and paperless-ngx
-      "type-nas" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs // {inherit inputs;};
+      # Composed from headless-server-nixos archetype + NAS-specific overrides.
+      "type-nas" = libraryLib.mkNixosSystem {
+        inherit inputs;
+        hostname = "type-nas";
         modules = [
-          configuration
-          (mkNixpkgsConfigModule {inherit inputs;})
-          ./modules
-          ./modules/nixos/base.nix
-          home-manager.nixosModules.home-manager
-          {home-manager.sharedModules = [opnix.homeManagerModules.default];}
-
-          # Disk layout - ZFS for data redundancy
+          ./library/archetypes/headless-server-nixos.nix
           inputs.disko.nixosModules.disko
           ./disk-configs/zfs-nas.nix
-
-          # Machine type configuration (includes myConfig, hardware.facter, SSH keys)
-          ./machine-types/server.nix
-
-          # NAS-specific services (paperless, ZFS support)
           ./targets/type-nas
         ];
+        overrides = {
+          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
+        };
       };
 
       # CATTLE CONFIGURATIONS - Generic machine types
@@ -339,8 +300,6 @@
         inherit inputs;
         hostname = "type-server";
         modules = [
-          opnix.nixosModules.default
-          ./modules/nixos/base.nix
           ./library/archetypes/headless-server-nixos.nix
           ./disk-configs/single-disk-ext4.nix
           inputs.nix-openclaw.nixosModules.openclaw-gateway
@@ -362,8 +321,6 @@
         hostname = "type-server-arm";
         system = "aarch64-linux";
         modules = [
-          opnix.nixosModules.default
-          ./modules/nixos/base.nix
           ./library/archetypes/headless-server-nixos.nix
           ./disk-configs/single-disk-ext4.nix
           {
@@ -382,52 +339,14 @@
         };
       };
 
-      # Phase 3: Real-machine migration — zero desktop/workstation
-      # Parallel v2 config using new library mkNixosSystem + archetype.
-      # Old nixosConfigurations.zero remains unchanged.
-      "zero-v2" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "zero";
-        extraSpecialArgs = {inherit mkUser;};
-        modules = [
-          ./modules/nixos/base.nix
-          ./modules/nixos/desktop.nix
-          ./modules/nixos/gaming.nix
-          ./modules/nixos/streaming.nix
-          ./modules/services/openclaw
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
-          ./os/nixos.nix
-          ./library/archetypes/desktop-nixos.nix
-          inputs.disko.nixosModules.disko
-          ./disk-configs/single-disk-ext4.nix
-          ./modules/nixos/ghostty-terminfo.nix
-          {
-            home-manager.sharedModules = [
-              inputs.nix-openclaw.homeManagerModules.openclaw
-            ];
-          }
-          {
-            nixpkgs.config.permittedInsecurePackages = [
-              "openclaw-2026.4.22"
-            ];
-          }
-          ./targets/zero
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero-v2";
-        };
-      };
-
       # Uses libraryLib.mkNixosSystem + desktop-nixos archetype
       "type-desktop" = libraryLib.mkNixosSystem {
         inherit inputs;
         hostname = "type-desktop";
         modules = [
-          opnix.nixosModules.default
-          ./modules/nixos/base.nix
+          ./library/archetypes/desktop-nixos.nix
           ./modules/nixos/desktop.nix
           ./modules/nixos/ghostty-terminfo.nix
-          ./library/archetypes/desktop-nixos.nix
           inputs.disko.nixosModules.disko
           ./disk-configs/single-disk-ext4.nix
           {
