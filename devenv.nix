@@ -644,6 +644,15 @@ in {
       '';
     };
 
+    "check:coverage" = {
+      description = "Run module test coverage regression guard (fast)";
+      exec = ''
+        echo "=== Running module coverage regression guard ==="
+        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+        nix build ".#checks.''${CURRENT_SYSTEM}.module-coverage" --no-link --print-build-logs
+      '';
+    };
+
     # ============================================
     # TEST TASKS (eval gates build)
     # ============================================
