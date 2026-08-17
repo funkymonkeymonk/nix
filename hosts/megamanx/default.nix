@@ -13,8 +13,6 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      # superpowersPath provided by workstation-darwin archetype
-
       obsidian.vaults = ["personal"];
 
       # Extra role beyond workstation archetype
