@@ -21,7 +21,7 @@ In this tutorial you'll set up a workflow where multiple agents (or you and an a
 ## Prerequisites
 
 - This repository cloned and `devenv shell` active
-- `fjj` available (enabled by the developer role)
+- `jj-workspace` available (installed with the developer role)
 - Basic familiarity with jj ([Getting Started with jj](./jj-workflow.md))
 - GitHub CLI (`gh`) authenticated
 
@@ -48,26 +48,27 @@ Enter the devenv shell and confirm the tools are available:
 devenv shell
 
 # Check tools
-which fjj
 which jj-workspace
 which yx
 ```
 
-If `fjj` isn't found, ensure your target has the `developer` role enabled.
+If `jj-workspace` isn't found, ensure your target has the `developer` role enabled.
 
 ## Step 2: Create the First Workspace
 
 Imagine Agent A is going to work on a new feature. Create a workspace:
 
 ```bash
-fjj feat/user-auth
+jj-workspace create feat/user-auth
+cd $(jj-workspace create feat/user-auth | grep WORKSPACE_PATH= | cut -d= -f2)
 ```
+
+Or simply copy the path printed by the command and `cd` into it.
 
 **What happens:**
 - A new directory is created under `~/workspaces/` (e.g., `feat-user-auth-20260414-a1b2`)
 - jj creates a workspace pointing back to the main repo's `.jj/` store
-- Your shell auto-cds into the new workspace
-- A fast-sync session starts (syncs every 5 minutes)
+- You `cd` into the new workspace
 
 Verify you're in a workspace:
 
@@ -82,7 +83,8 @@ You'll see `default` (the main repo) and your new workspace.
 Open a **second terminal** (or have a second agent start). From the main repo directory (not from inside the first workspace), create another workspace:
 
 ```bash
-fjj fix/login-bug
+jj-workspace create fix/login-bug
+cd $(jj-workspace create fix/login-bug | grep WORKSPACE_PATH= | cut -d= -f2)
 ```
 
 Now you have two workspaces, each with their own working copy, each at a different point in the commit graph — but sharing the same underlying jj/git store.
@@ -260,8 +262,8 @@ jj git push  # Force-push is automatic with jj
 When PRs are merged, clean up workspaces:
 
 ```bash
-# Auto-remove workspaces whose PRs are merged or closed
-fjj --clean
+# Remove all workspaces (interactive confirmation)
+jj-workspace clean
 
 # Or remove a specific workspace
 jj-workspace remove feat-user-auth-20260414-a1b2
@@ -277,16 +279,18 @@ Here's the complete flow for two agents working in parallel:
 ```
 Main repo (~/src/nix)
   │
-  ├── Agent A: fjj feat/user-auth
+  ├── Agent A: jj-workspace create feat/user-auth
   │     ├── yx sync && yx start "Add auth"    ← claim the task
+  │     ├── cd into the new workspace
   │     ├── (edit files)
   │     ├── jj describe -m "feat: add auth"   ← commit-first!
   │     ├── s                                  ← switch from repo root
   │     ├── jj-pr feat user-auth "Add auth"   ← open PR
   │     └── yx done "Add auth" && yx sync     ← release the task
   │
-  └── Agent B: fjj fix/login-bug
+  └── Agent B: jj-workspace create fix/login-bug
         ├── yx sync && yx start "Fix login"   ← claim the task
+        ├── cd into the new workspace
         ├── (edit files)
         ├── jj describe -m "fix: login bug"   ← commit-first!
         ├── q                                  ← check from repo root
@@ -332,12 +336,12 @@ Or rebase your workspace onto a clean commit.
 
 | Concept | Key Takeaway |
 |---------|-------------|
-| Workspaces | Each agent gets its own working copy via `fjj` |
+| Workspaces | Each agent gets their own working copy via `jj-workspace create` |
 | Commit-first | Always `jj describe` before running Nix commands |
 | Workspace-aware shell | `s`, `b`, `q` auto-detect workspaces and run from repo root |
 | Raw nix commands | Must be run from the repo root, not the workspace |
 | Yaks coordination | `yx start` + `yx sync` prevents duplicate work |
-| Cleanup | `fjj --clean` removes merged workspaces |
+| Cleanup | `jj-workspace clean` removes all workspaces |
 
 ## What's Next
 

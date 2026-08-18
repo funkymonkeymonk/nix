@@ -29,7 +29,6 @@ in {
       mergiraf
     ];
 
-    myConfig.fjj.enable = true;
     myConfig.zellij.enable = true;
 
     environment.shellAliases = {

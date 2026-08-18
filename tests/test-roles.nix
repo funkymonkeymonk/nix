@@ -111,7 +111,6 @@
   # Map of roles to cascade-enabled options
   roleCascades = {
     developer = {
-      "fjj.enable" = true;
       "zellij.enable" = true;
     };
     opencode = {"agent-skills.enable" = true;};

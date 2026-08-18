@@ -182,13 +182,13 @@ Workspaces isolate work in flight and enable fast background sync.
 
 ### Creating a workspace
 
-Use `fjj` (Fast JJ) from any directory:
+Use `jj-workspace` from any directory:
 
 ```bash
-fjj feat/my-topic              # Create workspace from main
-fjj fix/bug-name develop       # Create workspace from develop branch
-fjj list                       # Show all workspaces
-fjj clean                      # Remove merged/stale workspaces
+jj-workspace create feat/my-topic              # Create workspace from main
+jj-workspace create fix/bug-name develop       # Create workspace from develop branch
+jj-workspace list                              # Show all workspaces
+jj-workspace clean                             # Remove all workspaces
 ```
 
 Or with the `/workspace` slash command in OpenCode:
@@ -230,7 +230,7 @@ jj-workspace-session prune     # Remove expired sessions
 
 ```bash
 # 1. Create workspace
-fjj feat/agent-openclaw-my-feature
+jj-workspace create feat/agent-openclaw-my-feature
 
 # 2. cd into workspace
 cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>

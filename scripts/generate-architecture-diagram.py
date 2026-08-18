@@ -53,7 +53,6 @@ MANUAL_HM_EDGES = [
     ("myConfig.agent-skills.enable", "home-manager/skills/install.nix"),
     ("myConfig.email-agent.enable", "home-manager/email-agent.nix"),
     ("myConfig.email-backup.enable", "home-manager/email-backup.nix"),
-    ("myConfig.fjj.enable", "home-manager/fjj.nix"),
     ("myConfig.sketchybar.enable", "home-manager/sketchybar"),
     ("myConfig.roles.developer.enable", "home-manager/watch-ci-jobs.nix"),
 ]
