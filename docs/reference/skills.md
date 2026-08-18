@@ -15,7 +15,6 @@ Agent skills are defined in `modules/home-manager/skills/manifest.nix` and insta
 | `nix-darwin-launchd-debugging` | Use when debugging nix-darwin launchd services that fail to start, exit with non-zero, or don't reload on switch. Covers EX_CONFIG, $HOME expansion trap, daemon vs user.agent, and manual plist reloading | developer, opencode, claude, pi |
 | `nix-hf-models` | Use when pre-downloading HuggingFace models into the Nix store for local inference. Covers hf download CLI, fixed-output derivations, hash computation, and CDN/auth issues | developer, opencode, claude, pi |
 | `nix-opnix-secrets` | Use when managing 1Password secrets via Nix on nix-darwin. Covers mkOpnixSecretsGeneric, programs.onepassword-secrets, activation script ordering, and runtime patching of config files | developer, opencode, claude, pi |
-| `openclaw` | Guidelines for working with OpenClaw AI assistant configuration and deployment | developer, opencode, claude |
 | `prd-review` | Display PRD files in human-readable format for review and status tracking. Shows progress, story details, and flags potential issues | developer, opencode, claude |
 | `ralph-specs` | Write specifications optimized for Ralph Loop autonomous agent execution. Covers PRD structure, atomic user stories, and machine-verifiable acceptance criteria | developer, opencode, claude |
 | `receiving-code-review` | Process code review feedback with technical rigor | developer, workstation |

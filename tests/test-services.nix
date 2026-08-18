@@ -1,5 +1,5 @@
 # Service module option tests using evalModules
-# Tests vane and openclaw options without requiring platform-specific modules
+# Tests vane options without requiring platform-specific modules
 {pkgs, ...}: let
   inherit (pkgs) lib;
 

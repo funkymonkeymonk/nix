@@ -44,10 +44,6 @@
     # Sketchybar configuration with aerospace integration
     aerospace-sketchybar.url = "github:zmre/aerospace-sketchybar-nix-lua-config";
 
-    # Official OpenClaw flake for declarative OpenClaw installation
-    nix-openclaw.url = "github:openclaw/nix-openclaw";
-    nix-openclaw.inputs.nixpkgs.follows = "nixpkgs";
-
     # Bifrost AI Gateway - high-performance LLM gateway
     bifrost.url = "github:maximhq/bifrost";
 
@@ -174,11 +170,6 @@
         modules = [
           ./library/archetypes/headless-server-darwin.nix
           {
-            home-manager.sharedModules = [
-              inputs.nix-openclaw.homeManagerModules.openclaw
-            ];
-          }
-          {
             nixpkgs.config.permittedInsecurePackages = [
               "olm-3.2.16"
             ];
@@ -249,23 +240,11 @@
           ./modules/nixos/desktop.nix
           ./modules/nixos/gaming.nix
           ./modules/nixos/streaming.nix
-          ./modules/services/openclaw
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
           ./os/nixos.nix
           inputs.disko.nixosModules.disko
           ./disk-configs/zero.nix
           ./machine-types/desktop.nix
           ./modules/nixos/ghostty-terminfo.nix
-          {
-            home-manager.sharedModules = [
-              inputs.nix-openclaw.homeManagerModules.openclaw
-            ];
-          }
-          {
-            nixpkgs.config.permittedInsecurePackages = [
-              "openclaw-2026.4.22"
-            ];
-          }
           ./targets/zero
         ];
         overrides = {
@@ -302,7 +281,6 @@
         modules = [
           ./library/archetypes/headless-server-nixos.nix
           ./disk-configs/single-disk-ext4.nix
-          inputs.nix-openclaw.nixosModules.openclaw-gateway
           {
             users.users.admin.openssh.authorizedKeys.keys = [
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
