@@ -47,9 +47,6 @@
     "common/onepassword.nix"
     # Tested via test-agent-user.nix (option defaults, disabled/enabled/custom states)
     "common/agent-user.nix"
-    # Tested via test-fjj.nix (platform-dependent mirrorRoot default,
-    # custom override, home.packages/home.file/home.activation wiring)
-    "home-manager/fjj.nix"
     # Tested via configValidationTest (imports roles/default.nix)
     "roles/default.nix"
     # All role modules tested via test-roles.nix (evalWithRole imports roles/default.nix

@@ -23,17 +23,7 @@ Create isolated workspaces to work on multiple features or fixes simultaneously.
 
 ### 1. Create a New Workspace
 
-#### Option A: Using `fjj` (Recommended for Multi-Agent)
-
-If you're using fjj for multi-agent workflows:
-
-```bash
-fjj feat/my-feature
-```
-
-This creates a workspace with conventional naming and auto-cds into it.
-
-#### Option B: Using `jj-workspace`
+#### Option A: Using `jj-workspace` (Recommended)
 
 For direct workspace creation:
 
@@ -41,9 +31,9 @@ For direct workspace creation:
 jj-workspace create feat/my-feature
 ```
 
-This creates a workspace named `feat/my-feature-YYYYMMDD-XXXX`.
+This creates a workspace named `feat/my-feature-YYYYMMDD-XXXX`. Copy the printed path and `cd` into it.
 
-#### Option C: From a Different Base
+#### Option B: From a Different Base
 
 Create a workspace from a branch other than main:
 
@@ -112,12 +102,6 @@ See all your workspaces:
 jj-workspace list
 ```
 
-Or with fjj:
-
-```bash
-fjj --list
-```
-
 ### 6. Check Workspace Status
 
 See what's happening in all workspaces:
@@ -128,10 +112,10 @@ jj-workspace status
 
 ### 7. Clean Up Finished Work
 
-Remove merged or closed workspaces:
+Remove all workspaces (interactive confirmation):
 
 ```bash
-fjj --clean
+jj-workspace clean
 ```
 
 Or manually remove a specific workspace:
@@ -191,7 +175,7 @@ Sessions automatically expire after 30 minutes of inactivity.
 
 1. **One feature per workspace** - Keep work isolated
 2. **Use conventional naming** - Makes workspaces easy to identify
-3. **Clean up regularly** - Run `fjj --clean` to remove merged workspaces
+3. **Clean up regularly** - Run `jj-workspace clean` to remove merged workspaces
 4. **Start sessions for active work** - Enables fast sync
 5. **Don't commit in mirror** - Always work in workspaces
 
