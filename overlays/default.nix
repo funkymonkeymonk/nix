@@ -105,7 +105,7 @@
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
-        hash = "sha256-1eEw976l9xb0nLyoc5vUv1536EUvmdVtCBdz+FpprgQ=";
+        hash = "sha256-k+JOPF+sQTAFcojNF6N1xpxPa6MKTvFGKj9zmoBmf6w=";
       };
     });
 
@@ -113,7 +113,7 @@
       ((inputs.bifrost.packages.${final.system}.bifrost-http).override {
         bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (_prev: {
-        vendorHash = "sha256-iQp50tyrS6w5YBU1dvOB3R3DbeAdFBXJobdhvM7x5bo=";
+        vendorHash = "sha256-1Y3LiFMfjRsdcfo09M/4g+q0VJ789tC0xOQkf3EgIL4=";
       });
   }
   else {}

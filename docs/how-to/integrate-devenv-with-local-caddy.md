@@ -1,212 +1,234 @@
+---
+title: "Integrate devenv with Local Caddy"
+description: "Automatically register devenv services with the local Caddy reverse proxy"
+type: how-to
+---
+
 # Integrate devenv with Local Caddy
 
-This guide shows how to configure your devenv to automatically add and remove routes to the personal Caddy reverse proxy when entering and exiting the environment.
+This guide shows how to configure your `devenv.nix` to automatically register services with the personal Caddy reverse proxy, making them accessible via `.internal` domains.
 
-## Overview
+## Prerequisites
 
-When you `devenv shell` into a project, a helper script can POST your service's route to Caddy's admin API. When you exit, it cleans up by DELETEing the route — no manual Caddy config changes needed.
+- Caddy is enabled in your host config: `myConfig.caddy.enable = true`
+- Your services listen on localhost ports
+- You have curl (included in base role)
 
-## Setup
+## Basic Setup
 
-### 1. Create a Caddy Helper Function
+In your `devenv.nix`, after defining services, register them with Caddy.
 
-Add this to your `devenv.nix`:
+### Example 1: Simple Service Registration
 
 ```nix
-{pkgs, ...}:
+{config, pkgs, lib, ...}:
 
-let
-  # Helper to post a route to Caddy's admin API
-  caddyHelper = pkgs.writeShellScript "caddy-route-helper" ''
-    #!/bin/bash
-    # Usage:
-    #   caddy_add_route <hostname> <upstream> [route_id]
-    #   caddy_remove_route [route_id]
-    
-    caddy_add_route() {
-      local hostname="$1"
-      local upstream="$2"
-      local route_id="''${3:-$hostname}"
-      
-      echo "[devenv] Adding Caddy route: $hostname -> $upstream"
+{
+  services.postgres = {
+    enable = true;
+    port = 5432;
+  };
+
+  # After all services are defined, register important ones with Caddy
+  tasks.post.setup = {
+    exec = ''
+      echo "→ Registering services with Caddy..."
+      curl -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
+        -H "Content-Type: application/json" \
+        -d '{
+          "@id": "db-admin",
+          "match": [{"host": ["db-admin.internal"]}],
+          "handle": [{
+            "handler": "reverse_proxy",
+            "upstreams": [{"dial": "localhost:5050"}]
+          }]
+        }' 2>/dev/null || echo "  (Caddy admin API not available)"
+    '';
+    after = ["services"];
+  };
+}
+```
+
+### Example 2: Web Service Registration
+
+```nix
+{config, pkgs, ...}:
+
+{
+  services.http = {
+    enable = true;
+    host = "localhost";
+    port = 3000;
+  };
+
+  tasks.post.register-services = {
+    exec = ''
+      echo "→ Registering dev services with Caddy..."
+
       curl -s -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
         -H "Content-Type: application/json" \
-        -d "{
-          \"@id\": \"$route_id\",
-          \"match\": [{\"host\": [\"$hostname\"]}],
-          \"handle\": [{
-            \"handler\": \"reverse_proxy\",
-            \"upstreams\": [{\"dial\": \"$upstream\"}]
+        -d '{
+          "@id": "app",
+          "match": [{"host": ["app.internal"]}],
+          "handle": [{
+            "handler": "reverse_proxy",
+            "upstreams": [{"dial": "localhost:3000"}]
           }]
-        }" || echo "[devenv] WARNING: Failed to add Caddy route"
-    }
-    
-    caddy_remove_route() {
-      local route_id="''${1}"
-      if [ -z "$route_id" ]; then
-        echo "[devenv] ERROR: route_id required for removal"
-        return 1
-      fi
-      echo "[devenv] Removing Caddy route: $route_id"
-      # Try to find and delete the route by ID
-      curl -s http://localhost:2019/config/apps/http/servers/srv0/routes \
-        | jq -r ".[] | select(.\"@id\" == \"$route_id\") | @base64d" > /dev/null
-      # For simplicity, find the route index and delete
-      local index=$(curl -s http://localhost:2019/config/apps/http/servers/srv0/routes \
-        | jq "map(select(.\"@id\" == \"$route_id\")) | length")
-      if [ "$index" -gt 0 ]; then
-        curl -s -X DELETE http://localhost:2019/config/apps/http/servers/srv0/routes/0 || echo "[devenv] WARNING: Failed to remove Caddy route"
-      fi
-    }
-  '';
+        }' >/dev/null 2>&1 || true
+
+      echo "  → app.internal → localhost:3000"
+    '';
+    after = ["services"];
+  };
+}
+```
+
+## Dynamic Registration Pattern
+
+For reusable registration, create a helper function:
+
+```nix
+{config, pkgs, lib, ...}:
+
+let
+  # Helper to register a service with Caddy admin API
+  registerWithCaddy = {host, upstream}:
+    ''
+      curl -s -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
+        -H "Content-Type: application/json" \
+        -d '{
+          "@id": "${host}",
+          "match": [{"host": ["${host}"]}],
+          "handle": [{
+            "handler": "reverse_proxy",
+            "upstreams": [{"dial": "${upstream}"}]
+          }]
+        }' >/dev/null 2>&1 || true
+      echo "  → ${host} → ${upstream}"
+    '';
+
 in
-
 {
-  # Your other devenv config
-  
-  enterShell = ''
-    # Load Caddy helpers
-    source ${caddyHelper}
-    
-    # Add your service route to Caddy
-    # Example: caddy_add_route "myapp.localhost" "localhost:3000"
-    
-    echo "✓ Development environment ready"
-  '';
-  
-  exitShell = ''
-    # Remove your service route from Caddy on exit (optional)
-    # Example: caddy_remove_route "myapp.localhost"
-  '';
-}
-```
-
-### 2. Enable Caddy in Your System Config
-
-Ensure `myConfig.caddy.enable = true` in your Nix configuration:
-
-```nix
-{
-  config.myConfig.caddy = {
+  services.web = {
     enable = true;
-    port = 80;
+    port = 3000;
+  };
+
+  tasks.post.register-services = {
+    exec = ''
+      echo "→ Registering dev services with Caddy..."
+      ${registerWithCaddy {host = "app.internal"; upstream = "localhost:3000";}}
+    '';
+    after = ["services"];
   };
 }
 ```
 
-Apply the configuration:
+## Cleanup on Exit
 
-```bash
-darwin-rebuild switch --flake .
-```
-
-### 3. Test the Integration
-
-Create a simple devenv project:
-
-```bash
-mkdir -p ~/test-project
-cd ~/test-project
-```
-
-Create a simple `devenv.nix`:
+To remove routes when devenv shuts down, use a cleanup hook:
 
 ```nix
-{pkgs, ...}: {
-  enterShell = ''
-    echo "=== Test Project ==="
-    echo "Adding Caddy route..."
-    curl -s -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
-      -H "Content-Type: application/json" \
-      -d '{
-        "@id": "test-project",
-        "match": [{"host": ["test.localhost"]}],
-        "handle": [{
-          "handler": "reverse_proxy",
-          "upstreams": [{"dial": "localhost:8000"}]
-        }]
-      }'
-    echo ""
-    echo "✓ Route added! Try: curl http://test.localhost"
-  '';
-  
-  exitShell = ''
-    echo ""
-    echo "Cleaning up Caddy route..."
-    curl -s -X DELETE http://localhost:2019/config/apps/http/servers/srv0/routes/0 || true
-  '';
-}
-```
+{config, pkgs, ...}:
 
-Enter devenv:
-
-```bash
-devenv shell
-# Should see: Route added!
-```
-
-Verify the route exists:
-
-```bash
-# From another terminal:
-curl -s http://localhost:2019/config/apps/http/servers/srv0/routes | jq .
-```
-
-Exit devenv:
-
-```bash
-exit
-# Should see: Cleaning up Caddy route...
-```
-
-## Advanced: Persistent Routes
-
-If you want routes to persist across sessions (not cleaned up on exit), add them to your Nix config instead:
-
-```nix
 {
-  config.myConfig.caddy.hosts = {
-    "myservice.localhost" = "localhost:8000";
+  # Your service configuration...
+
+  # Optional: clean up Caddy routes when devenv exits
+  tasks.cleanup = {
+    exec = ''
+      echo "→ Cleaning up Caddy routes..."
+      curl -s -X DELETE http://localhost:2019/config/apps/http/servers/srv0/routes/@id/app.internal || true
+    '';
   };
 }
 ```
 
-Then rebuild the system — the route becomes part of Caddy's base configuration.
+## Verifying Registration
+
+After starting devenv, verify the route is registered:
+
+```bash
+# List all registered routes
+curl http://localhost:2019/config/apps/http/servers/srv0/routes | jq '.'
+
+# Test the route
+curl http://app.internal/
+```
+
+## Common Patterns
+
+### Registering Multiple Services
+
+```bash
+#!/usr/bin/env bash
+# Save as: register-services.sh
+
+register_service() {
+  local host=$1
+  local upstream=$2
+
+  curl -s -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"@id\": \"${host}\",
+      \"match\": [{\"host\": [\"${host}\"]}],
+      \"handle\": [{
+        \"handler\": \"reverse_proxy\",
+        \"upstreams\": [{\"dial\": \"${upstream}\"}]
+      }]
+    }" >/dev/null 2>&1
+
+  echo "Registered: ${host} → ${upstream}"
+}
+
+# Register services
+register_service "app.internal" "localhost:3000"
+register_service "api.internal" "localhost:8000"
+register_service "admin.internal" "localhost:9000"
+```
+
+Use in devenv:
+
+```nix
+tasks.post.register = {
+  exec = ''
+    ${pkgs.bash}/bin/bash ./register-services.sh
+  '';
+  after = ["services"];
+};
+```
 
 ## Troubleshooting
 
-### "curl: (7) Failed to connect"
-
-Caddy's admin API is not responding. Check:
+### Caddy Admin API Not Responding
 
 ```bash
-ps aux | grep caddy
-# Should show a running Caddy process
-
+# Check if Caddy is running
 launchctl list | grep caddy
-# Should show org.nixos.caddy is loaded
+
+# Check logs
+tail -f "$HOME/.local/share/caddy/caddy.log"
 ```
 
-### Route not appearing after POST
+### Routes Disappearing After Reboot
 
-Check that the `content-type` header is set to `application/json` and the JSON is valid:
+Routes added via the admin API are ephemeral and lost when Caddy restarts. For persistent routes:
+
+1. Add them to your host configuration (see [Add Local Dev DNS Names](add-local-dev-dns-name.md))
+2. Or add them in devenv startup if they're development-specific
+
+### Cannot Connect to Service
 
 ```bash
-curl -v -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "@id": "test",
-    "match": [{"host": ["test.localhost"]}],
-    "handle": [{
-      "handler": "reverse_proxy",
-      "upstreams": [{"dial": "localhost:9000"}]
-    }]
-  }'
+# Test if the upstream is reachable
+curl http://localhost:3000/
+
+# Check Caddy configuration
+curl http://localhost:2019/config/apps/http/servers/srv0/routes | jq '.[] | select(.match[0].host[0] == "app.internal")'
 ```
 
-Review the response for errors.
-
-### DNS not resolving
+### DNS Not Resolving
 
 Verify dnsmasq is running:
 
@@ -214,12 +236,12 @@ Verify dnsmasq is running:
 launchctl list | grep dnsmasq
 # Should show org.nixos.dnsmasq is loaded
 
-dig +short test.localhost @127.0.0.1 -p 5353
+dig +short app.internal @127.0.0.1 -p 5353
 # Should return 127.0.0.1
 ```
 
 ## See Also
 
-- [Add a Local Dev DNS Name](add-local-dev-dns-name.md) — Static configuration approach
-- [devenv Documentation](https://devenv.sh)
-- [Caddy Admin API Reference](https://caddyserver.com/docs/api)
+- [Add Local Dev DNS Names](add-local-dev-dns-name.md)
+- [Caddy Admin API](https://caddyserver.com/docs/api)
+- [devenv Documentation](https://devenv.sh/)
