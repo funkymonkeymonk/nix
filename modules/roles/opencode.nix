@@ -31,10 +31,13 @@ in {
     };
 
     # Auto-configure bifrost as MCP gateway
+    # Disabled by default so it doesn't consume context until needed —
+    # enable per-session with the /mcp command or by overriding
+    # myConfig.opencode.extraMcpServers.bifrost.enabled = true.
     myConfig.opencode.extraMcpServers.bifrost = lib.mkDefault {
       type = "remote";
       url = "http://${host}:${port}/mcp";
-      enabled = true;
+      enabled = false;
     };
 
     # Default global agent instructions — override per-machine with a direct assignment

@@ -1,6 +1,6 @@
 ---
 name: open-url-new-window
-description: Open URLs in a new browser window using macOS native commands
+description: Use when the user asks to open a URL in a new browser window (not a new tab), or when opening documentation/references on macOS without disrupting their current browser session.
 ---
 
 # open-url-new-window

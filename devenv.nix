@@ -506,95 +506,11 @@ in {
     };
 
     # ============================================
-    # AGENT SKILLS TASKS
+    # AGENT SKILLS
     # ============================================
-
-    "agent-skills:all" = {
-      description = "Run all agent-skills tasks (status + update + validate)";
-      after = ["agent-skills:status" "agent-skills:update" "agent-skills:validate"];
-      exec = "echo '✓ All agent-skills tasks complete'";
-    };
-
-    "agent-skills:status" = {
-      description = "Check agent skills status";
-      exec = ''
-        echo "=== Agent Skills Status ==="
-        echo "Upstream version:"
-        cat modules/home-manager/agent-skills/.upstream-version 2>/dev/null || echo "  Not tracked"
-      '';
-    };
-
-    "agent-skills:update" = {
-      description = "Update agent skills from upstream superpowers";
-      exec = ''
-        echo "Updating agent skills from upstream..."
-
-        # Upstream repository information
-        UPSTREAM_REPO="https://github.com/obra/superpowers.git"
-        UPSTREAM_BRANCH="main"
-
-        # Resolve paths
-        SKILLS_PATH="$HOME/.config/opencode/skills"
-        SUPERPOWERS_PATH="$HOME/.config/opencode/superpowers/skills"
-        VERSION_FILE="$SKILLS_PATH/.upstream-version"
-
-        # Read current version
-        if [[ -f "$VERSION_FILE" ]]; then
-          current_version=$(cat "$VERSION_FILE")
-        else
-          current_version="none"
-        fi
-
-        echo "Current version: $current_version"
-
-        # Clone upstream to temporary directory
-        temp_dir=$(mktemp -d)
-        trap "rm -rf $temp_dir" EXIT
-
-        echo "Cloning upstream repository..."
-        git clone --depth 1 --branch "$UPSTREAM_BRANCH" "$UPSTREAM_REPO" "$temp_dir"
-
-        # Get latest commit hash
-        latest_version=$(cd "$temp_dir" && git rev-parse HEAD)
-
-        echo "Latest version: $latest_version"
-
-        if [[ "$current_version" = "$latest_version" ]]; then
-          echo "Already up to date"
-          exit 0
-        fi
-
-        # Update skills
-        echo "Updating skills from $temp_dir/skills to $SKILLS_PATH"
-
-        # Ensure directories exist
-        mkdir -p "$(dirname "$VERSION_FILE")"
-        mkdir -p "$SKILLS_PATH"
-        mkdir -p "$SUPERPOWERS_PATH"
-
-        # Copy new skills, preserving custom ones
-        if [[ -d "$temp_dir/skills" ]]; then
-          rsync -av --delete "$temp_dir/skills/" "$SKILLS_PATH/"
-          rsync -av --delete "$temp_dir/skills/" "$SUPERPOWERS_PATH/"
-        fi
-
-        # Update version tracking
-        echo "$latest_version" > "$VERSION_FILE"
-
-        echo "Skills updated successfully!"
-        echo "Version: $latest_version"
-        echo "Main skills directory: $SKILLS_PATH"
-        echo "Superpowers skills directory: $SUPERPOWERS_PATH"
-      '';
-    };
-
-    "agent-skills:validate" = {
-      description = "Validate skills against Agent Skills specification";
-      exec = ''
-        echo "Validating skills format..."
-        echo "Validation complete"
-      '';
-    };
+    # Skills are Nix-managed via modules/home-manager/skills/manifest.nix.
+    # Superpowers-sourced skills come from the `superpowers` flake input —
+    # update it with: nix flake update --update-input superpowers
 
     # ============================================
     # CHECK TASKS (fast, no derivation builds)
