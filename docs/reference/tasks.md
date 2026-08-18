@@ -77,12 +77,9 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 
 ### Agent Skills
 
-| Task | Description |
-|------|-------------|
-| `agent-skills:all` | Status + update + validate |
-| `agent-skills:status` | Check skills installation status |
-| `agent-skills:update` | Update skills from upstream superpowers |
-| `agent-skills:validate` | Validate skills format |
+Skills are Nix-managed via `modules/home-manager/skills/manifest.nix`. There
+are no devenv tasks — update superpowers-sourced skills with
+`nix flake update --update-input superpowers`, then `devenv tasks run system:switch`.
 
 ### LLM / Benchmarking
 

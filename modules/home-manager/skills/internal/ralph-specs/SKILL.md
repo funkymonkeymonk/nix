@@ -1,6 +1,6 @@
 ---
 name: ralph-specs
-description: Write specifications optimized for Ralph Loop autonomous agent execution
+description: Use when planning features for autonomous AI implementation, converting ideas into Ralph Loop PRDs, or breaking work into atomic user stories for unattended agent execution.
 ---
 
 # Ralph-Compatible Spec Writing

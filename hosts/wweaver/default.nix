@@ -35,6 +35,14 @@
 
       pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
 
+      pi.npmPackages = {
+        # Subagent dispatch tool (scout/researcher/worker/reviewer/oracle)
+        # for pi, mirroring opencode/claude's native Task tool / @mention
+        # subagent support — needed by dispatching-parallel-agents and
+        # subagent-driven-development skills.
+        "pi-subagents" = "^0.51.0";
+      };
+
       vane = {
         enable = true;
         autoStart = true;
@@ -44,23 +52,6 @@
       opencode = {
         enable = true;
         disabledProviders = ["opencode"];
-        extraMcpServers = {
-          github = {
-            type = "remote";
-            url = "https://api.githubcopilot.com/mcp/";
-            enabled = false;
-          };
-          jira = {
-            type = "remote";
-            url = "https://mcp.atlassian.com/v1/mcp";
-            enabled = false;
-          };
-          confluence = {
-            type = "remote";
-            url = "https://mcp.atlassian.com/v1/mcp";
-            enabled = false;
-          };
-        };
         commands = {
           diataxis = {
             description = "Audit and rewrite documentation using the Diataxis framework";

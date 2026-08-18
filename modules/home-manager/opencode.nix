@@ -1,7 +1,6 @@
 {
   osConfig,
   lib,
-  pkgs,
   ...
 }:
 with lib; let
@@ -43,9 +42,6 @@ with lib; let
   # Filter providers that have baseURLOpnixItem configured
   providersWithBaseURLSecrets = lib.filterAttrs (_name: provider: provider.baseURLOpnixItem != "") cfg.providers;
 
-  # Filter providers with dynamic models enabled
-  providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
-
   # Build opnix secrets configuration using shared helper (API keys)
   opnixSecrets = hmLib.mkOpnixSecrets "opencode" osConfig.myConfig.onepassword.defaultVault (
     lib.mapAttrs (name: provider: {
@@ -67,6 +63,14 @@ with lib; let
   # Combined opnix secrets (API keys + base URLs)
   allOpnixSecrets = opnixSecrets // opnixBaseURLSecrets;
 
+  # Providers that want their model list fetched at runtime (e.g. LiteLLM
+  # proxies). Model discovery itself is handled by the opencode-models-discovery
+  # plugin (https://www.npmjs.com/package/opencode-models-discovery), not by
+  # any custom script — we just need to opt each provider in via
+  # options.modelsDiscovery and make sure the plugin is loaded.
+  providersWithDynamicModels = lib.filterAttrs (_name: provider: provider.dynamicModels or false) cfg.providers;
+  hasDynamicModels = providersWithDynamicModels != {};
+
   # Build provider config with API key references (only if onePasswordItem is set)
   providerConfig =
     lib.mapAttrs (
@@ -75,15 +79,27 @@ with lib; let
         hasModels = provider.models or {} != {};
         baseOptions = {inherit (provider) baseURL;};
         optionsWithKey = baseOptions // {apiKey = "{file:~/.config/opencode/secrets/${_name}-apikey}";};
+        optionsWithDiscovery =
+          if provider.dynamicModels or false
+          then {
+            modelsDiscovery = {
+              enabled = true;
+              smartModelName = true;
+              cache.enabled = true;
+            };
+          }
+          else {};
         baseConfig =
           {
             inherit (provider) name;
             options =
-              if hasApiKey
-              then optionsWithKey
-              else baseOptions;
+              (
+                if hasApiKey
+                then optionsWithKey
+                else baseOptions
+              )
+              // optionsWithDiscovery;
           }
-          # Always include static models if defined (dynamic models are added at runtime)
           // (optionalAttrs hasModels {inherit (provider) models;});
       in
         baseConfig // (optionalAttrs (provider.npm != null) {inherit (provider) npm;})
@@ -154,156 +170,19 @@ with lib; let
     }))
   cfg.agents;
 
-  # Build the dynamic model config for providers that use it
-  # This is a JSON structure mapping provider name -> {baseURL, apiKeyFile, baseURLFile?}
-  dynamicProvidersConfig =
-    lib.mapAttrs (name: provider: {
-      # Use static baseURL if set, otherwise empty (will be read from file at runtime)
-      inherit (provider) baseURL;
-      apiKeyFile =
-        if (provider.onePasswordItem or "") != ""
-        then "~/.config/opencode/secrets/${name}-apikey"
-        else null;
-      # If baseURLOpnixItem is set, the URL will be read from this file at runtime
-      baseURLFile =
-        if (provider.baseURLOpnixItem or "") != ""
-        then "~/.config/opencode/secrets/${name}-baseurl"
-        else null;
-    })
-    providersWithDynamicModels;
-
-  dynamicProvidersJson = builtins.toJSON dynamicProvidersConfig;
-
-  # Names of providers that use opnix-managed base URLs (for static config patching)
-  providersWithBaseURLSecretNames = lib.attrNames providersWithBaseURLSecrets;
-
-  # Script to fetch models from LiteLLM-compatible endpoints and merge into config
-  fetchModelsScript = pkgs.writeShellScript "opencode-fetch-models" ''
-    set -euo pipefail
-
-    DYNAMIC_PROVIDERS='${dynamicProvidersJson}'
-    BASE_CONFIG="$HOME/.config/opencode/opencode.json"
-    DYNAMIC_CONFIG="$HOME/.config/opencode/opencode-dynamic.json"
-    PRIVATE_CONFIG="$HOME/.config/opencode/opencode-private.json"
-
-    # Start with the base config
-    # Use --no-preserve=mode to avoid inheriting read-only permissions from nix store
-    if [[ -L "$BASE_CONFIG" ]]; then
-      # It's a symlink (from nix store), read it
-      cp --no-preserve=mode "$(readlink -f "$BASE_CONFIG")" "$DYNAMIC_CONFIG"
-    elif [[ -f "$BASE_CONFIG" ]]; then
-      cp --no-preserve=mode "$BASE_CONFIG" "$DYNAMIC_CONFIG"
-    else
-      echo "{}" > "$DYNAMIC_CONFIG"
-    fi
-    # Ensure the dynamic config is writable for subsequent runs
-    chmod u+w "$DYNAMIC_CONFIG" 2>/dev/null || true
-
-    # Patch baseURLs from opnix-managed secret files
-    # This allows provider base URLs to be stored in 1Password instead of the Nix store
-    ${lib.optionalString (providersWithBaseURLSecretNames != []) ''
-      for provider_name in ${lib.concatStringsSep " " providersWithBaseURLSecretNames}; do
-        url_file="$HOME/.config/opencode/secrets/''${provider_name}-baseurl"
-        if [[ -f "$url_file" ]]; then
-          url=$(cat "$url_file")
-          ${pkgs.jq}/bin/jq --arg p "$provider_name" --arg url "$url" \
-            '.provider[$p].options.baseURL = $url' "$DYNAMIC_CONFIG" > "$DYNAMIC_CONFIG.tmp" \
-            && mv "$DYNAMIC_CONFIG.tmp" "$DYNAMIC_CONFIG"
-          echo "Patched baseURL for provider $provider_name from secret file" >&2
-        fi
-      done
-    ''}
-
-    # Function to fetch models from a provider
-    fetch_provider_models() {
-      local provider_name="$1"
-      local base_url="$2"
-      local api_key_file="$3"
-
-      local auth_header=""
-      if [[ -n "$api_key_file" ]] && [[ -f "''${api_key_file/#\~/$HOME}" ]]; then
-        local api_key
-        api_key=$(cat "''${api_key_file/#\~/$HOME}")
-        auth_header="Authorization: Bearer $api_key"
-      fi
-
-      # Try to fetch models from /v1/models endpoint
-      local models_response
-      if [[ -n "$auth_header" ]]; then
-        models_response=$(${pkgs.curl}/bin/curl -s --connect-timeout 5 --max-time 10 \
-          -H "$auth_header" \
-          "''${base_url}/v1/models" 2>/dev/null || echo '{"data":[]}')
-      else
-        models_response=$(${pkgs.curl}/bin/curl -s --connect-timeout 5 --max-time 10 \
-          "''${base_url}/v1/models" 2>/dev/null || echo '{"data":[]}')
-      fi
-
-      # Parse the response and extract model IDs
-      echo "$models_response" | ${pkgs.jq}/bin/jq -r '.data[]?.id // empty' 2>/dev/null || true
-    }
-
-    # Process each dynamic provider
-    echo "$DYNAMIC_PROVIDERS" | ${pkgs.jq}/bin/jq -r 'to_entries[] | "\(.key)|\(.value.baseURL)|\(.value.apiKeyFile // "")|\(.value.baseURLFile // "")"' | while IFS='|' read -r provider_name base_url api_key_file base_url_file; do
-      # If a baseURLFile is specified, read the URL from it (overrides static baseURL)
-      if [[ -n "$base_url_file" ]]; then
-        resolved_url_file="''${base_url_file/#\~/$HOME}"
-        if [[ -f "$resolved_url_file" ]]; then
-          base_url=$(cat "$resolved_url_file")
-        fi
-      fi
-
-      if [[ -z "$base_url" ]]; then
-        continue
-      fi
-
-      echo "Fetching models from $provider_name ($base_url)..." >&2
-
-      # Fetch models
-      models=$(fetch_provider_models "$provider_name" "$base_url" "$api_key_file")
-
-      if [[ -n "$models" ]]; then
-        # Build a models object for this provider
-        models_obj=$(echo "$models" | ${pkgs.jq}/bin/jq -Rs 'split("\n") | map(select(length > 0)) | map({(.): {name: .}}) | add // {}')
-
-        # Merge into the dynamic config
-        ${pkgs.jq}/bin/jq --arg provider "$provider_name" --argjson models "$models_obj" '
-          .provider[$provider].models = ((.provider[$provider].models // {}) + $models)
-        ' "$DYNAMIC_CONFIG" > "$DYNAMIC_CONFIG.tmp" && mv "$DYNAMIC_CONFIG.tmp" "$DYNAMIC_CONFIG"
-
-        echo "  Found $(echo "$models" | wc -l | tr -d ' ') models" >&2
-      else
-        echo "  No models found or fetch failed" >&2
-      fi
-    done
-
-    # Merge private config (machine-local sensitive settings, e.g. MCP servers)
-    # This file is NOT managed by Nix - create it manually at $PRIVATE_CONFIG
-    if [[ -f "$PRIVATE_CONFIG" ]]; then
-      echo "Merging private config from $PRIVATE_CONFIG..." >&2
-      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$DYNAMIC_CONFIG" "$PRIVATE_CONFIG" \
-        > "$DYNAMIC_CONFIG.tmp" && mv "$DYNAMIC_CONFIG.tmp" "$DYNAMIC_CONFIG"
-    fi
-
-    echo "$DYNAMIC_CONFIG"
-  '';
-
-  # Wrapped opencode binary that fetches dynamic models before launching
-  opencodeWrapped = pkgs.writeShellScriptBin "opencode" ''
-    OPENCODE_CONFIG=$(${fetchModelsScript})
-    export OPENCODE_CONFIG
-    exec ${pkgs.opencode}/bin/opencode "$@"
-  '';
-
   # Build complete settings (TUI-specific keys like theme go in tui.json, not here)
   settings =
     {
       inherit (cfg) autoupdate;
       mcp =
         {
+          # Disabled by default so it doesn't consume context until needed —
+          # enable per-session with the /mcp command or by overriding
+          # extraMcpServers.devenv.enabled = true.
           devenv = {
             type = "local";
             command = ["devenv" "mcp"];
-            enabled = true;
+            enabled = false;
           };
         }
         // lib.mapAttrs transformMcpServer cfg.extraMcpServers;
@@ -329,16 +208,22 @@ with lib; let
     })
     // (optionalAttrs (cfg.agents != {}) {
       agent = agentConfig;
+    })
+    // (optionalAttrs hasDynamicModels {
+      plugin = ["opencode-models-discovery@latest"];
     });
 in {
   config = mkIf cfg.enable {
-    # Replace the opencode binary with a wrapper that:
-    # 1. Fetches dynamic models (when dynamic providers are configured)
-    # 2. Merges ~/.config/opencode/opencode-private.json (always, if the file exists)
-    # The wrapper is always installed so the private config merge always applies.
-    home.packages = [
-      (lib.hiPrio opencodeWrapped)
-    ];
+    # Point opencode at a machine-local private config that is NOT managed by
+    # Nix. opencode natively merges this with the Nix-managed
+    # ~/.config/opencode/opencode.json (global config) per its documented
+    # config precedence (https://opencode.ai/docs/config/#custom-path) —
+    # OPENCODE_CONFIG sits between global and project config, with its keys
+    # overriding global config on conflicts. Create this file by hand to add
+    # personal providers, MCP servers, or secrets that shouldn't live in Nix.
+    home.sessionVariables = {
+      OPENCODE_CONFIG = "$HOME/.config/opencode/opencode-private.json";
+    };
 
     # RTK instructions file for OpenCode (only when RTK is enabled) + auto-loaded skills digest
     home.file =
