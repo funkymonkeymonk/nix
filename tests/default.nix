@@ -45,11 +45,6 @@
     if self != null
     then import ./test-library.nix {inherit pkgs self;}
     else {};
-  testFjj =
-    if self != null
-    then import ./test-fjj.nix {inherit pkgs self;}
-    else {};
-
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
   vmTests =
@@ -155,8 +150,6 @@ in
 
     # Workspace-aware switch shell function tests
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
-    fjj-options = testHomeManager.fjjOptionsTest;
-    fjj-custom-options = testHomeManager.fjjCustomOptionsTest;
 
     # Aerospace option tests
     aerospace-options = testHomeManager.aerospaceOptionsTest;
@@ -207,20 +200,6 @@ in
     mk-nixos-system =
       if testLibrary != {}
       then testLibrary.mkNixosSystemTest
-      else null;
-
-    # fjj (Fast Jujutsu Workflow) home-manager module tests
-    fjj-mirror-root-default =
-      if testFjj != {}
-      then testFjj.fjjMirrorRootDefaultTest
-      else null;
-    fjj-custom-mirror-root =
-      if testFjj != {}
-      then testFjj.fjjCustomMirrorRootTest
-      else null;
-    fjj-package-and-files =
-      if testFjj != {}
-      then testFjj.fjjPackageAndFilesTest
       else null;
 
     # agent-user module tests

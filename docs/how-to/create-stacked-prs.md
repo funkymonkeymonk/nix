@@ -188,11 +188,13 @@ Instead of stacking, you can create independent PRs from main:
 
 ```bash
 # First PR
-fjj feat/part-one
+jj-workspace create feat/part-one
+cd $(jj-workspace create feat/part-one | grep WORKSPACE_PATH= | cut -d= -f2)
 jj-pr feat part-one "Part 1: Core infrastructure"
 
 # Second PR (from main, not stacked)
-fjj feat/part-two
+jj-workspace create feat/part-two
+cd $(jj-workspace create feat/part-two | grep WORKSPACE_PATH= | cut -d= -f2)
 jj-pr feat part-two "Part 2: Feature implementation"
 ```
 
@@ -207,7 +209,8 @@ Choose based on your needs.
 
 ```bash
 # Create base PR
-fjj feat/auth-core
+jj-workspace create feat/auth-core
+cd $(jj-workspace create feat/auth-core | grep WORKSPACE_PATH= | cut -d= -f2)
 jj-pr feat auth-core "Add authentication core"
 
 # Stack UI on top
@@ -222,7 +225,7 @@ jj-finish --merge  # auth-ui (now targeting main)
 jj-finish --merge  # auth-api (now targeting main)
 
 # Clean up
-fjj --clean
+jj-workspace clean
 ```
 
 ## See Also

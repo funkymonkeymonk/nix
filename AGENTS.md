@@ -71,7 +71,7 @@ devenv tasks run <task>        # Run a task
 
 ### JJ Workspace Support
 
-When working in a jj workspace (created with `jj workspace add` or `fjj`), the switch command is workspace-aware:
+When working in a jj workspace (created with `jj workspace add` or `jj-workspace create`), the switch command is workspace-aware:
 
 ```bash
 # From any workspace directory - automatically runs from repo root
@@ -462,13 +462,13 @@ Workspaces live in `~/workspaces/` (not inside the repository as sibling directo
   fix-bug-20260512-c3d4/       ← another workspace
 ```
 
-Use `fjj` to create workspaces from any directory:
+Use `jj-workspace` to create workspaces from any directory:
 
 ```bash
-fjj feat/my-topic              # Create workspace from main
-fjj fix/bug-name develop       # Create workspace from develop
-fjj list                       # Show all workspaces
-fjj clean                      # Remove merged/stale workspaces
+jj-workspace create feat/my-topic              # Create workspace from main
+jj-workspace create fix/bug-name develop       # Create workspace from develop
+jj-workspace list                              # Show all workspaces
+jj-workspace clean                             # Remove all workspaces
 ```
 
 #### Agent Workspace Naming
@@ -486,7 +486,7 @@ This lets humans distinguish agent workspaces from human workspaces at a glance.
 
 ```bash
 # 1. Create workspace (stored in ~/workspaces/, NOT in repo)
-fjj feat/agent-openclaw-my-feature
+jj-workspace create feat/agent-openclaw-my-feature
 
 # 2. cd into the workspace
 cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>

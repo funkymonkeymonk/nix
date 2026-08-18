@@ -289,12 +289,6 @@ in {
     expected = false;
   };
 
-  # ── Options: fjj ────────────────────────────────────────────────
-  testFjjDefaults = {
-    expr = evalBase.myConfig.fjj.enable;
-    expected = false;
-  };
-
   # ── Options: pi ─────────────────────────────────────────────────
   testPiDefaults = {
     expr = evalBase.myConfig.pi.enable;

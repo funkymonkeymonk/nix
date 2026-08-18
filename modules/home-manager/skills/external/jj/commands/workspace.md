@@ -7,13 +7,13 @@ Manage jj workspaces for isolating work.
 
 Workspaces live in `~/workspaces/` — never as sibling directories inside the repo.
 
-Use `fjj` to create and manage workspaces:
+Use `jj-workspace` to create and manage workspaces:
 
 ```bash
-fjj feat/my-topic              # Create workspace from main
-fjj fix/bug-name develop       # Create workspace from develop branch
-fjj list                       # Show all workspaces
-fjj clean                      # Remove merged/stale workspaces
+jj-workspace create feat/my-topic              # Create workspace from main
+jj-workspace create fix/bug-name develop       # Create workspace from develop branch
+jj-workspace list                              # Show all workspaces
+jj-workspace clean                             # Remove all workspaces
 ```
 
 Naming convention: `<type>/<topic>-<date>-<id>`
@@ -23,8 +23,7 @@ Types: feat, fix, hotfix, chore, release
 
 After PR is merged, clean up:
 ```bash
-jj workspace forget <workspace-name>
-rm -rf ~/workspaces/<workspace-name>
+jj-workspace remove <workspace-name>
 ```
 
 If no arguments, show workspace list and ask what they want to do.
