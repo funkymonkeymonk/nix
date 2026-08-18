@@ -1,126 +1,161 @@
-# Add a Local Dev DNS Name
+---
+title: "Add Local Dev DNS Names to Caddy"
+description: "Configure static and dynamic DNS routes through the Caddy reverse proxy for local development"
+type: how-to
+---
 
-This guide shows how to add a route to the personal Caddy reverse proxy so your local services are accessible via clean DNS names like `http://app.localhost` instead of `http://localhost:PORT`.
+# Add Local Dev DNS Names
 
-## Prerequisites
+Caddy (when enabled with `myConfig.caddy.enable = true`) provides a personal reverse proxy for local development with automatic DNS resolution for `.internal` domains.
 
-- Running the system with `myConfig.caddy.enable = true` (enables Caddy + dnsmasq)
-- Caddy is running and listening on `localhost:80` with admin API on `localhost:2019`
-- Your local service running on a specific port (e.g., `localhost:9000`)
+## Static Routes via Configuration
 
-## Static Routes (via Nix Config)
+Static routes are configured in your host configuration and persist across system rebuilds.
 
-Add permanent routes directly in your Nix configuration via `myConfig.caddy.hosts`:
+### Step 1: Add to `myConfig.caddy.hosts`
+
+In your host file (e.g., `hosts/wweaver/default.nix`):
 
 ```nix
-{
-  config.myConfig.caddy.hosts = {
-    "myapp.localhost" = "localhost:9000";
-    "api.localhost" = "localhost:9001";
+myConfig = {
+  caddy.enable = true;
+  caddy.hosts = {
+    "myapp.internal" = "localhost:3000";
+    "api.internal" = "localhost:8000";
+    "admin.internal" = "localhost:9000";
   };
-}
+};
 ```
 
-Apply the configuration:
+### Step 2: Rebuild
 
 ```bash
-darwin-rebuild switch --flake .
-# or
-nix flake update && darwin-rebuild switch --flake .
+darwin-rebuild switch --flake .#<hostname>
 ```
 
-Verify the route is available:
+### Verify
 
 ```bash
-curl http://myapp.localhost
+curl http://myapp.internal/
 ```
 
-## Dynamic Routes (via Admin API)
+## Dynamic Routes via Admin API
 
-Add temporary routes on-the-fly using Caddy's admin API without rebuilding the system.
+The Caddy admin API (running on `localhost:2019`) allows you to add routes without rebuilding.
 
-### POST a Route
+### Query Current Configuration
 
 ```bash
+curl http://localhost:2019/config/apps/http/servers/srv0/routes
+```
+
+### Add a Dynamic Route
+
+```bash
+# Add route for a new service
 curl -X POST http://localhost:2019/config/apps/http/servers/srv0/routes \
   -H "Content-Type: application/json" \
   -d '{
     "@id": "my-temporary-app",
-    "match": [
-      {"host": ["myapp.localhost"]}
-    ],
-    "handle": [
-      {
-        "handler": "reverse_proxy",
-        "upstreams": [
-          {"dial": "localhost:9000"}
-        ]
-      }
-    ]
+    "match": [{"host": ["newapp.internal"]}],
+    "handle": [{
+      "handler": "reverse_proxy",
+      "upstreams": [{"dial": "localhost:5000"}]
+    }]
   }'
 ```
 
-Response: HTTP 200 (success) or error details.
-
-### Verify the Route
+### Query a Specific Route
 
 ```bash
-curl -s http://localhost:2019/config/apps/http/servers/srv0/routes | jq .
+curl http://localhost:2019/config/apps/http/servers/srv0/routes/@id/my-temporary-app
 ```
 
 ### Delete a Route
 
-Find the route's index in the routes array (usually 0 for newly added routes), then:
-
-```bash
-curl -X DELETE http://localhost:2019/config/apps/http/servers/srv0/routes/0
-```
-
-Or, if you assigned an `@id`, use the ID directly (depending on Caddy API version):
+If you assigned an `@id`, delete by ID:
 
 ```bash
 curl -X DELETE http://localhost:2019/config/apps/http/servers/srv0/routes/@id/my-temporary-app
 ```
 
+Or delete by index:
+
+```bash
+curl -X DELETE http://localhost:2019/config/apps/http/servers/srv0/routes/0
+```
+
 ## DNS Resolution
 
-- **macOS native resolution**: `*.localhost` is automatically resolved to `127.0.0.1` — no `/etc/hosts` edits needed
-- **dnsmasq**: Also configured to resolve `*.internal` to `127.0.0.1` on port 5353 for backward compatibility
-- **Custom TLDs**: To add additional TLDs (e.g., `.dev.local`), add them to `myConfig.caddy.hosts` or use `environment.etc."resolver/<tld>"` to configure macOS DNS resolution
+- **dnsmasq**: Resolves `*.internal` to `127.0.0.1` on port 5353
+- **macOS resolver**: `/etc/resolver/internal` points to `127.0.0.1:5353`
+- **`localhost`**: The bare `localhost` name resolves to `127.0.0.1` via OS defaults, but it is not used for named services
+
+Verify DNS resolution:
+
+```bash
+dig +short myapp.internal @127.0.0.1 -p 5353
+# Should return: 127.0.0.1
+```
+
+## Health Checks
+
+Caddy exposes a health endpoint:
+
+```bash
+curl http://localhost:80/
+# Returns: "Caddy running"
+```
 
 ## Troubleshooting
 
-### Caddy not responding
+### DNS Resolution Not Working
 
-Check if Caddy is running:
+Verify dnsmasq is running:
+
+```bash
+launchctl list | grep dnsmasq
+```
+
+Check resolver configuration:
+
+```bash
+cat /etc/resolver/internal
+```
+
+### Caddy Not Responding
 
 ```bash
 launchctl list | grep caddy
 # Should show: org.nixos.caddy
 ```
 
-View Caddy logs:
+View logs:
 
 ```bash
 tail -50 "$HOME/.local/share/caddy/caddy.log"
 tail -50 "$HOME/.local/share/caddy/caddy.error.log"
 ```
 
-### dnsmasq not resolving
+### Route Not Working
 
-Check dnsmasq status:
+1. Verify the route is configured:
 
-```bash
-launchctl list | grep dnsmasq
-# Should show: org.nixos.dnsmasq
-```
+   ```bash
+   curl http://localhost:2019/config/apps/http/servers/srv0/routes | jq .
+   ```
 
-Test DNS resolution:
+2. Check Caddy logs:
 
-```bash
-dig +short myapp.localhost @127.0.0.1 -p 5353
-# Should return: 127.0.0.1
-```
+   ```bash
+   tail -f /tmp/caddy.log
+   ```
+
+3. Test the upstream service is running:
+
+   ```bash
+   curl http://localhost:3000/
+   ```
 
 ### Port 80 Permission Denied
 
@@ -132,6 +167,7 @@ Caddy requires elevated privileges to bind to port 80. On macOS with nix-darwin,
 
 ## See Also
 
-- [Caddy Admin API Reference](https://caddyserver.com/docs/api)
-- [Caddy Caddyfile Syntax](https://caddyserver.com/docs/caddyfile/concepts)
+- [Integrate devenv with Local Caddy](integrate-devenv-with-local-caddy.md)
+- [Caddy Reverse Proxy Documentation](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
+- [Caddy Admin API](https://caddyserver.com/docs/api)
 - [nix-darwin Launchd Services](../../modules/services/caddy/darwin.nix)

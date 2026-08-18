@@ -110,11 +110,6 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.etc."resolver/localhost".text = ''
-      nameserver 127.0.0.1
-      port ${toString dnsPort}
-    '';
-
     environment.etc."resolver/internal".text = ''
       nameserver 127.0.0.1
       port ${toString dnsPort}
