@@ -35,7 +35,7 @@ Every skill must be registered in `modules/home-manager/skills/manifest.nix`:
 ```nix
 "skill-name" = {
   description = "Same as SKILL.md description";
-  roles = ["developer" "opencode" "claude" "pi"];  # Add pi for general-purpose skills
+  roles = ["opencode" "claude" "pi"];  # Add pi for general-purpose skills
   source = {
     type = "internal";
     path = ./internal/skill-name;
@@ -45,9 +45,10 @@ Every skill must be registered in `modules/home-manager/skills/manifest.nix`:
 ```
 
 **Role guidelines:**
-- `"pi"` — add to general-purpose skills (debugging, tdd, writing-plans, etc.)
-- `"workstation"` — work-specific skills (infra-investigation, vendor-eval, etc.)
-- `"opencode"`, `"claude"` — agent-specific skills
+- `"opencode"`, `"claude"`, `"pi"` — agent roles; a skill needs at least one of these to ever load, and skills load identically for every agent enabled on a given host (agent-specific gating happens elsewhere, not via these tags)
+- `"pi"` — add unless the skill is genuinely tied to opencode/claude-specific tooling (Task tool syntax, slash commands, etc.); most technique/reference skills are agent-agnostic and should include it
+- `"workstation"`, `"creative"` — machine-class tags for skills tied to a specific role bundle beyond "has an AI assistant" (e.g. `innersource-pr-haiku` for work contexts, `brainstorming` for creative work)
+- Do **not** add `"developer"` — every host with an AI-assistant role enabled also has `developer` enabled in practice, making it redundant; omitting it keeps the actual gating role explicit
 - Keep roles minimal; agents load all matching skills
 
 ### Progressive Disclosure
