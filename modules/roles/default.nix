@@ -14,6 +14,7 @@ in {
     ./gaming.nix
     ./desktop.nix
     ./workstation.nix
+    ./work.nix
     ./entertainment.nix
     ./agent-skills.nix
     ./opencode.nix

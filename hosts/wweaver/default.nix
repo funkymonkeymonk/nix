@@ -30,8 +30,9 @@
 
       obsidian.vaults = ["personal"];
 
-      # Work-specific role beyond the workstation archetype
+      # Work-specific roles beyond the workstation archetype
       roles.opencode.enable = true;
+      roles.work.enable = true;
 
       pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
 
