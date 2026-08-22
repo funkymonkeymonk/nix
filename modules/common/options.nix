@@ -89,7 +89,14 @@ with lib; {
         enable = mkOption {
           type = types.bool;
           default = false;
-          description = "Work tools (slack, trippy, unar)";
+          description = "Developer workstation/desktop tools (slack, trippy, unar)";
+        };
+      };
+      work = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "This machine is used for an employer/work context (as opposed to purely personal use). Orthogonal to workstation (machine form-factor) — set explicitly per-host, not via a shared archetype.";
         };
       };
       entertainment = {
