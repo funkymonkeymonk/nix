@@ -66,7 +66,7 @@
   # Example: Uncomment and modify when you want to add external skills
   # "spec-driven-workflow" = {
   #   description = "SRE workflow patterns from Liatrio Labs";
-  #   roles = ["developer" "workstation"];
+  #   roles = ["developer" "work"];
   #   source = {
   #     type = "external";
   #     url = "github:liatrio-labs/spec-driven-workflow//sre-workflow/SKILL.md";
@@ -180,7 +180,7 @@
 
   "innersource-pr-haiku" = {
     description = "Use when given a GitHub PR link and asked to thank a contributor with a haiku and approve the PR";
-    roles = ["developer" "workstation"];
+    roles = ["opencode" "claude" "pi" "work"];
     source = {
       type = "internal";
       path = ./internal/innersource-pr-haiku;
