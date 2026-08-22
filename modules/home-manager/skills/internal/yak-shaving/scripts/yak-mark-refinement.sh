@@ -19,7 +19,7 @@ fi
 echo "Marking '$YAK_NAME' as needing refinement..." >&2
 
 # Tag it
-yx tag "$YAK_NAME" @needs-human
+yx tag add "$YAK_NAME" @needs-human
 
 # Get existing context and append refinement note
 existing=$(yx context --show "$YAK_NAME" 2>/dev/null || echo "")
