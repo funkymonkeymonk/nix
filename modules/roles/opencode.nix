@@ -24,8 +24,8 @@ in {
     };
 
     # Auto-configure bifrost as a model provider
-    myConfig.opencode.providers.bifrost = lib.mkDefault {
-      name = "Bifrost AI Gateway";
+    myConfig.opencode.providers.local-bifrost = lib.mkDefault {
+      name = "Local Bifrost";
       baseURL = "http://${host}:${port}/v1";
       dynamicModels = true;
     };
