@@ -57,6 +57,7 @@
                 gaming.enable = true;
                 desktop.enable = true;
                 workstation.enable = true;
+                work.enable = true;
                 entertainment.enable = true;
                 agent-skills.enable = true;
                 opencode.enable = true;
@@ -80,6 +81,7 @@
     "gaming"
     "desktop"
     "workstation"
+    "work"
     "entertainment"
     "agent-skills"
     "opencode"
