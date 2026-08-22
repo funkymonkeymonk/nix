@@ -14,7 +14,7 @@
   testSkills = import ./test-skills.nix {inherit pkgs;};
   testEmail = import ./test-email.nix {inherit pkgs;};
   testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
-  testServices = import ./test-services.nix {inherit pkgs;};
+  testServices = import ./test-services.nix {inherit pkgs self;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
@@ -141,6 +141,7 @@ in
     vane-darwin-autostart-default = testServices.vaneDarwinAutoStartDefaultTest;
     vane-darwin-autostart-true = testServices.vaneDarwinAutoStartTrueTest;
     vane-opnix-url-options = testServices.vaneOpnixUrlOptionsTest;
+    vane-megamanx-no-ollama-wiring = testServices.vaneMegamanxNoOllamaWiringTest;
 
     # Home-manager module tests
     opencode-options = testHomeManager.opencodeOptionsTest;

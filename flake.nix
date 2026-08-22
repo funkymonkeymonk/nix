@@ -396,6 +396,7 @@
             vane-options
             vane-custom-options
             vane-opnix-url-options
+            vane-megamanx-no-ollama-wiring
             vane-darwin-autostart-default
             vane-darwin-autostart-true
             opencode-options

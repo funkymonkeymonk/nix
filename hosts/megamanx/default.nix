@@ -97,8 +97,11 @@
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
         defaultModel = "qwen3.8-27b";
-        embeddingModel = "nomic-embed-text:latest";
-        ollamaUrl = "http://localhost:11434";
+        # No Ollama service runs on this host (vllm-mlx + Bifrost handle all
+        # local inference) — leave embeddings unconfigured rather than
+        # pointing at a service that doesn't exist.
+        embeddingModel = null;
+        ollamaUrl = null;
         # Point at the searxng service enabled below (myConfig.searxng.enable).
         # vane no longer auto-derives this from searxng.port — see
         # modules/services/vane/darwin.nix for why the coupling was severed.

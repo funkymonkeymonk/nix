@@ -9,7 +9,6 @@
   #  myConfig.agent-skills.enable — both options now live in their owning modules)
   stubModules = stubs.withRoles;
 
-  # Evaluate llm-host role with default sharedModels
   evalWithRole = roleName:
     (lib.evalModules {
       modules =
@@ -63,7 +62,6 @@
                 opencode.enable = true;
                 claude.enable = true;
                 pi.enable = true;
-                llm-host.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
               };
@@ -87,7 +85,6 @@
     "opencode"
     "claude"
     "pi"
-    "llm-host"
     "assistant"
     "email-backup"
   ];
@@ -105,7 +102,6 @@
     opencode = ["opencode" "rtk"];
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
-    llm-host = []; # ollama now installed via homebrew, not nixpkgs
     assistant = ["himalaya" "gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
   };
@@ -125,7 +121,6 @@
       # run the local stack (megamanx serves qwen3.8-27b).
       "pi.models.bifrost.modelId" = "qwen3.8-27b";
     };
-    # llm-host no longer cascades to ollama.enable (service option removed)
     assistant = {"email-agent.enable" = true;};
     email-backup = {"email-backup.enable" = true;};
     foundation = {
@@ -296,6 +291,40 @@
         exit 1
       '';
 
+    # Ollama service module and llm-host role were removed entirely — ollama
+    # is no longer in use and the module couldn't be tested via nixosTest
+    # anyway (Darwin-only, launchd/Homebrew, no systemd/nixpkgs dependency).
+    deadOllamaLlmHostScript = let
+      llmHostRoleAttr = pkgs.lib.attrByPath ["roles" "llm-host"] null evalAllRoles.myConfig;
+      ollamaAttr = pkgs.lib.attrByPath ["ollama"] null evalAllRoles.myConfig;
+      ollamaModuleFileRemoved = !(builtins.pathExists ../modules/services/ollama);
+      llmHostRoleFileRemoved = !(builtins.pathExists ../modules/roles/llm-host.nix);
+      allRemoved =
+        llmHostRoleAttr
+        == null
+        && ollamaAttr == null
+        && ollamaModuleFileRemoved
+        && llmHostRoleFileRemoved;
+    in
+      if allRemoved
+      then ''
+        echo "=== Testing ollama/llm-host dead code removal ==="
+        echo "  myConfig.roles.llm-host option: absent (correctly removed)"
+        echo "  myConfig.ollama option: absent (correctly removed)"
+        echo "  modules/services/ollama/: absent (correctly removed)"
+        echo "  modules/roles/llm-host.nix: absent (correctly removed)"
+        echo "Dead ollama/llm-host module successfully removed"
+      ''
+      else ''
+        echo "=== Testing ollama/llm-host dead code removal ==="
+        echo "  myConfig.roles.llm-host option present: ${builtins.toJSON (llmHostRoleAttr != null)}"
+        echo "  myConfig.ollama option present: ${builtins.toJSON (ollamaAttr != null)}"
+        echo "  modules/services/ollama/ present: ${builtins.toJSON (!ollamaModuleFileRemoved)}"
+        echo "  modules/roles/llm-host.nix present: ${builtins.toJSON (!llmHostRoleFileRemoved)}"
+        echo "FAIL: ollama/llm-host dead code must be fully removed"
+        exit 1
+      '';
+
     entertainmentNixosScript = let
       sysPkgNames = map (p: p.name or (builtins.parseDrvName (p.pname or "unknown")).name) entertainmentNixosEval.environment.systemPackages;
       obsFound = builtins.any (n: lib.hasInfix "obs-studio" n) sysPkgNames;
@@ -334,6 +363,8 @@
       echo ""
       ${deadDevOptionScript}
       echo ""
+      ${deadOllamaLlmHostScript}
+      echo ""
       ${entertainmentNixosScript}
       echo ""
       echo "All role tests passed"
@@ -346,6 +377,6 @@ in {
   rolePackageInclusionTest = allRoleTests;
   roleCascadeTest = allRoleTests;
   noDeadDevelopmentOptionTest = allRoleTests;
-  llmHostSharedModelsTest = allRoleTests;
+  noDeadOllamaLlmHostTest = allRoleTests;
   entertainmentNixosTest = allRoleTests;
 }
