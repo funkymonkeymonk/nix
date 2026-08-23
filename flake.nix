@@ -66,25 +66,7 @@
     ...
   } @ inputs: let
     # Helper to create user config
-    mkUser = name: email: {
-      users = [
-        {
-          inherit name email;
-          fullName = "Will Weaver";
-          isAdmin = true;
-          sshIncludes = [];
-        }
-      ];
-      onepassword.enable = true;
-      opencode = {
-        enable = true;
-        model = "opencode/big-pickle";
-      };
-      claude-code = {
-        enable = false;
-      };
-      llmClient.rtk.enable = true;
-    };
+    mkUser = import ./library/lib/mk-user.nix;
 
     # Package overlays for each system
     forAllSystems = nixpkgs.lib.genAttrs [
@@ -420,6 +402,8 @@
             phase2-cattle
             mk-darwin-system
             mk-nixos-system
+            mk-user
+            mk-user-calling-convention
             agent-user-options
             agent-user-disabled
             agent-user-enabled
