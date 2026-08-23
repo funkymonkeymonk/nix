@@ -45,6 +45,7 @@
     if self != null
     then import ./test-library.nix {inherit pkgs self;}
     else {};
+  testMkUser = import ./test-mk-user.nix {inherit pkgs;};
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
   vmTests =
@@ -201,6 +202,10 @@ in
       if testLibrary != {}
       then testLibrary.mkNixosSystemTest
       else null;
+
+    # library/lib/mk-user.nix builder tests
+    mk-user = testMkUser.mkUserTest;
+    mk-user-calling-convention = testMkUser.mkUserCallingConventionTest;
 
     # agent-user module tests
     agent-user-options = testAgentUser.agentUserOptionsTest;
