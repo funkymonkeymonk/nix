@@ -72,7 +72,6 @@ darwin-rebuild switch --flake .#<hostname>
 | `opencode` | OpenCode AI assistant with rtk |
 | `claude` | Claude Code AI assistant with rtk |
 | `pi` | Pi coding agent with rtk |
-| `llm-host` | Ollama |
 
 > **Full list:** [Roles reference](docs/reference/roles.md)
 

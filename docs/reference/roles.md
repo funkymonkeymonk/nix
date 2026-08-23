@@ -68,12 +68,6 @@ Gaming tools.
 
 ### homebrew
 
-### llm-host
-
-Local model hosting.
-
-**Packages:** ollama
-
 ### opencode
 
 OpenCode AI assistant with rtk token optimization.
