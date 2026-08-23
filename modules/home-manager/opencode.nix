@@ -9,14 +9,15 @@ with lib; let
   skillsCfg = osConfig.myConfig.skills or {};
   hmLib = import ./lib.nix {inherit lib;};
 
-  # Full skill directories (internal + superpowers) for programs.opencode.skills,
-  # and the resolved manifest subset for building bundled commands.
+  # Resolved manifest subset (internal + superpowers skills) used to build
+  # bundled commands below. Skill DIRECTORY installation itself now lives in
+  # modules/home-manager/skills/canonical-install.nix, under the shared
+  # ~/.agents/skills/<name> location — not duplicated here.
   inherit
     (hmLib.mkFullSkillDirs {
       enabledRoles = skillsCfg.enabledRoles or [];
       superpowersPath = skillsCfg.superpowersPath or null;
     })
-    skillDirs
     allSkills
     ;
 
@@ -283,7 +284,6 @@ in {
       # Use home-manager's native programs.opencode
       opencode = {
         enable = true;
-        skills = skillDirs;
         commands = commandFiles // skillCommands;
         settings = let
           # Build instructions list: RTK docs + any auto-loaded skills
