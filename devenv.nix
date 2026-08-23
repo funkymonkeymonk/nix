@@ -717,23 +717,6 @@ in {
       '';
     };
 
-    "test:sketchybar" = {
-      description = "Test sketchybar options, theme, and color conversion (standalone)";
-      exec = ''
-        set -euo pipefail
-
-        CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        echo "Running sketchybar tests ($CURRENT_SYSTEM)..."
-        for test in sketchybar-options sketchybar-custom-options sketchybar-theme sketchybar-color-conversion sketchybar-platform-guard; do
-          echo "--- $test ---"
-          nix build ".#checks.''${CURRENT_SYSTEM}.$test" --no-link
-          echo "$test: passed"
-          echo ""
-        done
-        echo "All sketchybar tests passed"
-      '';
-    };
-
     "test:onepassword" = {
       description = "Test 1Password options, guard, and config output (standalone)";
       exec = ''
