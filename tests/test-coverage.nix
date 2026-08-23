@@ -75,8 +75,6 @@
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
     "common/users.nix"
-    # Tested via test-sketchybar.nix (option defaults, custom values, theme, color conversion)
-    "home-manager/sketchybar/default.nix"
     "home-manager/themes.nix"
     # Tested via test-packages.nix onepasswordGuardTest + onepasswordConfigOutputTest
     # (hasOpnix guard, platform-specific config output)

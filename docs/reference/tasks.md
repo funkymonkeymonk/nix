@@ -48,7 +48,6 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `test:all` | Eval + build checks + module tests | 2–10min |
 | `test:eval` | Evaluate all NixOS and Darwin configurations | ~10s |
 | `test:build` | Build all flake check targets (single eval) | 2–10min |
-| `test:sketchybar` | Sketchybar module tests | ~30s |
 | `test:onepassword` | 1Password module tests | ~30s |
 
 ### Documentation
@@ -116,7 +115,6 @@ check:all
 test:all
 ├── test:eval
 ├── test:build
-├── test:sketchybar
 └── test:onepassword
 ```
 

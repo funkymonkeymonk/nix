@@ -556,32 +556,6 @@
       underline = false;
     };
   };
-
-  # -- sketchybar --------------------------------------------------------
-  # Color and font configuration for the sketchybar macOS status bar.
-  # Colors are mapped from the Earthsong palette; fonts use system SF faces.
-  sketchybarTheme = {
-    colors = {
-      inherit (p) black white red green blue yellow;
-      orange = p.magenta; # closest warm hue in Earthsong
-      magenta = p.brightMagenta;
-      grey = p.brightBlack;
-      bar = {
-        bg = p.statusBg;
-        inherit (p) border;
-      };
-      popup = {
-        bg = p.statusBg;
-        inherit (p) border;
-      };
-      bg1 = p.selection;
-      bg2 = p.border;
-    };
-    font = {
-      text = "SF Pro";
-      numbers = "SF Mono";
-    };
-  };
 in {
   # Export all derivations as module arguments so sibling modules can import them.
   _module.args.earthsong = {
@@ -593,7 +567,6 @@ in {
       glamourStyle
       zellijTheme
       jjColors
-      sketchybarTheme
       ;
   };
 }
