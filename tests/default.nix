@@ -47,6 +47,7 @@
     then import ./test-library.nix {inherit pkgs self;}
     else {};
   testMkUser = import ./test-mk-user.nix {inherit pkgs;};
+  testFlakeModule = import ./test-flake-module.nix {inherit pkgs;};
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
   vmTests =
@@ -225,6 +226,10 @@ in
     # library/lib/mk-user.nix builder tests
     mk-user = testMkUser.mkUserTest;
     mk-user-calling-convention = testMkUser.mkUserCallingConventionTest;
+
+    # library/flake-module.nix shared module args tests
+    flake-module-args = testFlakeModule.flakeModuleArgsTest;
+    flake-module-library-export = testFlakeModule.flakeModuleLibraryExportTest;
 
     # agent-user module tests
     agent-user-options = testAgentUser.agentUserOptionsTest;
