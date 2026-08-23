@@ -59,7 +59,6 @@
     "roles/entertainment.nix"
     "roles/foundation.nix"
     "roles/gaming.nix"
-    "roles/llm-host.nix"
     "roles/opencode.nix"
     "roles/pi.nix"
     "roles/workstation.nix"

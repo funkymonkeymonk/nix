@@ -367,7 +367,6 @@ Common traps:
 | `opencode` | OpenCode + rtk |
 | `claude` | Claude Code + rtk |
 | `pi` | Pi coding agent + rtk |
-| `llm-host` | Ollama |
 
 ---
 

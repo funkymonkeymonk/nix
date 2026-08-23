@@ -41,7 +41,7 @@
               models = {
                 "custom-model" = {
                   name = "Custom";
-                  provider = "ollama";
+                  provider = "openai-compatible";
                   modelId = "qwen3.5";
                 };
               };

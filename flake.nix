@@ -378,6 +378,7 @@
             vane-options
             vane-custom-options
             vane-opnix-url-options
+            vane-megamanx-no-ollama-wiring
             vane-darwin-autostart-default
             vane-darwin-autostart-true
             opencode-options
@@ -433,6 +434,7 @@
             git-user-config
             obsidian-options
             obsidian-custom-options
+            vm-role-generator
             ;
         }
         // nixpkgs.lib.optionalAttrs isDarwin {
@@ -445,6 +447,8 @@
             vm-users
             vm-ssh
             vm-packages
+            vm-role-foundation
+            vm-role-developer
             ;
         }
     );
