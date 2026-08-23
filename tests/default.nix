@@ -51,6 +51,14 @@
     if isLinux && self != null
     then import ./vm {inherit pkgs self;}
     else {};
+  # mkRoleVmTest generator tests: build their own x86_64-linux pkgs
+  # (mirroring flake.nix) so they can run on any host platform, including
+  # aarch64-darwin dev machines where tests/vm/default.nix itself is never
+  # imported by the block above.
+  testVmRoleGenerator =
+    if self != null
+    then import ./test-vm-role-generator.nix {inherit pkgs self;}
+    else {};
 
   # nix-unit eval-time tests (fast, no derivation builds)
   # Copies the full repo into the build dir so relative imports resolve.
@@ -256,5 +264,11 @@ in
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;
+
+    # mkRoleVmTest generator: structural + binary-resolution tests
+    vm-role-generator =
+      if testVmRoleGenerator != {}
+      then testVmRoleGenerator.vmRoleGeneratorTest
+      else null;
   }
   // vmTests
