@@ -426,6 +426,7 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `benchmark:lm-eval-mini` | Quick lm-eval smoke benchmark |
 | `benchmark:lm-eval-leaderboard` | HuggingFace Open LLM Leaderboard v2 |
 | `benchmark:lighteval-gsm8k` | lighteval GSM8K |
+| `benchmark:bfcl-smoke` | BFCL function-calling smoke test against local vllm-mlx |
 | `profile:llm` | Profile LLM inference performance |
 | `smoke:llm-stack` | Smoke test vllm-mlx + bifrost |
 

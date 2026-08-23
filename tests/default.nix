@@ -145,6 +145,10 @@ in
     # Structural / deduplication tests
     zsh-enable-single-location = testPackages.zshEnableSingleLocationTest;
 
+    # bfcl benchmark package metadata (see comment on the test itself for
+    # why this doesn't force a full build)
+    bfcl-package-metadata = testPackages.bfclPackageMetadataTest;
+
     # Sketchybar removal regression tests (module was removed — see AGENTS.md history)
     sketchybar-module-removed = testSketchybarRemoved.sketchybarModuleRemovedTest;
     sketchybar-options-removed = testSketchybarRemoved.sketchybarOptionsRemovedTest;

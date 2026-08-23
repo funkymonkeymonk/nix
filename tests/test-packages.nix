@@ -493,6 +493,39 @@
       touch $out
     '';
 
+  # Test that the bfcl (Berkeley Function Calling Leaderboard) benchmark
+  # package is wired into the overlay with the expected metadata. Like
+  # lm-eval and lighteval, bfcl-eval pulls in torch/transformers transitively
+  # (via sentence-transformers), so this test only inspects derivation
+  # metadata (pname/version/mainProgram) at eval time rather than forcing a
+  # full build in CI — the package is still exercised by an actual
+  # `nix build` in local validation and by the benchmark:bfcl-smoke task.
+  bfclPackageMetadataTest =
+    pkgs.runCommand "test-bfcl-package-metadata"
+    {}
+    ''
+      echo "=== Testing bfcl package metadata ==="
+
+      echo "  pname: ${pkgs.bfcl-eval.pname}"
+      echo "  version: ${pkgs.bfcl-eval.version}"
+      echo "  mainProgram: ${pkgs.bfcl-eval.meta.mainProgram}"
+
+      ${
+        if pkgs.bfcl-eval.pname == "bfcl-eval"
+        then ''echo "  pname is bfcl-eval: OK"''
+        else ''echo "  ERROR: unexpected pname"; exit 1''
+      }
+
+      ${
+        if pkgs.bfcl-eval.meta.mainProgram == "bfcl"
+        then ''echo "  mainProgram is bfcl: OK"''
+        else ''echo "  ERROR: unexpected mainProgram"; exit 1''
+      }
+
+      echo "bfcl package metadata test passed"
+      touch $out
+    '';
+
   # Test that programs.zsh.enable is set in exactly one location (shell.nix)
   # This is a structural test to prevent redundant duplicate assignments.
   zshEnableSingleLocationTest =
