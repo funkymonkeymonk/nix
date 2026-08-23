@@ -76,6 +76,7 @@ with lib; let
             ../../modules/home-manager/themes.nix
             ../../modules/home-manager/shell.nix
             ../../modules/home-manager/foundation.nix
+            ../../modules/home-manager/skills/canonical-install.nix
           ]
           ++ optional config.myConfig.charm.enable ../../modules/home-manager/charm.nix
           ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix

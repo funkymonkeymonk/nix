@@ -12,6 +12,7 @@
   testRoles = import ./test-roles.nix {inherit pkgs;};
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
   testSkills = import ./test-skills.nix {inherit pkgs;};
+  testCanonicalSkillsInstall = import ./test-skills-canonical-install.nix {inherit pkgs;};
   testEmail = import ./test-email.nix {inherit pkgs;};
   testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
   testServices = import ./test-services.nix {inherit pkgs self;};
@@ -116,6 +117,14 @@ in
     skills-external-identification = testSkills.externalSkillsIdentificationTest;
     skills-external-command-generation = testSkills.externalSkillCommandGenerationTest;
     skills-external-empty-case = testSkills.externalSkillsEmptyTest;
+
+    # Canonical skill install location tests (~/.agents/skills/<name>)
+    skills-canonical-install-writes-agents-skills = testCanonicalSkillsInstall.canonicalInstallWritesAgentsSkillsTest;
+    skills-canonical-install-gated-on-empty-roles = testCanonicalSkillsInstall.canonicalInstallGatedOnEmptyRolesTest;
+    skills-opencode-no-longer-writes-own-dirs = testCanonicalSkillsInstall.opencodeNoLongerWritesOwnSkillDirsTest;
+    skills-opencode-commands-still-work = testCanonicalSkillsInstall.opencodeSkillCommandsStillWorkTest;
+    skills-pi-no-longer-writes-manifest-dirs = testCanonicalSkillsInstall.piNoLongerWritesManifestSkillDirsTest;
+    skills-agent-skills-path-canonical = testCanonicalSkillsInstall.agentSkillsPathPointsAtCanonicalLocationTest;
 
     # Coverage tracking
     module-coverage = testCoverage.moduleCoverageTest;
