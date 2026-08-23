@@ -2,6 +2,8 @@
 # These tests boot a minimal NixOS VM and verify system behavior.
 # Only runs on x86_64-linux (NixOS testing framework requirement).
 {pkgs, ...}: let
+  lib = pkgs.lib;
+
   # Helper to create a NixOS test with our modules
   mkTest = {
     name,
@@ -54,6 +56,45 @@
       };
       inherit testScript;
     };
+
+  # Generic per-role VM package test generator.
+  #
+  # Boots the exact same NixOS node mkTest always boots (mkTest is the
+  # single source of truth for the module list -- called here, not
+  # duplicated), enabling only the given role. The resulting node's
+  # environment.systemPackages is introspected to derive the binary each
+  # package actually provides (meta.mainProgram, falling back to
+  # pname/name), and every resolved binary is presence-checked on the
+  # booted VM via `command -v` -- presence-only, never actually run --
+  # which previously risked hanging on GUI/Electron packages (e.g. logseq).
+  #
+  # `nodes.machine` on a nixosTest derivation exposes the fully evaluated
+  # NixOS config for that node (see nixpkgs' nixos/lib/testing/nodes.nix),
+  # so introspecting it is pure evaluation -- no VM is booted just to
+  # compute the binaries list.
+  mkRoleVmTest = role: let
+    roles = {${role}.enable = true;};
+    introspected = mkTest {
+      name = "vm-role-${role}-introspect";
+      inherit roles;
+      testScript = "";
+    };
+    binaries =
+      map (pkg: pkg.meta.mainProgram or pkg.pname or pkg.name)
+      introspected.nodes.machine.environment.systemPackages;
+  in
+    mkTest {
+      name = "vm-role-${role}";
+      inherit roles;
+      testScript =
+        ''
+          machine.wait_for_unit("multi-user.target")
+        ''
+        + lib.concatMapStringsSep "\n" (
+          b: ''machine.succeed("command -v ${lib.escapeShellArg b}")''
+        )
+        binaries;
+    };
 in {
   # Test that users are created with correct properties
   vm-users = mkTest {
@@ -104,4 +145,13 @@ in {
       machine.succeed("zsh -c 'echo hello'")
     '';
   };
+
+  # Boot-test the foundation role's actual environment.systemPackages.
+  # Foundation defaults to enable=true and runs on every host in the fleet
+  # (all 5 NixOS targets) -- this is the one role every machine depends on,
+  # and until now it had never been boot-tested.
+  vm-role-foundation = mkRoleVmTest "foundation";
+
+  # Boot-test the developer role's actual environment.systemPackages.
+  vm-role-developer = mkRoleVmTest "developer";
 }
