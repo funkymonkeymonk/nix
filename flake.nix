@@ -404,6 +404,8 @@
             mk-nixos-system
             mk-user
             mk-user-calling-convention
+            flake-module-args
+            flake-module-library-export
             agent-user-options
             agent-user-disabled
             agent-user-enabled
