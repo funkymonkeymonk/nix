@@ -7,6 +7,7 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
 in {
   packages =
     devBase.packages
@@ -29,6 +30,7 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      evalscope
 
       # Utility
       pkgs.rsync
@@ -751,6 +753,7 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:evalscope-arc"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -992,6 +995,34 @@ in {
           --root "$OUTPUT_DIR" \
           --greedy \
           --id_range "$ID_RANGE"
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:evalscope-arc" = {
+      description = "Quick EvalScope ARC (multiple-choice reasoning) smoke benchmark against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        API_URL="''${API_URL:-http://localhost:8300/v1/chat/completions}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        LIMIT="''${LIMIT:-10}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/evalscope-arc}"
+
+        echo "=== EvalScope ARC against $API_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        evalscope eval \
+          --model "$MODEL" \
+          --api-url "$API_URL" \
+          --api-key EMPTY \
+          --eval-type openai_api \
+          --datasets arc \
+          --limit "$LIMIT" \
+          --work-dir "$OUTPUT_DIR" \
+          --no-timestamp
 
         echo ""
         echo "Results written to $OUTPUT_DIR"

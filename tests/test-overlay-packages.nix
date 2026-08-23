@@ -63,6 +63,34 @@
       touch $out
     '';
 
+  # Test that evalscope (ModelScope EvalScope LLM eval CLI) builds and its
+  # binary works
+  evalscopePackageTest =
+    pkgs.runCommand "test-evalscope-package"
+    {
+      nativeBuildInputs = [pkgs.evalscope];
+    }
+    ''
+      echo "=== Testing evalscope package ==="
+
+      if command -v evalscope > /dev/null 2>&1; then
+        echo "  evalscope binary found: OK"
+      else
+        echo "  evalscope binary NOT FOUND!"
+        exit 1
+      fi
+
+      if evalscope --help > /dev/null 2>&1; then
+        echo "  evalscope --help exits successfully: OK"
+      else
+        echo "  evalscope --help failed!"
+        exit 1
+      fi
+
+      echo "evalscope package test passed"
+      touch $out
+    '';
+
   # Test that pi-coding-agent (pi CLI) builds and its binary works
   piCodingAgentPackageTest =
     pkgs.runCommand "test-pi-coding-agent-package"
