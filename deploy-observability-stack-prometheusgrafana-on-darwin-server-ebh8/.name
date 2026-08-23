@@ -1,1 +1,1 @@
-Deploy observability stack (Prometheus/Grafana) on darwin-server
+Deploy observability stack (Prometheus/Grafana/Loki/Vector) on darwin-server -- native launchd
