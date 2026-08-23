@@ -42,7 +42,6 @@ let
                 opencode.enable = true;
                 claude.enable = true;
                 pi.enable = true;
-                llm-host.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
               };
@@ -88,7 +87,6 @@ let
     "opencode"
     "claude"
     "pi"
-    "llm-host"
     "assistant"
     "email-backup"
     "homebrew"
@@ -376,19 +374,19 @@ in {
 
   # mkServiceRegistry: enabled service produces entry
   testServiceRegistryEnabled = {
-    expr = commonLib.mkServiceRegistry "ollama" {
-      displayName = "Ollama";
-      port = 11434;
-      label = "org.nixos.ollama";
-      errorLog = "/var/log/ollama-error.log";
+    expr = commonLib.mkServiceRegistry "bifrost" {
+      displayName = "Bifrost";
+      port = 8081;
+      label = "org.nixos.bifrost";
+      errorLog = "/var/log/bifrost-error.log";
       enabled = true;
     };
     expected = {
-      ollama = {
-        name = "Ollama";
-        port = 11434;
-        launchdLabel = "org.nixos.ollama";
-        errorLog = "/var/log/ollama-error.log";
+      bifrost = {
+        name = "Bifrost";
+        port = 8081;
+        launchdLabel = "org.nixos.bifrost";
+        errorLog = "/var/log/bifrost-error.log";
       };
     };
   };

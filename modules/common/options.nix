@@ -134,13 +134,6 @@ with lib; {
           description = "Pi coding agent with rtk";
         };
       };
-      llm-host = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Local LLM hosting (ollama)";
-        };
-      };
 
       assistant = {
         enable = mkOption {

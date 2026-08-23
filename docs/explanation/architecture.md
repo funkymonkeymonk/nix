@@ -51,7 +51,6 @@ modules/
 │   ├── vllm-mlx/     # vllm-mlx inference server
 │   ├── bifrost/      # Bifrost AI gateway
 │   ├── caddy/        # Caddy reverse proxy
-│   ├── ollama/       # Ollama local model host
 │   └── vane/         # Vane AI search engine
 └── nixos/            # NixOS-specific
     ├── base.nix      # Common NixOS settings
@@ -130,8 +129,6 @@ flowchart TD
     roles --> roles_assistant_nix
     roles_email_backup_nix["roles/email-backup.nix"]
     roles --> roles_email_backup_nix
-    roles_llm_host_nix["roles/llm-host.nix"]
-    roles --> roles_llm_host_nix
     roles_tailscale_nix["roles/tailscale.nix"]
     roles --> roles_tailscale_nix
     usersnix["common/users.nix\n(role-gated home-manager imports)"]

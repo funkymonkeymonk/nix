@@ -1,6 +1,10 @@
 # Service module option tests using evalModules
 # Tests vane options without requiring platform-specific modules
-{pkgs, ...}: let
+{
+  pkgs,
+  self ? null,
+  ...
+}: let
   inherit (pkgs) lib;
 
   # Shared stub modules for evalModules
@@ -137,6 +141,14 @@
     .daemons
     .vane
     .serviceConfig;
+
+  # Evaluate the real MegamanX target to verify it doesn't carry a dangling
+  # reference to an Ollama service that no longer runs on that host (Ollama
+  # support was removed entirely — see modules/services/ollama removal).
+  megamanxVaneConfig =
+    if self != null
+    then self.darwinConfigurations.MegamanX.config.myConfig.vane
+    else null;
 in {
   # Test vane option defaults
   vaneOptionsTest =
@@ -301,4 +313,34 @@ in {
       echo "All vane opnix URL option tests verified"
       touch $out
     '';
+
+  # Verify the real MegamanX host config has no dangling Ollama wiring.
+  # Ollama was fully removed from this repo (no host manages it via Nix
+  # anymore — vllm-mlx + Bifrost handle all local inference), so a host
+  # that still points vane.ollamaUrl/embeddingModel at Ollama would be
+  # pointing at a service that no Nix module actually provisions.
+  vaneMegamanxNoOllamaWiringTest =
+    if megamanxVaneConfig == null
+    then pkgs.runCommand "test-vane-megamanx-no-ollama-wiring" {} "touch $out"
+    else
+      pkgs.runCommand "test-vane-megamanx-no-ollama-wiring"
+      {}
+      ''
+        echo "=== Testing MegamanX Vane has no dangling Ollama wiring ==="
+
+        ${
+          if megamanxVaneConfig.ollamaUrl == null
+          then ''echo "  vane.ollamaUrl = null: OK"''
+          else ''echo "  vane.ollamaUrl should be null (no Ollama service runs on MegamanX), got ${megamanxVaneConfig.ollamaUrl}"; exit 1''
+        }
+
+        ${
+          if megamanxVaneConfig.embeddingModel == null
+          then ''echo "  vane.embeddingModel = null: OK"''
+          else ''echo "  vane.embeddingModel should be null, got ${megamanxVaneConfig.embeddingModel}"; exit 1''
+        }
+
+        echo "MegamanX vane has no dangling Ollama wiring"
+        touch $out
+      '';
 }

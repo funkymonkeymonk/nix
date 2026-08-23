@@ -35,7 +35,8 @@ parent=$(echo "$yak_json" | python3 -c "
 import json,sys
 y=json.load(sys.stdin)
 bc = y.get('breadcrumb',[])
-print(' > '.join(bc) if bc else 'root')
+names = [b['name'] if isinstance(b, dict) else b for b in bc]
+print(' > '.join(names) if names else 'root')
 " 2>/dev/null || echo "")
 
 # Generate a slug from the yak name (lowercase, hyphens, max 40 chars)
@@ -132,7 +133,7 @@ gh pr create \\
 - What changed and why (1-3 bullets)
 
 ## Acceptance Criteria Met
-$(echo "$context" | grep -oE '- \[.\] .*' | head -10 || echo "- See yak context")
+$(echo "$context" | grep -oE -- '- \[.\] .*' | head -10 || echo "- See yak context")
 
 ## Testing
 - Tests added: <list>
@@ -141,7 +142,7 @@ EOF
 )"
 \`\`\`
 
-### 7. Watch CI and merge
+### 7. Watch CI, then STOP — do NOT merge
 
 Poll until all checks complete:
 \`\`\`bash
@@ -149,21 +150,22 @@ Poll until all checks complete:
 gh pr view <number> --repo ${GH_REPO} --json statusCheckRollup
 \`\`\`
 
-Wait for ALL checks to show \`"conclusion":"SUCCESS"\` and \`"status":"COMPLETED"\`, then:
-\`\`\`bash
-gh pr merge <number> --repo ${GH_REPO} --squash --delete-branch --admin
-\`\`\`
+Wait for ALL checks to show \`"conclusion":"SUCCESS"\` and \`"status":"COMPLETED"\`.
 
-### 8. Mark yak done and clean up
+**STOP HERE. Do NOT run \`gh pr merge\`. A human reviews and merges every yak-shaving PR.**
+
+If CI fails, investigate, fix, and push an update (\`jj squash\` + \`jj git push --bookmark <branch>\`). Keep polling until CI is green, then stop.
+
+### 8. Record the PR link, leave the yak in progress
+
+Do NOT mark the yak done and do NOT clean up the workspace — a human merges first, then marks the yak done (or a future sync picks it up).
 
 \`\`\`bash
-yx done "${YAK_NAME}"
+echo "<PR URL>" | yx field "${YAK_NAME}" pr_url
 yx sync
-jj git fetch
-cd ${REPO_ROOT}
-jj workspace forget ${workspace_name}
-rm -rf .workspaces/${workspace_name}
 \`\`\`
+
+Leave the yak in its \`wip\` state and leave \`.workspaces/${workspace_name}\` in place until the human merges.
 
 ## Critical Rules
 
@@ -174,12 +176,13 @@ rm -rf .workspaces/${workspace_name}
 - **alejandra formats Nix** — \`check:lint\` will fail on unformatted code (run \`alejandra .\` to fix)
 - **Check both platforms**: Darwin eval is required; NixOS eval if you touched NixOS-only modules
 - **If CI fails**: investigate the failure, fix it, push an update (jj squash + jj git push), do NOT merge broken code
+- **Do NOT merge the PR and do NOT run \`yx done\`** — this session stops at green CI; a human merges
 
 ## Return
 
 When done, report:
 1. PR URL and number
-2. Whether merged successfully
-3. Final commit hash on main
+2. CI status (all checks green?)
+3. Branch name and workspace path (left in place for human merge)
 4. Any issues encountered or open questions
 PROMPT
