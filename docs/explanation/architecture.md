@@ -157,8 +157,6 @@ flowchart TD
     usersnix -->|"myConfig.email-agent.enable"| home_manager_email_agent_nix
     home_manager_email_backup_nix["home-manager/email-backup.nix"]
     usersnix -->|"myConfig.email-backup.enable"| home_manager_email_backup_nix
-    home_manager_sketchybar["home-manager/sketchybar"]
-    usersnix -->|"myConfig.sketchybar.enable"| home_manager_sketchybar
     home_manager_watch_ci_jobs_nix["home-manager/watch-ci-jobs.nix"]
     usersnix -->|"myConfig.roles.developer.enable"| home_manager_watch_ci_jobs_nix
 ```

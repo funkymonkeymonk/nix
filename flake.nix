@@ -41,9 +41,6 @@
     vercel-skills.url = "github:vercel-labs/skills";
     vercel-skills.flake = false;
 
-    # Sketchybar configuration with aerospace integration
-    aerospace-sketchybar.url = "github:zmre/aerospace-sketchybar-nix-lua-config";
-
     # Bifrost AI Gateway - high-performance LLM gateway
     bifrost.url = "github:maximhq/bifrost";
 
@@ -367,12 +364,9 @@
             onepassword-guard
             onepassword-config-output
             zsh-enable-single-location
-            sketchybar-options
-            sketchybar-custom-options
-            sketchybar-theme
-            sketchybar-color-conversion
-            sketchybar-platform-guard
-            sketchybar-entrypoint
+            sketchybar-module-removed
+            sketchybar-options-removed
+            sketchybar-wiring-removed
             aerospace-options
             aerospace-custom-options
             vane-options

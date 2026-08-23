@@ -76,6 +76,7 @@ with lib; let
             ../../modules/home-manager/themes.nix
             ../../modules/home-manager/shell.nix
             ../../modules/home-manager/foundation.nix
+            ../../modules/home-manager/skills/canonical-install.nix
           ]
           ++ optional config.myConfig.charm.enable ../../modules/home-manager/charm.nix
           ++ optional config.myConfig.opencode.enable ../../modules/home-manager/opencode.nix
@@ -86,8 +87,7 @@ with lib; let
           ++ optional config.myConfig.obsidian.enable ../../modules/home-manager/obsidian.nix
           ++ optional config.myConfig.agent-skills.enable ../../modules/home-manager/skills/install.nix
           ++ optional config.myConfig.email-agent.enable ../../modules/home-manager/email-agent.nix
-          ++ optional config.myConfig.email-backup.enable ../../modules/home-manager/email-backup.nix
-          ++ optional config.myConfig.sketchybar.enable ../../modules/home-manager/sketchybar;
+          ++ optional config.myConfig.email-backup.enable ../../modules/home-manager/email-backup.nix;
 
         # Pass user info and system config to home-manager modules
         _module.args = {

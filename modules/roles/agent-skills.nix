@@ -15,7 +15,7 @@ in {
     environment = lib.mkMerge [
       {
         variables = {
-          AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+          AGENT_SKILLS_PATH = "$HOME/.agents/skills";
         };
         shellAliases = {
           skills-status = "ls -la $AGENT_SKILLS_PATH";
@@ -25,7 +25,7 @@ in {
       }
       (lib.optionalAttrs (builtins.hasAttr "sessionVariables" config.environment) {
         sessionVariables = {
-          AGENT_SKILLS_PATH = "$HOME/.config/opencode/skills";
+          AGENT_SKILLS_PATH = "$HOME/.agents/skills";
         };
       })
     ];
