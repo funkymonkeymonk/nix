@@ -243,6 +243,7 @@ in
     vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
     vllm-mlx-launchd = testVllmMlx.vllmMlxLaunchdTest;
     megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
+    wweaver-vllm = testVllmMlx.wweaverVllmMlxTest;
 
     # vllm-mlx package streaming tests (builds the package; darwin-only)
     vllm-mlx-finish-reason = testVllmMlxStream.vllmMlxFinishReasonTest;

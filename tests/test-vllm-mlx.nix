@@ -1,6 +1,6 @@
 # vllm-mlx inference server tests
 # Validates option defaults, custom values, launchd daemon wiring, and the
-# MegamanX target's Gemma 4 configuration.
+# MegamanX and wweaver target configurations.
 {
   pkgs,
   self ? null,
@@ -78,6 +78,11 @@
   megamanxVllmMlx = megamanxConfig.myConfig.vllmMlx or {};
   megamanxVllmMlxInstances = megamanxConfig.myConfig.vllmMlxInstances or {};
   megamanxVllmDaemon = (megamanxConfig.launchd.daemons."vllm-mlx" or {}).serviceConfig or {};
+  wweaverConfig =
+    if self != null
+    then self.darwinConfigurations.wweaver.config
+    else {};
+  wweaverVllmMlx = wweaverConfig.myConfig.vllmMlx or {};
 in {
   vllmMlxOptionsTest =
     pkgs.runCommand "test-vllm-mlx-options"
@@ -364,6 +369,41 @@ in {
     }
     echo ""
     echo "All MegamanX vllm-mlx tests passed"
+    touch $out
+  '';
+
+  wweaverVllmMlxTest = pkgs.runCommand "test-wweaver-vllm" {} ''
+    echo "=== Testing wweaver vllm-mlx Configuration ==="
+    echo ""
+    ${
+      let
+        hasModel = builtins.elem "qwen3.8-27b" (builtins.attrNames (wweaverVllmMlx.models or {}));
+        modelPath =
+          if hasModel
+          then wweaverVllmMlx.models."qwen3.8-27b".path
+          else null;
+      in
+        if wweaverVllmMlx.enable && hasModel && modelPath == "mlx-community/Qwen3.8-27B-4bit"
+        then ''echo "  enabled Qwen3.8-27B-4bit model: OK"''
+        else ''echo "  FAIL: wweaver should enable Qwen3.8-27B-4bit, got ${toString modelPath}"; exit 1''
+    }
+    ${
+      if wweaverVllmMlx.server.host == "0.0.0.0" && wweaverVllmMlx.server.port == 8300
+      then ''echo "  server = 0.0.0.0:8300: OK"''
+      else ''echo "  FAIL: server should listen on 0.0.0.0:8300"; exit 1''
+    }
+    ${
+      if wweaverVllmMlx.memoryBudgetGb == 24 && wweaverVllmMlx.maxKvSize == 65536
+      then ''echo "  conservative memory and KV limits: OK"''
+      else ''echo "  FAIL: expected memoryBudgetGb=24 and maxKvSize=65536"; exit 1''
+    }
+    ${
+      if wweaverVllmMlx.enableAutoToolChoice && wweaverVllmMlx.toolCallParser == "qwen" && wweaverVllmMlx.reasoningParser == "qwen3"
+      then ''echo "  Qwen tool and reasoning parsers: OK"''
+      else ''echo "  FAIL: expected Qwen tool and reasoning parsers"; exit 1''
+    }
+    echo ""
+    echo "All wweaver vllm-mlx tests passed"
     touch $out
   '';
 }
