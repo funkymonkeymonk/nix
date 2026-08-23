@@ -1,0 +1,1 @@
+Raise maxKvSize toward Qwen3.8's native 262144-token context on MegamanX's 128GB headroom
