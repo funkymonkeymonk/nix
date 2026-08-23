@@ -450,6 +450,7 @@
             git-user-config
             obsidian-options
             obsidian-custom-options
+            vm-role-generator
             ;
         }
         // nixpkgs.lib.optionalAttrs isDarwin {
@@ -462,6 +463,8 @@
             vm-users
             vm-ssh
             vm-packages
+            vm-role-foundation
+            vm-role-developer
             ;
         }
     );
