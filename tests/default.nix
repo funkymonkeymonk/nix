@@ -135,6 +135,10 @@ in
     # Structural / deduplication tests
     zsh-enable-single-location = testPackages.zshEnableSingleLocationTest;
 
+    # bfcl benchmark package metadata (see comment on the test itself for
+    # why this doesn't force a full build)
+    bfcl-package-metadata = testPackages.bfclPackageMetadataTest;
+
     # Sketchybar tests
     sketchybar-options = testSketchybar.sketchybarOptionsTest;
     sketchybar-custom-options = testSketchybar.sketchybarCustomOptionsTest;

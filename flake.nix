@@ -86,7 +86,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval;
+          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
@@ -367,6 +367,7 @@
             onepassword-guard
             onepassword-config-output
             zsh-enable-single-location
+            bfcl-package-metadata
             sketchybar-options
             sketchybar-custom-options
             sketchybar-theme
