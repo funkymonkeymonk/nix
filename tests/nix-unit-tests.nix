@@ -103,48 +103,6 @@ in {
     expected = true;
   };
 
-  # ── Options: sketchybar ─────────────────────────────────────────
-  testSketchybarDefaults = {
-    expr = {
-      enable = evalBase.myConfig.sketchybar.enable;
-      height = evalBase.myConfig.sketchybar.height;
-      padding = evalBase.myConfig.sketchybar.padding;
-    };
-    expected = {
-      enable = false;
-      height = 40;
-      padding = 2;
-    };
-  };
-
-  testSketchybarCustom = let
-    custom =
-      (lib.evalModules {
-        modules =
-          baseStubs
-          ++ [
-            {
-              config.myConfig.sketchybar = {
-                enable = true;
-                height = 50;
-                padding = 8;
-                groupPadding = 20;
-                useAerospaceIntegration = false;
-              };
-            }
-          ];
-      }).config.myConfig.sketchybar;
-  in {
-    expr = {inherit (custom) enable height padding groupPadding useAerospaceIntegration;};
-    expected = {
-      enable = true;
-      height = 50;
-      padding = 8;
-      groupPadding = 20;
-      useAerospaceIntegration = false;
-    };
-  };
-
   # ── Options: aerospace ────────────────────────────────────────
   testAerospaceDefaults = {
     expr = evalAerospaceBase.myConfig.aerospace.externalMonitor;

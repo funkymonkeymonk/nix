@@ -1,27 +1,5 @@
 {
   "nodes": {
-    "aerospace-sketchybar": {
-      "inputs": {
-        "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "promise-lua": "promise-lua",
-        "sbarlua": "sbarlua",
-        "sketchybar": "sketchybar"
-      },
-      "locked": {
-        "lastModified": 1787240676,
-        "narHash": "sha256-+hRKvg+BSJg7QogUbOcKdJ0N7G1wrdwiq2yb5DYibL8=",
-        "owner": "zmre",
-        "repo": "aerospace-sketchybar-nix-lua-config",
-        "rev": "60e43835ce1d4aadde21cc2eb63fc6925f0bfe86",
-        "type": "github"
-      },
-      "original": {
-        "owner": "zmre",
-        "repo": "aerospace-sketchybar-nix-lua-config",
-        "type": "github"
-      }
-    },
     "bifrost": {
       "inputs": {
         "nixpkgs": "nixpkgs_2"
@@ -645,24 +623,6 @@
       "original": {
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "type": "github"
-      }
-    },
-    "flake-utils": {
-      "inputs": {
-        "systems": "systems"
-      },
-      "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
         "type": "github"
       }
     },
@@ -1745,25 +1705,8 @@
         "type": "github"
       }
     },
-    "promise-lua": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1603853302,
-        "narHash": "sha256-LNNLTAAEPIalRSjC6z8QTkhnmwpFAHSlwxuFxb9r2OE=",
-        "owner": "pyericz",
-        "repo": "promise-lua",
-        "rev": "20d2ab1bb6aa398fe06ba597c943077a72c22451",
-        "type": "github"
-      },
-      "original": {
-        "owner": "pyericz",
-        "repo": "promise-lua",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
-        "aerospace-sketchybar": "aerospace-sketchybar",
         "bifrost": "bifrost",
         "devenv": "devenv",
         "disko": "disko",
@@ -1863,38 +1806,6 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "type": "github"
-      }
-    },
-    "sbarlua": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1772774660,
-        "narHash": "sha256-lhLTrdufA3ALJ2S5HLdgNOr5seWIWEHkVhZNPObzbvI=",
-        "owner": "FelixKratz",
-        "repo": "SbarLua",
-        "rev": "dba9cc421b868c918d5c23c408544a28aadf2f2f",
-        "type": "github"
-      },
-      "original": {
-        "owner": "FelixKratz",
-        "repo": "SbarLua",
-        "type": "github"
-      }
-    },
-    "sketchybar": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1780547023,
-        "narHash": "sha256-5tyc/yYzdV/3JTtujuj7le/14XkC7TlN/nZg7tOZsNg=",
-        "owner": "FelixKratz",
-        "repo": "SketchyBar",
-        "rev": "6284ee816601486ace33ca48a0271832eec6de35",
-        "type": "github"
-      },
-      "original": {
-        "owner": "FelixKratz",
-        "repo": "SketchyBar",
         "type": "github"
       }
     },

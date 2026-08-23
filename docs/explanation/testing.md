@@ -90,7 +90,6 @@ The coverage tracker in `tests/test-coverage.nix` auto-discovers modules so cove
 Each test file corresponds to a module or role group:
 - `test-roles.nix` — all roles and their cascades
 - `test-services.nix` — vane module
-- `test-sketchybar.nix` — sketchybar configuration testing
 
 This matches the nix-unit recommendation that tests live near the logic they're testing[^2], adapted for a flat `tests/` tree.
 
@@ -100,7 +99,7 @@ Following TDD principles, write the test *before* implementing the module or mak
 
 ## CI Wiring
 
-All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test:all`, which runs the platform-appropriate subset[^1]. The `test:all` aggregate declares `after = ["test:eval" "test:build" "test:sketchybar" "test:onepassword"]` — devenv handles the scheduling. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].
+All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test:all`, which runs the platform-appropriate subset[^1]. The `test:all` aggregate declares `after = ["test:eval" "test:build-checks"]` — devenv handles the scheduling. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].
 
 ## Anti-Patterns to Avoid
 

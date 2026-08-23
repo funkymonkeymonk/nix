@@ -44,7 +44,6 @@ Push to main:
 | `test:eval` | ~10s | Evaluate all configurations |
 | `test:build` | 2–10min | Build all check targets |
 | `test:all` | 2–10min | Eval + build + module tests |
-| `test:sketchybar` | ~30s | Sketchybar module tests |
 | `test:onepassword` | ~30s | 1Password module tests |
 
 ## Validated Configurations

@@ -780,44 +780,6 @@ with lib; {
       };
     };
 
-    sketchybar = {
-      enable = mkOption {
-        type = types.bool;
-        default = false;
-        description = "Enable sketchybar status bar (macOS only)";
-      };
-
-      height = mkOption {
-        type = types.int;
-        default = 40;
-        description = "Height of the sketchybar in pixels";
-      };
-
-      padding = mkOption {
-        type = types.int;
-        default = 2;
-        description = "Padding on left and right of the bar";
-      };
-
-      groupPadding = mkOption {
-        type = types.int;
-        default = 10;
-        description = "Padding between item groups";
-      };
-
-      useAerospaceIntegration = mkOption {
-        type = types.bool;
-        default = true;
-        description = "Enable aerospace window manager integration for workspace display";
-      };
-
-      extraConfig = mkOption {
-        type = types.lines;
-        default = "";
-        description = "Extra Lua configuration to append to sketchybarrc";
-      };
-    };
-
     # Service registry — each service module registers its metadata here
     serviceRegistry = mkOption {
       type = types.attrsOf (types.submodule {

@@ -14,7 +14,7 @@
   testSkills = import ./test-skills.nix {inherit pkgs;};
   testCanonicalSkillsInstall = import ./test-skills-canonical-install.nix {inherit pkgs;};
   testEmail = import ./test-email.nix {inherit pkgs;};
-  testSketchybar = import ./test-sketchybar.nix {inherit pkgs;};
+  testSketchybarRemoved = import ./test-sketchybar-removed.nix {inherit pkgs;};
   testServices = import ./test-services.nix {inherit pkgs self;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
@@ -144,13 +144,10 @@ in
     # Structural / deduplication tests
     zsh-enable-single-location = testPackages.zshEnableSingleLocationTest;
 
-    # Sketchybar tests
-    sketchybar-options = testSketchybar.sketchybarOptionsTest;
-    sketchybar-custom-options = testSketchybar.sketchybarCustomOptionsTest;
-    sketchybar-theme = testSketchybar.sketchybarThemeTest;
-    sketchybar-color-conversion = testSketchybar.sketchybarColorConversionTest;
-    sketchybar-platform-guard = testSketchybar.sketchybarPlatformGuardTest;
-    sketchybar-entrypoint = testSketchybar.sketchybarEntryPointTest;
+    # Sketchybar removal regression tests (module was removed — see AGENTS.md history)
+    sketchybar-module-removed = testSketchybarRemoved.sketchybarModuleRemovedTest;
+    sketchybar-options-removed = testSketchybarRemoved.sketchybarOptionsRemovedTest;
+    sketchybar-wiring-removed = testSketchybarRemoved.sketchybarWiringRemovedTest;
 
     # Service module tests
 
