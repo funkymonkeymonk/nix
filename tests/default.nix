@@ -90,10 +90,11 @@ in
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
 
-    # Overlay package build tests (rtk, yaks, pi-coding-agent)
+    # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench)
     overlay-rtk = testOverlayPackages.rtkPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
+    overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
 
     # Cross-platform option guard tests (Darwin vs Linux branches in role modules)
     cross-platform-desktop-guard = testCrossPlatformGuards.crossPlatformDesktopGuardTest;

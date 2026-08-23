@@ -6,6 +6,7 @@
   lm-eval = pkgs.callPackage ./packages/benchmarks/lm-eval {};
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
+  bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
 in {
   packages =
     devBase.packages
@@ -27,6 +28,7 @@ in {
       lm-eval
       lighteval
       bfcl-eval
+      bigcodebench
 
       # Utility
       pkgs.rsync
@@ -748,6 +750,7 @@ in {
         "benchmark:lm-eval-leaderboard"
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
+        "benchmark:bigcodebench"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -958,6 +961,40 @@ in {
 
         echo ""
         echo "Results written under $BFCL_PROJECT_ROOT/result"
+      '';
+    };
+
+    "benchmark:bigcodebench" = {
+      description = "Run a quick BigCodeBench code-generation smoke test against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        SPLIT="''${SPLIT:-instruct}"
+        SUBSET="''${SUBSET:-hard}"
+        ID_RANGE="''${ID_RANGE:-0-3}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/bigcodebench}"
+
+        echo "=== BigCodeBench generation against $BASE_URL (model: $MODEL) ==="
+        echo "Split: $SPLIT, subset: $SUBSET, id_range: $ID_RANGE"
+        echo "Note: this only runs the generation step (bigcodebench.generate)."
+        echo "The full evaluate step executes model-generated code and is left"
+        echo "to be run manually (bigcodebench.evaluate --execution local) if desired."
+        mkdir -p "$OUTPUT_DIR"
+
+        bigcodebench.generate \
+          --model "$MODEL" \
+          --split "$SPLIT" \
+          --subset "$SUBSET" \
+          --backend openai \
+          --base_url "$BASE_URL" \
+          --root "$OUTPUT_DIR" \
+          --greedy \
+          --id_range "$ID_RANGE"
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
       '';
     };
   };
