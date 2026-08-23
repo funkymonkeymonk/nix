@@ -5,6 +5,7 @@
   # the repo packages so they are available in the devenv shell and tasks.
   lm-eval = pkgs.callPackage ./packages/benchmarks/lm-eval {};
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
+  bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
 in {
   packages =
     devBase.packages
@@ -25,6 +26,7 @@ in {
       # LLM benchmarking suites
       lm-eval
       lighteval
+      bfcl-eval
 
       # Utility
       pkgs.rsync
@@ -745,6 +747,7 @@ in {
         "benchmark:lm-eval-mini"
         "benchmark:lm-eval-leaderboard"
         "benchmark:lighteval-gsm8k"
+        "benchmark:bfcl-smoke"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -919,6 +922,42 @@ in {
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:bfcl-smoke" = {
+      description = "Quick BFCL (function-calling) smoke benchmark against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        # BFCL selects its prompt-formatting handler and tokenizer from its
+        # own model registry (keyed by HF repo id), not from whatever alias
+        # vllm-mlx happens to serve its loaded model under. MODEL below only
+        # needs to be a BFCL-registered Qwen3 model so formatting/tokenizing
+        # works — it does not need to exactly match the model actually
+        # loaded in vllm-mlx for a quick smoke test.
+        MODEL="''${MODEL:-Qwen/Qwen3-8B}"
+        REMOTE_OPENAI_BASE_URL="''${REMOTE_OPENAI_BASE_URL:-http://localhost:8300/v1}"
+        TEST_CATEGORY="''${TEST_CATEGORY:-simple_python}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/bfcl-smoke}"
+
+        echo "=== BFCL $TEST_CATEGORY smoke test against $REMOTE_OPENAI_BASE_URL (model: $MODEL) ==="
+        echo "Note: simple_java / simple_javascript and Mistral/Qwen-agent/Writer-backed"
+        echo "models are unsupported in this packaged build (see packages/benchmarks/bfcl)."
+        mkdir -p "$OUTPUT_DIR"
+
+        export BFCL_PROJECT_ROOT="$(realpath "$OUTPUT_DIR")"
+        export REMOTE_OPENAI_BASE_URL
+        export REMOTE_OPENAI_API_KEY="''${REMOTE_OPENAI_API_KEY:-sk-local}"
+
+        bfcl generate \
+          --model "$MODEL" \
+          --test-category "$TEST_CATEGORY" \
+          --skip-server-setup \
+          --num-threads 1
+
+        echo ""
+        echo "Results written under $BFCL_PROJECT_ROOT/result"
       '';
     };
   };
