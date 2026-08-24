@@ -12,6 +12,7 @@
   # imported directly here rather than relying on modules/common/options.nix.
   stubModules = [
     ../modules/common/options.nix
+    ../modules/common/service-registry.nix
     ../modules/services/vane/darwin.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
@@ -66,6 +67,7 @@
   # Stub modules for evaluating the vane darwin module
   vaneDarwinStubs = [
     ../modules/common/options.nix
+    ../modules/common/service-registry.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;
