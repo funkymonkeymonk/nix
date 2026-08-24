@@ -36,7 +36,12 @@
   testLume = import ./test-lume.nix {inherit pkgs;};
   testObservability = import ./test-observability.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testLoki = import ./test-loki.nix {inherit pkgs;};
+  testVector = import ./test-vector.nix {inherit pkgs;};
+  testAlertmanager = import ./test-alertmanager.nix {inherit pkgs;};
+  testGrafana = import ./test-grafana.nix {inherit pkgs;};
   testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
+  testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
   testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
@@ -97,6 +102,9 @@ in
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
+
+    # Benchmark package build tests (HumanEval + MBPP)
+    overlay-humaneval-mbpp = testOverlayPackages.humanevalMbppPackageTest;
 
     # Cross-platform option guard tests (Darwin vs Linux branches in role modules)
     cross-platform-desktop-guard = testCrossPlatformGuards.crossPlatformDesktopGuardTest;
@@ -282,15 +290,51 @@ in
     prometheus-custom-options = testObservability.prometheusCustomOptionsTest;
     prometheus-generated-script = testObservability.prometheusGeneratedScriptTest;
     prometheus-scrape-config = testObservability.prometheusScrapeConfigTest;
+    prometheus-alerting-config = testObservability.prometheusAlertingConfigTest;
 
-    # Log aggregator (Vector + Loki) module tests
-    vector-options = testLogAggregator.vectorOptionsTest;
-    vector-enabled = testLogAggregator.vectorEnabledTest;
-    vector-custom-endpoint = testLogAggregator.vectorCustomEndpointTest;
-    loki-options = testLogAggregator.lokiOptionsTest;
-    loki-enabled = testLogAggregator.lokiEnabledTest;
-    loki-firewall = testLogAggregator.lokiFirewallTest;
+    # Loki log aggregation module tests
+    loki-options = testLoki.lokiOptionsTest;
+    loki-custom-options = testLoki.lokiCustomOptionsTest;
+    loki-generated-config = testLoki.lokiGeneratedConfigTest;
+
+    # Vector log shipper module tests
+    vector-options = testVector.vectorOptionsTest;
+    vector-custom-options = testVector.vectorCustomOptionsTest;
+    vector-generated-config = testVector.vectorGeneratedConfigTest;
+
+    # Alertmanager module tests
+    alertmanager-options = testAlertmanager.alertmanagerOptionsTest;
+    alertmanager-custom-options = testAlertmanager.alertmanagerCustomOptionsTest;
+    alertmanager-null-receiver = testAlertmanager.alertmanagerNullReceiverTest;
+
+    # Grafana module tests
+    grafana-options = testGrafana.grafanaOptionsTest;
+    grafana-custom-options = testGrafana.grafanaCustomOptionsTest;
+    grafana-datasources = testGrafana.grafanaDatasourcesTest;
+    grafana-federated-datasource = testGrafana.grafanaFederatedDatasourceTest;
+
+    # Log aggregator (Vector + Loki) module tests for NixOS
+    # (renamed with a nixos- prefix to avoid colliding with the Darwin
+    # vector/loki module test names above, which were added independently
+    # in a separately-merged PR)
+    nixos-vector-options = testLogAggregator.vectorOptionsTest;
+    nixos-vector-enabled = testLogAggregator.vectorEnabledTest;
+    nixos-vector-custom-endpoint = testLogAggregator.vectorCustomEndpointTest;
+    nixos-loki-options = testLogAggregator.lokiOptionsTest;
+    nixos-loki-enabled = testLogAggregator.lokiEnabledTest;
+    nixos-loki-firewall = testLogAggregator.lokiFirewallTest;
     type-server-log-aggregator = testLogAggregator.typeServerLogAggregatorTest;
+
+    # NixOS observability (Prometheus + Alertmanager) module tests
+    nixos-prometheus-options = testNixosObservability.prometheusOptionsTest;
+    nixos-node-exporter-options = testNixosObservability.nodeExporterOptionsTest;
+    nixos-prometheus-enabled = testNixosObservability.prometheusEnabledTest;
+    nixos-prometheus-alert-rules = testNixosObservability.prometheusAlertRulesTest;
+    nixos-prometheus-alertmanager-wiring = testNixosObservability.prometheusAlertmanagerWiringTest;
+    nixos-prometheus-firewall = testNixosObservability.prometheusFirewallTest;
+    nixos-alertmanager-options = testNixosObservability.alertmanagerOptionsTest;
+    nixos-alertmanager-null-receiver = testNixosObservability.alertmanagerNullReceiverTest;
+    type-server-observability = testNixosObservability.typeServerObservabilityTest;
 
     # LLM stack integration test
     stack-integration = testStackIntegration.stackIntegrationTest;
