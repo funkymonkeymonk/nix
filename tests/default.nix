@@ -223,6 +223,7 @@ in
 
     # Phase 3: Real-machine migration — zero v2
     phase3-zero = testPhase3Zero.phase3ZeroTest;
+    phase3-zero-flake-parts = testPhase3Zero.phase3ZeroFlakePartsTest;
 
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
