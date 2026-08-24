@@ -100,6 +100,10 @@
     # Tested via test-obsidian.nix (option defaults and custom values)
     "common/obsidian.nix"
     "home-manager/obsidian.nix"
+    # Tested via test-log-aggregator.nix (option defaults, enabled wiring,
+    # and type-server target wiring)
+    "nixos/vector.nix"
+    "nixos/loki.nix"
   ];
 
   # Modules not yet covered by tests
@@ -119,7 +123,7 @@
   # after a rename/deletion so it stops actually matching a real file),
   # not to block progress. It should almost always be equal to the
   # current coveragePct, or slightly below it as a small buffer.
-  minCoveragePct = 52;
+  minCoveragePct = 55;
 in {
   moduleCoverageTest =
     pkgs.runCommand "test-module-coverage"
