@@ -40,6 +40,7 @@
   testVector = import ./test-vector.nix {inherit pkgs;};
   testAlertmanager = import ./test-alertmanager.nix {inherit pkgs;};
   testGrafana = import ./test-grafana.nix {inherit pkgs;};
+  testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
   testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
@@ -305,6 +306,15 @@ in
     grafana-options = testGrafana.grafanaOptionsTest;
     grafana-custom-options = testGrafana.grafanaCustomOptionsTest;
     grafana-datasources = testGrafana.grafanaDatasourcesTest;
+
+    # Log aggregator (Vector + Loki) module tests
+    vector-options = testLogAggregator.vectorOptionsTest;
+    vector-enabled = testLogAggregator.vectorEnabledTest;
+    vector-custom-endpoint = testLogAggregator.vectorCustomEndpointTest;
+    loki-options = testLogAggregator.lokiOptionsTest;
+    loki-enabled = testLogAggregator.lokiEnabledTest;
+    loki-firewall = testLogAggregator.lokiFirewallTest;
+    type-server-log-aggregator = testLogAggregator.typeServerLogAggregatorTest;
 
     # LLM stack integration test
     stack-integration = testStackIntegration.stackIntegrationTest;

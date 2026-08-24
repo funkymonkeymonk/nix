@@ -266,10 +266,16 @@
         modules = [
           ./library/archetypes/headless-server-nixos.nix
           ./disk-configs/single-disk-ext4.nix
+          ./modules/nixos/vector.nix
+          ./modules/nixos/loki.nix
           {
             users.users.admin.openssh.authorizedKeys.keys = [
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
             ];
+            # Centralized logging: Vector ships journald logs to a local
+            # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
+            myConfig.vector.enable = true;
+            myConfig.loki.enable = true;
           }
         ];
         overrides = {
@@ -444,6 +450,11 @@
             grafana-options
             grafana-custom-options
             grafana-datasources
+            vector-enabled
+            vector-custom-endpoint
+            loki-enabled
+            loki-firewall
+            type-server-log-aggregator
             git-enable
             git-settings-exist
             git-commit-signing
