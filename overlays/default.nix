@@ -12,6 +12,7 @@
   bigcodebench = final.callPackage ../packages/benchmarks/bigcodebench {};
   evalscope = final.callPackage ../packages/benchmarks/evalscope {};
   openai-evals = final.callPackage ../packages/benchmarks/openai-evals {};
+  swebench = final.callPackage ../packages/benchmarks/swebench {};
   humaneval-mbpp = final.callPackage ../packages/benchmarks/humaneval-mbpp {};
   mlx-audio = final.callPackage ../packages/mlx-audio {};
   mlx-lm = final.callPackage ../packages/mlx-lm {};

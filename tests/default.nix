@@ -108,6 +108,7 @@ in
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
      overlay-evalscope = testOverlayPackages.evalscopePackageTest;
      overlay-openai-evals = testOverlayPackages.openaiEvalsPackageTest;
+     overlay-swebench = testOverlayPackages.swebenchPackageTest;
 
     # Benchmark package build tests (HumanEval + MBPP)
     overlay-humaneval-mbpp = testOverlayPackages.humanevalMbppPackageTest;

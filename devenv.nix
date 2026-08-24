@@ -9,6 +9,7 @@
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
   evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
   openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
+  swebench = pkgs.callPackage ./packages/benchmarks/swebench {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
@@ -34,6 +35,7 @@ in {
       bigcodebench
       evalscope
       openai-evals
+      swebench
       humaneval-mbpp
 
       # Utility
@@ -770,6 +772,7 @@ in {
         "benchmark:bigcodebench"
         "benchmark:evalscope-arc"
         "benchmark:openai-evals"
+        "benchmark:swebench"
         "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
@@ -1034,6 +1037,20 @@ in {
         oaieval "$MODEL" "$EVAL" --record_path "$OUTPUT_DIR/$EVAL.jsonl"
 
         echo "Results written to $OUTPUT_DIR/$EVAL.jsonl"
+      '';
+    };
+
+    "benchmark:swebench" = {
+      description = "SWE-bench CLI smoke test against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        echo "=== SWE-bench against $BASE_URL (model: $MODEL) ==="
+        curl -sf --max-time 30 "$BASE_URL/models" | jq -e '.data | length > 0' >/dev/null
+        swebench dataset --help >/dev/null
+        swebench report --help >/dev/null
+        echo "SWE-bench smoke test passed"
       '';
     };
 

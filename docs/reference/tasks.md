@@ -95,6 +95,7 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `benchmark:bfcl-smoke` | BFCL function-calling smoke test against local vllm-mlx |
 | `benchmark:bigcodebench` | BigCodeBench code-generation smoke test |
 | `benchmark:openai-evals` | OpenAI Evals (`oaieval`) smoke test against local vllm-mlx |
+| `benchmark:swebench` | SWE-bench CLI smoke test against local vllm-mlx |
 | `profile:llm` | Profile LLM inference performance |
 | `smoke:llm-stack` | Smoke test vllm-mlx + bifrost |
 

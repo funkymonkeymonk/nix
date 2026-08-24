@@ -178,4 +178,16 @@
       echo "openai-evals package test passed"
       touch $out
     '';
+
+  swebenchPackageTest =
+    pkgs.runCommand "test-swebench-package"
+    {
+      nativeBuildInputs = [pkgs.swebench];
+    }
+    ''
+      swebench --help >/dev/null
+      swebench dataset --help >/dev/null
+      swebench report --help >/dev/null
+      touch $out
+    '';
 }
