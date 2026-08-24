@@ -70,8 +70,22 @@
     "roles/email-backup.nix"
     "home-manager/email-agent.nix"
     "home-manager/email-backup.nix"
-    # Tested via test-llm-client.nix (env var wiring per AI agent role)
+    # Tested via test-llm-client.nix (env var wiring per AI agent role) and
+    # nix-unit-tests.nix (sharedModels/llmEndpoints options via stubs.base)
     "common/llm-client.nix"
+    # Tested via test-packages.nix configValidationTest (imports roles/default.nix)
+    # and test-nixos-modules.nix (typed attrset options)
+    "common/skills.nix"
+    "common/claude-code.nix"
+    "common/pi.nix"
+    # Tested via test-email.nix (email-agent and email-backup option/module tests)
+    "common/email-agent.nix"
+    "common/email-backup.nix"
+    # Tested via test-home-manager.nix + nix-unit-tests.nix (opencode option defaults/custom)
+    "common/opencode.nix"
+    # Tested via test-services.nix + test-stack-integration.nix (serviceRegistry
+    # port-conflict assertions wired through vane/bifrost/caddy/searxng)
+    "common/service-registry.nix"
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
     "common/users.nix"
