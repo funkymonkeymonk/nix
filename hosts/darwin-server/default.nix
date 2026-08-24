@@ -23,6 +23,24 @@
         enable = true;
         model = null;
       };
+
+      # Observability stack: metrics (Prometheus + node_exporter), logs
+      # (Loki + Vector), dashboards (Grafana), and alerting (Alertmanager).
+      # All native launchd daemons — no Docker/Colima.
+      #
+      # Network exposure (see modules/services/{prometheus,loki}/darwin.nix
+      # for full rationale): Prometheus and Loki default to loopback-only
+      # (127.0.0.1), which is *more* restrictive than the requested
+      # 192.168.83.0/24 LAN-only requirement since Grafana/Vector run on
+      # the same host. Grafana binds all interfaces and is reachable via
+      # Tailscale. Set bindAddress on prometheus/loki explicitly to
+      # protoman's real LAN IP if cross-host access is needed later.
+      prometheus.enable = true;
+      nodeExporter.enable = true;
+      alertmanager.enable = true;
+      loki.enable = true;
+      vector.enable = true;
+      grafana.enable = true;
     };
 
   # Add MegamanX SSH key for passwordless login
