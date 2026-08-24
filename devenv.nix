@@ -8,6 +8,7 @@
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
   evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
+  openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
@@ -32,6 +33,7 @@ in {
       bfcl-eval
       bigcodebench
       evalscope
+      openai-evals
       humaneval-mbpp
 
       # Utility
@@ -767,6 +769,7 @@ in {
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
         "benchmark:evalscope-arc"
+        "benchmark:openai-evals"
         "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
@@ -1012,6 +1015,25 @@ in {
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:openai-evals" = {
+      description = "Run a quick OpenAI Evals (oaieval) smoke test against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        export OPENAI_BASE_URL="''${OPENAI_BASE_URL:-http://localhost:8300/v1}"
+        export OPENAI_API_KEY="''${OPENAI_API_KEY:-sk-local}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        EVAL="''${EVAL:-test-match}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/openai-evals}"
+
+        echo "=== OpenAI Evals ($EVAL) against $OPENAI_BASE_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+        oaieval "$MODEL" "$EVAL" --record_path "$OUTPUT_DIR/$EVAL.jsonl"
+
+        echo "Results written to $OUTPUT_DIR/$EVAL.jsonl"
       '';
     };
 
