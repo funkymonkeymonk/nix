@@ -10,6 +10,8 @@
     ../modules/common/charm.nix
     ../modules/common/syncthing.nix
     ../modules/common/zellij.nix
+    ../modules/common/claude-code.nix
+    ../modules/common/pi.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;
