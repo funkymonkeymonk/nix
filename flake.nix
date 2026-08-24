@@ -161,6 +161,12 @@
                   "olm-3.2.16"
                 ];
               }
+              ./modules/services/prometheus/darwin.nix
+              ./modules/services/node-exporter/darwin.nix
+              ./modules/services/alertmanager/darwin.nix
+              ./modules/services/loki/darwin.nix
+              ./modules/services/vector/darwin.nix
+              ./modules/services/grafana/darwin.nix
               ./hosts/darwin-server
             ];
           };
