@@ -36,6 +36,10 @@
   testLume = import ./test-lume.nix {inherit pkgs;};
   testObservability = import ./test-observability.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testLoki = import ./test-loki.nix {inherit pkgs;};
+  testVector = import ./test-vector.nix {inherit pkgs;};
+  testAlertmanager = import ./test-alertmanager.nix {inherit pkgs;};
+  testGrafana = import ./test-grafana.nix {inherit pkgs;};
   testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
@@ -280,6 +284,27 @@ in
     prometheus-custom-options = testObservability.prometheusCustomOptionsTest;
     prometheus-generated-script = testObservability.prometheusGeneratedScriptTest;
     prometheus-scrape-config = testObservability.prometheusScrapeConfigTest;
+    prometheus-alerting-config = testObservability.prometheusAlertingConfigTest;
+
+    # Loki log aggregation module tests
+    loki-options = testLoki.lokiOptionsTest;
+    loki-custom-options = testLoki.lokiCustomOptionsTest;
+    loki-generated-config = testLoki.lokiGeneratedConfigTest;
+
+    # Vector log shipper module tests
+    vector-options = testVector.vectorOptionsTest;
+    vector-custom-options = testVector.vectorCustomOptionsTest;
+    vector-generated-config = testVector.vectorGeneratedConfigTest;
+
+    # Alertmanager module tests
+    alertmanager-options = testAlertmanager.alertmanagerOptionsTest;
+    alertmanager-custom-options = testAlertmanager.alertmanagerCustomOptionsTest;
+    alertmanager-null-receiver = testAlertmanager.alertmanagerNullReceiverTest;
+
+    # Grafana module tests
+    grafana-options = testGrafana.grafanaOptionsTest;
+    grafana-custom-options = testGrafana.grafanaCustomOptionsTest;
+    grafana-datasources = testGrafana.grafanaDatasourcesTest;
 
     # LLM stack integration test
     stack-integration = testStackIntegration.stackIntegrationTest;
