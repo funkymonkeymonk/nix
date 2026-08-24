@@ -7,6 +7,7 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  swebench = pkgs.callPackage ./packages/benchmarks/swebench {};
 in {
   packages =
     devBase.packages
@@ -29,6 +30,7 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      swebench
 
       # Utility
       pkgs.rsync
@@ -751,6 +753,7 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:swebench"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -995,6 +998,50 @@ in {
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:swebench" = {
+      description = "SWE-bench packaging smoke test: verify local vllm-mlx reachability and the packaged CLI's non-Docker dataset/report commands";
+      exec = ''
+        set -euo pipefail
+
+        # SWE-bench's own CLI has no built-in "generate predictions from a
+        # model" command -- prediction generation against a local endpoint
+        # like vllm-mlx is an external, bring-your-own-agent step (e.g. an
+        # SWE-agent / mini-swe-agent / OpenHands run pointed at BASE_URL),
+        # and grading those predictions (`swebench eval`) requires Docker to
+        # build/pull per-instance images and run the real repo test suites --
+        # both out of scope for this devenv package (see
+        # packages/benchmarks/swebench). This task instead verifies the
+        # local endpoint predictions would target is reachable, and that the
+        # packaged `swebench` CLI's non-Docker subcommands (`dataset`,
+        # `report`) are wired up correctly.
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+
+        echo "=== SWE-bench packaging smoke test ==="
+        echo "Endpoint predictions would target: $BASE_URL (model: $MODEL)"
+        echo "Note: full evaluation requires Docker and an external prediction-"
+        echo "generating agent; both are out of scope here."
+        echo ""
+
+        echo "-- vllm-mlx /v1/models --"
+        curl -sf --max-time 30 "$BASE_URL/models" | jq -e '.data | length > 0'
+        echo "vllm-mlx endpoint reachable: OK"
+        echo ""
+
+        echo "-- swebench dataset --help --"
+        swebench dataset --help > /dev/null
+        echo "swebench dataset CLI OK"
+        echo ""
+
+        echo "-- swebench report --help --"
+        swebench report --help > /dev/null
+        echo "swebench report CLI OK"
+        echo ""
+
+        echo "=== SWE-bench smoke test passed ==="
       '';
     };
   };

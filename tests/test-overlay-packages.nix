@@ -117,4 +117,48 @@
       echo "bigcodebench package test passed"
       touch $out
     '';
+
+  # Test that swebench (dataset curation + non-Docker scoring CLI) builds and
+  # its `dataset` and `report` subcommands work. `eval`/`images` (Docker image
+  # build + container execution) are out of scope -- see
+  # packages/benchmarks/swebench for the scoping decision.
+  swebenchPackageTest =
+    pkgs.runCommand "test-swebench-package"
+    {
+      nativeBuildInputs = [pkgs.swebench];
+    }
+    ''
+      echo "=== Testing swebench package ==="
+
+      if command -v swebench > /dev/null 2>&1; then
+        echo "  swebench binary found: OK"
+      else
+        echo "  swebench binary NOT FOUND!"
+        exit 1
+      fi
+
+      if swebench --help > /dev/null 2>&1; then
+        echo "  swebench --help exits successfully: OK"
+      else
+        echo "  swebench --help failed!"
+        exit 1
+      fi
+
+      if swebench dataset --help > /dev/null 2>&1; then
+        echo "  swebench dataset --help exits successfully: OK"
+      else
+        echo "  swebench dataset --help failed!"
+        exit 1
+      fi
+
+      if swebench report --help > /dev/null 2>&1; then
+        echo "  swebench report --help exits successfully: OK"
+      else
+        echo "  swebench report --help failed!"
+        exit 1
+      fi
+
+      echo "swebench package test passed"
+      touch $out
+    '';
 }
