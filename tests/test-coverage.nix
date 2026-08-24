@@ -114,6 +114,10 @@
     # Tested via test-obsidian.nix (option defaults and custom values)
     "common/obsidian.nix"
     "home-manager/obsidian.nix"
+    # Tested via test-log-aggregator.nix (option defaults, enabled wiring,
+    # and type-server target wiring)
+    "nixos/vector.nix"
+    "nixos/loki.nix"
   ];
 
   # Modules not yet covered by tests
