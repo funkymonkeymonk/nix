@@ -145,4 +145,63 @@
       echo "bigcodebench package test passed"
       touch $out
     '';
+
+  # Test that humaneval-mbpp (OpenAI human-eval harness + MBPP dataset/scorer)
+  # builds and its binaries work. See packages/benchmarks/humaneval-mbpp for
+  # the rationale on bundling both benchmarks in a single derivation.
+  humanevalMbppPackageTest =
+    pkgs.runCommand "test-humaneval-mbpp-package"
+    {
+      nativeBuildInputs = [pkgs.humaneval-mbpp];
+    }
+    ''
+      echo "=== Testing humaneval-mbpp package ==="
+
+      if command -v evaluate_functional_correctness > /dev/null 2>&1; then
+        echo "  evaluate_functional_correctness binary found: OK"
+      else
+        echo "  evaluate_functional_correctness binary NOT FOUND!"
+        exit 1
+      fi
+
+      if evaluate_functional_correctness --help > /dev/null 2>&1; then
+        echo "  evaluate_functional_correctness --help exits successfully: OK"
+      else
+        echo "  evaluate_functional_correctness --help failed!"
+        exit 1
+      fi
+
+      if command -v mbpp-eval > /dev/null 2>&1; then
+        echo "  mbpp-eval binary found: OK"
+      else
+        echo "  mbpp-eval binary NOT FOUND!"
+        exit 1
+      fi
+
+      if mbpp-eval --help > /dev/null 2>&1; then
+        echo "  mbpp-eval --help exits successfully: OK"
+      else
+        echo "  mbpp-eval --help failed!"
+        exit 1
+      fi
+
+      echo "  HumanEval dataset: ${pkgs.humaneval-mbpp}/share/humaneval/HumanEval.jsonl.gz"
+      if [ -f "${pkgs.humaneval-mbpp}/share/humaneval/HumanEval.jsonl.gz" ]; then
+        echo "  HumanEval dataset present: OK"
+      else
+        echo "  HumanEval dataset MISSING!"
+        exit 1
+      fi
+
+      echo "  MBPP dataset: ${pkgs.humaneval-mbpp}/share/mbpp/mbpp.jsonl"
+      if [ -f "${pkgs.humaneval-mbpp}/share/mbpp/mbpp.jsonl" ]; then
+        echo "  MBPP dataset present: OK"
+      else
+        echo "  MBPP dataset MISSING!"
+        exit 1
+      fi
+
+      echo "humaneval-mbpp package test passed"
+      touch $out
+    '';
 }

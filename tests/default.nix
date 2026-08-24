@@ -104,6 +104,9 @@ in
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
     overlay-evalscope = testOverlayPackages.evalscopePackageTest;
 
+    # Benchmark package build tests (HumanEval + MBPP)
+    overlay-humaneval-mbpp = testOverlayPackages.humanevalMbppPackageTest;
+
     # Cross-platform option guard tests (Darwin vs Linux branches in role modules)
     cross-platform-desktop-guard = testCrossPlatformGuards.crossPlatformDesktopGuardTest;
     cross-platform-entertainment-guard = testCrossPlatformGuards.crossPlatformEntertainmentGuardTest;
