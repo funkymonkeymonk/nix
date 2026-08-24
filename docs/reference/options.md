@@ -8,7 +8,11 @@ last-reviewed: 2026-04-06
 
 # Configuration Options Reference
 
-Options are defined in `modules/common/options.nix` under the `myConfig` namespace.
+Options live under the `myConfig` namespace. Cross-cutting core options
+(`isDarwin`, `users`, `roles`) are defined in `modules/common/options.nix`;
+each other domain is declared in its owning module (e.g. `myConfig.opencode`
+in `modules/common/opencode.nix`, `myConfig.pi` in `modules/common/pi.nix`).
+
 
 ## User Configuration
 

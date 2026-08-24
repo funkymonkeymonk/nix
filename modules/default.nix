@@ -18,6 +18,13 @@
     ./common/zellij.nix
     ./common/obsidian.nix
     ./common/agent-user.nix
+    ./common/skills.nix
+    ./common/email-agent.nix
+    ./common/email-backup.nix
+    ./common/opencode.nix
+    ./common/claude-code.nix
+    ./common/pi.nix
+    ./common/service-registry.nix
 
     # Home-manager shared settings
     ./home-manager
