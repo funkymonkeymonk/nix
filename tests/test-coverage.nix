@@ -124,6 +124,11 @@
     # and type-server target wiring)
     "nixos/vector.nix"
     "nixos/loki.nix"
+    # Tested via test-nixos-observability.nix (option defaults, enabled
+    # wiring, alert rules, alertmanager routing, firewall opt-in, and
+    # type-server target wiring)
+    "nixos/prometheus.nix"
+    "nixos/alertmanager.nix"
   ];
 
   # Modules not yet covered by tests
@@ -143,7 +148,7 @@
   # after a rename/deletion so it stops actually matching a real file),
   # not to block progress. It should almost always be equal to the
   # current coveragePct, or slightly below it as a small buffer.
-  minCoveragePct = 55;
+  minCoveragePct = 64;
 in {
   moduleCoverageTest =
     pkgs.runCommand "test-module-coverage"
