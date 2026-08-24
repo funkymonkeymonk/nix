@@ -153,6 +153,12 @@
               "olm-3.2.16"
             ];
           }
+          ./modules/services/prometheus/darwin.nix
+          ./modules/services/node-exporter/darwin.nix
+          ./modules/services/alertmanager/darwin.nix
+          ./modules/services/loki/darwin.nix
+          ./modules/services/vector/darwin.nix
+          ./modules/services/grafana/darwin.nix
           ./hosts/darwin-server
         ];
       };
@@ -262,6 +268,8 @@
           ./disk-configs/single-disk-ext4.nix
           ./modules/nixos/vector.nix
           ./modules/nixos/loki.nix
+          ./modules/nixos/prometheus.nix
+          ./modules/nixos/alertmanager.nix
           {
             users.users.admin.openssh.authorizedKeys.keys = [
               "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
@@ -270,6 +278,20 @@
             # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
             myConfig.vector.enable = true;
             myConfig.loki.enable = true;
+            # Observability: Prometheus + node_exporter collect metrics,
+            # Alertmanager routes basic alerts (disk/memory/service-down).
+            # No Grafana here — see modules/nixos/prometheus.nix and the PR
+            # description for the federation decision: darwin-server's
+            # Grafana (PR #432) is intended to add this Prometheus as a
+            # second datasource over Tailscale instead of running a
+            # duplicate Grafana on type-server. openFirewallTailscale opens
+            # Prometheus's port on tailscale0 only, ahead of that follow-up.
+            myConfig.prometheus = {
+              enable = true;
+              openFirewallTailscale = true;
+            };
+            myConfig.nodeExporter.enable = true;
+            myConfig.alertmanager.enable = true;
           }
         ];
         overrides = {
@@ -432,13 +454,36 @@
             prometheus-custom-options
             prometheus-generated-script
             prometheus-scrape-config
-            vector-options
-            vector-enabled
-            vector-custom-endpoint
+            prometheus-alerting-config
             loki-options
-            loki-enabled
-            loki-firewall
+            loki-custom-options
+            loki-generated-config
+            vector-options
+            vector-custom-options
+            vector-generated-config
+            alertmanager-options
+            alertmanager-custom-options
+            alertmanager-null-receiver
+            grafana-options
+            grafana-custom-options
+            grafana-datasources
+            grafana-federated-datasource
+            nixos-vector-options
+            nixos-vector-enabled
+            nixos-vector-custom-endpoint
+            nixos-loki-options
+            nixos-loki-enabled
+            nixos-loki-firewall
             type-server-log-aggregator
+            nixos-prometheus-options
+            nixos-node-exporter-options
+            nixos-prometheus-enabled
+            nixos-prometheus-alert-rules
+            nixos-prometheus-alertmanager-wiring
+            nixos-prometheus-firewall
+            nixos-alertmanager-options
+            nixos-alertmanager-null-receiver
+            type-server-observability
             git-enable
             git-settings-exist
             git-commit-signing
