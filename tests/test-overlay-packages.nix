@@ -89,4 +89,32 @@
       echo "pi-coding-agent package test passed"
       touch $out
     '';
+
+  # Test that bigcodebench (code generation/execution benchmark) builds and
+  # its generate CLI entry point works
+  bigcodebenchPackageTest =
+    pkgs.runCommand "test-bigcodebench-package"
+    {
+      nativeBuildInputs = [pkgs.bigcodebench];
+    }
+    ''
+      echo "=== Testing bigcodebench package ==="
+
+      if command -v bigcodebench.generate > /dev/null 2>&1; then
+        echo "  bigcodebench.generate binary found: OK"
+      else
+        echo "  bigcodebench.generate binary NOT FOUND!"
+        exit 1
+      fi
+
+      if bigcodebench.generate --help > /dev/null 2>&1; then
+        echo "  bigcodebench.generate --help exits successfully: OK"
+      else
+        echo "  bigcodebench.generate --help failed!"
+        exit 1
+      fi
+
+      echo "bigcodebench package test passed"
+      touch $out
+    '';
 }
