@@ -251,12 +251,13 @@ in {
 
     "docs:all" = {
       description = "Run all documentation tasks (update + validate + generate)";
-      after = ["docs:update" "docs:validate" "docs:generate"];
+      after = ["docs:update" "docs:validate" "docs:generate" "docs:generate-options"];
       exec = "echo '✓ All documentation tasks complete'";
     };
 
     "docs:update" = {
       description = "Update and validate documentation (Diataxis)";
+      after = ["docs:generate-options"];
       exec = ''
         ./scripts/docs-update.sh
       '';
@@ -271,8 +272,18 @@ in {
 
     "docs:generate" = {
       description = "Generate reference documentation only";
+      after = ["docs:generate-options"];
       exec = ''
         ./scripts/docs-update.sh --generate-only
+      '';
+    };
+
+    "docs:generate-options" = {
+      description = "Generate docs/reference/options.md from the loaded myConfig.* option tree";
+      exec = ''
+        set -euo pipefail
+        nix eval .#lib.optionsDoc.markdown --raw > docs/reference/options.md
+        echo "✓ Generated docs/reference/options.md"
       '';
     };
 

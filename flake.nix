@@ -75,6 +75,15 @@
     inherit (nixpkgs) lib;
     libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
   in {
+    # Non-system-specific library outputs. `optionsDoc` walks the loaded
+    # `myConfig.*` option tree of every darwinConfigurations/nixosConfigurations
+    # target below and renders docs/reference/options.md — see
+    # scripts/generate-options-doc.nix for details. Consumed by the
+    # `docs:generate-options` devenv task and the `options-doc-fresh` check.
+    lib = {
+      optionsDoc = import ./scripts/generate-options-doc.nix {inherit lib self;};
+    };
+
     packages = forAllSystems (
       system: let
         pkgs = import nixpkgs {
@@ -433,6 +442,9 @@
             obsidian-options
             obsidian-custom-options
             vm-role-generator
+            options-doc-known-option
+            options-doc-submodule-recursion
+            options-doc-fresh
             ;
         }
         // nixpkgs.lib.optionalAttrs isDarwin {

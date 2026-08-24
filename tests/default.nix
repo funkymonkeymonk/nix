@@ -48,6 +48,10 @@
     else {};
   testMkUser = import ./test-mk-user.nix {inherit pkgs;};
   testFlakeModule = import ./test-flake-module.nix {inherit pkgs;};
+  testOptionsDoc =
+    if self != null
+    then import ./test-options-doc.nix {inherit pkgs self;}
+    else {};
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
   vmTests =
@@ -291,6 +295,21 @@ in
     vm-role-generator =
       if testVmRoleGenerator != {}
       then testVmRoleGenerator.vmRoleGeneratorTest
+      else null;
+
+    # Auto-generated docs/reference/options.md tests (see
+    # scripts/generate-options-doc.nix)
+    options-doc-known-option =
+      if testOptionsDoc != {}
+      then testOptionsDoc.optionsDocKnownOptionTest
+      else null;
+    options-doc-submodule-recursion =
+      if testOptionsDoc != {}
+      then testOptionsDoc.optionsDocSubmoduleRecursionTest
+      else null;
+    options-doc-fresh =
+      if testOptionsDoc != {}
+      then testOptionsDoc.optionsDocFreshTest
       else null;
   }
   // vmTests
