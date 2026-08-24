@@ -7,7 +7,10 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
+  openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
   swebench = pkgs.callPackage ./packages/benchmarks/swebench {};
+  humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
     devBase.packages
@@ -30,7 +33,10 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      evalscope
+      openai-evals
       swebench
+      humaneval-mbpp
 
       # Utility
       pkgs.rsync
@@ -253,12 +259,13 @@ in {
 
     "docs:all" = {
       description = "Run all documentation tasks (update + validate + generate)";
-      after = ["docs:update" "docs:validate" "docs:generate"];
+      after = ["docs:update" "docs:validate" "docs:generate" "docs:generate-options"];
       exec = "echo '✓ All documentation tasks complete'";
     };
 
     "docs:update" = {
       description = "Update and validate documentation (Diataxis)";
+      after = ["docs:generate-options"];
       exec = ''
         ./scripts/docs-update.sh
       '';
@@ -273,8 +280,18 @@ in {
 
     "docs:generate" = {
       description = "Generate reference documentation only";
+      after = ["docs:generate-options"];
       exec = ''
         ./scripts/docs-update.sh --generate-only
+      '';
+    };
+
+    "docs:generate-options" = {
+      description = "Generate docs/reference/options.md from the loaded myConfig.* option tree";
+      exec = ''
+        set -euo pipefail
+        nix eval .#lib.optionsDoc.markdown --raw > docs/reference/options.md
+        echo "✓ Generated docs/reference/options.md"
       '';
     };
 
@@ -753,7 +770,10 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:evalscope-arc"
+        "benchmark:openai-evals"
         "benchmark:swebench"
+        "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -1001,47 +1021,109 @@ in {
       '';
     };
 
-    "benchmark:swebench" = {
-      description = "SWE-bench packaging smoke test: verify local vllm-mlx reachability and the packaged CLI's non-Docker dataset/report commands";
+    "benchmark:openai-evals" = {
+      description = "Run a quick OpenAI Evals (oaieval) smoke test against local vllm-mlx";
       exec = ''
         set -euo pipefail
 
-        # SWE-bench's own CLI has no built-in "generate predictions from a
-        # model" command -- prediction generation against a local endpoint
-        # like vllm-mlx is an external, bring-your-own-agent step (e.g. an
-        # SWE-agent / mini-swe-agent / OpenHands run pointed at BASE_URL),
-        # and grading those predictions (`swebench eval`) requires Docker to
-        # build/pull per-instance images and run the real repo test suites --
-        # both out of scope for this devenv package (see
-        # packages/benchmarks/swebench). This task instead verifies the
-        # local endpoint predictions would target is reachable, and that the
-        # packaged `swebench` CLI's non-Docker subcommands (`dataset`,
-        # `report`) are wired up correctly.
+        export OPENAI_BASE_URL="''${OPENAI_BASE_URL:-http://localhost:8300/v1}"
+        export OPENAI_API_KEY="''${OPENAI_API_KEY:-sk-local}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        EVAL="''${EVAL:-test-match}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/openai-evals}"
+
+        echo "=== OpenAI Evals ($EVAL) against $OPENAI_BASE_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+        oaieval "$MODEL" "$EVAL" --record_path "$OUTPUT_DIR/$EVAL.jsonl"
+
+        echo "Results written to $OUTPUT_DIR/$EVAL.jsonl"
+      '';
+    };
+
+    "benchmark:swebench" = {
+      description = "SWE-bench CLI smoke test against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1}"
         MODEL="''${MODEL:-qwen3.8-27b}"
+        echo "=== SWE-bench against $BASE_URL (model: $MODEL) ==="
+        curl -sf --max-time 30 "$BASE_URL/models" | jq -e '.data | length > 0' >/dev/null
+        swebench dataset --help >/dev/null
+        swebench report --help >/dev/null
+        echo "SWE-bench smoke test passed"
+      '';
+    };
 
-        echo "=== SWE-bench packaging smoke test ==="
-        echo "Endpoint predictions would target: $BASE_URL (model: $MODEL)"
-        echo "Note: full evaluation requires Docker and an external prediction-"
-        echo "generating agent; both are out of scope here."
+    # HumanEval ships its own harness (evaluate_functional_correctness);
+    # MBPP has no upstream harness so it is scored with the packaged
+    # mbpp-eval scorer. Both are driven directly against the local
+    # vllm-mlx completions endpoint via curl+jq since neither benchmark
+    # needs a heavyweight framework for a quick smoke run.
+    "benchmark:humaneval-mbpp" = {
+      description = "Quick HumanEval + MBPP code-generation smoke benchmark against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        LIMIT="''${LIMIT:-5}"
+        MAX_TOKENS="''${MAX_TOKENS:-256}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/humaneval-mbpp}"
+
+        echo "=== HumanEval + MBPP smoke benchmark against $BASE_URL (model: $MODEL, limit: $LIMIT each) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        PKG_ROOT="$(dirname "$(dirname "$(command -v evaluate_functional_correctness)")")"
+
+        gzip -dc "$PKG_ROOT/share/humaneval/HumanEval.jsonl.gz" > "$OUTPUT_DIR/HumanEval.full.jsonl"
+        head -n "$LIMIT" "$OUTPUT_DIR/HumanEval.full.jsonl" > "$OUTPUT_DIR/HumanEval.jsonl"
+
         echo ""
+        echo "-- HumanEval: generating $LIMIT completions --"
+        : > "$OUTPUT_DIR/humaneval-samples.jsonl"
+        while IFS= read -r problem; do
+          task_id=$(jq -r '.task_id' <<< "$problem")
+          prompt=$(jq -r '.prompt' <<< "$problem")
+          payload=$(jq -n --arg model "$MODEL" --arg prompt "$prompt" --argjson max_tokens "$MAX_TOKENS" \
+            '{model: $model, prompt: $prompt, max_tokens: $max_tokens, temperature: 0, stop: ["\ndef ", "\nclass ", "\nif __name__", "\nprint("]}')
+          completion=$(curl -sf --max-time 120 "$BASE_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload" | jq -r '.choices[0].text // ""')
+          jq -n --arg task_id "$task_id" --arg completion "$completion" \
+            '{task_id: $task_id, completion: $completion}' >> "$OUTPUT_DIR/humaneval-samples.jsonl"
+          echo "  generated: $task_id"
+        done < "$OUTPUT_DIR/HumanEval.jsonl"
 
-        echo "-- vllm-mlx /v1/models --"
-        curl -sf --max-time 30 "$BASE_URL/models" | jq -e '.data | length > 0'
-        echo "vllm-mlx endpoint reachable: OK"
         echo ""
+        echo "-- HumanEval: scoring (pass@1) --"
+        evaluate_functional_correctness "$OUTPUT_DIR/humaneval-samples.jsonl" \
+          --problem_file "$OUTPUT_DIR/HumanEval.jsonl" \
+          --k 1
 
-        echo "-- swebench dataset --help --"
-        swebench dataset --help > /dev/null
-        echo "swebench dataset CLI OK"
         echo ""
+        echo "-- MBPP: generating $LIMIT completions --"
+        head -n "$LIMIT" "$PKG_ROOT/share/mbpp/mbpp.jsonl" > "$OUTPUT_DIR/mbpp.jsonl"
+        : > "$OUTPUT_DIR/mbpp-samples.jsonl"
+        while IFS= read -r problem; do
+          task_id=$(jq -r '.task_id' <<< "$problem")
+          text=$(jq -r '.text' <<< "$problem")
+          prompt=$(printf '"""\n%s\n"""\n' "$text")
+          payload=$(jq -n --arg model "$MODEL" --arg prompt "$prompt" --argjson max_tokens "$MAX_TOKENS" \
+            '{model: $model, prompt: $prompt, max_tokens: $max_tokens, temperature: 0, stop: ["\n\"\"\"", "\nclass ", "\nprint("]}')
+          completion=$(curl -sf --max-time 120 "$BASE_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload" | jq -r '.choices[0].text // ""')
+          jq -n --argjson task_id "$task_id" --arg completion "$completion" \
+            '{task_id: $task_id, completion: $completion}' >> "$OUTPUT_DIR/mbpp-samples.jsonl"
+          echo "  generated: task $task_id"
+        done < "$OUTPUT_DIR/mbpp.jsonl"
 
-        echo "-- swebench report --help --"
-        swebench report --help > /dev/null
-        echo "swebench report CLI OK"
         echo ""
+        echo "-- MBPP: scoring (pass@1) --"
+        mbpp-eval --samples "$OUTPUT_DIR/mbpp-samples.jsonl" --dataset "$PKG_ROOT/share/mbpp/mbpp.jsonl"
 
-        echo "=== SWE-bench smoke test passed ==="
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
       '';
     };
   };

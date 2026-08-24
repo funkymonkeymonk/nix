@@ -63,6 +63,34 @@
       touch $out
     '';
 
+  # Test that evalscope (ModelScope EvalScope LLM eval CLI) builds and its
+  # binary works
+  evalscopePackageTest =
+    pkgs.runCommand "test-evalscope-package"
+    {
+      nativeBuildInputs = [pkgs.evalscope];
+    }
+    ''
+      echo "=== Testing evalscope package ==="
+
+      if command -v evalscope > /dev/null 2>&1; then
+        echo "  evalscope binary found: OK"
+      else
+        echo "  evalscope binary NOT FOUND!"
+        exit 1
+      fi
+
+      if evalscope --help > /dev/null 2>&1; then
+        echo "  evalscope --help exits successfully: OK"
+      else
+        echo "  evalscope --help failed!"
+        exit 1
+      fi
+
+      echo "evalscope package test passed"
+      touch $out
+    '';
+
   # Test that pi-coding-agent (pi CLI) builds and its binary works
   piCodingAgentPackageTest =
     pkgs.runCommand "test-pi-coding-agent-package"
@@ -118,47 +146,48 @@
       touch $out
     '';
 
-  # Test that swebench (dataset curation + non-Docker scoring CLI) builds and
-  # its `dataset` and `report` subcommands work. `eval`/`images` (Docker image
-  # build + container execution) are out of scope -- see
-  # packages/benchmarks/swebench for the scoping decision.
+  # Test that openai-evals (OpenAI's `evals` framework) builds and its
+  # `oaieval` CLI entry point works
+  openaiEvalsPackageTest =
+    pkgs.runCommand "test-openai-evals-package"
+    {
+      nativeBuildInputs = [pkgs.openai-evals];
+      # evals/registry.py instantiates an OpenAI() client at module import
+      # time, which requires an API key present in the environment even
+      # just to import the module (see the package's comment on
+      # env.OPENAI_API_KEY).
+      OPENAI_API_KEY = "sk-test-dummy";
+    }
+    ''
+      echo "=== Testing openai-evals package ==="
+
+      if command -v oaieval > /dev/null 2>&1; then
+        echo "  oaieval binary found: OK"
+      else
+        echo "  oaieval binary NOT FOUND!"
+        exit 1
+      fi
+
+      if oaieval --help > /dev/null 2>&1; then
+        echo "  oaieval --help exits successfully: OK"
+      else
+        echo "  oaieval --help failed!"
+        exit 1
+      fi
+
+      echo "openai-evals package test passed"
+      touch $out
+    '';
+
   swebenchPackageTest =
     pkgs.runCommand "test-swebench-package"
     {
       nativeBuildInputs = [pkgs.swebench];
     }
     ''
-      echo "=== Testing swebench package ==="
-
-      if command -v swebench > /dev/null 2>&1; then
-        echo "  swebench binary found: OK"
-      else
-        echo "  swebench binary NOT FOUND!"
-        exit 1
-      fi
-
-      if swebench --help > /dev/null 2>&1; then
-        echo "  swebench --help exits successfully: OK"
-      else
-        echo "  swebench --help failed!"
-        exit 1
-      fi
-
-      if swebench dataset --help > /dev/null 2>&1; then
-        echo "  swebench dataset --help exits successfully: OK"
-      else
-        echo "  swebench dataset --help failed!"
-        exit 1
-      fi
-
-      if swebench report --help > /dev/null 2>&1; then
-        echo "  swebench report --help exits successfully: OK"
-      else
-        echo "  swebench report --help failed!"
-        exit 1
-      fi
-
-      echo "swebench package test passed"
+      swebench --help >/dev/null
+      swebench dataset --help >/dev/null
+      swebench report --help >/dev/null
       touch $out
     '';
 }
