@@ -5,6 +5,7 @@
 
   stubModules = [
     ../modules/common/options.nix
+    ../modules/common/claude-code.nix
     {
       options.nixpkgs.hostPlatform = lib.mkOption {
         type = lib.types.anything;

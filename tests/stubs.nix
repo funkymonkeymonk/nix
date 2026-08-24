@@ -189,6 +189,13 @@ in rec {
     ../modules/common/syncthing.nix
     ../modules/common/zellij.nix
     ../modules/common/obsidian.nix
+    ../modules/common/skills.nix
+    ../modules/common/email-agent.nix
+    ../modules/common/email-backup.nix
+    ../modules/common/opencode.nix
+    ../modules/common/claude-code.nix
+    ../modules/common/pi.nix
+    ../modules/common/service-registry.nix
     hostPlatformStub
     envStub
     broadStub
