@@ -7,6 +7,7 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
@@ -30,6 +31,7 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      evalscope
       humaneval-mbpp
 
       # Utility
@@ -764,6 +766,7 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:evalscope-arc"
         "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";

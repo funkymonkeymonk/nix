@@ -101,11 +101,12 @@ in
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
 
-    # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench)
+    # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
     overlay-rtk = testOverlayPackages.rtkPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
+    overlay-evalscope = testOverlayPackages.evalscopePackageTest;
 
     # Benchmark package build tests (HumanEval + MBPP)
     overlay-humaneval-mbpp = testOverlayPackages.humanevalMbppPackageTest;
