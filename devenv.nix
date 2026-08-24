@@ -7,6 +7,7 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
     devBase.packages
@@ -29,6 +30,7 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      humaneval-mbpp
 
       # Utility
       pkgs.rsync
@@ -762,6 +764,7 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -1003,6 +1006,79 @@ in {
           --root "$OUTPUT_DIR" \
           --greedy \
           --id_range "$ID_RANGE"
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    # HumanEval ships its own harness (evaluate_functional_correctness);
+    # MBPP has no upstream harness so it is scored with the packaged
+    # mbpp-eval scorer. Both are driven directly against the local
+    # vllm-mlx completions endpoint via curl+jq since neither benchmark
+    # needs a heavyweight framework for a quick smoke run.
+    "benchmark:humaneval-mbpp" = {
+      description = "Quick HumanEval + MBPP code-generation smoke benchmark against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        LIMIT="''${LIMIT:-5}"
+        MAX_TOKENS="''${MAX_TOKENS:-256}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/humaneval-mbpp}"
+
+        echo "=== HumanEval + MBPP smoke benchmark against $BASE_URL (model: $MODEL, limit: $LIMIT each) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        PKG_ROOT="$(dirname "$(dirname "$(command -v evaluate_functional_correctness)")")"
+
+        gzip -dc "$PKG_ROOT/share/humaneval/HumanEval.jsonl.gz" > "$OUTPUT_DIR/HumanEval.full.jsonl"
+        head -n "$LIMIT" "$OUTPUT_DIR/HumanEval.full.jsonl" > "$OUTPUT_DIR/HumanEval.jsonl"
+
+        echo ""
+        echo "-- HumanEval: generating $LIMIT completions --"
+        : > "$OUTPUT_DIR/humaneval-samples.jsonl"
+        while IFS= read -r problem; do
+          task_id=$(jq -r '.task_id' <<< "$problem")
+          prompt=$(jq -r '.prompt' <<< "$problem")
+          payload=$(jq -n --arg model "$MODEL" --arg prompt "$prompt" --argjson max_tokens "$MAX_TOKENS" \
+            '{model: $model, prompt: $prompt, max_tokens: $max_tokens, temperature: 0, stop: ["\ndef ", "\nclass ", "\nif __name__", "\nprint("]}')
+          completion=$(curl -sf --max-time 120 "$BASE_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload" | jq -r '.choices[0].text // ""')
+          jq -n --arg task_id "$task_id" --arg completion "$completion" \
+            '{task_id: $task_id, completion: $completion}' >> "$OUTPUT_DIR/humaneval-samples.jsonl"
+          echo "  generated: $task_id"
+        done < "$OUTPUT_DIR/HumanEval.jsonl"
+
+        echo ""
+        echo "-- HumanEval: scoring (pass@1) --"
+        evaluate_functional_correctness "$OUTPUT_DIR/humaneval-samples.jsonl" \
+          --problem_file "$OUTPUT_DIR/HumanEval.jsonl" \
+          --k 1
+
+        echo ""
+        echo "-- MBPP: generating $LIMIT completions --"
+        head -n "$LIMIT" "$PKG_ROOT/share/mbpp/mbpp.jsonl" > "$OUTPUT_DIR/mbpp.jsonl"
+        : > "$OUTPUT_DIR/mbpp-samples.jsonl"
+        while IFS= read -r problem; do
+          task_id=$(jq -r '.task_id' <<< "$problem")
+          text=$(jq -r '.text' <<< "$problem")
+          prompt=$(printf '"""\n%s\n"""\n' "$text")
+          payload=$(jq -n --arg model "$MODEL" --arg prompt "$prompt" --argjson max_tokens "$MAX_TOKENS" \
+            '{model: $model, prompt: $prompt, max_tokens: $max_tokens, temperature: 0, stop: ["\n\"\"\"", "\nclass ", "\nprint("]}')
+          completion=$(curl -sf --max-time 120 "$BASE_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload" | jq -r '.choices[0].text // ""')
+          jq -n --argjson task_id "$task_id" --arg completion "$completion" \
+            '{task_id: $task_id, completion: $completion}' >> "$OUTPUT_DIR/mbpp-samples.jsonl"
+          echo "  generated: task $task_id"
+        done < "$OUTPUT_DIR/mbpp.jsonl"
+
+        echo ""
+        echo "-- MBPP: scoring (pass@1) --"
+        mbpp-eval --samples "$OUTPUT_DIR/mbpp-samples.jsonl" --dataset "$PKG_ROOT/share/mbpp/mbpp.jsonl"
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
