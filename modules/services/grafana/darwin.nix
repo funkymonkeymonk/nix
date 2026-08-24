@@ -4,6 +4,19 @@
 # server whose only network path in from outside the LAN is the tailnet —
 # see PR description for the full rationale).
 #
+# FEDERATION: type-server (a NixOS host, see modules/nixos/prometheus.nix)
+# runs its own Prometheus + node_exporter + Alertmanager but deliberately
+# has no Grafana of its own. Set `typeServerPrometheusUrl` to add
+# type-server's Prometheus as a second datasource here instead of running a
+# duplicate Grafana — this Prometheus instance opens its port on the
+# tailscale0 interface only (myConfig.prometheus.openFirewallTailscale on
+# type-server), so the URL should point at type-server's Tailscale
+# MagicDNS name (e.g. "http://type-server.<tailnet>.ts.net:9090"). Left
+# null by default: this module has no access to the real tailnet name at
+# eval time, and guessing one felt worse than leaving it as an explicit
+# TBD for a human to set once type-server is deployed and its Tailscale
+# name is known.
+#
 # OPEN ITEM: Grafana admin credentials are left at Grafana's built-in
 # default (admin/admin, forced change on first login) since no secret
 # management has been wired up for this service yet. Wiring a real admin
@@ -27,21 +40,28 @@
 
   datasourcesYml = pkgs.writeText "datasources.yml" (builtins.toJSON {
     apiVersion = 1;
-    datasources = [
-      {
-        name = "Prometheus";
+    datasources =
+      [
+        {
+          name = "Prometheus";
+          type = "prometheus";
+          access = "proxy";
+          url = prometheusUrl;
+          isDefault = true;
+        }
+        {
+          name = "Loki";
+          type = "loki";
+          access = "proxy";
+          url = lokiUrl;
+        }
+      ]
+      ++ lib.optional (cfg.typeServerPrometheusUrl != null) {
+        name = "Prometheus (type-server)";
         type = "prometheus";
         access = "proxy";
-        url = prometheusUrl;
-        isDefault = true;
-      }
-      {
-        name = "Loki";
-        type = "loki";
-        access = "proxy";
-        url = lokiUrl;
-      }
-    ];
+        url = cfg.typeServerPrometheusUrl;
+      };
   });
 
   systemOverviewDashboard = pkgs.writeText "system-overview.json" (builtins.toJSON {
@@ -198,6 +218,20 @@ in {
       type = lib.types.str;
       default = "${darwinHomeDir}/Library/Application Support/Grafana";
       description = "Directory for Grafana's sqlite database, logs, and plugins";
+    };
+
+    typeServerPrometheusUrl = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        URL of type-server's Prometheus instance (see
+        modules/nixos/prometheus.nix), reachable over Tailscale. When set,
+        adds a second "Prometheus (type-server)" datasource here instead of
+        running a duplicate Grafana on type-server. Genuinely TBD as of
+        this option's introduction — type-server's real Tailscale
+        MagicDNS name isn't known at eval time. Example:
+        "http://type-server.<tailnet>.ts.net:9090".
+      '';
     };
   };
 
