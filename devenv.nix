@@ -7,6 +7,7 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
 in {
   packages =
     devBase.packages
@@ -29,6 +30,7 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      openai-evals
 
       # Utility
       pkgs.rsync
@@ -751,6 +753,7 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:openai-evals"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
     };
@@ -995,6 +998,33 @@ in {
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:openai-evals" = {
+      description = "Run a quick OpenAI Evals (oaieval) smoke test against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        # oaieval delegates to the openai python client, which reads
+        # OPENAI_BASE_URL / OPENAI_API_KEY when no explicit base_url/api_key
+        # is configured on the completion_fn — pointing it at local
+        # OpenAI-compatible endpoints like vllm-mlx needs no registry
+        # changes.
+        export OPENAI_BASE_URL="''${OPENAI_BASE_URL:-http://localhost:8300/v1}"
+        export OPENAI_API_KEY="''${OPENAI_API_KEY:-sk-local}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        EVAL="''${EVAL:-test-match}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/openai-evals}"
+
+        echo "=== OpenAI Evals ($EVAL) against $OPENAI_BASE_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+
+        oaieval "$MODEL" "$EVAL" \
+          --record_path "$OUTPUT_DIR/$EVAL.jsonl"
+
+        echo ""
+        echo "Results written to $OUTPUT_DIR/$EVAL.jsonl"
       '';
     };
   };

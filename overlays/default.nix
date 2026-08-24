@@ -10,6 +10,7 @@
   lighteval = final.callPackage ../packages/benchmarks/lighteval {};
   bfcl-eval = final.callPackage ../packages/benchmarks/bfcl {};
   bigcodebench = final.callPackage ../packages/benchmarks/bigcodebench {};
+  openai-evals = final.callPackage ../packages/benchmarks/openai-evals {};
   mlx-audio = final.callPackage ../packages/mlx-audio {};
   mlx-lm = final.callPackage ../packages/mlx-lm {};
   mlx-vlm = final.callPackage ../packages/mlx-vlm {};

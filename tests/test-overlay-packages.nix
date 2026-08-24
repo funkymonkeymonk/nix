@@ -117,4 +117,37 @@
       echo "bigcodebench package test passed"
       touch $out
     '';
+
+  # Test that openai-evals (OpenAI's `evals` framework) builds and its
+  # `oaieval` CLI entry point works
+  openaiEvalsPackageTest =
+    pkgs.runCommand "test-openai-evals-package"
+    {
+      nativeBuildInputs = [pkgs.openai-evals];
+      # evals/registry.py instantiates an OpenAI() client at module import
+      # time, which requires an API key present in the environment even
+      # just to import the module (see the package's comment on
+      # env.OPENAI_API_KEY).
+      OPENAI_API_KEY = "sk-test-dummy";
+    }
+    ''
+      echo "=== Testing openai-evals package ==="
+
+      if command -v oaieval > /dev/null 2>&1; then
+        echo "  oaieval binary found: OK"
+      else
+        echo "  oaieval binary NOT FOUND!"
+        exit 1
+      fi
+
+      if oaieval --help > /dev/null 2>&1; then
+        echo "  oaieval --help exits successfully: OK"
+      else
+        echo "  oaieval --help failed!"
+        exit 1
+      fi
+
+      echo "openai-evals package test passed"
+      touch $out
+    '';
 }
