@@ -36,6 +36,20 @@
         default = 8300;
       };
     };
+    options.myConfig.alertmanager = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+      };
+      port = lib.mkOption {
+        type = lib.types.port;
+        default = 9093;
+      };
+      bindAddress = lib.mkOption {
+        type = lib.types.str;
+        default = "127.0.0.1";
+      };
+    };
   };
 
   nodeExporterDefaults =
@@ -79,6 +93,7 @@
               enable = true;
               port = 9091;
               retention = "24h";
+              bindAddress = "192.168.83.20";
             };
             config.myConfig.nodeExporter.port = 9101;
           }
@@ -146,6 +161,12 @@ in {
       else ''echo "  retention should default to 7d!"; exit 1''
     }
 
+    ${
+      if prometheusDefaults.bindAddress == "127.0.0.1"
+      then ''echo "  bindAddress default = 127.0.0.1 (loopback-only, safe default): OK"''
+      else ''echo "  bindAddress should default to 127.0.0.1!"; exit 1''
+    }
+
     echo "All Prometheus option defaults verified"
     touch $out
   '';
@@ -171,6 +192,12 @@ in {
       else ''echo "  retention should be 24h!"; exit 1''
     }
 
+    ${
+      if prometheusCustom.myConfig.prometheus.bindAddress == "192.168.83.20"
+      then ''echo "  bindAddress = 192.168.83.20: OK"''
+      else ''echo "  bindAddress should be 192.168.83.20!"; exit 1''
+    }
+
     echo "All Prometheus custom options verified"
     touch $out
   '';
@@ -183,10 +210,10 @@ in {
 
     SCRIPT=${prometheusEnabledScript}
 
-    if grep -q -- '--web.listen-address=0.0.0.0:9091' "$SCRIPT"; then
-      echo "  listen address derived from port (0.0.0.0:9091): OK"
+    if grep -q -- '--web.listen-address=192.168.83.20:9091' "$SCRIPT"; then
+      echo "  listen address derived from bindAddress+port (192.168.83.20:9091): OK"
     else
-      echo "  FAIL: script should listen on 0.0.0.0:9091"; exit 1
+      echo "  FAIL: script should listen on 192.168.83.20:9091"; exit 1
     fi
 
     if grep -q -- '--storage.tsdb.retention.time 24h' "$SCRIPT"; then
@@ -226,6 +253,37 @@ in {
     fi
 
     echo "All Prometheus scrape config tests passed"
+    touch $out
+  '';
+
+  # Verify Prometheus wires up basic alert rules and points to Alertmanager
+  # using the configured Alertmanager bindAddress/port (not hardcoded).
+  prometheusAlertingConfigTest = pkgs.runCommand "test-prometheus-alerting-config" {} ''
+    echo "=== Testing Prometheus Alerting Config ==="
+
+    SCRIPT=${prometheusEnabledScript}
+    CONFIG=$(grep -o -- '--config.file /nix/store/[^ ]*' "$SCRIPT" | head -1 | cut -d' ' -f2)
+
+    if grep -q '"targets":\["127.0.0.1:9093"\]' "$CONFIG"; then
+      echo "  alertmanagers static config targets 127.0.0.1:9093: OK"
+    else
+      echo "  FAIL: alertmanagers static config should target 127.0.0.1:9093"; exit 1
+    fi
+
+    RULE_FILE=$(grep -o '"rule_files":\["[^"]*"\]' "$CONFIG" | grep -o '/nix/store/[^"]*')
+    if [ -n "$RULE_FILE" ] && [ -f "$RULE_FILE" ]; then
+      echo "  rule_files references an existing file: OK"
+    else
+      echo "  FAIL: rule_files should reference an existing alert rules file"; exit 1
+    fi
+
+    if grep -q '"alert":"PrometheusTargetDown"' "$RULE_FILE"; then
+      echo "  basic PrometheusTargetDown alert rule present: OK"
+    else
+      echo "  FAIL: rule file should define a PrometheusTargetDown alert"; exit 1
+    fi
+
+    echo "All Prometheus alerting config tests passed"
     touch $out
   '';
 }

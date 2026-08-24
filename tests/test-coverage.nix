@@ -93,6 +93,26 @@
     # Tested via test-stack-integration.nix (LLM stack composition)
     "services/bifrost/darwin.nix"
     "services/caddy/darwin.nix"
+    # Tested via test-searxng.nix (option defaults and custom values)
+    "services/searxng/darwin.nix"
+    # Tested via test-lume.nix (option defaults and custom values)
+    "services/lume/darwin.nix"
+    # Tested via test-observability.nix (option defaults, custom values,
+    # generated script/scrape-config/alerting-config assertions)
+    "services/prometheus/darwin.nix"
+    "services/node-exporter/darwin.nix"
+    # Tested via test-loki.nix (option defaults, custom values, generated
+    # config assertions)
+    "services/loki/darwin.nix"
+    # Tested via test-vector.nix (option defaults, custom values, generated
+    # config assertions)
+    "services/vector/darwin.nix"
+    # Tested via test-alertmanager.nix (option defaults, custom values,
+    # null-receiver placeholder assertions)
+    "services/alertmanager/darwin.nix"
+    # Tested via test-grafana.nix (option defaults, custom values,
+    # datasource/dashboard provisioning assertions)
+    "services/grafana/darwin.nix"
     # Tested via test-home-manager.nix (opencode, shell aliases)
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"

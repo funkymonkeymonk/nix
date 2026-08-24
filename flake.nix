@@ -162,6 +162,12 @@
               "olm-3.2.16"
             ];
           }
+          ./modules/services/prometheus/darwin.nix
+          ./modules/services/node-exporter/darwin.nix
+          ./modules/services/alertmanager/darwin.nix
+          ./modules/services/loki/darwin.nix
+          ./modules/services/vector/darwin.nix
+          ./modules/services/grafana/darwin.nix
           ./hosts/darwin-server
         ];
       };
@@ -440,10 +446,21 @@
             prometheus-custom-options
             prometheus-generated-script
             prometheus-scrape-config
+            prometheus-alerting-config
+            loki-options
+            loki-custom-options
+            loki-generated-config
             vector-options
+            vector-custom-options
+            vector-generated-config
+            alertmanager-options
+            alertmanager-custom-options
+            alertmanager-null-receiver
+            grafana-options
+            grafana-custom-options
+            grafana-datasources
             vector-enabled
             vector-custom-endpoint
-            loki-options
             loki-enabled
             loki-firewall
             type-server-log-aggregator
