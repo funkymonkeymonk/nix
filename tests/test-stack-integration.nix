@@ -33,6 +33,7 @@
     modules = [
       stackModule
       ../modules/common/options.nix
+      ../modules/common/service-registry.nix
       {
         # Stubs for options referenced by service modules
         options.environment = {

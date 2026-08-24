@@ -3,8 +3,8 @@
   # removed entirely — nix-darwin's built-in activation handles service
   # loading/unloading. The custom script was fighting with nix-darwin's
   # reload logic and causing hangs during switch. myConfig.serviceRegistry
-  # (used for port-conflict detection) is unrelated and still lives in
-  # modules/common/options.nix.
+  # (used for port-conflict detection) is unrelated and lives in
+  # modules/common/service-registry.nix.
 
   # Disable nix-darwin documentation generation to speed up eval.
   # The docs require re-evaluating the entire config with scrubbed
