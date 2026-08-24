@@ -28,6 +28,28 @@
     }).config;
 
   grafanaEnabledScript = grafanaCustom.launchd.daemons.grafana.command;
+
+  # Federation: type-server (a NixOS host) runs its own Prometheus +
+  # node_exporter + Alertmanager but no Grafana of its own (see
+  # modules/nixos/prometheus.nix and this PR's description for the
+  # decision). Instead, darwin-server's Grafana can add type-server's
+  # Prometheus as a second datasource over Tailscale.
+  grafanaFederated =
+    (lib.evalModules {
+      modules =
+        stubs.grafana
+        ++ [
+          {
+            config.myConfig.users = [{name = "monkey";}];
+            config.myConfig.grafana = {
+              enable = true;
+              typeServerPrometheusUrl = "http://type-server.tailnet.ts.net:9090";
+            };
+          }
+        ];
+    }).config;
+
+  grafanaFederatedScript = grafanaFederated.launchd.daemons.grafana.command;
 in {
   grafanaOptionsTest = pkgs.runCommand "test-grafana-options" {} ''
     echo "=== Testing Grafana Option Defaults ==="
@@ -104,6 +126,47 @@ in {
     fi
 
     echo "All Grafana datasource provisioning tests passed"
+    touch $out
+  '';
+
+  # Federated type-server Prometheus datasource: off by default (no known
+  # Tailscale address to guess), addable via typeServerPrometheusUrl.
+  grafanaFederatedDatasourceTest = pkgs.runCommand "test-grafana-federated-datasource" {} ''
+    echo "=== Testing Grafana Federated type-server Datasource ==="
+
+    ${
+      if grafanaDefaults.typeServerPrometheusUrl == null
+      then ''echo "  typeServerPrometheusUrl default = null (no federation until configured): OK"''
+      else ''echo "  FAIL: typeServerPrometheusUrl should default to null"; exit 1''
+    }
+
+    DEFAULT_SCRIPT=${grafanaCustom.launchd.daemons.grafana.command}
+    DEFAULT_INI=$(grep -o -- '--config /nix/store/[^ ]*' "$DEFAULT_SCRIPT" | head -1 | cut -d' ' -f2)
+    DEFAULT_PROVISIONING=$(grep -o 'provisioning = /nix/store/[^ ]*' "$DEFAULT_INI" | head -1 | cut -d' ' -f3)
+
+    if grep -rq 'type-server' "$DEFAULT_PROVISIONING/datasources"; then
+      echo "  FAIL: no type-server datasource should be provisioned when typeServerPrometheusUrl is null"; exit 1
+    else
+      echo "  no type-server datasource provisioned by default: OK"
+    fi
+
+    FED_SCRIPT=${grafanaFederatedScript}
+    FED_INI=$(grep -o -- '--config /nix/store/[^ ]*' "$FED_SCRIPT" | head -1 | cut -d' ' -f2)
+    FED_PROVISIONING=$(grep -o 'provisioning = /nix/store/[^ ]*' "$FED_INI" | head -1 | cut -d' ' -f3)
+
+    if grep -rq '"url":"http://type-server.tailnet.ts.net:9090"' "$FED_PROVISIONING/datasources"; then
+      echo "  federated type-server Prometheus datasource url wired: OK"
+    else
+      echo "  FAIL: federated datasource should target http://type-server.tailnet.ts.net:9090"; exit 1
+    fi
+
+    if grep -rq '"name":"Prometheus (type-server)"' "$FED_PROVISIONING/datasources"; then
+      echo "  federated datasource named 'Prometheus (type-server)': OK"
+    else
+      echo "  FAIL: federated datasource should be named 'Prometheus (type-server)'"; exit 1
+    fi
+
+    echo "All Grafana federated datasource tests passed"
     touch $out
   '';
 }
