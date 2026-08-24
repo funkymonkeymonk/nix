@@ -1004,6 +1004,21 @@ in {
       '';
     };
 
+    "benchmark:evalscope-arc" = {
+      description = "Quick EvalScope ARC smoke benchmark against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+        API_URL="''${API_URL:-http://localhost:8300/v1/chat/completions}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        LIMIT="''${LIMIT:-10}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/evalscope-arc}"
+        mkdir -p "$OUTPUT_DIR"
+        evalscope eval --model "$MODEL" --api-url "$API_URL" --api-key EMPTY \
+          --eval-type openai_api --datasets arc --limit "$LIMIT" \
+          --work-dir "$OUTPUT_DIR" --no-timestamp
+      '';
+    };
+
     # HumanEval ships its own harness (evaluate_functional_correctness);
     # MBPP has no upstream harness so it is scored with the packaged
     # mbpp-eval scorer. Both are driven directly against the local
