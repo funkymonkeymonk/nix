@@ -83,7 +83,7 @@
         };
       in
         {
-          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench;
+          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench humaneval-mbpp;
           inherit (inputs.devenv.packages.${system}) devenv;
           installer = pkgs.callPackage ./packages/installer {};
         }
@@ -372,6 +372,7 @@
             overlay-yaks
             overlay-pi-coding-agent
             overlay-bigcodebench
+            overlay-humaneval-mbpp
             cross-platform-desktop-guard
             cross-platform-entertainment-guard
             cross-platform-creative-control

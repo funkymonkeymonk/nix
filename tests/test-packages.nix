@@ -86,6 +86,12 @@
         ../modules/common/syncthing.nix
         ../modules/common/zellij.nix
         ../modules/common/obsidian.nix
+        ../modules/common/skills.nix
+        ../modules/common/opencode.nix
+        ../modules/common/claude-code.nix
+        ../modules/common/pi.nix
+        ../modules/common/email-agent.nix
+        ../modules/common/email-backup.nix
         ../modules/roles/default.nix
         # roles/foundation.nix (always-enabled by default) writes
         # myConfig.onepassword.enable = true; that option now lives in
@@ -175,6 +181,7 @@
         ../modules/common/syncthing.nix
         ../modules/common/zellij.nix
         ../modules/common/llm-client.nix
+        ../modules/common/opencode.nix
         ../modules/roles/agent-skills.nix
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
