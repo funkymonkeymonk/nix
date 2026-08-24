@@ -241,4 +241,16 @@ in rec {
   bifrost = base ++ darwinService ++ [../modules/services/bifrost/darwin.nix];
   caddy = base ++ darwinService ++ [caddyDependencyStub ../modules/services/caddy/darwin.nix];
   vllmMlx = base ++ darwinService ++ [../modules/services/vllm-mlx/darwin.nix];
+  loki = base ++ darwinService ++ [../modules/services/loki/darwin.nix];
+  vector = base ++ darwinService ++ [../modules/services/loki/darwin.nix ../modules/services/vector/darwin.nix];
+  alertmanager = base ++ darwinService ++ [../modules/services/alertmanager/darwin.nix];
+  grafana =
+    base
+    ++ darwinService
+    ++ [
+      ../modules/services/prometheus/darwin.nix
+      ../modules/services/node-exporter/darwin.nix
+      ../modules/services/loki/darwin.nix
+      ../modules/services/grafana/darwin.nix
+    ];
 }
