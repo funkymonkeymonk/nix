@@ -57,459 +57,435 @@
     himalaya-tui.url = "github:pimalaya/himalaya-tui";
   };
 
-  outputs = {
+  outputs = inputs @ {
     self,
     nixpkgs,
+    flake-parts,
     ...
-  } @ inputs: let
-    # Helper to create user config
-    mkUser = import ./library/lib/mk-user.nix;
+  }:
+    flake-parts.lib.mkFlake {inherit inputs;} {
+      systems = ["aarch64-darwin" "x86_64-linux"];
+      imports = [
+        ./library/flake-module.nix
+        ./library/machines/zero.nix
+      ];
+      flake = let
+        # Helper to create user config
+        mkUser = import ./library/lib/mk-user.nix;
 
-    # Package overlays for each system
-    forAllSystems = nixpkgs.lib.genAttrs [
-      "aarch64-darwin"
-      "x86_64-linux"
-    ];
+        # Package overlays for each system
+        forAllSystems = nixpkgs.lib.genAttrs [
+          "aarch64-darwin"
+          "x86_64-linux"
+        ];
 
-    # Library helpers from the new modular library
-    inherit (nixpkgs) lib;
-    libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
-  in {
-    packages = forAllSystems (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [(import ./overlays {inherit inputs;})];
-        };
-      in
-        {
-          inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench humaneval-mbpp;
-          inherit (inputs.devenv.packages.${system}) devenv;
-          installer = pkgs.callPackage ./packages/installer {};
-        }
-        // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
-          # ISO installer only for x86_64-linux
-          iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
-        }
-    );
-
-    apps = forAllSystems (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [(import ./overlays {inherit inputs;})];
-        };
+        # Library helpers from the new modular library
+        inherit (nixpkgs) lib;
+        libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
       in {
-        installer = {
-          type = "app";
-          program = "${pkgs.callPackage ./packages/installer {}}/bin/nixos-flake-installer";
-        };
-      }
-    );
-
-    # ISO installer image (x86_64-linux only)
-    nixosConfigurations.installer-iso = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        ./targets/installer-iso/default.nix
-        {
-          # Bundle the flake into the ISO for offline fallback
-          isoImage.contents = [
+        packages = forAllSystems (
+          system: let
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [(import ./overlays {inherit inputs;})];
+            };
+          in
             {
-              source = ./.;
-              target = "nix-flake";
+              inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope humaneval-mbpp;
+              inherit (inputs.devenv.packages.${system}) devenv;
+              installer = pkgs.callPackage ./packages/installer {};
+            }
+            // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+              # ISO installer only for x86_64-linux
+              iso = self.nixosConfigurations.installer-iso.config.system.build.isoImage;
+            }
+        );
+
+        apps = forAllSystems (
+          system: let
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [(import ./overlays {inherit inputs;})];
+            };
+          in {
+            installer = {
+              type = "app";
+              program = "${pkgs.callPackage ./packages/installer {}}/bin/nixos-flake-installer";
+            };
+          }
+        );
+
+        # ISO installer image (x86_64-linux only)
+        nixosConfigurations.installer-iso = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          modules = [
+            ./targets/installer-iso/default.nix
+            {
+              # Bundle the flake into the ISO for offline fallback
+              isoImage.contents = [
+                {
+                  source = ./.;
+                  target = "nix-flake";
+                }
+              ];
             }
           ];
-        }
-      ];
-    };
-
-    darwinConfigurations = {
-      # wweaver — work laptop (Will Weaver)
-      # Composed from workstation-darwin archetype + machine-specific overrides.
-      "wweaver" = libraryLib.mkDarwinSystem {
-        inherit inputs;
-        hostname = "wweaver";
-        extraSpecialArgs = {inherit mkUser;};
-        modules = [
-          ./library/archetypes/workstation-darwin.nix
-          ./modules/services/vane/darwin.nix
-          ./modules/services/bifrost/darwin.nix
-          ./modules/services/vllm-mlx/darwin.nix
-          ./modules/home-manager/aerospace.nix
-          ./hosts/wweaver
-        ];
-      };
-
-      # darwin-server — headless macOS server for VM hosting
-      # Composed from headless-server-darwin archetype + machine-specific overrides.
-      "darwin-server" = libraryLib.mkDarwinSystem {
-        inherit inputs;
-        hostname = "darwin-server";
-        extraSpecialArgs = {inherit mkUser;};
-        modules = [
-          ./library/archetypes/headless-server-darwin.nix
-          {
-            nixpkgs.config.permittedInsecurePackages = [
-              "olm-3.2.16"
-            ];
-          }
-          ./modules/services/prometheus/darwin.nix
-          ./modules/services/node-exporter/darwin.nix
-          ./modules/services/alertmanager/darwin.nix
-          ./modules/services/loki/darwin.nix
-          ./modules/services/vector/darwin.nix
-          ./modules/services/grafana/darwin.nix
-          ./hosts/darwin-server
-        ];
-      };
-      # MegamanX — personal desktop/workstation
-      # Composed from workstation-darwin archetype + local LLM stack services.
-      "MegamanX" = libraryLib.mkDarwinSystem {
-        inherit inputs;
-        hostname = "MegamanX";
-        extraSpecialArgs = {inherit mkUser;};
-        modules = [
-          ./library/archetypes/workstation-darwin.nix
-          ./modules/services/vane/darwin.nix
-          ./modules/services/bifrost/darwin.nix
-          ./modules/services/searxng/darwin.nix
-          ./modules/services/caddy/darwin.nix
-          ./modules/services/vllm-mlx/darwin-instances-options.nix
-          ./modules/services/vllm-mlx/darwin.nix
-          ./modules/services/vllm-mlx/darwin-instances-config.nix
-          ./modules/services/prometheus/darwin.nix
-          ./modules/services/node-exporter/darwin.nix
-          ./modules/home-manager/aerospace.nix
-          ./hosts/megamanx
-        ];
-      };
-
-      # type-darwin-server — generic headless macOS server template
-      # Composed from headless-server-darwin archetype + minimal overrides.
-      "type-darwin-server" = libraryLib.mkDarwinSystem {
-        inherit inputs;
-        hostname = "type-darwin-server";
-        extraSpecialArgs = {inherit mkUser;};
-        modules = [
-          ./library/archetypes/headless-server-darwin.nix
-          ./targets/type-darwin-server
-        ];
-      };
-    };
-
-    nixosConfigurations = {
-      # Bootstrap configuration - minimal setup for initial install
-      # Uses core.nix for absolute minimum, no foundation
-      "bootstrap" = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        modules = [
-          ./modules/common/core.nix
-          ./targets/bootstrap
-          ./modules/common/options.nix
-          {
-            nixpkgs.hostPlatform = "x86_64-linux";
-            system.stateVersion = "25.05";
-          }
-        ];
-      };
-
-      # zero — Gaming/desktop NixOS machine
-      # Composed from desktop-nixos archetype + machine-specific modules.
-      "zero" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "zero";
-        extraSpecialArgs = {inherit mkUser;};
-        modules = [
-          ./library/archetypes/desktop-nixos.nix
-          ./modules/nixos/base.nix
-          ./modules/nixos/desktop.nix
-          ./modules/nixos/gaming.nix
-          ./modules/nixos/streaming.nix
-          ./os/nixos.nix
-          inputs.disko.nixosModules.disko
-          ./disk-configs/zero.nix
-          ./machine-types/desktop.nix
-          ./modules/nixos/ghostty-terminfo.nix
-          ./targets/zero
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
         };
-      };
 
-      # NAS - Network Attached Storage with ZFS and paperless-ngx
-      # Composed from headless-server-nixos archetype + NAS-specific overrides.
-      "type-nas" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "type-nas";
-        modules = [
-          ./library/archetypes/headless-server-nixos.nix
-          inputs.disko.nixosModules.disko
-          ./disk-configs/zfs-nas.nix
-          ./targets/type-nas
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
-        };
-      };
-
-      # CATTLE CONFIGURATIONS - Generic machine types
-      # These require no hardware-configuration.nix!
-      # Use with: ./scripts/install-machine.sh <type> <host> <disk>
-
-      # Foundation-based server configuration
-      # Minimal required fields: system architecture, SSH authorized keys
-      # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
-      "type-server" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "type-server";
-        modules = [
-          ./library/archetypes/headless-server-nixos.nix
-          ./disk-configs/single-disk-ext4.nix
-          ./modules/nixos/vector.nix
-          ./modules/nixos/loki.nix
-          ./modules/nixos/prometheus.nix
-          ./modules/nixos/alertmanager.nix
-          {
-            users.users.admin.openssh.authorizedKeys.keys = [
-              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+        darwinConfigurations = {
+          # wweaver — work laptop (Will Weaver)
+          # Composed from workstation-darwin archetype + machine-specific overrides.
+          "wweaver" = libraryLib.mkDarwinSystem {
+            inherit inputs;
+            hostname = "wweaver";
+            extraSpecialArgs = {inherit mkUser;};
+            modules = [
+              ./library/archetypes/workstation-darwin.nix
+              ./modules/services/vane/darwin.nix
+              ./modules/services/bifrost/darwin.nix
+              ./modules/services/vllm-mlx/darwin.nix
+              ./modules/home-manager/aerospace.nix
+              ./hosts/wweaver
             ];
-            # Centralized logging: Vector ships journald logs to a local
-            # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
-            myConfig.vector.enable = true;
-            myConfig.loki.enable = true;
-            # Observability: Prometheus + node_exporter collect metrics,
-            # Alertmanager routes basic alerts (disk/memory/service-down).
-            # No Grafana here — see modules/nixos/prometheus.nix and the PR
-            # description for the federation decision: darwin-server's
-            # Grafana (PR #432) is intended to add this Prometheus as a
-            # second datasource over Tailscale instead of running a
-            # duplicate Grafana on type-server. openFirewallTailscale opens
-            # Prometheus's port on tailscale0 only, ahead of that follow-up.
-            myConfig.prometheus = {
-              enable = true;
-              openFirewallTailscale = true;
+          };
+
+          # darwin-server — headless macOS server for VM hosting
+          # Composed from headless-server-darwin archetype + machine-specific overrides.
+          "darwin-server" = libraryLib.mkDarwinSystem {
+            inherit inputs;
+            hostname = "darwin-server";
+            extraSpecialArgs = {inherit mkUser;};
+            modules = [
+              ./library/archetypes/headless-server-darwin.nix
+              {
+                nixpkgs.config.permittedInsecurePackages = [
+                  "olm-3.2.16"
+                ];
+              }
+              ./modules/services/prometheus/darwin.nix
+              ./modules/services/node-exporter/darwin.nix
+              ./modules/services/alertmanager/darwin.nix
+              ./modules/services/loki/darwin.nix
+              ./modules/services/vector/darwin.nix
+              ./modules/services/grafana/darwin.nix
+              ./hosts/darwin-server
+            ];
+          };
+          # MegamanX — personal desktop/workstation
+          # Composed from workstation-darwin archetype + local LLM stack services.
+          "MegamanX" = libraryLib.mkDarwinSystem {
+            inherit inputs;
+            hostname = "MegamanX";
+            extraSpecialArgs = {inherit mkUser;};
+            modules = [
+              ./library/archetypes/workstation-darwin.nix
+              ./modules/services/vane/darwin.nix
+              ./modules/services/bifrost/darwin.nix
+              ./modules/services/searxng/darwin.nix
+              ./modules/services/caddy/darwin.nix
+              ./modules/services/vllm-mlx/darwin-instances-options.nix
+              ./modules/services/vllm-mlx/darwin.nix
+              ./modules/services/vllm-mlx/darwin-instances-config.nix
+              ./modules/services/prometheus/darwin.nix
+              ./modules/services/node-exporter/darwin.nix
+              ./modules/home-manager/aerospace.nix
+              ./hosts/megamanx
+            ];
+          };
+
+          # type-darwin-server — generic headless macOS server template
+          # Composed from headless-server-darwin archetype + minimal overrides.
+          "type-darwin-server" = libraryLib.mkDarwinSystem {
+            inherit inputs;
+            hostname = "type-darwin-server";
+            extraSpecialArgs = {inherit mkUser;};
+            modules = [
+              ./library/archetypes/headless-server-darwin.nix
+              ./targets/type-darwin-server
+            ];
+          };
+        };
+
+        nixosConfigurations = {
+          # Bootstrap configuration - minimal setup for initial install
+          # Uses core.nix for absolute minimum, no foundation
+          "bootstrap" = nixpkgs.lib.nixosSystem {
+            system = "x86_64-linux";
+            modules = [
+              ./modules/common/core.nix
+              ./targets/bootstrap
+              ./modules/common/options.nix
+              {
+                nixpkgs.hostPlatform = "x86_64-linux";
+                system.stateVersion = "25.05";
+              }
+            ];
+          };
+
+          # NAS - Network Attached Storage with ZFS and paperless-ngx
+          # Composed from headless-server-nixos archetype + NAS-specific overrides.
+          "type-nas" = libraryLib.mkNixosSystem {
+            inherit inputs;
+            hostname = "type-nas";
+            modules = [
+              ./library/archetypes/headless-server-nixos.nix
+              inputs.disko.nixosModules.disko
+              ./disk-configs/zfs-nas.nix
+              ./targets/type-nas
+            ];
+            overrides = {
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
             };
-            myConfig.nodeExporter.enable = true;
-            myConfig.alertmanager.enable = true;
-          }
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
-        };
-      };
+          };
 
-      # ARM64 server variant
-      # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
-      "type-server-arm" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "type-server-arm";
-        system = "aarch64-linux";
-        modules = [
-          ./library/archetypes/headless-server-nixos.nix
-          ./disk-configs/single-disk-ext4.nix
-          {
-            users.users.admin.openssh.authorizedKeys.keys = [
-              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-            ];
-          }
-          ({lib, ...}: {
-            hardware.cpu.intel.updateMicrocode = lib.mkForce false;
-            hardware.cpu.amd.updateMicrocode = lib.mkForce false;
-          })
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
-          tailscale.enable = false;
-        };
-      };
+          # CATTLE CONFIGURATIONS - Generic machine types
+          # These require no hardware-configuration.nix!
+          # Use with: ./scripts/install-machine.sh <type> <host> <disk>
 
-      # Uses libraryLib.mkNixosSystem + desktop-nixos archetype
-      "type-desktop" = libraryLib.mkNixosSystem {
-        inherit inputs;
-        hostname = "type-desktop";
-        modules = [
-          ./library/archetypes/desktop-nixos.nix
-          ./modules/nixos/desktop.nix
-          ./modules/nixos/ghostty-terminfo.nix
-          inputs.disko.nixosModules.disko
-          ./disk-configs/single-disk-ext4.nix
-          {
-            users.users.root.openssh.authorizedKeys.keys = [
-              "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+          # Foundation-based server configuration
+          # Minimal required fields: system architecture, SSH authorized keys
+          # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
+          "type-server" = libraryLib.mkNixosSystem {
+            inherit inputs;
+            hostname = "type-server";
+            modules = [
+              ./library/archetypes/headless-server-nixos.nix
+              ./disk-configs/single-disk-ext4.nix
+              ./modules/nixos/vector.nix
+              ./modules/nixos/loki.nix
+              ./modules/nixos/prometheus.nix
+              ./modules/nixos/alertmanager.nix
+              {
+                users.users.admin.openssh.authorizedKeys.keys = [
+                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+                ];
+                # Centralized logging: Vector ships journald logs to a local
+                # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
+                myConfig.vector.enable = true;
+                myConfig.loki.enable = true;
+                myConfig.prometheus = {
+                  enable = true;
+                  openFirewallTailscale = true;
+                };
+                myConfig.nodeExporter.enable = true;
+                myConfig.alertmanager.enable = true;
+              }
             ];
-          }
-        ];
-        overrides = {
-          autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
+            overrides = {
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+            };
+          };
+
+          # ARM64 server variant
+          # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
+          "type-server-arm" = libraryLib.mkNixosSystem {
+            inherit inputs;
+            hostname = "type-server-arm";
+            system = "aarch64-linux";
+            modules = [
+              ./library/archetypes/headless-server-nixos.nix
+              ./disk-configs/single-disk-ext4.nix
+              {
+                users.users.admin.openssh.authorizedKeys.keys = [
+                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+                ];
+              }
+              ({lib, ...}: {
+                hardware.cpu.intel.updateMicrocode = lib.mkForce false;
+                hardware.cpu.amd.updateMicrocode = lib.mkForce false;
+              })
+            ];
+            overrides = {
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
+              tailscale.enable = false;
+            };
+          };
+
+          # Uses libraryLib.mkNixosSystem + desktop-nixos archetype
+          "type-desktop" = libraryLib.mkNixosSystem {
+            inherit inputs;
+            hostname = "type-desktop";
+            modules = [
+              ./library/archetypes/desktop-nixos.nix
+              ./modules/nixos/desktop.nix
+              ./modules/nixos/ghostty-terminfo.nix
+              inputs.disko.nixosModules.disko
+              ./disk-configs/single-disk-ext4.nix
+              {
+                users.users.root.openssh.authorizedKeys.keys = [
+                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+                ];
+              }
+            ];
+            overrides = {
+              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
+            };
+          };
         };
+
+        # Flake checks for CI - run on Linux and Darwin
+        checks = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-darwin"] (
+          system: let
+            pkgs = import nixpkgs {
+              inherit system;
+              config.allowUnfree = true;
+              overlays = [(import ./overlays {inherit inputs;})];
+            };
+            tests = import ./tests {
+              inherit pkgs self;
+              inherit (nixpkgs) lib;
+            };
+            inherit (pkgs.stdenv.hostPlatform) isLinux isDarwin;
+          in
+            {
+              inherit
+                (tests)
+                nix-unit-tests
+                foundation-options
+                core-packages
+                foundation-packages
+                overlay-rtk
+                overlay-yaks
+                overlay-pi-coding-agent
+                overlay-bigcodebench
+                overlay-evalscope
+                overlay-humaneval-mbpp
+                cross-platform-desktop-guard
+                cross-platform-entertainment-guard
+                cross-platform-creative-control
+                config-validation
+                all-role-tests
+                module-coverage
+                skills-manifest
+                skills-autoload-filtering
+                skills-autoload-content
+                skills-role-filtering
+                skills-external-identification
+                skills-external-command-generation
+                skills-external-empty-case
+                email-agent-options
+                email-backup-options
+                email-custom-options
+                email-composition
+                email-backup-scripts
+                email-separation
+                onepassword-guard
+                onepassword-config-output
+                zsh-enable-single-location
+                bfcl-package-metadata
+                sketchybar-module-removed
+                sketchybar-options-removed
+                sketchybar-wiring-removed
+                aerospace-options
+                aerospace-custom-options
+                vane-options
+                vane-custom-options
+                vane-opnix-url-options
+                vane-megamanx-no-ollama-wiring
+                vane-darwin-autostart-default
+                vane-darwin-autostart-true
+                opencode-options
+                opencode-custom-options
+                opencode-provider-opnix-url
+                shell-aliases
+                workspace-switch
+                vllm-mlx-options
+                vllm-mlx-launchd
+                megamanx-vllm
+                wweaver-vllm
+                llm-client-opencode
+                llm-client-claude
+                llm-client-pi
+                llm-client-custom-host
+                llm-client-no-ai-roles
+                typed-attrs-options
+                stack-integration
+                core-bootstrap
+                phase3-zero
+                phase3-zero-flake-parts
+                phase4-darwin-server
+                phase2-cattle
+                mk-darwin-system
+                mk-nixos-system
+                mk-user
+                mk-user-calling-convention
+                flake-module-args
+                flake-module-library-export
+                agent-user-options
+                agent-user-disabled
+                agent-user-enabled
+                agent-user-custom
+                claude-code-options
+                claude-code-custom-options
+                pi-options
+                pi-custom-options
+                bifrost-options
+                bifrost-custom-options
+                bifrost-retry-config
+                caddy-options
+                caddy-custom-options
+                searxng-options
+                searxng-custom-options
+                lume-options
+                lume-custom-options
+                node-exporter-options
+                node-exporter-custom-options
+                prometheus-options
+                prometheus-custom-options
+                prometheus-generated-script
+                prometheus-scrape-config
+                prometheus-alerting-config
+                vector-options
+                vector-custom-options
+                vector-generated-config
+                loki-options
+                loki-custom-options
+                loki-generated-config
+                alertmanager-options
+                alertmanager-custom-options
+                alertmanager-null-receiver
+                grafana-options
+                grafana-custom-options
+                grafana-datasources
+                grafana-federated-datasource
+                nixos-vector-options
+                nixos-vector-enabled
+                nixos-vector-custom-endpoint
+                nixos-loki-options
+                nixos-loki-enabled
+                nixos-loki-firewall
+                type-server-log-aggregator
+                nixos-prometheus-options
+                nixos-node-exporter-options
+                nixos-prometheus-enabled
+                nixos-prometheus-alert-rules
+                nixos-prometheus-alertmanager-wiring
+                type-server-observability
+                git-enable
+                git-settings-exist
+                git-commit-signing
+                git-config-generation
+                git-user-config
+                obsidian-options
+                obsidian-custom-options
+                vm-role-generator
+                ;
+            }
+            // nixpkgs.lib.optionalAttrs isDarwin {
+              # Builds the darwin-only vllm-mlx package; excluded on Linux.
+              inherit (tests) vllm-mlx-finish-reason;
+            }
+            // nixpkgs.lib.optionalAttrs isLinux {
+              inherit
+                (tests)
+                vm-users
+                vm-ssh
+                vm-packages
+                vm-role-foundation
+                vm-role-developer
+                ;
+            }
+        );
       };
     };
-
-    # Flake checks for CI - run on Linux and Darwin
-    checks = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-darwin"] (
-      system: let
-        pkgs = import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-          overlays = [(import ./overlays {inherit inputs;})];
-        };
-        tests = import ./tests {
-          inherit pkgs self;
-          inherit (nixpkgs) lib;
-        };
-        inherit (pkgs.stdenv.hostPlatform) isLinux isDarwin;
-      in
-        {
-          inherit
-            (tests)
-            nix-unit-tests
-            foundation-options
-            core-packages
-            foundation-packages
-            overlay-rtk
-            overlay-yaks
-            overlay-pi-coding-agent
-            overlay-bigcodebench
-            overlay-humaneval-mbpp
-            cross-platform-desktop-guard
-            cross-platform-entertainment-guard
-            cross-platform-creative-control
-            config-validation
-            all-role-tests
-            module-coverage
-            skills-manifest
-            skills-autoload-filtering
-            skills-autoload-content
-            skills-role-filtering
-            skills-external-identification
-            skills-external-command-generation
-            skills-external-empty-case
-            email-agent-options
-            email-backup-options
-            email-custom-options
-            email-composition
-            email-backup-scripts
-            email-separation
-            onepassword-guard
-            onepassword-config-output
-            zsh-enable-single-location
-            bfcl-package-metadata
-            sketchybar-module-removed
-            sketchybar-options-removed
-            sketchybar-wiring-removed
-            aerospace-options
-            aerospace-custom-options
-            vane-options
-            vane-custom-options
-            vane-opnix-url-options
-            vane-megamanx-no-ollama-wiring
-            vane-darwin-autostart-default
-            vane-darwin-autostart-true
-            opencode-options
-            opencode-custom-options
-            opencode-provider-opnix-url
-            shell-aliases
-            workspace-switch
-            vllm-mlx-options
-            vllm-mlx-launchd
-            megamanx-vllm
-            wweaver-vllm
-            llm-client-opencode
-            llm-client-claude
-            llm-client-pi
-            llm-client-custom-host
-            llm-client-no-ai-roles
-            typed-attrs-options
-            stack-integration
-            core-bootstrap
-            phase3-zero
-            phase4-darwin-server
-            phase2-cattle
-            mk-darwin-system
-            mk-nixos-system
-            mk-user
-            mk-user-calling-convention
-            flake-module-args
-            flake-module-library-export
-            agent-user-options
-            agent-user-disabled
-            agent-user-enabled
-            agent-user-custom
-            claude-code-options
-            claude-code-custom-options
-            pi-options
-            pi-custom-options
-            bifrost-options
-            bifrost-custom-options
-            bifrost-retry-config
-            caddy-options
-            caddy-custom-options
-            searxng-options
-            searxng-custom-options
-            lume-options
-            lume-custom-options
-            node-exporter-options
-            node-exporter-custom-options
-            prometheus-options
-            prometheus-custom-options
-            prometheus-generated-script
-            prometheus-scrape-config
-            prometheus-alerting-config
-            loki-options
-            loki-custom-options
-            loki-generated-config
-            vector-options
-            vector-custom-options
-            vector-generated-config
-            alertmanager-options
-            alertmanager-custom-options
-            alertmanager-null-receiver
-            grafana-options
-            grafana-custom-options
-            grafana-datasources
-            grafana-federated-datasource
-            nixos-vector-options
-            nixos-vector-enabled
-            nixos-vector-custom-endpoint
-            nixos-loki-options
-            nixos-loki-enabled
-            nixos-loki-firewall
-            type-server-log-aggregator
-            nixos-prometheus-options
-            nixos-node-exporter-options
-            nixos-prometheus-enabled
-            nixos-prometheus-alert-rules
-            nixos-prometheus-alertmanager-wiring
-            nixos-prometheus-firewall
-            nixos-alertmanager-options
-            nixos-alertmanager-null-receiver
-            type-server-observability
-            git-enable
-            git-settings-exist
-            git-commit-signing
-            git-config-generation
-            git-user-config
-            obsidian-options
-            obsidian-custom-options
-            vm-role-generator
-            ;
-        }
-        // nixpkgs.lib.optionalAttrs isDarwin {
-          # Builds the darwin-only vllm-mlx package; excluded on Linux.
-          inherit (tests) vllm-mlx-finish-reason;
-        }
-        // nixpkgs.lib.optionalAttrs isLinux {
-          inherit
-            (tests)
-            vm-users
-            vm-ssh
-            vm-packages
-            vm-role-foundation
-            vm-role-developer
-            ;
-        }
-    );
-  };
 }

@@ -7,6 +7,7 @@
   lighteval = pkgs.callPackage ./packages/benchmarks/lighteval {};
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
+  evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
@@ -30,6 +31,7 @@ in {
       lighteval
       bfcl-eval
       bigcodebench
+      evalscope
       humaneval-mbpp
 
       # Utility
@@ -753,6 +755,7 @@ in {
         "benchmark:lighteval-gsm8k"
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
+        "benchmark:evalscope-arc"
         "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
@@ -998,6 +1001,21 @@ in {
 
         echo ""
         echo "Results written to $OUTPUT_DIR"
+      '';
+    };
+
+    "benchmark:evalscope-arc" = {
+      description = "Quick EvalScope ARC smoke benchmark against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+        API_URL="''${API_URL:-http://localhost:8300/v1/chat/completions}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        LIMIT="''${LIMIT:-10}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/evalscope-arc}"
+        mkdir -p "$OUTPUT_DIR"
+        evalscope eval --model "$MODEL" --api-url "$API_URL" --api-key EMPTY \
+          --eval-type openai_api --datasets arc --limit "$LIMIT" \
+          --work-dir "$OUTPUT_DIR" --no-timestamp
       '';
     };
 

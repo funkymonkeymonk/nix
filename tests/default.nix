@@ -97,11 +97,12 @@ in
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
 
-    # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench)
+    # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
     overlay-rtk = testOverlayPackages.rtkPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
+    overlay-evalscope = testOverlayPackages.evalscopePackageTest;
 
     # Benchmark package build tests (HumanEval + MBPP)
     overlay-humaneval-mbpp = testOverlayPackages.humanevalMbppPackageTest;
@@ -219,6 +220,7 @@ in
 
     # Phase 3: Real-machine migration — zero v2
     phase3-zero = testPhase3Zero.phase3ZeroTest;
+    phase3-zero-flake-parts = testPhase3Zero.phase3ZeroFlakePartsTest;
 
     # Phase 4: darwin-server v2 migration
     phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
