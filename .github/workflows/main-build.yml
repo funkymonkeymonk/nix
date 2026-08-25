@@ -244,7 +244,7 @@ jobs:
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
-           if [ "$DARWIN" != "success" ] \
+          if [ "$DARWIN" != "success" ] \
              || [ "$LINUX" != "success" ] \
              || [ "$LINUX_ARM" != "success" ]; then
             echo "**Cache is stale.** Local deploys may need to build from source." \

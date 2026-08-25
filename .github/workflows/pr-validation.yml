@@ -384,8 +384,8 @@ jobs:
       - name: Report build results
         run: |
           echo "## Build Report" >> $GITHUB_STEP_SUMMARY
-           echo "" \
-             >> $GITHUB_STEP_SUMMARY
+          echo "" \
+            >> $GITHUB_STEP_SUMMARY
           DARWIN_RESULT="${{ needs.build-darwin.result }}"
           NIXOS_RESULT="${{ needs.build-nixos.result }}"
           NIXOS_ARM_RESULT="${{ needs.build-nixos-arm.result }}"
