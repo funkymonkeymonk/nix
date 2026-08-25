@@ -106,8 +106,8 @@ in
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;
-     overlay-evalscope = testOverlayPackages.evalscopePackageTest;
-     overlay-openai-evals = testOverlayPackages.openaiEvalsPackageTest;
+    overlay-evalscope = testOverlayPackages.evalscopePackageTest;
+    overlay-openai-evals = testOverlayPackages.openaiEvalsPackageTest;
 
     # Benchmark package build tests (HumanEval + MBPP)
     overlay-humaneval-mbpp = testOverlayPackages.humanevalMbppPackageTest;
