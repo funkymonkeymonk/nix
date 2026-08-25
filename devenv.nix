@@ -571,7 +571,7 @@ in {
         # statix respects .gitignore by default
         statix check . || true
         echo "Checking YAML files..."
-        yamllint .
+        yamllint --strict .
         echo "Lint checks complete"
       '';
     };
