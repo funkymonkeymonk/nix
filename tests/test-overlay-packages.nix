@@ -146,62 +146,49 @@
       touch $out
     '';
 
-  # Test that humaneval-mbpp (OpenAI human-eval harness + MBPP dataset/scorer)
-  # builds and its binaries work. See packages/benchmarks/humaneval-mbpp for
-  # the rationale on bundling both benchmarks in a single derivation.
+  # Test that openai-evals (OpenAI's `evals` framework) builds and its
+  # `oaieval` CLI entry point works
+  openaiEvalsPackageTest =
+    pkgs.runCommand "test-openai-evals-package"
+    {
+      nativeBuildInputs = [pkgs.openai-evals];
+      # evals/registry.py instantiates an OpenAI() client at module import
+      # time, which requires an API key present in the environment even
+      # just to import the module (see the package's comment on
+      # env.OPENAI_API_KEY).
+      OPENAI_API_KEY = "sk-test-dummy";
+    }
+    ''
+      echo "=== Testing openai-evals package ==="
+
+      if command -v oaieval > /dev/null 2>&1; then
+        echo "  oaieval binary found: OK"
+      else
+        echo "  oaieval binary NOT FOUND!"
+        exit 1
+      fi
+
+      if oaieval --help > /dev/null 2>&1; then
+        echo "  oaieval --help exits successfully: OK"
+      else
+        echo "  oaieval --help failed!"
+        exit 1
+      fi
+
+      echo "openai-evals package test passed"
+      touch $out
+    '';
+
   humanevalMbppPackageTest =
     pkgs.runCommand "test-humaneval-mbpp-package"
     {
       nativeBuildInputs = [pkgs.humaneval-mbpp];
     }
     ''
-      echo "=== Testing humaneval-mbpp package ==="
-
-      if command -v evaluate_functional_correctness > /dev/null 2>&1; then
-        echo "  evaluate_functional_correctness binary found: OK"
-      else
-        echo "  evaluate_functional_correctness binary NOT FOUND!"
-        exit 1
-      fi
-
-      if evaluate_functional_correctness --help > /dev/null 2>&1; then
-        echo "  evaluate_functional_correctness --help exits successfully: OK"
-      else
-        echo "  evaluate_functional_correctness --help failed!"
-        exit 1
-      fi
-
-      if command -v mbpp-eval > /dev/null 2>&1; then
-        echo "  mbpp-eval binary found: OK"
-      else
-        echo "  mbpp-eval binary NOT FOUND!"
-        exit 1
-      fi
-
-      if mbpp-eval --help > /dev/null 2>&1; then
-        echo "  mbpp-eval --help exits successfully: OK"
-      else
-        echo "  mbpp-eval --help failed!"
-        exit 1
-      fi
-
-      echo "  HumanEval dataset: ${pkgs.humaneval-mbpp}/share/humaneval/HumanEval.jsonl.gz"
-      if [ -f "${pkgs.humaneval-mbpp}/share/humaneval/HumanEval.jsonl.gz" ]; then
-        echo "  HumanEval dataset present: OK"
-      else
-        echo "  HumanEval dataset MISSING!"
-        exit 1
-      fi
-
-      echo "  MBPP dataset: ${pkgs.humaneval-mbpp}/share/mbpp/mbpp.jsonl"
-      if [ -f "${pkgs.humaneval-mbpp}/share/mbpp/mbpp.jsonl" ]; then
-        echo "  MBPP dataset present: OK"
-      else
-        echo "  MBPP dataset MISSING!"
-        exit 1
-      fi
-
-      echo "humaneval-mbpp package test passed"
+      evaluate_functional_correctness --help >/dev/null
+      mbpp-eval --help >/dev/null
+      test -f ${pkgs.humaneval-mbpp}/share/humaneval/HumanEval.jsonl.gz
+      test -f ${pkgs.humaneval-mbpp}/share/mbpp/mbpp.jsonl
       touch $out
     '';
 }

@@ -83,6 +83,10 @@
         inherit (nixpkgs) lib;
         libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
       in {
+        lib = {
+          optionsDoc = import ./scripts/generate-options-doc.nix {inherit lib self;};
+        };
+
         packages = forAllSystems (
           system: let
             pkgs = import nixpkgs {
@@ -91,7 +95,7 @@
             };
           in
             {
-              inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope humaneval-mbpp;
+              inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
               inherit (inputs.devenv.packages.${system}) devenv;
               installer = pkgs.callPackage ./packages/installer {};
             }
@@ -349,6 +353,7 @@
                 overlay-pi-coding-agent
                 overlay-bigcodebench
                 overlay-evalscope
+                overlay-openai-evals
                 overlay-humaneval-mbpp
                 cross-platform-desktop-guard
                 cross-platform-entertainment-guard
