@@ -30,6 +30,31 @@
 
       obsidian.vaults = ["personal"];
 
+      # Local Qwen 3.8 inference for the 48GB laptop. Keep the initial budget
+      # conservative until real-world memory headroom is measured.
+      vllmMlx = {
+        enable = true;
+        server = {
+          host = "0.0.0.0";
+          port = 8300;
+        };
+        memoryBudgetGb = 24;
+        contention = "preempt";
+        models."qwen3.8-27b" = {
+          path = "mlx-community/Qwen3.8-27B-4bit";
+          type = "lm";
+          estimatedMemoryGb = 18;
+          preload = true;
+        };
+        enableAutoToolChoice = true;
+        toolCallParser = "qwen";
+        reasoningParser = "qwen3";
+        maxKvSize = 65536;
+        timeout = 600;
+        logLevel = "INFO";
+        enableMetrics = true;
+      };
+
       # Work-specific roles beyond the workstation archetype
       roles.opencode.enable = true;
       roles.work.enable = true;

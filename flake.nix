@@ -147,6 +147,7 @@
               ./library/archetypes/workstation-darwin.nix
               ./modules/services/vane/darwin.nix
               ./modules/services/bifrost/darwin.nix
+              ./modules/services/vllm-mlx/darwin.nix
               ./modules/home-manager/aerospace.nix
               ./hosts/wweaver
             ];
@@ -396,6 +397,7 @@
                 vllm-mlx-options
                 vllm-mlx-launchd
                 megamanx-vllm
+                wweaver-vllm
                 llm-client-opencode
                 llm-client-claude
                 llm-client-pi
