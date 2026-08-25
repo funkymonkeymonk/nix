@@ -8,6 +8,7 @@
   bfcl-eval = pkgs.callPackage ./packages/benchmarks/bfcl {};
   bigcodebench = pkgs.callPackage ./packages/benchmarks/bigcodebench {};
   evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
+  openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
@@ -32,6 +33,7 @@ in {
       bfcl-eval
       bigcodebench
       evalscope
+      openai-evals
       humaneval-mbpp
 
       # Utility
@@ -255,12 +257,13 @@ in {
 
     "docs:all" = {
       description = "Run all documentation tasks (update + validate + generate)";
-      after = ["docs:update" "docs:validate" "docs:generate"];
+      after = ["docs:update" "docs:validate" "docs:generate" "docs:generate-options"];
       exec = "echo '✓ All documentation tasks complete'";
     };
 
     "docs:update" = {
       description = "Update and validate documentation (Diataxis)";
+      after = ["docs:generate-options"];
       exec = ''
         ./scripts/docs-update.sh
       '';
@@ -275,8 +278,18 @@ in {
 
     "docs:generate" = {
       description = "Generate reference documentation only";
+      after = ["docs:generate-options"];
       exec = ''
         ./scripts/docs-update.sh --generate-only
+      '';
+    };
+
+    "docs:generate-options" = {
+      description = "Generate docs/reference/options.md from the loaded myConfig.* option tree";
+      exec = ''
+        set -euo pipefail
+        nix eval .#lib.optionsDoc.markdown --raw > docs/reference/options.md
+        echo "✓ Generated docs/reference/options.md"
       '';
     };
 
@@ -756,6 +769,7 @@ in {
         "benchmark:bfcl-smoke"
         "benchmark:bigcodebench"
         "benchmark:evalscope-arc"
+        "benchmark:openai-evals"
         "benchmark:humaneval-mbpp"
       ];
       exec = "echo '✓ All benchmark tasks complete'";
@@ -1004,6 +1018,25 @@ in {
       '';
     };
 
+    "benchmark:openai-evals" = {
+      description = "Run a quick OpenAI Evals (oaieval) smoke test against local vllm-mlx";
+      exec = ''
+        set -euo pipefail
+
+        export OPENAI_BASE_URL="''${OPENAI_BASE_URL:-http://localhost:8300/v1}"
+        export OPENAI_API_KEY="''${OPENAI_API_KEY:-sk-local}"
+        MODEL="''${MODEL:-qwen3.8-27b}"
+        EVAL="''${EVAL:-test-match}"
+        OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/openai-evals}"
+
+        echo "=== OpenAI Evals ($EVAL) against $OPENAI_BASE_URL (model: $MODEL) ==="
+        mkdir -p "$OUTPUT_DIR"
+        oaieval "$MODEL" "$EVAL" --record_path "$OUTPUT_DIR/$EVAL.jsonl"
+
+        echo "Results written to $OUTPUT_DIR/$EVAL.jsonl"
+      '';
+    };
+
     "benchmark:evalscope-arc" = {
       description = "Quick EvalScope ARC smoke benchmark against local vllm-mlx";
       exec = ''
@@ -1018,7 +1051,6 @@ in {
           --work-dir "$OUTPUT_DIR" --no-timestamp
       '';
     };
-
     # HumanEval ships its own harness (evaluate_functional_correctness);
     # MBPP has no upstream harness so it is scored with the packaged
     # mbpp-eval scorer. Both are driven directly against the local
