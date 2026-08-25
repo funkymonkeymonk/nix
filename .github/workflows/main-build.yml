@@ -7,7 +7,9 @@ on:
       - main
   workflow_dispatch:
 env:
-  NIX_ACCESS_TOKENS: github.com=${{ github.token }} api.github.com=${{ github.token }} codeload.github.com=${{ github.token }}
+  NIX_ACCESS_TOKENS: >-
+    github.com=${{ github.token }} api.github.com=${{ github.token }}
+    codeload.github.com=${{ github.token }}
 permissions:
   contents: read
 concurrency:
@@ -242,7 +244,9 @@ jobs:
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$DARWIN" != "success" ] || [ "$LINUX" != "success" ] || [ "$LINUX_ARM" != "success" ]; then
+          if [ "$DARWIN" != "success" ] \
+             || [ "$LINUX" != "success" ] \
+             || [ "$LINUX_ARM" != "success" ]; then
             echo "**Cache is stale.** Local deploys may need to build from source." \
               >> "$GITHUB_STEP_SUMMARY"
             echo ""

@@ -122,8 +122,7 @@ jobs:
             2. Boot from USB
             3. Follow the guided installer
 
-            # yamllint disable-line rule:line-length
-            See [documentation](https://github.com/${{ github.repository }}/blob/main/docs/how-to/create-installer-usb.md) for details.
+             See the installer documentation in `docs/how-to/create-installer-usb.md`.
           files: result/iso/*.iso
           draft: false
           prerelease: false

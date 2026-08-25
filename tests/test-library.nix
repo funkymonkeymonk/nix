@@ -14,8 +14,8 @@
   self,
   ...
 }: let
-  lib = pkgs.lib;
-  inputs = self.inputs;
+  inherit (pkgs) lib;
+  inherit (self) inputs;
   libraryLib = import ../library/lib/mk-system.nix {inherit lib;};
 
   # ── mkDarwinSystem fixtures ────────────────────────────────────────────
@@ -44,7 +44,7 @@
     modules = [
       minimalNixosBoot
       {
-        home-manager.users.testuser = {...}: {
+        home-manager.users.testuser = _: {
           home.stateVersion = "25.05";
           home.username = "testuser";
           home.homeDirectory = "/home/testuser";

@@ -33,7 +33,7 @@
 
   primaryUser = commonLib.primaryUser config;
   darwinHomeDir = commonLib.darwinHomeDir config;
-  dataDir = cfg.dataDir;
+  inherit (cfg) dataDir;
 
   prometheusUrl = "http://${config.myConfig.prometheus.bindAddress}:${toString config.myConfig.prometheus.port}";
   lokiUrl = "http://${config.myConfig.loki.bindAddress}:${toString config.myConfig.loki.port}";
@@ -259,7 +259,7 @@ in {
 
     myConfig.serviceRegistry = commonLib.mkServiceRegistry "grafana" {
       displayName = "Grafana";
-      port = cfg.port;
+      inherit (cfg) port;
       label = "com.grafana.server";
       errorLog = "/tmp/grafana.error.log";
       enabled = cfg.enable;
