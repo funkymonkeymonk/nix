@@ -571,7 +571,13 @@ in {
         # statix respects .gitignore by default
         statix check . || true
         echo "Checking YAML files..."
-        yamllint --strict .
+        find . -type f \( -name '*.yaml' -o -name '*.yml' \) \
+          -not -path './.devenv/*' \
+          -not -path './.direnv/*' \
+          -not -path './.worktrees/*' \
+          -not -path './.workspaces/*' \
+          -not -path './~/*' \
+          -print0 | xargs -0 yamllint --strict
         echo "Lint checks complete"
       '';
     };
