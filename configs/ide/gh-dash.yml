@@ -28,7 +28,7 @@ defaults:
 
 # Use repo-specific views for better context
 repoPaths:
-  funkymonkeymonk/*: ~/repos
+  funkymonkeymonk/*: ~/repos/*
 
 keybindings:
   prs:
