@@ -6,7 +6,9 @@ on:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 env:
-  NIX_ACCESS_TOKENS: github.com=${{ github.token }} api.github.com=${{ github.token }} codeload.github.com=${{ github.token }}
+  NIX_ACCESS_TOKENS: >-
+    github.com=${{ github.token }} api.github.com=${{ github.token }}
+    codeload.github.com=${{ github.token }}
 permissions:
   contents: read
   pull-requests: read
@@ -216,7 +218,8 @@ jobs:
               NIXOS_CHANGED=$(printf '%s\n' "${NIXOS_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
             if [ ${#NIXOS_ARM_CHANGED_CONFIGS[@]} -gt 0 ]; then
-              NIXOS_ARM_CHANGED=$(printf '%s\n' "${NIXOS_ARM_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
+              NIXOS_ARM_CHANGED=$(printf '%s\n' \
+                "${NIXOS_ARM_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
             fi
           else
              # No cache exists, discover configs dynamically
@@ -381,7 +384,8 @@ jobs:
       - name: Report build results
         run: |
           echo "## Build Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+           echo "" \
+             >> $GITHUB_STEP_SUMMARY
           DARWIN_RESULT="${{ needs.build-darwin.result }}"
           NIXOS_RESULT="${{ needs.build-nixos.result }}"
           NIXOS_ARM_RESULT="${{ needs.build-nixos-arm.result }}"

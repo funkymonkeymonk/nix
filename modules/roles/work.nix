@@ -7,4 +7,4 @@
 # vault. Orthogonal to workstation (machine form-factor): a personal desktop
 # and a work laptop can both be "workstation" archetypes, but only the work
 # laptop enables this role.
-{...}: {}
+_: {}

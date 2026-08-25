@@ -21,6 +21,8 @@ result-*
 # jj workspaces
 .workspaces
 workspaces/
+# Protect against a home-directory-shaped copy accidentally created in-tree.
+~/
 
 # Logs
 logs

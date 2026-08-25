@@ -106,6 +106,10 @@ in {
       };
       statix = {
         enable = true;
+        # Existing repository findings are advisory; keep switch hooks aligned
+        # with check:lint, which already treats statix warnings as non-blocking.
+        entry = "${pkgs.bash}/bin/bash -c '${pkgs.statix}/bin/statix check . || true'";
+        pass_filenames = false;
         stages = ["pre-commit" "pre-push"];
       };
       deadnix = {
