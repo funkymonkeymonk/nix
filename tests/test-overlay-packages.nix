@@ -178,4 +178,17 @@
       echo "openai-evals package test passed"
       touch $out
     '';
+
+  humanevalMbppPackageTest =
+    pkgs.runCommand "test-humaneval-mbpp-package"
+    {
+      nativeBuildInputs = [pkgs.humaneval-mbpp];
+    }
+    ''
+      evaluate_functional_correctness --help >/dev/null
+      mbpp-eval --help >/dev/null
+      test -f ${pkgs.humaneval-mbpp}/share/humaneval/HumanEval.jsonl.gz
+      test -f ${pkgs.humaneval-mbpp}/share/mbpp/mbpp.jsonl
+      touch $out
+    '';
 }
