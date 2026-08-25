@@ -252,6 +252,8 @@
               ./disk-configs/single-disk-ext4.nix
               ./modules/nixos/vector.nix
               ./modules/nixos/loki.nix
+              ./modules/nixos/prometheus.nix
+              ./modules/nixos/alertmanager.nix
               {
                 users.users.admin.openssh.authorizedKeys.keys = [
                   "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
@@ -260,6 +262,12 @@
                 # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
                 myConfig.vector.enable = true;
                 myConfig.loki.enable = true;
+                myConfig.prometheus = {
+                  enable = true;
+                  openFirewallTailscale = true;
+                };
+                myConfig.nodeExporter.enable = true;
+                myConfig.alertmanager.enable = true;
               }
             ];
             overrides = {
@@ -424,13 +432,33 @@
                 prometheus-custom-options
                 prometheus-generated-script
                 prometheus-scrape-config
+                prometheus-alerting-config
                 vector-options
-                vector-enabled
-                vector-custom-endpoint
+                vector-custom-options
+                vector-generated-config
                 loki-options
-                loki-enabled
-                loki-firewall
+                loki-custom-options
+                loki-generated-config
+                alertmanager-options
+                alertmanager-custom-options
+                alertmanager-null-receiver
+                grafana-options
+                grafana-custom-options
+                grafana-datasources
+                grafana-federated-datasource
+                nixos-vector-options
+                nixos-vector-enabled
+                nixos-vector-custom-endpoint
+                nixos-loki-options
+                nixos-loki-enabled
+                nixos-loki-firewall
                 type-server-log-aggregator
+                nixos-prometheus-options
+                nixos-node-exporter-options
+                nixos-prometheus-enabled
+                nixos-prometheus-alert-rules
+                nixos-prometheus-alertmanager-wiring
+                type-server-observability
                 git-enable
                 git-settings-exist
                 git-commit-signing
