@@ -161,6 +161,7 @@
         ${lib.optionalString instanceCfg.enableMtp "--enable-mtp"} \
         ${lib.optionalString instanceCfg.enableMtp "--mtp-num-draft-tokens ${toString instanceCfg.mtpNumDraftTokens}"} \
         ${lib.optionalString (instanceCfg.enableMtp && instanceCfg.mtpOptimistic) "--mtp-optimistic"} \
+        ${lib.optionalString (instanceCfg.mllmDraftModel != null) "--mllm"} \
         ${lib.optionalString (instanceCfg.mllmDraftModel != null) "--mllm-draft-model ${lib.escapeShellArg (resolveModelPath instanceCfg.mllmDraftModel)}"} \
         ${lib.optionalString (instanceCfg.mllmDraftModel != null) "--mllm-draft-kind ${draftKind}"} \
         ${lib.optionalString (instanceCfg.mllmDraftModel != null) "--mllm-draft-block-size ${toString draftBlockSize}"}

@@ -67,6 +67,9 @@
 
   launchdDefault = mkLaunchdEval {};
   launchdFailFast = mkLaunchdEval {lockAdmission = "fail_fast";};
+  launchdMllmDraft = mkLaunchdEval {
+    mllmDraftModel = "mlx-community/Qwen3.8-27B-MTP-8bit";
+  };
 
   # Evaluate the actual MegamanX target to verify its vllm-mlx config.
   # Uses the flake's real Darwin configuration so the test follows the same
@@ -220,59 +223,82 @@ in {
 
   # Verify the launchd daemon wiring: lock-admission env var and durable log
   # paths (not /tmp, which macOS cleans every 3 days).
-  vllmMlxLaunchdTest = pkgs.runCommand "test-vllm-mlx-launchd" {} ''
-    echo "=== Testing vllm-mlx launchd Wiring ==="
+  vllmMlxLaunchdTest =
+    pkgs.runCommand "test-vllm-mlx-launchd"
+    {
+      mllmDraftCmd = launchdMllmDraft.launchd.daemons."vllm-mlx".command;
+    }
+    ''
+      echo "=== Testing vllm-mlx launchd Wiring ==="
 
-    ${
-      let
-        env = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig.EnvironmentVariables;
-      in
-        if env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "wait"
-        then ''echo "  lock admission env = wait: OK"''
-        else ''echo "  FAIL: VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION should be wait, got ${env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION or "(unset)"}"; exit 1''
-    }
-    ${
-      let
-        env = launchdFailFast.launchd.daemons."vllm-mlx".serviceConfig.EnvironmentVariables;
-      in
-        if env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "fail_fast"
-        then ''echo "  lock admission env = fail_fast (opt-out): OK"''
-        else ''echo "  FAIL: VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION should be fail_fast, got ${env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION or "(unset)"}"; exit 1''
-    }
-    ${
-      let
-        sc = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig;
-      in
-        if sc.StandardOutPath == "/Users/monkey/Library/Logs/vllm-mlx/server.log"
-        then ''echo "  server stdout log durable: OK"''
-        else ''echo "  FAIL: StandardOutPath should be /Users/monkey/Library/Logs/vllm-mlx/server.log, got ${sc.StandardOutPath}"; exit 1''
-    }
-    ${
-      let
-        sc = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig;
-      in
-        if sc.StandardErrorPath == "/Users/monkey/Library/Logs/vllm-mlx/server.error.log"
-        then ''echo "  server stderr log durable: OK"''
-        else ''echo "  FAIL: StandardErrorPath should be /Users/monkey/Library/Logs/vllm-mlx/server.error.log, got ${sc.StandardErrorPath}"; exit 1''
-    }
-    ${
-      let
-        sc = launchdDefault.launchd.daemons."vllm-mlx-warmup".serviceConfig;
-      in
-        if sc.StandardOutPath == "/Users/monkey/Library/Logs/vllm-mlx/warmup.log" && sc.StandardErrorPath == "/Users/monkey/Library/Logs/vllm-mlx/warmup.error.log"
-        then ''echo "  warmup logs durable: OK"''
-        else ''echo "  FAIL: warmup logs should live in /Users/monkey/Library/Logs/vllm-mlx/"; exit 1''
-    }
-    ${
-      if launchdDefault.myConfig.serviceRegistry.vllm-mlx.errorLog == "/Users/monkey/Library/Logs/vllm-mlx/server.error.log"
-      then ''echo "  serviceRegistry errorLog durable: OK"''
-      else ''echo "  FAIL: serviceRegistry errorLog should point at the durable log path"; exit 1''
-    }
+      ${
+        let
+          env = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig.EnvironmentVariables;
+        in
+          if env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "wait"
+          then ''echo "  lock admission env = wait: OK"''
+          else ''echo "  FAIL: VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION should be wait, got ${env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION or "(unset)"}"; exit 1''
+      }
+      ${
+        let
+          env = launchdFailFast.launchd.daemons."vllm-mlx".serviceConfig.EnvironmentVariables;
+        in
+          if env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION == "fail_fast"
+          then ''echo "  lock admission env = fail_fast (opt-out): OK"''
+          else ''echo "  FAIL: VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION should be fail_fast, got ${env.VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION or "(unset)"}"; exit 1''
+      }
+      ${
+        let
+          sc = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig;
+        in
+          if sc.StandardOutPath == "/Users/monkey/Library/Logs/vllm-mlx/server.log"
+          then ''echo "  server stdout log durable: OK"''
+          else ''echo "  FAIL: StandardOutPath should be /Users/monkey/Library/Logs/vllm-mlx/server.log, got ${sc.StandardOutPath}"; exit 1''
+      }
+      ${
+        let
+          sc = launchdDefault.launchd.daemons."vllm-mlx".serviceConfig;
+        in
+          if sc.StandardErrorPath == "/Users/monkey/Library/Logs/vllm-mlx/server.error.log"
+          then ''echo "  server stderr log durable: OK"''
+          else ''echo "  FAIL: StandardErrorPath should be /Users/monkey/Library/Logs/vllm-mlx/server.error.log, got ${sc.StandardErrorPath}"; exit 1''
+      }
+      ${
+        let
+          sc = launchdDefault.launchd.daemons."vllm-mlx-warmup".serviceConfig;
+        in
+          if sc.StandardOutPath == "/Users/monkey/Library/Logs/vllm-mlx/warmup.log" && sc.StandardErrorPath == "/Users/monkey/Library/Logs/vllm-mlx/warmup.error.log"
+          then ''echo "  warmup logs durable: OK"''
+          else ''echo "  FAIL: warmup logs should live in /Users/monkey/Library/Logs/vllm-mlx/"; exit 1''
+      }
+      ${
+        if launchdDefault.myConfig.serviceRegistry.vllm-mlx.errorLog == "/Users/monkey/Library/Logs/vllm-mlx/server.error.log"
+        then ''echo "  serviceRegistry errorLog durable: OK"''
+        else ''echo "  FAIL: serviceRegistry errorLog should point at the durable log path"; exit 1''
+      }
 
-    echo ""
-    echo "All vllm-mlx launchd tests passed"
-    touch $out
-  '';
+      if grep -q -- ' --mllm ' "$mllmDraftCmd"; then
+        echo "  --mllm flag present with mllmDraftModel: OK"
+      else
+        echo "  FAIL: --mllm flag should be passed when mllmDraftModel is set"
+        exit 1
+      fi
+      if grep -q -- ' --mllm-draft-model ' "$mllmDraftCmd"; then
+        echo "  --mllm-draft-model flag present with mllmDraftModel: OK"
+      else
+        echo "  FAIL: --mllm-draft-model flag should be passed when mllmDraftModel is set"
+        exit 1
+      fi
+      if grep -q -- ' --mllm-draft-kind mtp ' "$mllmDraftCmd"; then
+        echo "  --mllm-draft-kind mtp present with mllmDraftModel: OK"
+      else
+        echo "  FAIL: --mllm-draft-kind mtp should be passed when mllmDraftModel is set"
+        exit 1
+      fi
+      echo ""
+      echo "All vllm-mlx launchd tests passed"
+      touch $out
+    '';
 
   # Verify the actual MegamanX target config targets Qwen 3.8 with qwen3 parsers
   # and that its serving limits line up with the pi client's expectations.
@@ -330,6 +356,16 @@ in {
       if megamanxVllmMlx.reasoningParser == "qwen3"
       then ''echo "  reasoningParser = qwen3: OK"''
       else ''echo "  FAIL: reasoningParser should be qwen3, got ${toString megamanxVllmMlx.reasoningParser}"; exit 1''
+    }
+    ${
+      if !(megamanxVllmMlx.enableMtp or false)
+      then ''echo "  enableMtp = false (Qwen3.8 MTP drafter cannot be primary model): OK"''
+      else ''echo "  FAIL: enableMtp should be false for Qwen3.8 with available mlx-community checkpoints"; exit 1''
+    }
+    ${
+      if (megamanxVllmMlx.mllmDraftModel or null) == null
+      then ''echo "  mllmDraftModel unset (Gemma 4 drafter path not used for Qwen): OK"''
+      else ''echo "  FAIL: mllmDraftModel should be null for Qwen3.8, got ${toString megamanxVllmMlx.mllmDraftModel}"; exit 1''
     }
     ${
       # pi advertises maxTokens = 131072 for the bifrost model; the server KV

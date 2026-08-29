@@ -159,9 +159,10 @@
       default = null;
       description = ''
         Path or HuggingFace repo ID of an mlx-vlm MLLM draft/assistant model.
-        Used for speculative decoding with --mllm-draft-kind. For example, the
-        Qwen3.8-27B-MTP-8bit drafter weights are used alongside a compatible
-        Qwen3.8 27B target checkpoint; they are not a standalone model.
+        Used for speculative decoding with --mllm-draft-kind. In vllm-mlx
+        0.4.1 this path is specific to Gemma 4 assistant drafters; it does
+        not load Qwen3.5/3.6/3.8 MTP weights. For Qwen3 MTP, enable
+        `enableMtp` and use an MTP-capable checkpoint instead.
 
         Note: --mllm-draft-model is incompatible with --models-config, so
         setting this option forces single-model mode for this instance (only

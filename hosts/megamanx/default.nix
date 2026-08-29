@@ -15,9 +15,12 @@
     // {
       obsidian.vaults = ["personal"];
 
-      # Default vllm-mlx instance: Qwen 3.8 with external MTP draft model.
-      # Runs in single-model mode because --mllm-draft-model is incompatible
-      # with --models-config.
+      # Default vllm-mlx instance: Qwen 3.8.
+      # Note: mlx-community/Qwen3.8-27B-MTP-8bit is an MTP *drafter* model
+      # (model_type = qwen3_5_mtp), not a primary checkpoint with built-in MTP
+      # heads. vllm-mlx has no generic --draft-model path for Qwen3 MTP
+      # drafters (only --mllm-draft-model for Gemma 4 assistant drafters), so
+      # we serve the base 8-bit checkpoint for maximum SimpleEngine throughput.
       vllmMlx = {
         enable = true;
         server = {
@@ -41,12 +44,6 @@
         timeout = 600;
         logLevel = "INFO";
         enableMetrics = true;
-        # Use the external Qwen3.8-27B-MTP-8bit mlx-vlm draft model for
-        # speculative decoding. This is not a standalone model; it must be
-        # paired with a compatible Qwen3.8 27B target checkpoint.
-        mllmDraftModel = "mlx-community/Qwen3.8-27B-MTP-8bit";
-        mllmDraftKind = "mtp";
-        mllmDraftBlockSize = 3;
       };
 
       # Second vllm-mlx instance: Gemma 4 e4b with BatchedEngine for concurrent
