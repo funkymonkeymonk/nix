@@ -112,13 +112,31 @@
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
         hash = "sha256-1eEw976l9xb0nLyoc5vUv1536EUvmdVtCBdz+FpprgQ=";
       };
+      # Temporary compatibility patch for the latest upstream OSS fallback:
+      # VKCreationPolicyResponse is referenced there but is no longer exported
+      # by the OSS accessProfile types. Remove this when upstream fixes it.
+      postPatch =
+        (oldAttrs.postPatch or "")
+        + ''
+          substituteInPlace app/_fallbacks/enterprise/lib/store/apis/accessProfileApi.ts \
+            --replace ', VKCreationPolicyResponse' ""
+          printf '%s\n' \
+            "" \
+            "type VKCreationPolicyResponse = {" \
+            "  governed?: boolean;" \
+            "  profile_name?: string;" \
+            "};" \
+            >> app/_fallbacks/enterprise/lib/store/apis/accessProfileApi.ts
+        '';
     });
 
     bifrost-http =
       ((inputs.bifrost.packages.${final.system}.bifrost-http).override {
         bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (_prev: {
-        vendorHash = "sha256-hIlkglzuJ/BmGw5DTXxKw+ClxlN+3vC/ZIOs6EPMOK0=";
+        # The latest upstream revision ships vendor/modules.txt from an older
+        # module graph. Regenerate it from go.mod until upstream refreshes it.
+        vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
       });
   }
   else {}

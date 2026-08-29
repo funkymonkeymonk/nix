@@ -626,6 +626,8 @@ in {
 
         echo "=== Configuration Evaluation ==="
         echo ""
+        CURRENT_HOST=$(hostname -s)
+        export CURRENT_HOST
 
         HAS_FACTER=false
         if [ -f /etc/nixos/facter.json ]; then
@@ -649,11 +651,17 @@ in {
         echo "Evaluating NixOS configurations..."
         NIXOS_RESULTS=$(nix eval --impure --json --expr '
           let
-            flake = builtins.getFlake (toString ./.);
-            names = builtins.attrNames flake.nixosConfigurations;
-            tryConfig = name: {
-              inherit name;
-              success = (builtins.tryEval (flake.nixosConfigurations.''${name}.config.system.build.toplevel != null)).success;
+             flake = builtins.getFlake (toString ./.);
+             names = builtins.attrNames flake.nixosConfigurations;
+             deepEvaluate = builtins.currentSystem == "x86_64-linux";
+             activeHost = builtins.getEnv "CURRENT_HOST";
+             tryConfig = name: {
+               inherit name;
+               success = (builtins.tryEval (
+                  if deepEvaluate && name == activeHost
+                  then flake.nixosConfigurations.''${name}.config.system.build.toplevel.drvPath != ""
+                  else flake.nixosConfigurations.''${name}.config.system.build.toplevel != null
+                )).success;
             };
           in
             map tryConfig names
@@ -694,11 +702,17 @@ in {
         if [[ "$(uname)" == "Darwin" ]]; then
           DARWIN_RESULTS=$(nix eval --impure --json --expr '
             let
-              flake = builtins.getFlake (toString ./.);
-              names = builtins.attrNames flake.darwinConfigurations;
-              tryConfig = name: {
-                inherit name;
-                success = (builtins.tryEval (flake.darwinConfigurations.''${name}.config.system.build.toplevel != null)).success;
+             flake = builtins.getFlake (toString ./.);
+             names = builtins.attrNames flake.darwinConfigurations;
+             deepEvaluate = builtins.currentSystem == "aarch64-darwin";
+             activeHost = builtins.getEnv "CURRENT_HOST";
+             tryConfig = name: {
+               inherit name;
+               success = (builtins.tryEval (
+                  if deepEvaluate && name == activeHost
+                  then flake.darwinConfigurations.''${name}.config.system.build.toplevel.drvPath != ""
+                  else flake.darwinConfigurations.''${name}.config.system.build.toplevel != null
+                )).success;
               };
             in
               map tryConfig names
@@ -859,18 +873,26 @@ in {
 
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1/chat/completions}"
         MODEL="''${MODEL:-qwen3.8-27b}"
+        TOKENIZER="''${TOKENIZER:-}"
+        case "$MODEL" in
+          qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-8bit}" ;;
+          gemma4-e4b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-e4b-it-4bit}" ;;
+          gemma4-31b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-31b-it-4bit}" ;;
+          *) TOKENIZER="''${TOKENIZER:-$MODEL}" ;;
+        esac
         LIMIT="''${LIMIT:-50}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-gsm8k}"
 
-        echo "=== lm-eval GSM8K against $BASE_URL (model: $MODEL) ==="
+        echo "=== lm-eval GSM8K against $BASE_URL (model: $MODEL, tokenizer: $TOKENIZER) ==="
         mkdir -p "$OUTPUT_DIR"
 
         lm-eval run \
           --model local-chat-completions \
-          --model_args model="$MODEL",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
+          --model_args model="$MODEL",tokenizer="$TOKENIZER",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
           --tasks gsm8k \
           --limit "$LIMIT" \
           --batch_size 1 \
+          --apply_chat_template \
           --output_path "$OUTPUT_DIR" \
           --log_samples
 
@@ -886,15 +908,22 @@ in {
 
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
         MODEL="''${MODEL:-qwen3.8-27b}"
+        TOKENIZER="''${TOKENIZER:-}"
+        case "$MODEL" in
+          qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-8bit}" ;;
+          gemma4-e4b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-e4b-it-4bit}" ;;
+          gemma4-31b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-31b-it-4bit}" ;;
+          *) TOKENIZER="''${TOKENIZER:-$MODEL}" ;;
+        esac
         LIMIT="''${LIMIT:-10}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-mini}"
 
-        echo "=== lm-eval mini benchmark against $BASE_URL (model: $MODEL) ==="
+        echo "=== lm-eval mini benchmark against $BASE_URL (model: $MODEL, tokenizer: $TOKENIZER) ==="
         mkdir -p "$OUTPUT_DIR"
 
         lm-eval run \
-          --model local-completions \
-          --model_args model="$MODEL",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
+          --model local-chat-completions \
+          --model_args model="$MODEL",tokenizer="$TOKENIZER",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
           --tasks mmlu,arc_easy,hellaswag \
           --limit "$LIMIT" \
           --batch_size 1 \
@@ -914,16 +943,23 @@ in {
 
         BASE_URL="''${BASE_URL:-http://localhost:8300/v1/completions}"
         MODEL="''${MODEL:-qwen3.8-27b}"
+        TOKENIZER="''${TOKENIZER:-}"
+        case "$MODEL" in
+          qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-8bit}" ;;
+          gemma4-e4b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-e4b-it-4bit}" ;;
+          gemma4-31b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-31b-it-4bit}" ;;
+          *) TOKENIZER="''${TOKENIZER:-$MODEL}" ;;
+        esac
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/lm-eval-leaderboard}"
 
-        echo "=== lm-eval Open LLM Leaderboard v2 against $BASE_URL (model: $MODEL) ==="
+        echo "=== lm-eval Open LLM Leaderboard v2 against $BASE_URL (model: $MODEL, tokenizer: $TOKENIZER) ==="
         echo "This is a long-running benchmark. Set LIMIT=N for a quick subset."
         echo ""
         mkdir -p "$OUTPUT_DIR"
 
         lm-eval run \
-          --model local-completions \
-          --model_args model="$MODEL",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
+          --model local-chat-completions \
+          --model_args model="$MODEL",tokenizer="$TOKENIZER",base_url="$BASE_URL",num_concurrent=1,max_retries=3 \
           --tasks leaderboard \
           --batch_size 1 \
           --apply_chat_template \
@@ -1056,6 +1092,11 @@ in {
         LIMIT="''${LIMIT:-10}"
         OUTPUT_DIR="''${OUTPUT_DIR:-./benchmark-results/evalscope-arc}"
         mkdir -p "$OUTPUT_DIR"
+        # modelscope tries to write ast_index_file.py inside its nix store path;
+        # redirect caches to a writable location.
+        export MODELSCOPE_CACHE_HOME="$OUTPUT_DIR/.modelscope-cache"
+        export MODELSCOPE_HOME="$OUTPUT_DIR/.modelscope-home"
+        export HF_HOME="$OUTPUT_DIR/.hf-home"
         evalscope eval --model "$MODEL" --api-url "$API_URL" --api-key EMPTY \
           --eval-type openai_api --datasets arc --limit "$LIMIT" \
           --work-dir "$OUTPUT_DIR" --no-timestamp

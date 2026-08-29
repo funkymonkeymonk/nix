@@ -18,10 +18,8 @@
     mkUser "monkey" "me@willweaver.dev"
     // {
       skills.superpowersPath = inputs.superpowers;
-      # Headless servers have no default OpenCode model; user selects on first run.
       opencode = {
         enable = true;
-        model = null;
       };
 
       # Observability stack: metrics (Prometheus + node_exporter), logs

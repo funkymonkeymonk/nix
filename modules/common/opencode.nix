@@ -85,6 +85,11 @@
             default = null;
             description = "NPM package for the provider (optional, e.g., @ai-sdk/openai-compatible)";
           };
+          apiKey = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Static API key for the provider (optional; prefer onePasswordItem for secrets)";
+          };
           name = lib.mkOption {
             type = lib.types.str;
             description = "Display name of the provider";

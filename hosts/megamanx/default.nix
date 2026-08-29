@@ -15,6 +15,8 @@
     // {
       obsidian.vaults = ["personal"];
 
+      roles.opencode.enable = true;
+
       # Default vllm-mlx instance: Qwen 3.8.
       # Note: mlx-community/Qwen3.8-27B-MTP-8bit is an MTP *drafter* model
       # (model_type = qwen3_5_mtp), not a primary checkpoint with built-in MTP

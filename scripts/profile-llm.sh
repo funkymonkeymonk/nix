@@ -336,6 +336,7 @@ except Exception as e:
     case "$MODEL" in
       gemma4-31b) model_hf_path="mlx-community/gemma-4-31b-it-4bit" ;;
       gemma4-e4b) model_hf_path="mlx-community/gemma-4-e4b-it-4bit" ;;
+      qwen3.8-27b) model_hf_path="mlx-community/Qwen3.8-27B-8bit" ;;
       *) model_hf_path="" ;;
     esac
   fi

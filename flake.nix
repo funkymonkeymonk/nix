@@ -391,6 +391,7 @@
                 vane-darwin-autostart-true
                 opencode-options
                 opencode-custom-options
+                opencode-bifrost-defaults
                 opencode-provider-opnix-url
                 shell-aliases
                 workspace-switch

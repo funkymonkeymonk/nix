@@ -182,6 +182,7 @@ in
     # Home-manager module tests
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
+    opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
 

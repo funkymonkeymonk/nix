@@ -69,6 +69,50 @@
         ];
     }).config.myConfig.opencode;
 
+  # Evaluate the OpenCode role defaults, including its generated Bifrost
+  # provider and default model.
+  opencodeRole =
+    (lib.evalModules {
+      modules =
+        stubs.withRoles
+        ++ [
+          {
+            config.myConfig = {
+              roles.opencode.enable = true;
+            };
+          }
+        ];
+    }).config.myConfig;
+
+  opencodeHome =
+    (lib.evalModules {
+      modules = [
+        {
+          options.home = {
+            file = lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
+              default = {};
+            };
+            sessionVariables = lib.mkOption {
+              type = lib.types.attrsOf lib.types.str;
+              default = {};
+            };
+          };
+          options.programs = lib.mkOption {
+            type = lib.types.attrsOf lib.types.anything;
+            default = {};
+          };
+        }
+        {
+          config._module.args = {
+            inherit pkgs;
+            osConfig = {myConfig = opencodeRole;};
+          };
+        }
+        ../modules/home-manager/opencode.nix
+      ];
+    }).config;
+
   # --- shell aliases test ---
   # Import aliases.nix as a home-manager module to check it defines shellAliases
   # Note: aliases.nix reads from config.myConfig which needs the options module
@@ -169,6 +213,96 @@ in {
       }
 
       echo "All opencode custom options verified"
+      touch $out
+    '';
+
+  # Test the role's Bifrost provider uses the Anthropic-compatible API and
+  # enables the discovery plugin without removing other providers.
+  opencodeBifrostDefaultsTest =
+    pkgs.runCommand "test-opencode-bifrost-defaults"
+    {}
+    ''
+      echo "=== Testing OpenCode Bifrost Defaults ==="
+
+      ${
+        if opencodeRole.opencode.enable
+        then ''echo "  OpenCode role enables OpenCode configuration: OK"''
+        else ''echo "  OpenCode role should enable OpenCode configuration!"; exit 1''
+      }
+
+      ${
+        if opencodeRole.opencode.model == "local-bifrost/vllm-mlx-qwen/qwen3.8-27b"
+        then ''echo "  default model = local-bifrost/vllm-mlx-qwen/qwen3.8-27b: OK"''
+        else ''echo "  default model should be the managed Qwen model!"; exit 1''
+      }
+
+      ${
+        if opencodeRole.opencode.providers.local-bifrost.npm == "@ai-sdk/anthropic"
+        then ''echo "  Bifrost adapter = @ai-sdk/anthropic: OK"''
+        else ''echo "  Bifrost adapter should be @ai-sdk/anthropic!"; exit 1''
+      }
+
+      ${
+        if opencodeRole.opencode.providers.local-bifrost.apiKey == "bifrost-local"
+        then ''echo "  Bifrost local API key configured: OK"''
+        else ''echo "  Bifrost local API key should be configured!"; exit 1''
+      }
+
+      ${
+        if opencodeRole.opencode.providers.local-bifrost.dynamicModels
+        then ''echo "  Bifrost model discovery enabled: OK"''
+        else ''echo "  Bifrost model discovery should be enabled!"; exit 1''
+      }
+
+      ${
+        if opencodeRole.opencode.providers ? local-bifrost
+        then ''echo "  Bifrost provider preserved: OK"''
+        else ''echo "  Bifrost provider should be configured!"; exit 1''
+      }
+
+      ${
+        if opencodeHome.programs.opencode.settings.model == "local-bifrost/vllm-mlx-qwen/qwen3.8-27b"
+        then ''echo "  generated OpenCode default model = managed Qwen: OK"''
+        else ''echo "  generated OpenCode default model is incorrect!"; exit 1''
+      }
+
+      ${
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.npm == "@ai-sdk/anthropic"
+        then ''echo "  generated Anthropic adapter = @ai-sdk/anthropic: OK"''
+        else ''echo "  generated Anthropic adapter is incorrect!"; exit 1''
+      }
+
+      ${
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.apiKey == "bifrost-local"
+        then ''echo "  generated Bifrost local API key: OK"''
+        else ''echo "  generated Bifrost local API key is incorrect!"; exit 1''
+      }
+
+      ${
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.baseURL == "http://127.0.0.1:8081/anthropic/v1"
+        then ''echo "  generated Bifrost API URL = port 8081: OK"''
+        else ''echo "  generated Bifrost API URL should use port 8081!"; exit 1''
+      }
+
+      ${
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.modelsDiscovery.endpoint == "/v1/models"
+        then ''echo "  generated Bifrost discovery URL = /v1/models: OK"''
+        else ''echo "  generated Bifrost discovery URL should be /v1/models!"; exit 1''
+      }
+
+      ${
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.modelsDiscovery.modelInfoFormat == "bifrost"
+        then ''echo "  generated Bifrost metadata discovery: OK"''
+        else ''echo "  generated Bifrost metadata discovery is incorrect!"; exit 1''
+      }
+
+      ${
+        if builtins.elem "opencode-models-discovery@latest" opencodeHome.programs.opencode.settings.plugin
+        then ''echo "  discovery plugin loaded: OK"''
+        else ''echo "  discovery plugin should be loaded!"; exit 1''
+      }
+
+      echo "All OpenCode Bifrost defaults verified"
       touch $out
     '';
 
