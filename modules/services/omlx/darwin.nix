@@ -13,6 +13,7 @@
   darwinHomeDir = commonLib.darwinHomeDir config;
   modelDir = "${darwinHomeDir}/.omlx/models";
   cacheDir = "${darwinHomeDir}/.omlx/cache";
+  logDir = "${darwinHomeDir}/.omlx/logs";
   modelPath = "${pkgs.qwen3_8-27B-4bit}";
   # oMLX is an ARM-only formula, so it must use Homebrew's native ARM prefix.
   homebrewPrefix = "/opt/homebrew";
@@ -103,10 +104,13 @@ in {
     };
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
-      install -d -o ${primaryUser} -g staff "${modelDir}" "${cacheDir}" "${darwinHomeDir}/Library/Logs/omlx"
+      install -d -o ${primaryUser} -g staff "${modelDir}" "${cacheDir}" "${logDir}" "${darwinHomeDir}/Library/Logs/omlx"
       rm -f "${modelDir}/qwen3.8-27b"
       ln -s "${modelPath}" "${modelDir}/qwen3.8-27b"
       chown -h ${primaryUser}:staff "${modelDir}/qwen3.8-27b"
+      if [ -f "${homebrewPrefix}/opt/omlx/libexec/lib/python3.11/site-packages/mlx/lib/libmlx.dylib" ]; then
+        /usr/bin/codesign --force --sign - "${homebrewPrefix}/opt/omlx/libexec/lib/python3.11/site-packages/mlx/lib/libmlx.dylib"
+      fi
     '';
 
     myConfig.serviceRegistry = commonLib.mkServiceRegistry "omlx" {
