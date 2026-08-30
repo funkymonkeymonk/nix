@@ -68,6 +68,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    homebrew.enable = true;
     homebrew.prefix = homebrewPrefix;
     homebrew.taps = [
       {
