@@ -16,6 +16,7 @@
       obsidian.vaults = ["personal"];
 
       roles.opencode.enable = true;
+      opencode.model = "local-bifrost/omlx/qwen3.8-27b";
 
       # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
       # continuous-batching and tiered KV-cache engine.
@@ -46,7 +47,7 @@
         enable = true;
         openaiBaseUrl = "http://bifrost.internal/v1";
         defaultModel = "qwen3.8-27b";
-        # No Ollama service runs on this host (vllm-mlx + Bifrost handle all
+        # No Ollama service runs on this host (oMLX + Bifrost handle all
         # local inference) — leave embeddings unconfigured rather than
         # pointing at a service that doesn't exist.
         embeddingModel = null;
@@ -64,7 +65,7 @@
         # Prometheus metrics: http://localhost:8081/metrics
         logLevel = "debug";
         upstreams = {
-          vllm-mlx-qwen = {
+          omlx = {
             url = "http://localhost:8300";
             type = "openai";
             requestTimeout = 600;
@@ -72,16 +73,6 @@
             maxRetries = 3;
             models = [
               "qwen3.8-27b"
-            ];
-          };
-          vllm-mlx-gemma = {
-            url = "http://localhost:8301";
-            type = "openai";
-            requestTimeout = 600;
-            streamIdleTimeoutInSeconds = 600;
-            maxRetries = 3;
-            models = [
-              "gemma4-e4b"
             ];
           };
         };
@@ -135,11 +126,11 @@
           - Follow the conventional commit style
         '';
 
-        # Route through Bifrost to vllm-mlx for Gemma 4 with working tool calls
+        # Route through the oMLX Bifrost provider.
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "vllm-mlx-qwen/qwen3.8-27b";
+          modelId = "omlx/qwen3.8-27b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = false;
           maxTokens = 131072;
