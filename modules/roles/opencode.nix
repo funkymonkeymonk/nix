@@ -32,7 +32,7 @@ in {
       name = "Local Bifrost";
       npm = "@ai-sdk/anthropic";
       apiKey = "bifrost-local";
-      baseURL = "http://${host}:${bifrostPort}/anthropic";
+      baseURL = "http://${host}:${bifrostPort}/anthropic/v1";
       models."omlx/qwen3.8-27b" = {
         name = "Qwen3.8 27B (oMLX)";
       };

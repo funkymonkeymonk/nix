@@ -279,9 +279,9 @@ in {
       }
 
       ${
-        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.baseURL == "http://127.0.0.1:8081/anthropic"
-        then ''echo "  generated Bifrost Anthropic API URL = /anthropic: OK"''
-        else ''echo "  generated Bifrost API URL should use the Anthropic /anthropic endpoint!"; exit 1''
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.baseURL == "http://127.0.0.1:8081/anthropic/v1"
+        then ''echo "  generated Bifrost Anthropic API URL = /anthropic/v1: OK"''
+        else ''echo "  generated Bifrost API URL should use the Anthropic /anthropic/v1 endpoint!"; exit 1''
       }
 
       ${
