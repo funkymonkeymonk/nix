@@ -161,6 +161,37 @@ in {
     touch $out
   '';
 
+  bifrostAnthropicConfigTest = let
+    anthropicEval =
+      (lib.evalModules {
+        modules =
+          stubs.bifrost
+          ++ [
+            {
+              config.myConfig.bifrost = {
+                enable = true;
+                upstreams.omlx = {
+                  url = "http://localhost:8300";
+                  type = "anthropic";
+                };
+              };
+            }
+          ];
+      })
+      .config;
+  in
+    pkgs.runCommand "test-bifrost-anthropic-config" {} ''
+      echo "=== Testing Bifrost Anthropic Provider Config ==="
+      SCRIPT=${anthropicEval.launchd.daemons.bifrost.command}
+
+      if grep -q '"base_provider_type":"anthropic"' "$SCRIPT"; then
+        echo "  custom provider base type = anthropic: OK"
+      else
+        echo "  custom provider base type should be anthropic!"; exit 1
+      fi
+      touch $out
+    '';
+
   # Verify the generated provider config (embedded in the launchd script)
   # carries retry settings into network_config. Bifrost's upstream default is
   # max_retries = 0 — one attempt, no retries — which is what let transient

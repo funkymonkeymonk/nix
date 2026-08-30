@@ -60,7 +60,7 @@
         enable = true;
         upstreams.omlx = {
           url = "http://localhost:8300";
-          type = "openai";
+          type = "anthropic";
           requestTimeout = 600;
           streamIdleTimeoutInSeconds = 600;
           models = ["qwen3.8-27b"];

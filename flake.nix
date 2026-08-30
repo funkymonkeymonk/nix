@@ -414,6 +414,7 @@
                 pi-custom-options
                 bifrost-options
                 bifrost-custom-options
+                bifrost-anthropic-config
                 bifrost-retry-config
                 caddy-options
                 caddy-custom-options

@@ -52,7 +52,7 @@
         upstreams = {
           omlx = {
             url = "http://localhost:8300";
-            type = "openai";
+            type = "anthropic";
             requestTimeout = 600;
             streamIdleTimeoutInSeconds = 600;
             maxRetries = 3;

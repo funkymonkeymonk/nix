@@ -216,7 +216,7 @@ in {
       touch $out
     '';
 
-  # Test the role's Bifrost provider uses the OpenAI-compatible API and
+  # Test the role's Bifrost provider uses the Anthropic-compatible API and
   # enables the discovery plugin without removing other providers.
   opencodeBifrostDefaultsTest =
     pkgs.runCommand "test-opencode-bifrost-defaults"
@@ -237,9 +237,9 @@ in {
       }
 
       ${
-        if opencodeRole.opencode.providers.local-bifrost.npm == "@ai-sdk/openai-compatible"
-        then ''echo "  Bifrost adapter = @ai-sdk/openai-compatible: OK"''
-        else ''echo "  Bifrost adapter should be @ai-sdk/openai-compatible!"; exit 1''
+        if opencodeRole.opencode.providers.local-bifrost.npm == "@ai-sdk/anthropic"
+        then ''echo "  Bifrost adapter = @ai-sdk/anthropic: OK"''
+        else ''echo "  Bifrost adapter should be @ai-sdk/anthropic!"; exit 1''
       }
 
       ${
@@ -267,9 +267,9 @@ in {
       }
 
       ${
-        if opencodeHome.programs.opencode.settings.provider.local-bifrost.npm == "@ai-sdk/openai-compatible"
-        then ''echo "  generated OpenAI-compatible adapter = @ai-sdk/openai-compatible: OK"''
-        else ''echo "  generated OpenAI-compatible adapter is incorrect!"; exit 1''
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.npm == "@ai-sdk/anthropic"
+        then ''echo "  generated Anthropic adapter = @ai-sdk/anthropic: OK"''
+        else ''echo "  generated Anthropic adapter is incorrect!"; exit 1''
       }
 
       ${
@@ -279,9 +279,9 @@ in {
       }
 
       ${
-        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.baseURL == "http://127.0.0.1:8081/v1"
-        then ''echo "  generated Bifrost OpenAI API URL = /v1: OK"''
-        else ''echo "  generated Bifrost API URL should use the OpenAI-compatible /v1 endpoint!"; exit 1''
+        if opencodeHome.programs.opencode.settings.provider.local-bifrost.options.baseURL == "http://127.0.0.1:8081/anthropic"
+        then ''echo "  generated Bifrost Anthropic API URL = /anthropic: OK"''
+        else ''echo "  generated Bifrost API URL should use the Anthropic /anthropic endpoint!"; exit 1''
       }
 
       ${

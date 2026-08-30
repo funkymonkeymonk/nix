@@ -252,6 +252,7 @@ in
     # Bifrost AI gateway module tests
     bifrost-options = testBifrost.bifrostOptionsTest;
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
+    bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
 
     # Caddy reverse proxy module tests

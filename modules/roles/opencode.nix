@@ -30,9 +30,9 @@ in {
     # Auto-configure bifrost as a model provider
     myConfig.opencode.providers.local-bifrost = lib.mkDefault {
       name = "Local Bifrost";
-      npm = "@ai-sdk/openai-compatible";
+      npm = "@ai-sdk/anthropic";
       apiKey = "bifrost-local";
-      baseURL = "http://${host}:${bifrostPort}/v1";
+      baseURL = "http://${host}:${bifrostPort}/anthropic";
       models."omlx/qwen3.8-27b" = {
         name = "Qwen3.8 27B (oMLX)";
       };
