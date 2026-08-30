@@ -14,7 +14,10 @@
   modelDir = "${darwinHomeDir}/.omlx/models";
   cacheDir = "${darwinHomeDir}/.omlx/cache";
   modelPath = "${pkgs.qwen3_8-27B-4bit}";
-  omlxBinary = "/opt/homebrew/opt/omlx/bin/omlx";
+  # This host's native Homebrew is installed in /usr/local rather than the
+  # nix-darwin default /opt/homebrew prefix.
+  homebrewPrefix = "/usr/local";
+  omlxBinary = "${homebrewPrefix}/opt/omlx/bin/omlx";
   omlxCommand = lib.concatStringsSep " " [
     omlxBinary
     "serve"
@@ -65,7 +68,13 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    homebrew.taps = ["jundot/omlx"];
+    homebrew.prefix = homebrewPrefix;
+    homebrew.taps = [
+      {
+        name = "jundot/omlx";
+        clone_target = "https://github.com/jundot/omlx";
+      }
+    ];
     homebrew.brews = [
       {
         name = "jundot/omlx/omlx";
