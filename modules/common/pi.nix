@@ -56,7 +56,7 @@
           };
           provider = lib.mkOption {
             type = lib.types.str;
-            description = "Provider ID (e.g., 'anthropic', 'openai', 'ollama')";
+            description = "Provider ID (e.g., 'anthropic', 'openai', 'omlx')";
           };
           modelId = lib.mkOption {
             type = lib.types.str;

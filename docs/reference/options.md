@@ -48,6 +48,16 @@ or changing a `myConfig.*` option.
 | `name` | string | `"agent"` | Username for the agent account |
 | `uid` | null or signed integer | `null` | Fixed UID for the agent user (auto-assigned if null) |
 
+### myConfig.alertmanager
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bindAddress` | string | `"127.0.0.1"` | Bind address for Alertmanager HTTP server. Defaults to loopback-only since Prometheus queries it on the same host. |
+| `dataDir` | string | `"/Users/monkey/Library/Application Support/Alertmanager"` | Directory for Alertmanager silence/notification-log storage |
+| `enable` | boolean | `false` | Enable Prometheus Alertmanager for alert routing/deduplication |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9093` | Port for Alertmanager HTTP server |
+| `receiverWebhookUrl` | null or string | `null` | Webhook URL for the real alert receiver (e.g. a Matrix or Discord incoming webhook). Genuinely TBD as of this module's introduction — no credentials are available. Leave null to route all alerts to a null receiver (silently dropped, no external calls) until a real endpoint is provisioned. |
+
 ### myConfig.autoUpgrade
 
 | Option | Type | Default | Description |
@@ -63,7 +73,7 @@ or changing a `myConfig.*` option.
 | `host` | string | `"0.0.0.0"` | Host to bind Bifrost to |
 | `logLevel` | one of "debug", "info", "warn", "error" | `"info"` | Bifrost log level |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8081` | Port for Bifrost HTTP gateway |
-| `upstreams` | attribute set of (submodule) | `{ }` | Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vllm-mlx-local' → model 'vllm-mlx-local/glm47-flash-4bit') |
+| `upstreams` | attribute set of (submodule) | `{ }` | Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b') |
 | `upstreams.<name>.allowPrivateNetwork` | boolean | `true` | Allow connecting to private network IPs (localhost, 192.168.x.x, 10.x.x.x) |
 | `upstreams.<name>.apiKey` | string | `"dummy"` | API key for the upstream (dummy for local servers) |
 | `upstreams.<name>.maxRetries` | unsigned integer, meaning >=0 | `0` | Maximum retry attempts for retryable upstream errors (e.g. 503 from a busy local engine). Bifrost's stock default is 0 — a single attempt — so transient failures fail the whole request. Local agent gateways should set 2-3. |
@@ -71,7 +81,7 @@ or changing a `myConfig.*` option.
 | `upstreams.<name>.requestTimeout` | unsigned integer, meaning >=0 | `120` | Default request timeout in seconds |
 | `upstreams.<name>.retryBackoffInitialMs` | positive integer, meaning >0 | `500` | Initial retry backoff in milliseconds (matches Bifrost's upstream default of 500ms). Retries back off exponentially up to retryBackoffMaxMs. |
 | `upstreams.<name>.retryBackoffMaxMs` | positive integer, meaning >0 | `5000` | Maximum retry backoff in milliseconds (matches Bifrost's upstream default of 5s). |
-| `upstreams.<name>.streamIdleTimeoutInSeconds` | unsigned integer, meaning >=0 | `60` | Idle timeout for streaming responses. If no chunk arrives from the upstream within this window, Bifrost closes the connection. Must be >= the upstream's longest prefill time. For vllm-mlx with long system prompts (22k+ tokens), set to 600s to avoid 500 errors during chunked prefill. Bifrost default is 60s. |
+| `upstreams.<name>.streamIdleTimeoutInSeconds` | unsigned integer, meaning >=0 | `60` | Idle timeout for streaming responses. If no chunk arrives from the upstream within this window, Bifrost closes the connection. Must be >= the upstream's longest prefill time. For oMLX with long system prompts (22k+ tokens), set to 600s to avoid 500 errors during chunked prefill. Bifrost default is 60s. |
 | `upstreams.<name>.type` | one of "openai", "vllm" | `"openai"` | Provider type for the upstream. Use 'vllm' for vLLM-compatible servers (uses bifrost's native vLLM provider integration) |
 | `upstreams.<name>.url` | string | *required* | Base URL for the upstream inference server (e.g., http://localhost:8300/v1) |
 
@@ -160,6 +170,17 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Whether to enable gaming support. |
 
+### myConfig.grafana
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bindAddress` | string | `"0.0.0.0"` | Bind address for Grafana HTTP server. Defaults to all interfaces — protoman is a headless server reachable only via Tailscale, which is treated as the network access boundary here rather than a specific bind IP. |
+| `dataDir` | string | `"/Users/monkey/Library/Application Support/Grafana"` | Directory for Grafana's sqlite database, logs, and plugins |
+| `domain` | string | `"localhost"` | Domain name used for building absolute URLs (e.g. in alert links). Set to protoman's Tailscale hostname/MagicDNS name once known. |
+| `enable` | boolean | `false` | Enable Grafana dashboard/visualization server with Prometheus + Loki datasources |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3000` | Port for Grafana HTTP server |
+| `typeServerPrometheusUrl` | null or string | `null` | URL of type-server's Prometheus instance (see modules/nixos/prometheus.nix), reachable over Tailscale. When set, adds a second "Prometheus (type-server)" datasource here instead of running a duplicate Grafana on type-server. Genuinely TBD as of this option's introduction — type-server's real Tailscale MagicDNS name isn't known at eval time. Example: "http://type-server.<tailnet>.ts.net:9090". |
+
 ### myConfig.isDarwin
 
 | Option | Type | Default | Description |
@@ -181,6 +202,17 @@ or changing a `myConfig.*` option.
 | `(self)` | attribute set of (submodule) | `{ }` | Additional LLM endpoint configurations (merged with default localhost endpoint) |
 | `<name>.host` | string | *required* | Host address for the LLM endpoint |
 | `<name>.port` | string | *required* | Port for the LLM endpoint |
+
+### myConfig.loki
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bindAddress` | string | `"127.0.0.1"` | Bind address for Loki HTTP server. Defaults to loopback-only since Grafana/Vector run on the same host; set to protoman's LAN IP for cross-host 192.168.83.0/24 access. |
+| `dataDir` | string | `"/Users/monkey/Library/Application Support/Loki"` | Directory for Loki chunks, index, and compactor working data |
+| `enable` | boolean | `false` | Enable Grafana Loki log aggregation server |
+| `openFirewall` | boolean | `false` | Whether to open the firewall for Loki's HTTP port. Keep disabled (the default) when only local log shippers (e.g. Vector on the same host) push to Loki over localhost. |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | Port for Loki HTTP server (log push + query API) |
+| `retention` | string | `"168h"` | Log retention period (e.g. 168h = 7 days, 720h = 30 days) |
 
 ### myConfig.lume
 
@@ -222,6 +254,18 @@ or changing a `myConfig.*` option.
 | `vaultRoot` | string | `"~/Documents/vaults"` | Root directory for all Obsidian vaults. Each vault name in `myConfig.obsidian.vaults` becomes a subdirectory here. |
 | `vaults` | list of string | `[ ]` | Names of Obsidian vaults on this machine. Each name creates a vault at `<vaultRoot>/<name>` and a corresponding Syncthing folder. |
 
+### myConfig.omlx
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable oMLX inference server. |
+| `hotCacheMaxSize` | string | `"20GB"` | In-memory oMLX hot cache size |
+| `logLevel` | one of "trace", "debug", "info", "warning", "error" | `"info"` | oMLX log level |
+| `maxConcurrentRequests` | positive integer, meaning >0 | `8` | Maximum concurrent oMLX requests |
+| `memoryGuardGb` | positive integer, meaning >0 | `96` | Maximum oMLX process memory in GB |
+| `server.host` | string | `"0.0.0.0"` | Bind address for oMLX |
+| `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Port for oMLX's OpenAI-compatible API |
+
 ### myConfig.onepassword
 
 | Option | Type | Default | Description |
@@ -251,7 +295,7 @@ or changing a `myConfig.*` option.
 | `agents.<name>.description` | string | `""` | Description of what the agent does |
 | `agents.<name>.hidden` | boolean | `false` | Hide from autocomplete menu |
 | `agents.<name>.mode` | one of "primary", "subagent", "all" | `"primary"` | Agent mode: primary (switchable), subagent (@mention), or all |
-| `agents.<name>.model` | null or string | `null` | Model for this agent (e.g., ollama/qwen3.5:2b) |
+| `agents.<name>.model` | null or string | `null` | Model for this agent (e.g., omlx/qwen3.8-27b) |
 | `agents.<name>.permission` | attribute set of (string or attribute set of string) | `{ }` | Permission settings for this agent |
 | `agents.<name>.prompt` | string | `""` | System prompt for the agent |
 | `agents.<name>.temperature` | null or floating point number | `null` | Temperature for the agent (0.0-1.0) |
@@ -274,6 +318,7 @@ or changing a `myConfig.*` option.
 | `extraMcpServers.<name>.url` | string | `""` | URL for remote MCP servers |
 | `model` | null or string | `null` | Default LLM model for opencode (null means no default, user selects on first run) |
 | `providers` | attribute set of (submodule) | `{ }` | LLM providers configuration |
+| `providers.<name>.apiKey` | null or string | `null` | Static API key for the provider (optional; prefer onePasswordItem for secrets) |
 | `providers.<name>.baseURL` | string | `""` | Base URL for the provider API. Can be empty when baseURLOpnixItem is set. |
 | `providers.<name>.baseURLOpnixItem` | string | `""` | 1Password item reference (e.g., 'op://vault/item/field') to retrieve the base URL. When set, baseURL can be left empty. |
 | `providers.<name>.dynamicModels` | boolean | `false` | Fetch available models from the provider's /v1/models endpoint at runtime (useful for LiteLLM proxies) |
@@ -300,7 +345,7 @@ or changing a `myConfig.*` option.
 | `models.<name>.modelId` | string | *required* | Model identifier (e.g., 'claude-sonnet-4-6', 'gpt-4o') |
 | `models.<name>.name` | string | *required* | Display name for the model |
 | `models.<name>.onePasswordItem` | string | `""` | 1Password item reference (e.g., 'op://vault/item/field') |
-| `models.<name>.provider` | string | *required* | Provider ID (e.g., 'anthropic', 'openai', 'ollama') |
+| `models.<name>.provider` | string | *required* | Provider ID (e.g., 'anthropic', 'openai', 'omlx') |
 | `models.<name>.reasoning` | boolean | `false` | Whether the model supports extended thinking/reasoning |
 | `npmPackages` | attribute set of string | `{ }` | NPM packages to install for pi extensions. Each key is the package name, value is the version constraint. Written to ~/.pi/agent/npm/package.json and installed on activation. Example: { "pi-web-access" = "^0.10.7"; "pi-opencode-provider" = "^0.7.3"; } |
 | `plugins` | list of string | `[ ]` | List of plugin names to install from pluginsSource. Each name corresponds to a package in packages/<name>/src/index.ts within the pi-plugins repository. The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts and any matching skill in .pi/skills/<name>/ is copied to ~/.pi/agent/skills/. |
@@ -315,8 +360,10 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `bindAddress` | string | `"127.0.0.1"` | Bind address for Prometheus HTTP server. Defaults to loopback-only since Grafana queries it on the same host; set to protoman's LAN IP for cross-host 192.168.83.0/24 access. |
 | `dataDir` | string | `"/Users/monkey/Library/Application Support/Prometheus"` | Directory for Prometheus TSDB storage |
 | `enable` | boolean | `false` | Enable Prometheus metrics collector for local LLM stack observability |
+| `openFirewallTailscale` | boolean | `false` | Open Prometheus's port on the tailscale0 interface only, so it can be queried remotely over Tailscale (e.g. by another host's Grafana instance federating this Prometheus as a second datasource). Does not open the port on any other interface. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9090` | Port for Prometheus HTTP server |
 | `retention` | string | `"7d"` | TSDB retention time (e.g. 7d, 24h, 30d) |
 
@@ -354,7 +401,7 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `(self)` | attribute set of (submodule) | `{ }` | Registry of all managed services for port conflict detection and readiness verification |
 | `<name>.errorLog` | string | *required* | Path to stderr log for port conflict detection |
-| `<name>.launchdLabel` | string | *required* | launchd service label (e.g. org.vllm-mlx.server) |
+| `<name>.launchdLabel` | string | *required* | launchd service label |
 | `<name>.name` | string | *required* | Human-readable service name |
 | `<name>.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | *required* | Port the service binds to |
 
@@ -362,7 +409,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `(self)` | list of string | `[ "qwen3:4b" "gemma3:4b" ]` | Central model configuration - change here to affect ALL Ollama services and instances. Recommended models: qwen3:4b - Research/Analysis gemma3:4b - Chat (fast responses) qwen3.5 - Coding/Planning (best model) qwen2.5-coder:7b - Coding alternatives llama3.2 - Lightweight fallback |
+| `(self)` | list of string | `[ "qwen3.8-27b" ]` | Central model configuration for local inference services. |
 
 ### myConfig.skills
 
@@ -405,95 +452,16 @@ or changing a `myConfig.*` option.
 | `*.name` | string | *required* | Username for the user account |
 | `*.sshIncludes` | list of string | `[ ]` | Additional SSH config files to include |
 
-### myConfig.vane
+### myConfig.vector
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `anthropicApiKey` | null or string | `null` | Anthropic API key for using Claude models (optional) |
-| `autoStart` | boolean | `false` | Automatically start Vane service on login (recommended: false to avoid boot slowdown) |
-| `chatModels` | attribute set of (submodule) | `{ }` | Chat models exposed by Vane. If empty, falls back to the built-in vllm-mlx model configuration. When using Bifrost, set keys with provider prefix (e.g., 'vllm-mlx-local/glm47-flash-4bit') |
-| `chatModels.<name>.key` | string | *required* | Model key sent to the API (use 'provider-prefix/model-name' when routing through Bifrost) |
-| `chatModels.<name>.name` | string | *required* | Display name for the model in Vane UI |
-| `dataDir` | string | `"$HOME/.local/share/vane"` | Directory for Vane data and configuration |
-| `defaultModel` | null or string | `"deepseek-r1:14b"` | Default Ollama chat model for Vane. Set to null to skip auto-configuration and configure manually via web UI. |
-| `embeddingModel` | null or string | `"nomic-embed-text"` | Ollama embedding model for Vane vector search. Set to null to skip. |
-| `enable` | boolean | `false` | Enable Vane (AI-powered answering engine with web search, formerly Perplexica) |
-| `ollamaUrl` | null or string | `"http://host.docker.internal:11434"` | URL for Ollama API. For Docker on macOS, use host.docker.internal |
-| `openaiApiKey` | null or string | `null` | OpenAI API key for using OpenAI models (optional) |
-| `openaiBaseUrl` | null or string | `null` | Custom OpenAI-compatible API base URL (e.g., LiteLLM endpoint). Leave null for official OpenAI API. |
-| `openaiBaseUrlOpnixItem` | null or string | `null` | 1Password item reference (e.g., 'op://vault/item/field') to retrieve the OpenAI base URL. When set, openaiBaseUrl can be left null. |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3000` | Port for Vane web UI |
-| `searxngUrl` | null or string | `null` | URL for a SearxNG API to use for Vane's web search. Not owned by the searxng service module — set this explicitly (e.g. "http://localhost:8080" when also running modules/services/searxng) to enable SearxNG-backed search. When null (default), Vane runs without web search rather than silently pointing at a SearxNG instance that may not be running on this host. |
-
-### myConfig.vllmMlx
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `(self)` | submodule | `{ }` | Default vllm-mlx inference server instance. |
-| `chunkedPrefillTokens` | null or signed integer | `null` | Chunk size for prefill processing in BatchedEngine mode (0 disables chunked prefill). May be needed to avoid crashes with large prompts when prefix caching is enabled. |
-| `contention` | one of "wait", "preempt", "fail" | `"preempt"` | Behavior when a requested model is not loaded and memory is full: wait (queue), preempt (evict current), or fail (reject). |
-| `enable` | boolean | `false` | Whether to enable vllm-mlx inference server instance. |
-| `enableAutoToolChoice` | boolean | `true` | Enable automatic tool calling. The model decides when to use tools based on the prompt. |
-| `enableContinuousBatching` | boolean | `false` | Enable continuous batching (BatchedEngine) for concurrent requests. Allows prefix caching across turns but adds per-request overhead. |
-| `enableMetrics` | boolean | `false` | Expose Prometheus metrics on /metrics endpoint. |
-| `enableMtp` | boolean | `false` | Enable Multi-Token Prediction (MTP) for models with built-in MTP heads such as Qwen3.8. Can significantly increase generation throughput. |
-| `enablePrefixCache` | boolean | `false` | Enable prefix caching in BatchedEngine mode. Reuses KV cache blocks for common prompt prefixes across requests/conversations. Requires --continuous-batching. |
-| `lockAdmission` | one of "wait", "fail_fast" | `"wait"` | Admission policy when a request arrives while another generation holds the serialized engine lock. 'wait' queues requests (correct for a single-user local server behind agent traffic, where parallel requests are normal); 'fail_fast' rejects with 503 text_generation_busy. Maps to VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION. |
-| `logDir` | null or string | `null` | Directory for launchd stdout/stderr logs. Defaults to ~/Library/Logs/vllm-mlx for the default instance, or ~/Library/Logs/vllm-mlx/<name> for extra instances. Do not use /tmp: macOS cleans it every 3 days and launchd keeps writing to the deleted inode, silently discarding all server logs. |
-| `logLevel` | one of "DEBUG", "INFO", "WARNING", "ERROR" | `"INFO"` | Server log level. |
-| `maxKvSize` | null or (positive integer, meaning >0) | `null` | Maximum KV cache size per sequence (number of tokens). When set, oldest tokens roll off to prevent unbounded memory growth. |
-| `memoryBudgetGb` | unsigned integer, meaning >=0 | `24` | Memory budget in GB for model loading. Idle models are evicted under this budget. |
-| `mllmDraftBlockSize` | null or (positive integer, meaning >0) | `null` | Draft block size passed to mlx-vlm for --mllm-draft-model. Defaults to 3 when mllmDraftModel is set. |
-| `mllmDraftKind` | null or value "mtp" (singular enum) | `null` | mlx-vlm draft kind for --mllm-draft-model. Defaults to 'mtp' when mllmDraftModel is set. |
-| `mllmDraftModel` | null or string | `null` | Path or HuggingFace repo ID of an mlx-vlm MLLM draft/assistant model. Used for speculative decoding with --mllm-draft-kind. For example, the Qwen3.8-27B-MTP-8bit drafter weights are used alongside a compatible Qwen3.8 27B target checkpoint; they are not a standalone model. Note: --mllm-draft-model is incompatible with --models-config, so setting this option forces single-model mode for this instance (only the primary preloaded model is served). |
-| `models` | attribute set of (submodule) | `{ }` | Model registry. Each key is a model alias used in API requests. vllm-mlx lazily loads models on first use. |
-| `models.<name>.estimatedMemoryGb` | null or (positive integer, meaning >0) | `null` | Estimated memory in GB for non-local (HuggingFace) models. Required for registry-backed loading so eviction remains deterministic. |
-| `models.<name>.path` | string | *required* | Model path or HuggingFace ID (e.g., mlx-community/gemma-4-12B-it-qat-4bit) |
-| `models.<name>.preload` | boolean | `false` | Load this model into memory at server startup. Useful for keeping frequently-used models resident. |
-| `models.<name>.type` | one of "lm", "multimodal", "embedding" | `"lm"` | Model type: lm (text), multimodal (vision), or embedding |
-| `mtpNumDraftTokens` | positive integer, meaning >0 | `1` | Number of draft tokens to predict per MTP step. Higher values increase speed when acceptance rate is high. |
-| `mtpOptimistic` | boolean | `false` | Skip MTP acceptance verification for maximum speed. May produce ~5-10% incorrect tokens; use with caution. |
-| `package` | null or absolute path | `null` | Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx (built with Metal GPU support via prebuilt PyPI wheels). Set to an external binary (e.g. uv-installed) only for testing upstream fixes or when the Nix package version is too old. |
-| `reasoningParser` | null or one of "qwen3", "deepseek_r1", "gpt_oss", "harmony", "gemma4", "glm4", "mistral", "poolside_v1" | `null` | Reasoning parser for extracting thinking/reasoning content from model output. 'qwen3' for Qwen3, 'gemma4' for Gemma 4. |
-| `server.host` | string | `"0.0.0.0"` | Bind address for vllm-mlx server |
-| `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Bind port for vllm-mlx server |
-| `timeout` | unsigned integer, meaning >=0 | `120` | Request timeout in seconds. |
-| `toolCallParser` | null or one of "auto", "mistral", "qwen", "qwen3_coder", "llama", "hermes", "harmony", "gpt-oss", "deepseek", "kimi", "granite", "nemotron", "xlam", "functionary", "gemma4", "glm47", "minimax" | `null` | Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4, 'qwen' for Qwen2/3. |
-
-### myConfig.vllmMlxInstances
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `(self)` | attribute set of (submodule) | `{ }` | Additional named vllm-mlx instances. Each instance gets its own launchd daemon, log directory, and port. |
-| `<name>.chunkedPrefillTokens` | null or signed integer | `null` | Chunk size for prefill processing in BatchedEngine mode (0 disables chunked prefill). May be needed to avoid crashes with large prompts when prefix caching is enabled. |
-| `<name>.contention` | one of "wait", "preempt", "fail" | `"preempt"` | Behavior when a requested model is not loaded and memory is full: wait (queue), preempt (evict current), or fail (reject). |
-| `<name>.enable` | boolean | `false` | Whether to enable vllm-mlx inference server instance. |
-| `<name>.enableAutoToolChoice` | boolean | `true` | Enable automatic tool calling. The model decides when to use tools based on the prompt. |
-| `<name>.enableContinuousBatching` | boolean | `false` | Enable continuous batching (BatchedEngine) for concurrent requests. Allows prefix caching across turns but adds per-request overhead. |
-| `<name>.enableMetrics` | boolean | `false` | Expose Prometheus metrics on /metrics endpoint. |
-| `<name>.enableMtp` | boolean | `false` | Enable Multi-Token Prediction (MTP) for models with built-in MTP heads such as Qwen3.8. Can significantly increase generation throughput. |
-| `<name>.enablePrefixCache` | boolean | `false` | Enable prefix caching in BatchedEngine mode. Reuses KV cache blocks for common prompt prefixes across requests/conversations. Requires --continuous-batching. |
-| `<name>.lockAdmission` | one of "wait", "fail_fast" | `"wait"` | Admission policy when a request arrives while another generation holds the serialized engine lock. 'wait' queues requests (correct for a single-user local server behind agent traffic, where parallel requests are normal); 'fail_fast' rejects with 503 text_generation_busy. Maps to VLLM_MLX_SIMPLE_ENGINE_LOCK_ADMISSION. |
-| `<name>.logDir` | null or string | `null` | Directory for launchd stdout/stderr logs. Defaults to ~/Library/Logs/vllm-mlx for the default instance, or ~/Library/Logs/vllm-mlx/<name> for extra instances. Do not use /tmp: macOS cleans it every 3 days and launchd keeps writing to the deleted inode, silently discarding all server logs. |
-| `<name>.logLevel` | one of "DEBUG", "INFO", "WARNING", "ERROR" | `"INFO"` | Server log level. |
-| `<name>.maxKvSize` | null or (positive integer, meaning >0) | `null` | Maximum KV cache size per sequence (number of tokens). When set, oldest tokens roll off to prevent unbounded memory growth. |
-| `<name>.memoryBudgetGb` | unsigned integer, meaning >=0 | `24` | Memory budget in GB for model loading. Idle models are evicted under this budget. |
-| `<name>.mllmDraftBlockSize` | null or (positive integer, meaning >0) | `null` | Draft block size passed to mlx-vlm for --mllm-draft-model. Defaults to 3 when mllmDraftModel is set. |
-| `<name>.mllmDraftKind` | null or value "mtp" (singular enum) | `null` | mlx-vlm draft kind for --mllm-draft-model. Defaults to 'mtp' when mllmDraftModel is set. |
-| `<name>.mllmDraftModel` | null or string | `null` | Path or HuggingFace repo ID of an mlx-vlm MLLM draft/assistant model. Used for speculative decoding with --mllm-draft-kind. For example, the Qwen3.8-27B-MTP-8bit drafter weights are used alongside a compatible Qwen3.8 27B target checkpoint; they are not a standalone model. Note: --mllm-draft-model is incompatible with --models-config, so setting this option forces single-model mode for this instance (only the primary preloaded model is served). |
-| `<name>.models` | attribute set of (submodule) | `{ }` | Model registry. Each key is a model alias used in API requests. vllm-mlx lazily loads models on first use. |
-| `<name>.models.<name>.estimatedMemoryGb` | null or (positive integer, meaning >0) | `null` | Estimated memory in GB for non-local (HuggingFace) models. Required for registry-backed loading so eviction remains deterministic. |
-| `<name>.models.<name>.path` | string | *required* | Model path or HuggingFace ID (e.g., mlx-community/gemma-4-12B-it-qat-4bit) |
-| `<name>.models.<name>.preload` | boolean | `false` | Load this model into memory at server startup. Useful for keeping frequently-used models resident. |
-| `<name>.models.<name>.type` | one of "lm", "multimodal", "embedding" | `"lm"` | Model type: lm (text), multimodal (vision), or embedding |
-| `<name>.mtpNumDraftTokens` | positive integer, meaning >0 | `1` | Number of draft tokens to predict per MTP step. Higher values increase speed when acceptance rate is high. |
-| `<name>.mtpOptimistic` | boolean | `false` | Skip MTP acceptance verification for maximum speed. May produce ~5-10% incorrect tokens; use with caution. |
-| `<name>.package` | null or absolute path | `null` | Override the vllm-mlx binary path. When null, uses the Nix-packaged vllm-mlx (built with Metal GPU support via prebuilt PyPI wheels). Set to an external binary (e.g. uv-installed) only for testing upstream fixes or when the Nix package version is too old. |
-| `<name>.reasoningParser` | null or one of "qwen3", "deepseek_r1", "gpt_oss", "harmony", "gemma4", "glm4", "mistral", "poolside_v1" | `null` | Reasoning parser for extracting thinking/reasoning content from model output. 'qwen3' for Qwen3, 'gemma4' for Gemma 4. |
-| `<name>.server.host` | string | `"0.0.0.0"` | Bind address for vllm-mlx server |
-| `<name>.server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Bind port for vllm-mlx server |
-| `<name>.timeout` | unsigned integer, meaning >=0 | `120` | Request timeout in seconds. |
-| `<name>.toolCallParser` | null or one of "auto", "mistral", "qwen", "qwen3_coder", "llama", "hermes", "harmony", "gpt-oss", "deepseek", "kimi", "granite", "nemotron", "xlam", "functionary", "gemma4", "glm47", "minimax" | `null` | Tool call parser format. Must match model's training format. 'gemma4' for Gemma 4, 'qwen' for Qwen2/3. |
+| `dataDir` | string | `"/Users/monkey/Library/Application Support/Vector"` | Directory for Vector's file-tailing checkpoint state |
+| `defaultService` | string | `"type-server"` | Fallback value for the Loki "service" label when a journal entry has neither SYSLOG_IDENTIFIER nor _SYSTEMD_UNIT set. |
+| `enable` | boolean | `false` | Enable Vector log shipper (tails local service logs, ships to Loki) |
+| `hostLabel` | string | `"darwin-server"` | Value for the 'host' label attached to all shipped log lines |
+| `logGlobs` | list of string | `[ "/tmp/*.log" ]` | Glob patterns for log files to tail. Matches this repo's launchd StandardOutPath/StandardErrorPath convention (/tmp/<service>.log, /tmp/<service>.error.log). |
+| `lokiEndpoint` | string | `"http://localhost:3100"` | Base URL of the Loki instance Vector ships logs to. |
 
 ### myConfig.zellij
 

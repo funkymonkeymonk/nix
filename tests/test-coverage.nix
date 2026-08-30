@@ -83,8 +83,8 @@
     "common/email-backup.nix"
     # Tested via test-home-manager.nix + nix-unit-tests.nix (opencode option defaults/custom)
     "common/opencode.nix"
-    # Tested via test-services.nix + test-stack-integration.nix (serviceRegistry
-    # port-conflict assertions wired through vane/bifrost/caddy/searxng)
+    # Tested through service-specific tests (serviceRegistry port-conflict
+    # assertions wired through Bifrost and Caddy)
     "common/service-registry.nix"
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
@@ -95,15 +95,6 @@
     # common/onepassword.nix was already listed above via onepasswordOptionsTest
     # common/lib.nix tested via tests/nix-unit-tests.nix (shared lib helpers)
     "common/lib.nix"
-    # Tested via test-services.nix (vane option tests)
-    "services/vane/darwin.nix"
-    # Tested via test-vllm-mlx.nix (vllm-mlx option defaults, custom
-    # values, and MegamanX target config)
-    "services/vllm-mlx/darwin.nix"
-    "services/vllm-mlx/darwin-instances-options.nix"
-    "services/vllm-mlx/darwin-instances-config.nix"
-    "services/vllm-mlx/instance-options.nix"
-    "services/vllm-mlx/lib.nix"
     # Tested via test-stack-integration.nix (LLM stack composition)
     "services/bifrost/darwin.nix"
     "services/caddy/darwin.nix"

@@ -25,7 +25,7 @@ in {
     };
 
     # Prefer the local gateway while keeping the provider map extensible.
-    myConfig.opencode.model = lib.mkDefault "local-bifrost/vllm-mlx-qwen/qwen3.8-27b";
+    myConfig.opencode.model = lib.mkDefault "local-bifrost/omlx/qwen3.8-27b";
 
     # Auto-configure bifrost as a model provider
     myConfig.opencode.providers.local-bifrost = lib.mkDefault {
@@ -33,6 +33,9 @@ in {
       npm = "@ai-sdk/anthropic";
       apiKey = "bifrost-local";
       baseURL = "http://${host}:${bifrostPort}/anthropic/v1";
+      models."omlx/qwen3.8-27b" = {
+        name = "Qwen3.8 27B (oMLX)";
+      };
       dynamicModels = true;
     };
 

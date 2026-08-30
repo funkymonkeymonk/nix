@@ -231,8 +231,8 @@ in {
       }
 
       ${
-        if opencodeRole.opencode.model == "local-bifrost/vllm-mlx-qwen/qwen3.8-27b"
-        then ''echo "  default model = local-bifrost/vllm-mlx-qwen/qwen3.8-27b: OK"''
+        if opencodeRole.opencode.model == "local-bifrost/omlx/qwen3.8-27b"
+        then ''echo "  default model = local-bifrost/omlx/qwen3.8-27b: OK"''
         else ''echo "  default model should be the managed Qwen model!"; exit 1''
       }
 
@@ -249,9 +249,9 @@ in {
       }
 
       ${
-        if opencodeRole.opencode.providers.local-bifrost.dynamicModels
-        then ''echo "  Bifrost model discovery enabled: OK"''
-        else ''echo "  Bifrost model discovery should be enabled!"; exit 1''
+        if opencodeRole.opencode.providers.local-bifrost.models ? "omlx/qwen3.8-27b"
+        then ''echo "  oMLX model explicitly configured: OK"''
+        else ''echo "  oMLX model should be explicitly configured!"; exit 1''
       }
 
       ${
@@ -261,7 +261,7 @@ in {
       }
 
       ${
-        if opencodeHome.programs.opencode.settings.model == "local-bifrost/vllm-mlx-qwen/qwen3.8-27b"
+        if opencodeHome.programs.opencode.settings.model == "local-bifrost/omlx/qwen3.8-27b"
         then ''echo "  generated OpenCode default model = managed Qwen: OK"''
         else ''echo "  generated OpenCode default model is incorrect!"; exit 1''
       }

@@ -211,7 +211,7 @@ in {
             description = ''
               Idle timeout for streaming responses. If no chunk arrives from the
               upstream within this window, Bifrost closes the connection.
-              Must be >= the upstream's longest prefill time. For vllm-mlx with
+               Must be >= the upstream's longest prefill time. For oMLX with
               long system prompts (22k+ tokens), set to 600s to avoid 500 errors
               during chunked prefill. Bifrost default is 60s.
             '';
@@ -224,7 +224,7 @@ in {
         };
       });
       default = {};
-      description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vllm-mlx-local' → model 'vllm-mlx-local/glm47-flash-4bit')";
+      description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b')";
     };
   };
 

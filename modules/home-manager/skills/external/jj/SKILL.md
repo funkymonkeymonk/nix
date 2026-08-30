@@ -204,8 +204,8 @@ Or with the `/workspace` slash command in OpenCode:
 Agent workspace names encode agent identity:
 
 ```
-feat/agent-<agent-id>-<topic>     # e.g. feat/agent-openclaw-auth-fix
-fix/agent-<agent-id>-<topic>      # e.g. fix/agent-openclaw-lint
+  feat/agent-<agent-id>-<topic>     # e.g. feat/agent-auth-fix
+  fix/agent-<agent-id>-<topic>      # e.g. feat/agent-lint
 ```
 
 ### Session commands (fast sync)
@@ -230,10 +230,10 @@ jj-workspace-session prune     # Remove expired sessions
 
 ```bash
 # 1. Create workspace
-jj-workspace create feat/agent-openclaw-my-feature
+  jj-workspace create feat/agent-my-feature
 
 # 2. cd into workspace
-cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
 
 # 3. Work and commit (working copy IS a commit)
 # ... make changes ...
@@ -243,14 +243,14 @@ jj describe -m "feat: add my feature"
 cd /path/to/repo && devenv tasks run check:lint
 
 # 5. Push and create PR
-cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
 jj bookmark set feat/my-feature -r @
 jj git push --bookmark feat/my-feature
 gh pr create --head feat/my-feature
 
 # 6. Clean up after merge
-jj workspace forget feat-agent-openclaw-my-feature-<date>-<id>
-rm -rf ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+  jj workspace forget feat-agent-my-feature-<date>-<id>
+  rm -rf ~/workspaces/feat-agent-my-feature-<date>-<id>
 ```
 
 ## Background Auto-Sync

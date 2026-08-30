@@ -36,7 +36,7 @@
 
     def set_generation_stream(stream: mx.Stream) -> None:
         \"\"\"Override the generation stream for the current thread.
-        Used by vllm-mlx's bind_generation_streams to bind the worker thread
+        Used by MLX generation servers to bind the worker thread
         stream without replacing the generation_stream function.
         \"\"\"
         _generation_stream_storage.stream = stream"""

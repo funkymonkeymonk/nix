@@ -1,5 +1,5 @@
 # myConfig.serviceRegistry option — owned here, populated by each service
-# module (bifrost, caddy, vane, searxng, node-exporter, prometheus, vllm-mlx)
+# module (bifrost, caddy, oMLX, searxng, node-exporter, prometheus)
 # via commonLib.mkServiceRegistry, and consumed here for port-conflict
 # detection across all enabled services.
 {
@@ -21,7 +21,7 @@
         };
         launchdLabel = lib.mkOption {
           type = lib.types.str;
-          description = "launchd service label (e.g. org.vllm-mlx.server)";
+          description = "launchd service label";
         };
         errorLog = lib.mkOption {
           type = lib.types.str;

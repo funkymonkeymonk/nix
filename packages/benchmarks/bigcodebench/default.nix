@@ -3,7 +3,7 @@
 #
 # Only the `bigcodebench.generate` console script (code generation against a
 # model/backend) is a supported use case here, targeting the "openai"
-# backend against local OpenAI-compatible endpoints such as vllm-mlx. The
+# backend against local OpenAI-compatible endpoints such as oMLX. The
 # `bigcodebench.evaluate` script additionally executes model-generated code
 # via a remote Gradio space or E2B sandbox (see gradio-client/e2b removal
 # below) and is intentionally out of scope for this package.
@@ -111,7 +111,7 @@ in
     # vllm is a hard install_requires upstream, but bigcodebench/provider
     # only imports it lazily when backend == "vllm"
     # (see bigcodebench/provider/__init__.py). We only use the "openai"
-    # backend against local OpenAI-compatible endpoints (e.g. vllm-mlx), so
+    # backend against local OpenAI-compatible endpoints (e.g. oMLX), so
     # drop the vllm requirement rather than packaging it.
     #
     # gradio-client and e2b are hard install_requires used only by the

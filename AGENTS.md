@@ -475,8 +475,8 @@ jj-workspace clean                             # Remove all workspaces
 Agent workspace names encode agent identity and purpose:
 
 ```
-feat/agent-<agent-id>-<topic>     # e.g. feat/agent-openclaw-hostid-fix
-fix/agent-<agent-id>-<topic>      # e.g. fix/agent-openclaw-lint-error
+  feat/agent-<agent-id>-<topic>     # e.g. feat/agent-hostid-fix
+  fix/agent-<agent-id>-<topic>      # e.g. fix/agent-lint-error
 ```
 
 This lets humans distinguish agent workspaces from human workspaces at a glance.
@@ -485,10 +485,10 @@ This lets humans distinguish agent workspaces from human workspaces at a glance.
 
 ```bash
 # 1. Create workspace (stored in ~/workspaces/, NOT in repo)
-jj-workspace create feat/agent-openclaw-my-feature
+  jj-workspace create feat/agent-my-feature
 
 # 2. cd into the workspace
-cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
 
 # 3. Work and commit (the working copy IS a commit — no git add needed)
 # ... make changes ...
@@ -498,14 +498,14 @@ jj describe -m "feat: add my feature"
 cd /path/to/repo && devenv tasks run check:lint
 
 # 5. Push and create PR (from workspace dir)
-cd ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
 jj bookmark set feat/my-feature -r @
 jj git push --bookmark feat/my-feature
 gh pr create --head feat/my-feature
 
 # 6. After PR is merged: clean up
-jj workspace forget feat-agent-openclaw-my-feature-<date>-<id>
-rm -rf ~/workspaces/feat-agent-openclaw-my-feature-<date>-<id>
+  jj workspace forget feat-agent-my-feature-<date>-<id>
+  rm -rf ~/workspaces/feat-agent-my-feature-<date>-<id>
 ```
 
 #### Session TTL

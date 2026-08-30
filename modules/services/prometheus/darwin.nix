@@ -17,11 +17,10 @@
   dataDir = cfg.dataDir;
 
   # Not every darwin target imports every LLM-stack service module (e.g.
-  # darwin-server has no bifrost/vllm-mlx). Guard optional scrape targets on
+  # darwin-server has no bifrost/oMLX). Guard optional scrape targets on
   # whether the option is even declared, so this module works standalone.
   myConfigOptions = options.myConfig or {};
   hasBifrost = builtins.hasAttr "bifrost" myConfigOptions;
-  hasVllmMlx = builtins.hasAttr "vllmMlx" myConfigOptions;
   hasOmlx = builtins.hasAttr "omlx" myConfigOptions;
   hasAlertmanager = builtins.hasAttr "alertmanager" myConfigOptions;
 
@@ -50,11 +49,6 @@
       ++ lib.optional hasBifrost {
         job_name = "bifrost";
         static_configs = [{targets = ["localhost:${toString config.myConfig.bifrost.port}"];}];
-        metrics_path = "/metrics";
-      }
-      ++ lib.optional hasVllmMlx {
-        job_name = "vllm-mlx";
-        static_configs = [{targets = ["localhost:${toString config.myConfig.vllmMlx.server.port}"];}];
         metrics_path = "/metrics";
       }
       ++ lib.optional hasOmlx {

@@ -1,5 +1,5 @@
 # mlx-embeddings — embedding models on Apple Silicon via MLX
-# Small companion package required by vllm-mlx.
+# Small companion package for MLX model tooling.
 {
   lib,
   python3Packages,

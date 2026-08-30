@@ -1,307 +1,63 @@
 ---
 title: "Configure the LLM Stack"
-description: "Enable vllm-mlx, Bifrost, Caddy, and Vane on a Darwin target"
+description: "Enable oMLX and Bifrost on a Darwin target"
 type: how-to
 ---
 
 # Configure the LLM Stack
 
-This guide shows how to enable the complete LLM stack on a Darwin (macOS) target.
+The supported local inference stack is oMLX behind Bifrost.
 
-## Prerequisites
+## Enable oMLX
 
-- A Darwin target configuration (e.g., `targets/MegamanX/default.nix`)
-- Apple Silicon Mac (M1/M2/M3/M4) with sufficient RAM for model loading
-- ~30GB free disk space for model downloads
-
-## Enable the Stack
-
-Add the following to your target's `myConfig`:
+Import `modules/services/omlx/darwin.nix` and the nix-darwin Homebrew module,
+then configure the target:
 
 ```nix
 {
-  myConfig = {
-    # Layer 3: Inference server
-    vllmMlx = {
-      enable = true;
-      server = {
-        host = "0.0.0.0";   # Bind to all interfaces
-        port = 8300;         # vllm-mlx API port
-      };
-      memoryBudgetGb = 32;   # GPU memory budget
-      contention = "preempt"; # Preempt lower-priority requests
-      models = {
-        "qwen3.6-35b" = {
-          path = "mlx-community/Qwen3.6-35B-A3B-4bit";
-          type = "lm";
-          estimatedMemoryGb = 21;
-        };
-      };
-      enableAutoToolChoice = true;
-      toolCallParser = "qwen";
-      timeout = 120;
-      logLevel = "INFO";
-      # Switch to BatchedEngine for prefix caching across conversation turns.
-      # This reuses KV cache blocks for the growing prefix, avoiding full
-      # prefill on every turn. Slight per-request throughput reduction.
-      enableContinuousBatching = true;
-      enablePrefixCache = true;
-      # Disable chunked prefill to avoid crash with large prompts (>19k tokens)
-      # when prefix cache is enabled. See vllm-mlx issue #178.
-      chunkedPrefillTokens = 0;
+  myConfig.omlx = {
+    enable = true;
+    server = {
+      host = "0.0.0.0";
+      port = 8300;
     };
-
-    # Layer 4: AI Gateway
-    bifrost = {
-      enable = true;
-      logLevel = "debug";
-      upstreams.vllm-mlx-local = {
-        url = "http://localhost:8300";
-        type = "openai";
-        requestTimeout = 120;
-        models = [ "qwen3.6-35b" ];
-      };
-    };
-
-    # Layer 5: AI Search Engine
-    vane = {
-      enable = true;
-      openaiBaseUrl = "http://bifrost.internal/v1";
-      defaultModel = "qwen3.6-35b";
-      embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
-    };
-
-    # Layer 2: Reverse Proxy
-    caddy = { enable = true; };
-
-    # Layer 0: Search engine
-    searxng = { enable = true; };
   };
 }
 ```
 
-## Configure Applications
+The service installs the upstream oMLX formula and links the Nix-managed
+`Qwen3.8-27B-4bit` model as `qwen3.8-27b`.
 
-### Pi Coding Agent
-
-Add Bifrost as a model provider:
-
-```nix
-myConfig.pi = {
-  enable = true;
-  models.bifrost = {
-    name = "Bifrost AI Gateway";
-    provider = "openai";
-    modelId = "vllm-mlx-local/qwen3.6-35b";
-    baseUrl = "http://bifrost.internal/v1";
-  };
-};
-```
-
-### OpenCode
-
-Configure OpenCode to use Bifrost:
+## Enable Bifrost
 
 ```nix
-myConfig.opencode = {
-  enable = true;
-  providers.bifrost = {
-    npm = "@ai-sdk/openai-compatible";
-    name = "Bifrost Gateway";
-    baseURL = "http://bifrost.internal/v1";
-    models = {
-      "qwen3.6-35b" = {
-        name = "Qwen3.6 35B A3B (Local MLX)";
-      };
+{
+  myConfig.bifrost = {
+    enable = true;
+    upstreams.omlx = {
+      url = "http://localhost:8300";
+      type = "openai";
+      requestTimeout = 600;
+      streamIdleTimeoutInSeconds = 600;
+      models = ["qwen3.8-27b"];
     };
   };
-};
+}
 ```
 
-## Apply Configuration
+Clients should use `omlx/qwen3.8-27b` through Bifrost.
+
+## Verify
 
 ```bash
-# Build and switch
-sudo ./result/sw/bin/darwin-rebuild switch --flake .#MegamanX --impure
-
-# Or use the devenv task
-devenv tasks run system:switch
+curl http://localhost:8300/health
+curl http://localhost:8300/v1/models
+curl http://localhost:8081/v1/models
+curl http://localhost:8081/metrics
 ```
 
-## Verify the Stack
-
-After switching, verify each layer:
-
-```bash
-# Layer 1: DNS
-dig +short bifrost.internal @127.0.0.1 -p 5353
-
-# Layer 2: Caddy
-curl -s http://bifrost.internal/v1/models
-
-# Layer 3: vllm-mlx
-curl -s http://localhost:8300/v1/models
-
-# Layer 4: Bifrost
-curl -s http://localhost:8081/v1/models
-
-# Layer 5: Vane
-curl -s http://localhost:3000/
-```
-
-## Restart the Stack
-
-If services fail to start or you change configuration:
-
-```bash
-sudo ./scripts/restart-stack.sh
-```
-
-This script performs a clean bottom-up restart, ensuring ports are freed between cycles.
-
-## Add a New Model
-
-1. Find an MLX-converted model on [HuggingFace mlx-community](https://huggingface.co/mlx-community)
-2. Add it to your target's `vllmMlx.models`:
-
-```nix
-models = {
-  "my-model" = {
-    path = "mlx-community/My-Model-4bit";
-    type = "lm";
-    estimatedMemoryGb = 15;
-  };
-};
-```
-
-3. Add the model alias to Bifrost's upstream:
-
-```nix
-upstreams.vllm-mlx-local.models = [ "qwen3.6-35b" "my-model" ];
-```
-
-4. Switch to apply:
+Apply changes with:
 
 ```bash
 devenv tasks run system:switch
 ```
-
-The model will be downloaded on first use.
-
-## Troubleshooting
-
-### Port Already in Use
-
-If you see "address already in use", an old process is holding the port:
-
-```bash
-# Find and kill the process
-lsof -ti:8300 | xargs kill -9
-
-# Or use the restart script
-sudo ./scripts/restart-stack.sh
-```
-
-### Model Download Fails
-
-Check the vllm-mlx log for HuggingFace errors:
-
-```bash
-tail -f ~/Library/Logs/vllm-mlx/server.log
-```
-
-Ensure you have sufficient disk space and network connectivity.
-
-### Service Won't Start
-
-Check the error log:
-
-```bash
-cat ~/Library/Logs/vllm-mlx/server.error.log # vllm-mlx errors
-cat /tmp/bifrost.error.log # Bifrost errors
-cat /tmp/caddy.error.log   # Caddy errors
-```
-
-### Slow Prefill on Long Conversations
-
-**Symptom:** Every turn in a long conversation takes 150–300s before the first token appears. Prometheus shows `bifrost_stream_first_token_latency_seconds` > 160s. System CPU is 90% idle.
-
-**Root cause:** With `SimpleEngine` (default), only the system prompt KV cache is snapshotted. The conversation history (all prior turns) must be re-prefilled from scratch every request. With 25 agent skills contributing ~36K tokens to the system prompt plus growing conversation history, each turn prefills ~21k–38k tokens.
-
-**Fix:** Switch to `BatchedEngine` with prefix caching:
-```nix
-vllmMlx = {
-  enable = true;
-  enableContinuousBatching = true;
-  enablePrefixCache = true;
-  chunkedPrefillTokens = 0;  # workaround for vllm-mlx#178
-};
-```
-
-**Trade-offs:**
-- BatchedEngine adds ~10–20% per-request overhead vs SimpleEngine
-- Prefix cache only works in BatchedEngine mode
-- `chunkedPrefillTokens = 0` is required to avoid crashes with prompts >19k tokens
-
-### vllm-mlx Crashes with Prefix Cache Enabled
-
-**Symptom:** Segfault during prefill when `--enable-prefix-cache` is set.
-
-**Root cause:** vllm-mlx internally enables `mid_prefill_cache` when prefix caching is active, which re-enables chunked prefill even if `--chunked-prefill-tokens 0` was passed. This crashes on prompts >19k tokens ([vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)).
-
-**Workaround:** Set `chunkedPrefillTokens = 0` in your Nix config. The generated launch script passes this flag explicitly.
-
-### Gemma 4 Models Hang or Time Out
-
-**Symptom:** Requests to `gemma4-31b` with tools enabled hang indefinitely and return 503/timeout. `gemma4-e4b` and text-only `gemma4-31b` requests work normally.
-
-**Root cause:** The vllm-mlx Gemma 4 tool parser gets stuck during prefill when processing large tool schemas (21+ tools / 38K+ chars) with the 31B model. The `SimpleEngine` serialized route blocks, and all subsequent requests queue up. This is a vllm-mlx parser issue, not a Metal/CPU issue.
-
-**Verify Metal is active:** The Nix build uses `mlx-metal`, which pulls prebuilt PyPI wheels with Metal GPU support. The running vllm-mlx process maps `AGXMetalG13X.bundle` (Apple GPU driver) and `mlx.metallib`. Text-only requests achieve 60+ tok/s, confirming GPU acceleration.
-
-**Workarounds:**
-
-1. **Use `gemma4-e4b` for tool-heavy contexts** — it handles the same tool schema in ~15s at 4 tok/s.
-2. **Disable the Gemma 4 tool parser for `gemma4-31b`** — fall back to the generic tool path:
-   ```nix
-   vllmMlx = {
-     enable = true;
-     enableAutoToolChoice = false;
-     toolCallParser = null;
-   };
-   ```
-3. **Reduce tool schema size** — fewer tools or shorter descriptions reduce prefill pressure. See [System Prompt Inventory](../reference/llm-stack.md#system-prompt-inventory) for per-skill sizes.
-
-If you need a patched vllm-mlx outside Nix (e.g., to test upstream fixes):
-
-```bash
-# Install via uv and apply cross-thread patches
-uv tool install vllm-mlx
-./scripts/patch-uv-vllm-mlx.sh
-
-# Point Nix to the uv binary
-myConfig.vllmMlx = {
-  enable = true;
-  package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
-  # ... rest of config
-};
-```
-
-### Bifrost Can't Reach vllm-mlx
-
-Verify Caddy is routing correctly:
-
-```bash
-curl -v http://vllm-mlx.internal/v1/models
-```
-
-If this fails, check Caddy's log:
-
-```bash
-cat /tmp/caddy.error.log
-```
-
-## See Also
-
-- [LLM Stack Reference](../reference/llm-stack.md) - Full architecture and operations
-- [Set Up Your Mac](../tutorials/setup-your-mac.md) - Configure a new Darwin target

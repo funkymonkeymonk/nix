@@ -239,19 +239,6 @@
       "notes": ""
     },
     {
-      "id": "US-019",
-      "title": "Add health check task for Ollama",
-      "description": "As a user, I want a task to check if Ollama service is running",
-      "acceptanceCriteria": [
-        "New devenv task ollama:health created",
-        "Task checks localhost:11434/status endpoint",
-        "Task provides clear output on service status"
-      ],
-      "priority": 19,
-      "passes": false,
-      "notes": ""
-    },
-    {
       "id": "US-020",
       "title": "Improve docs-update.sh error handling",
       "description": "As a maintainer, I want the docs-update script to handle nix eval failures gracefully",

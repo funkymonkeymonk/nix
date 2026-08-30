@@ -1,6 +1,6 @@
 # MegamanX (personal desktop) target configuration
 # Thin host file — imports workstation archetype, adds machine-specific
-# LLM stack (oMLX, Bifrost, Vane) and pi customizations.
+# LLM stack (oMLX and Bifrost) and pi customizations.
 {mkUser, ...}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
@@ -32,7 +32,7 @@
         hotCacheMaxSize = "20GB";
       };
 
-      # Prometheus scrapes bifrost, vllm-mlx, and node-exporter metrics
+      # Prometheus scrapes Bifrost, oMLX, and node-exporter metrics
       prometheus = {
         enable = true;
         retention = "7d";
@@ -41,21 +41,6 @@
       # System metrics exporter for Prometheus
       nodeExporter = {
         enable = true;
-      };
-
-      vane = {
-        enable = true;
-        openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "qwen3.8-27b";
-        # No Ollama service runs on this host (oMLX + Bifrost handle all
-        # local inference) — leave embeddings unconfigured rather than
-        # pointing at a service that doesn't exist.
-        embeddingModel = null;
-        ollamaUrl = null;
-        # Point at the searxng service enabled below (myConfig.searxng.enable).
-        # vane no longer auto-derives this from searxng.port — see
-        # modules/services/vane/darwin.nix for why the coupling was severed.
-        searxngUrl = "http://localhost:8080";
       };
 
       bifrost = {
@@ -77,8 +62,6 @@
           };
         };
       };
-
-      searxng.enable = true;
 
       caddy.enable = true;
 

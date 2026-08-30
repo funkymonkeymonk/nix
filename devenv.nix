@@ -799,54 +799,33 @@ in {
       exec = "echo '✓ All benchmark tasks complete'";
     };
 
-    "profile:llm" = {
-      description = "Profile LLM inference performance via env vars (MODEL, PROMPTS, MAX_TOKENS)";
-      exec = ''
-        set -euo pipefail
-
-        MODEL="''${MODEL:-gemma4-e4b}"
-        PROMPTS="''${PROMPTS:-5}"
-        MAX_TOKENS="''${MAX_TOKENS:-256}"
-
-        echo "=== LLM Profiling ==="
-        echo "Model:      $MODEL"
-        echo "Prompts:    $PROMPTS"
-        echo "Max tokens: $MAX_TOKENS"
-        echo ""
-        echo "Usage: MODEL=qwen3.8-27b PROMPTS=3 MAX_TOKENS=128 devenv tasks run profile:llm"
-        echo ""
-
-        ./scripts/profile-llm.sh "$MODEL" --prompts "$PROMPTS" --max-tokens "$MAX_TOKENS" --output-dir ./profiling
-      '';
-    };
-
     "smoke:llm-stack" = {
-      description = "Smoke test the local LLM stack (vllm-mlx + bifrost)";
+      description = "Smoke test the local LLM stack (oMLX + Bifrost)";
       exec = ''
         set -euo pipefail
 
         BIFROST_URL="''${BIFROST_URL:-http://bifrost.internal/v1}"
-        VLLM_URL="''${VLLM_URL:-http://localhost:8300/v1}"
+        OMLX_URL="''${OMLX_URL:-http://localhost:8300/v1}"
         MODEL="''${MODEL:-qwen3.8-27b}"
         TIMEOUT="''${TIMEOUT:-120}"
 
         echo "=== LLM Stack Smoke Test ==="
-        echo "vllm-mlx:  $VLLM_URL"
+        echo "oMLX:      $OMLX_URL"
         echo "bifrost:   $BIFROST_URL"
         echo "model:     $MODEL"
         echo ""
 
-        echo "-- vllm-mlx /v1/models --"
-        curl -sf --max-time "$TIMEOUT" "$VLLM_URL/models" | jq -e '.data | length > 0'
-        echo "vllm-mlx models OK"
+        echo "-- oMLX /v1/models --"
+        curl -sf --max-time "$TIMEOUT" "$OMLX_URL/models" | jq -e '.data | length > 0'
+        echo "oMLX models OK"
         echo ""
 
-        echo "-- vllm-mlx /v1/chat/completions --"
-        curl -sf --max-time "$TIMEOUT" "$VLLM_URL/chat/completions" \
+        echo "-- oMLX /v1/chat/completions --"
+        curl -sf --max-time "$TIMEOUT" "$OMLX_URL/chat/completions" \
           -H "Content-Type: application/json" \
           -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":40}" \
           | jq -e '(.choices[0].message.content != null) or (.choices[0].message.reasoning_content != null)'
-        echo "vllm-mlx chat completion OK"
+        echo "oMLX chat completion OK"
         echo ""
 
         echo "-- bifrost /v1/models --"
@@ -857,7 +836,7 @@ in {
         echo "-- bifrost /v1/chat/completions --"
         curl -sf --max-time "$TIMEOUT" "$BIFROST_URL/chat/completions" \
           -H "Content-Type: application/json" \
-          -d "{\"model\":\"vllm-mlx-local/$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":40}" \
+          -d "{\"model\":\"omlx/$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK\"}],\"max_tokens\":40}" \
           | jq -e '(.choices[0].message.content != null) or (.choices[0].message.reasoning_content != null)'
         echo "bifrost chat completion OK"
         echo ""
@@ -867,7 +846,7 @@ in {
     };
 
     "benchmark:lm-eval-gsm8k" = {
-      description = "Run lm-eval GSM8K (math reasoning) against local vllm-mlx";
+      description = "Run lm-eval GSM8K (math reasoning) against local oMLX";
       exec = ''
         set -euo pipefail
 
@@ -875,7 +854,7 @@ in {
         MODEL="''${MODEL:-qwen3.8-27b}"
         TOKENIZER="''${TOKENIZER:-}"
         case "$MODEL" in
-          qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-8bit}" ;;
+           qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-4bit}" ;;
           gemma4-e4b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-e4b-it-4bit}" ;;
           gemma4-31b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-31b-it-4bit}" ;;
           *) TOKENIZER="''${TOKENIZER:-$MODEL}" ;;
@@ -902,7 +881,7 @@ in {
     };
 
     "benchmark:lm-eval-mini" = {
-      description = "Quick lm-eval smoke benchmark (small subsets) against local vllm-mlx";
+      description = "Quick lm-eval smoke benchmark (small subsets) against local oMLX";
       exec = ''
         set -euo pipefail
 
@@ -910,7 +889,7 @@ in {
         MODEL="''${MODEL:-qwen3.8-27b}"
         TOKENIZER="''${TOKENIZER:-}"
         case "$MODEL" in
-          qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-8bit}" ;;
+           qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-4bit}" ;;
           gemma4-e4b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-e4b-it-4bit}" ;;
           gemma4-31b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-31b-it-4bit}" ;;
           *) TOKENIZER="''${TOKENIZER:-$MODEL}" ;;
@@ -937,7 +916,7 @@ in {
     };
 
     "benchmark:lm-eval-leaderboard" = {
-      description = "Run the HuggingFace Open LLM Leaderboard v2 task group against local vllm-mlx";
+      description = "Run the HuggingFace Open LLM Leaderboard v2 task group against local oMLX";
       exec = ''
         set -euo pipefail
 
@@ -945,7 +924,7 @@ in {
         MODEL="''${MODEL:-qwen3.8-27b}"
         TOKENIZER="''${TOKENIZER:-}"
         case "$MODEL" in
-          qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-8bit}" ;;
+           qwen3.8-27b) TOKENIZER="''${TOKENIZER:-mlx-community/Qwen3.8-27B-4bit}" ;;
           gemma4-e4b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-e4b-it-4bit}" ;;
           gemma4-31b) TOKENIZER="''${TOKENIZER:-mlx-community/gemma-4-31b-it-4bit}" ;;
           *) TOKENIZER="''${TOKENIZER:-$MODEL}" ;;
@@ -995,16 +974,16 @@ in {
     };
 
     "benchmark:bfcl-smoke" = {
-      description = "Quick BFCL (function-calling) smoke benchmark against local vllm-mlx";
+      description = "Quick BFCL (function-calling) smoke benchmark against local oMLX";
       exec = ''
         set -euo pipefail
 
         # BFCL selects its prompt-formatting handler and tokenizer from its
         # own model registry (keyed by HF repo id), not from whatever alias
-        # vllm-mlx happens to serve its loaded model under. MODEL below only
+         # oMLX happens to serve its loaded model under. MODEL below only
         # needs to be a BFCL-registered Qwen3 model so formatting/tokenizing
         # works — it does not need to exactly match the model actually
-        # loaded in vllm-mlx for a quick smoke test.
+         # loaded in oMLX for a quick smoke test.
         MODEL="''${MODEL:-Qwen/Qwen3-8B}"
         REMOTE_OPENAI_BASE_URL="''${REMOTE_OPENAI_BASE_URL:-http://localhost:8300/v1}"
         TEST_CATEGORY="''${TEST_CATEGORY:-simple_python}"
@@ -1031,7 +1010,7 @@ in {
     };
 
     "benchmark:bigcodebench" = {
-      description = "Run a quick BigCodeBench code-generation smoke test against local vllm-mlx";
+      description = "Run a quick BigCodeBench code-generation smoke test against local oMLX";
       exec = ''
         set -euo pipefail
 
@@ -1065,7 +1044,7 @@ in {
     };
 
     "benchmark:openai-evals" = {
-      description = "Run a quick OpenAI Evals (oaieval) smoke test against local vllm-mlx";
+      description = "Run a quick OpenAI Evals (oaieval) smoke test against local oMLX";
       exec = ''
         set -euo pipefail
 
@@ -1084,7 +1063,7 @@ in {
     };
 
     "benchmark:evalscope-arc" = {
-      description = "Quick EvalScope ARC smoke benchmark against local vllm-mlx";
+      description = "Quick EvalScope ARC smoke benchmark against local oMLX";
       exec = ''
         set -euo pipefail
         API_URL="''${API_URL:-http://localhost:8300/v1/chat/completions}"
@@ -1105,10 +1084,10 @@ in {
     # HumanEval ships its own harness (evaluate_functional_correctness);
     # MBPP has no upstream harness so it is scored with the packaged
     # mbpp-eval scorer. Both are driven directly against the local
-    # vllm-mlx completions endpoint via curl+jq since neither benchmark
+    # oMLX completions endpoint via curl+jq since neither benchmark
     # needs a heavyweight framework for a quick smoke run.
     "benchmark:humaneval-mbpp" = {
-      description = "Quick HumanEval + MBPP code-generation smoke benchmark against local vllm-mlx";
+      description = "Quick HumanEval + MBPP code-generation smoke benchmark against local oMLX";
       exec = ''
         set -euo pipefail
 

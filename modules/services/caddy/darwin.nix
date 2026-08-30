@@ -11,7 +11,6 @@
   cfg = config.myConfig.caddy;
   searxngCfg = config.myConfig.searxng;
   bifrostCfg = config.myConfig.bifrost;
-  vaneCfg = config.myConfig.vane;
 
   commonLib = import ../../common/lib.nix {inherit lib;};
 
@@ -30,10 +29,6 @@
     ++ lib.optional (bifrostCfg.enable && bifrostCfg.port != cfg.port) {
       host = "bifrost.internal";
       upstream = "localhost:${toString bifrostCfg.port}";
-    }
-    ++ lib.optional (vaneCfg.enable && vaneCfg.port != cfg.port) {
-      host = "vane.internal";
-      upstream = "localhost:${toString vaneCfg.port}";
     };
 
   allRoutes = serviceRoutes ++ (lib.mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);

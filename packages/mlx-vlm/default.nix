@@ -1,4 +1,4 @@
-# mlx-vlm 0.6.5 — Required by vllm-mlx 0.4.1 for Gemma 4 support
+# mlx-vlm 0.6.5 — MLX vision-language runtime support
 # nixpkgs has 0.4.4 which lacks ScaledLinear quantization needed for Gemma 4.
 {
   lib,

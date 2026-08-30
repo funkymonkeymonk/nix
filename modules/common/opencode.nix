@@ -184,7 +184,7 @@
           model = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             default = null;
-            description = "Model for this agent (e.g., ollama/qwen3.5:2b)";
+            description = "Model for this agent (e.g., omlx/qwen3.8-27b)";
           };
           prompt = lib.mkOption {
             type = lib.types.str;

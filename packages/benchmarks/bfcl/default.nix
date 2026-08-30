@@ -1,5 +1,5 @@
 # Berkeley Function Calling Leaderboard (BFCL) — evaluates LLM function/tool
-# calling ability against local OpenAI-compatible endpoints (e.g. vllm-mlx).
+# calling ability against local OpenAI-compatible endpoints (e.g. oMLX).
 # Upstream: https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard
 # Distributed on PyPI as `bfcl_eval` (careful: the unrelated `bfcl` PyPI
 # project is a different package).
@@ -12,7 +12,7 @@
 # uses a newer, incompatible `tree_sitter` API). Those provider-specific
 # handlers are stubbed out (see postPatch) so the package still builds and
 # the CLI still works for the categories that matter for this devenv's use
-# case: evaluating locally-hosted / OpenAI-compatible models (like vllm-mlx)
+# case: evaluating locally-hosted / OpenAI-compatible models (like oMLX)
 # against the Python-based single-turn and multi-turn test categories.
 # `simple_java`, `simple_javascript`, `memory_vector`, and any
 # Mistral/Qwen-agent/Writer-backed models are therefore NOT supported by this
@@ -104,7 +104,7 @@ python3Packages.buildPythonApplication rec {
     # Needed at runtime by the local-inference / remote-endpoint handler
     # (base_oss_handler.py) to load the model's tokenizer/config so prompt
     # formatting and context-length checks work against endpoints like
-    # vllm-mlx.
+    # oMLX.
     transformers
   ];
 
