@@ -16,9 +16,11 @@
   modelPath = "${pkgs.qwen3_8-27B-4bit}";
   # oMLX is an ARM-only formula, so it must use Homebrew's native ARM prefix.
   homebrewPrefix = "/opt/homebrew";
-  omlxBinary = "${homebrewPrefix}/opt/omlx/bin/omlx";
+  omlxPython = "${homebrewPrefix}/opt/omlx/libexec/bin/python3.11";
+  omlxScript = "${homebrewPrefix}/opt/omlx/libexec/bin/omlx";
   omlxCommand = lib.concatStringsSep " " [
-    omlxBinary
+    omlxPython
+    omlxScript
     "serve"
     "--model-dir ${lib.escapeShellArg modelDir}"
     "--host ${lib.escapeShellArg cfg.server.host}"
