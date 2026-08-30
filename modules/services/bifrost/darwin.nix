@@ -57,6 +57,8 @@ with lib; let
         list_models = true;
         chat_completion = true;
         chat_completion_stream = true;
+        responses = baseProviderType == "anthropic";
+        responses_stream = baseProviderType == "anthropic";
         embedding = true;
       };
       request_path_overrides =

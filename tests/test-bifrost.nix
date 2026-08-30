@@ -189,6 +189,12 @@ in {
       else
         echo "  custom provider base type should be anthropic!"; exit 1
       fi
+
+      if grep -q '"responses":true' "$SCRIPT" && grep -q '"responses_stream":true' "$SCRIPT"; then
+        echo "  Anthropic responses routes enabled: OK"
+      else
+        echo "  Anthropic responses routes should be enabled!"; exit 1
+      fi
       touch $out
     '';
 
