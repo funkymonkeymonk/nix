@@ -18,7 +18,7 @@
   homebrewPrefix = "/opt/homebrew";
   omlxPython = "${homebrewPrefix}/opt/omlx/libexec/bin/python3.11";
   omlxScript = "${homebrewPrefix}/opt/omlx/libexec/bin/omlx";
-  omlxCommand = lib.concatStringsSep " " [
+  omlxArguments = lib.concatStringsSep " " [
     omlxPython
     omlxScript
     "serve"
@@ -31,6 +31,9 @@
     "--paged-ssd-cache-dir ${lib.escapeShellArg cacheDir}"
     "--hot-cache-max-size ${cfg.hotCacheMaxSize}"
   ];
+  # Keep the signed system shell as the launchd child. Homebrew's Python
+  # executable is ad-hoc signed and macOS 26 rejects it as a direct agent.
+  omlxCommand = "/bin/sh -c ${lib.escapeShellArg omlxArguments}";
 in {
   options.myConfig.omlx = {
     enable = lib.mkEnableOption "oMLX inference server";
