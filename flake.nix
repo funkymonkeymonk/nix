@@ -183,7 +183,7 @@
             extraSpecialArgs = {inherit mkUser;};
             modules = [
               ./library/archetypes/workstation-darwin.nix
-              inputs.nix-darwin.darwinModules.homebrew
+              (inputs.nix-darwin + "/modules/homebrew.nix")
               ./modules/services/vane/darwin.nix
               ./modules/services/bifrost/darwin.nix
               ./modules/services/searxng/darwin.nix
