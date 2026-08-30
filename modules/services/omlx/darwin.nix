@@ -14,9 +14,8 @@
   modelDir = "${darwinHomeDir}/.omlx/models";
   cacheDir = "${darwinHomeDir}/.omlx/cache";
   modelPath = "${pkgs.qwen3_8-27B-4bit}";
-  # This host's native Homebrew is installed in /usr/local rather than the
-  # nix-darwin default /opt/homebrew prefix.
-  homebrewPrefix = "/usr/local";
+  # oMLX is an ARM-only formula, so it must use Homebrew's native ARM prefix.
+  homebrewPrefix = "/opt/homebrew";
   omlxBinary = "${homebrewPrefix}/opt/omlx/bin/omlx";
   omlxCommand = lib.concatStringsSep " " [
     omlxBinary
