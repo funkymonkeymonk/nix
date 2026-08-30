@@ -78,7 +78,6 @@ in {
     homebrew.brews = [
       {
         name = "jundot/omlx/omlx";
-        args = ["with-custom-kernel"];
       }
     ];
 
