@@ -104,6 +104,8 @@ in {
     };
 
     system.activationScripts.postActivation.text = lib.mkAfter ''
+      install -d "${darwinHomeDir}/.omlx"
+      chown ${primaryUser}:staff "${darwinHomeDir}/.omlx"
       install -d -o ${primaryUser} -g staff "${modelDir}" "${cacheDir}" "${logDir}" "${darwinHomeDir}/Library/Logs/omlx"
       rm -f "${modelDir}/qwen3.8-27b"
       ln -s "${modelPath}" "${modelDir}/qwen3.8-27b"
