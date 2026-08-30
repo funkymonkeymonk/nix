@@ -1,6 +1,6 @@
 # MegamanX (personal desktop) target configuration
 # Thin host file — imports workstation archetype, adds machine-specific
-# LLM stack (vllm-mlx, bifrost, vane) and pi customizations.
+# LLM stack (oMLX, Bifrost, Vane) and pi customizations.
 {mkUser, ...}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
@@ -17,68 +17,18 @@
 
       roles.opencode.enable = true;
 
-      # Default vllm-mlx instance: Qwen 3.8.
-      # Note: mlx-community/Qwen3.8-27B-MTP-8bit is an MTP *drafter* model
-      # (model_type = qwen3_5_mtp), not a primary checkpoint with built-in MTP
-      # heads. vllm-mlx has no generic --draft-model path for Qwen3 MTP
-      # drafters (only --mllm-draft-model for Gemma 4 assistant drafters), so
-      # we serve the base 8-bit checkpoint for maximum SimpleEngine throughput.
-      vllmMlx = {
+      # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
+      # continuous-batching and tiered KV-cache engine.
+      omlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 64;
-        contention = "preempt";
-        models = {
-          "qwen3.8-27b" = {
-            path = "mlx-community/Qwen3.8-27B-8bit";
-            type = "lm";
-            estimatedMemoryGb = 28;
-            preload = true;
-          };
-        };
-        enableAutoToolChoice = true;
-        toolCallParser = "qwen";
-        reasoningParser = "qwen3";
-        maxKvSize = 131072;
-        timeout = 600;
-        logLevel = "INFO";
-        enableMetrics = true;
-      };
-
-      # Second vllm-mlx instance: Gemma 4 e4b with BatchedEngine for concurrent
-      # requests. Runs on a separate port so both models are available on demand
-      # without reloading.
-      vllmMlxInstances.gemma = {
-        enable = true;
-        server = {
-          host = "0.0.0.0";
-          port = 8301;
-        };
-        memoryBudgetGb = 24;
-        contention = "preempt";
-        models = {
-          "gemma4-e4b" = {
-            path = "mlx-community/gemma-4-e4b-it-4bit";
-            type = "lm";
-            estimatedMemoryGb = 5;
-            preload = true;
-          };
-        };
-        enableAutoToolChoice = true;
-        toolCallParser = "gemma4";
-        reasoningParser = "gemma4";
-        maxKvSize = 131072;
-        timeout = 600;
-        logLevel = "INFO";
-        enableMetrics = true;
-        # BatchedEngine + prefix cache for concurrent requests and conversation
-        # turn reuse on the Gemma instance.
-        enableContinuousBatching = true;
-        enablePrefixCache = true;
-        chunkedPrefillTokens = 0;
+        logLevel = "info";
+        memoryGuardGb = 96;
+        maxConcurrentRequests = 8;
+        hotCacheMaxSize = "20GB";
       };
 
       # Prometheus scrapes bifrost, vllm-mlx, and node-exporter metrics

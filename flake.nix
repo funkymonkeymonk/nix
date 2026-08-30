@@ -187,9 +187,7 @@
               ./modules/services/bifrost/darwin.nix
               ./modules/services/searxng/darwin.nix
               ./modules/services/caddy/darwin.nix
-              ./modules/services/vllm-mlx/darwin-instances-options.nix
-              ./modules/services/vllm-mlx/darwin.nix
-              ./modules/services/vllm-mlx/darwin-instances-config.nix
+              ./modules/services/omlx/darwin.nix
               ./modules/services/prometheus/darwin.nix
               ./modules/services/node-exporter/darwin.nix
               ./modules/home-manager/aerospace.nix
@@ -397,7 +395,6 @@
                 workspace-switch
                 vllm-mlx-options
                 vllm-mlx-launchd
-                megamanx-vllm
                 wweaver-vllm
                 llm-client-opencode
                 llm-client-claude
