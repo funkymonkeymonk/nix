@@ -1,6 +1,6 @@
 # MegamanX (personal desktop) target configuration
 # Thin host file — imports workstation archetype, adds machine-specific
-# LLM stack (vllm-mlx, bifrost, vane) and pi customizations.
+# LLM stack (oMLX and Bifrost) and pi customizations.
 {mkUser, ...}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
@@ -15,74 +15,24 @@
     // {
       obsidian.vaults = ["personal"];
 
-      # Default vllm-mlx instance: Qwen 3.8 with external MTP draft model.
-      # Runs in single-model mode because --mllm-draft-model is incompatible
-      # with --models-config.
-      vllmMlx = {
+      roles.opencode.enable = true;
+      opencode.model = "local-bifrost/omlx/qwen3.8-27b";
+
+      # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
+      # continuous-batching and tiered KV-cache engine.
+      omlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 64;
-        contention = "preempt";
-        models = {
-          "qwen3.8-27b" = {
-            path = "mlx-community/Qwen3.8-27B-8bit";
-            type = "lm";
-            estimatedMemoryGb = 28;
-            preload = true;
-          };
-        };
-        enableAutoToolChoice = true;
-        toolCallParser = "qwen";
-        reasoningParser = "qwen3";
-        maxKvSize = 131072;
-        timeout = 600;
-        logLevel = "INFO";
-        enableMetrics = true;
-        # Use the external Qwen3.8-27B-MTP-8bit mlx-vlm draft model for
-        # speculative decoding. This is not a standalone model; it must be
-        # paired with a compatible Qwen3.8 27B target checkpoint.
-        mllmDraftModel = "mlx-community/Qwen3.8-27B-MTP-8bit";
-        mllmDraftKind = "mtp";
-        mllmDraftBlockSize = 3;
+        logLevel = "info";
+        memoryGuardGb = 96;
+        maxConcurrentRequests = 8;
+        hotCacheMaxSize = "20GB";
       };
 
-      # Second vllm-mlx instance: Gemma 4 e4b with BatchedEngine for concurrent
-      # requests. Runs on a separate port so both models are available on demand
-      # without reloading.
-      vllmMlxInstances.gemma = {
-        enable = true;
-        server = {
-          host = "0.0.0.0";
-          port = 8301;
-        };
-        memoryBudgetGb = 24;
-        contention = "preempt";
-        models = {
-          "gemma4-e4b" = {
-            path = "mlx-community/gemma-4-e4b-it-4bit";
-            type = "lm";
-            estimatedMemoryGb = 5;
-            preload = true;
-          };
-        };
-        enableAutoToolChoice = true;
-        toolCallParser = "gemma4";
-        reasoningParser = "gemma4";
-        maxKvSize = 131072;
-        timeout = 600;
-        logLevel = "INFO";
-        enableMetrics = true;
-        # BatchedEngine + prefix cache for concurrent requests and conversation
-        # turn reuse on the Gemma instance.
-        enableContinuousBatching = true;
-        enablePrefixCache = true;
-        chunkedPrefillTokens = 0;
-      };
-
-      # Prometheus scrapes bifrost, vllm-mlx, and node-exporter metrics
+      # Prometheus scrapes Bifrost, oMLX, and node-exporter metrics
       prometheus = {
         enable = true;
         retention = "7d";
@@ -93,21 +43,6 @@
         enable = true;
       };
 
-      vane = {
-        enable = true;
-        openaiBaseUrl = "http://bifrost.internal/v1";
-        defaultModel = "qwen3.8-27b";
-        # No Ollama service runs on this host (vllm-mlx + Bifrost handle all
-        # local inference) — leave embeddings unconfigured rather than
-        # pointing at a service that doesn't exist.
-        embeddingModel = null;
-        ollamaUrl = null;
-        # Point at the searxng service enabled below (myConfig.searxng.enable).
-        # vane no longer auto-derives this from searxng.port — see
-        # modules/services/vane/darwin.nix for why the coupling was severed.
-        searxngUrl = "http://localhost:8080";
-      };
-
       bifrost = {
         enable = true;
         # UI for request tracing, logs, token analytics:
@@ -115,9 +50,9 @@
         # Prometheus metrics: http://localhost:8081/metrics
         logLevel = "debug";
         upstreams = {
-          vllm-mlx-qwen = {
+          omlx = {
             url = "http://localhost:8300";
-            type = "openai";
+            type = "anthropic";
             requestTimeout = 600;
             streamIdleTimeoutInSeconds = 600;
             maxRetries = 3;
@@ -125,20 +60,8 @@
               "qwen3.8-27b"
             ];
           };
-          vllm-mlx-gemma = {
-            url = "http://localhost:8301";
-            type = "openai";
-            requestTimeout = 600;
-            streamIdleTimeoutInSeconds = 600;
-            maxRetries = 3;
-            models = [
-              "gemma4-e4b"
-            ];
-          };
         };
       };
-
-      searxng.enable = true;
 
       caddy.enable = true;
 
@@ -186,11 +109,11 @@
           - Follow the conventional commit style
         '';
 
-        # Route through Bifrost to vllm-mlx for Gemma 4 with working tool calls
+        # Route through the oMLX Bifrost provider.
         models.bifrost = {
           name = "Bifrost AI Gateway";
           provider = "openai";
-          modelId = "vllm-mlx-qwen/qwen3.8-27b";
+          modelId = "omlx/qwen3.8-27b";
           baseUrl = "http://bifrost.internal/v1";
           reasoning = false;
           maxTokens = 131072;

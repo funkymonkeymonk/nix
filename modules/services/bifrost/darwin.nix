@@ -44,7 +44,7 @@ with lib; let
     retry_backoff_max = "${toString upstream.retryBackoffMaxMs}ms";
   };
 
-  mkOpenaiProvider = upstreams: {
+  mkProvider = baseProviderType: upstreams: {
     keys = map mkOpenaiProviderKey upstreams;
     network_config =
       (mkNetworkConfig (builtins.head upstreams))
@@ -52,18 +52,23 @@ with lib; let
         base_url = (builtins.head upstreams).url;
       };
     custom_provider_config = {
-      base_provider_type = "openai";
+      base_provider_type = baseProviderType;
       allowed_requests = {
         list_models = true;
         chat_completion = true;
         chat_completion_stream = true;
+        responses = baseProviderType == "anthropic";
+        responses_stream = baseProviderType == "anthropic";
         embedding = true;
       };
-      request_path_overrides = {
-        chat_completion = "/v1/chat/completions";
-        chat_completion_stream = "/v1/chat/completions";
-        embedding = "/v1/embeddings";
-      };
+      request_path_overrides =
+        if baseProviderType == "openai"
+        then {
+          chat_completion = "/v1/chat/completions";
+          chat_completion_stream = "/v1/chat/completions";
+          embedding = "/v1/embeddings";
+        }
+        else {};
     };
   };
 
@@ -90,15 +95,21 @@ with lib; let
   providers = let
     vllmUpstreams = filter (u: u.type == "vllm") upstreamList;
     openaiUpstreams = filter (u: u.type == "openai") upstreamList;
+    anthropicUpstreams = filter (u: u.type == "anthropic") upstreamList;
   in
     (optionalAttrs (vllmUpstreams != []) {
       vllm = mkVllmProvider vllmUpstreams;
     })
     // builtins.listToAttrs (map (u: {
         name = u.name;
-        value = mkOpenaiProvider [u];
+        value = mkProvider "openai" [u];
       })
-      openaiUpstreams);
+      openaiUpstreams)
+    // builtins.listToAttrs (map (u: {
+        name = u.name;
+        value = mkProvider "anthropic" [u];
+      })
+      anthropicUpstreams);
 
   configJson = builtins.toJSON {
     inherit providers;
@@ -171,9 +182,9 @@ in {
             description = "Base URL for the upstream inference server (e.g., http://localhost:8300/v1)";
           };
           type = mkOption {
-            type = types.enum ["openai" "vllm"];
+            type = types.enum ["openai" "anthropic" "vllm"];
             default = "openai";
-            description = "Provider type for the upstream. Use 'vllm' for vLLM-compatible servers (uses bifrost's native vLLM provider integration)";
+            description = "Provider type for the upstream. Use 'openai' or 'anthropic' for compatible APIs, or 'vllm' for Bifrost's native vLLM integration";
           };
           apiKey = mkOption {
             type = types.str;
@@ -211,7 +222,7 @@ in {
             description = ''
               Idle timeout for streaming responses. If no chunk arrives from the
               upstream within this window, Bifrost closes the connection.
-              Must be >= the upstream's longest prefill time. For vllm-mlx with
+               Must be >= the upstream's longest prefill time. For oMLX with
               long system prompts (22k+ tokens), set to 600s to avoid 500 errors
               during chunked prefill. Bifrost default is 60s.
             '';
@@ -224,7 +235,7 @@ in {
         };
       });
       default = {};
-      description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'vllm-mlx-local' → model 'vllm-mlx-local/glm47-flash-4bit')";
+      description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b')";
     };
   };
 

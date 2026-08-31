@@ -21,8 +21,7 @@
       };
       opencode = {
         enable = true;
-        # Use remote LLM APIs since there's no local inference server on this host
-        model = null; # User will select on first run
+        model = "local-bifrost/omlx/qwen3.8-27b";
       };
       llmClient.rtk.enable = true;
       lume = {

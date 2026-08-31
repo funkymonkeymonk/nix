@@ -29,7 +29,7 @@ Understanding-oriented background reading. These documents do not walk you throu
 
 | Document | What It Covers |
 |----------|---------------|
-| [LLM Stack Evolution](llm-stack-evolution.md) | Migration from Higgs + Ollama to vllm-mlx + Bifrost |
+| [LLM Stack Evolution](llm-stack-evolution.md) | Design rationale for oMLX + Bifrost |
 
 ## Security
 

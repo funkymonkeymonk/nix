@@ -1,6 +1,6 @@
 # OpenAI Evals — OpenAI's framework for evaluating LLMs and LLM systems via
 # the `oaieval`/`oaievalset` CLIs, targeting any OpenAI-compatible endpoint
-# (e.g. vllm-mlx).
+# (e.g. oMLX).
 # Upstream: https://github.com/openai/evals (PyPI: `evals`).
 #
 # Scoping decision: upstream's pyproject.toml declares several dependencies

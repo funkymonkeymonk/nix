@@ -25,7 +25,7 @@
 
     opencode = {
       enable = true;
-      model = null; # User selects on first run
+      model = "local-bifrost/omlx/qwen3.8-27b";
     };
 
     llmClient.rtk.enable = true;

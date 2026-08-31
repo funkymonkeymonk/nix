@@ -76,16 +76,26 @@ with lib; let
   providerConfig =
     lib.mapAttrs (
       _name: provider: let
-        hasApiKey = (provider.onePasswordItem or "") != "";
+        hasSecretApiKey = (provider.onePasswordItem or "") != "";
+        hasApiKey = hasSecretApiKey || provider.apiKey != null;
         hasModels = provider.models or {} != {};
         baseOptions = {inherit (provider) baseURL;};
-        optionsWithKey = baseOptions // {apiKey = "{file:~/.config/opencode/secrets/${_name}-apikey}";};
+        optionsWithKey =
+          baseOptions
+          // {
+            apiKey =
+              if hasSecretApiKey
+              then "{file:~/.config/opencode/secrets/${_name}-apikey}"
+              else provider.apiKey;
+          };
         optionsWithDiscovery =
           if provider.dynamicModels or false
           then {
             modelsDiscovery = {
               enabled = true;
+              endpoint = "/v1/models";
               smartModelName = true;
+              modelInfoFormat = "bifrost";
               cache.enabled = true;
             };
           }

@@ -283,7 +283,7 @@ cmd_init() {
     if gum confirm "Enable developer tools?" --affirmative "Yes" --negative "No"; then
       roles+=("developer")
     fi
-    if gum confirm "Enable LLM host (Ollama)?" --affirmative "Yes" --negative "No"; then
+    if gum confirm "Enable LLM host (oMLX)?" --affirmative "Yes" --negative "No"; then
       roles+=("llm-host")
     fi
   fi

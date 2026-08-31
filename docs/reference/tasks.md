@@ -48,6 +48,7 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `test:all` | Eval + build checks + module tests | 2–10min |
 | `test:eval` | Evaluate all NixOS and Darwin configurations | ~10s |
 | `test:build` | Build all flake check targets (single eval) | 2–10min |
+| `test:sketchybar` | Sketchybar module tests | ~30s |
 | `test:onepassword` | 1Password module tests | ~30s |
 
 ### Documentation
@@ -88,15 +89,12 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | Task | Description |
 |------|-------------|
 | `benchmark:all` | Run all benchmark suites |
-| `benchmark:lm-eval-gsm8k` | lm-eval GSM8K against local vllm-mlx |
+| `benchmark:lm-eval-gsm8k` | lm-eval GSM8K against local oMLX |
 | `benchmark:lm-eval-mini` | Quick lm-eval smoke benchmark |
 | `benchmark:lm-eval-leaderboard` | HuggingFace Open LLM Leaderboard v2 |
 | `benchmark:lighteval-gsm8k` | lighteval GSM8K |
-| `benchmark:bfcl-smoke` | BFCL function-calling smoke test against local vllm-mlx |
-| `benchmark:bigcodebench` | BigCodeBench code-generation smoke test |
-| `benchmark:openai-evals` | OpenAI Evals (`oaieval`) smoke test against local vllm-mlx |
-| `profile:llm` | Profile LLM inference performance |
-| `smoke:llm-stack` | Smoke test vllm-mlx + bifrost |
+| `benchmark:bfcl-smoke` | BFCL function-calling smoke test against local oMLX |
+| `smoke:llm-stack` | Smoke test oMLX + Bifrost |
 
 ### Maintenance
 
@@ -117,6 +115,7 @@ check:all
 test:all
 ├── test:eval
 ├── test:build
+├── test:sketchybar
 └── test:onepassword
 ```
 

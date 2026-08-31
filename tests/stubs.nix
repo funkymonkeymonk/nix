@@ -25,11 +25,9 @@
 # Per-module stubs:
 #   stubs.agentSkills     — base ++ roles/agent-skills.nix
 #   stubs.aerospace       — base ++ nixosServices ++ home-manager/aerospace.nix
-#   stubs.vane            — base ++ darwinService ++ services/vane/darwin.nix
 #   stubs.searxng         — base ++ darwinService ++ services/searxng/darwin.nix
 #   stubs.bifrost         — base ++ darwinService ++ services/bifrost/darwin.nix
 #   stubs.caddy           — base ++ darwinService ++ services/caddy/darwin.nix
-#   stubs.vllmMlx         — base ++ darwinService ++ services/vllm-mlx/darwin.nix
 #
 {pkgs}: let
   lib = pkgs.lib;
@@ -97,7 +95,7 @@
   # ── Composite stubs ───────────────────────────────────────────────────────
 
   # Darwin launchd service stubs — required when a module sets launchd.daemons,
-  # launchd.user.agents, or system.activationScripts (e.g. vane, searxng, bifrost, caddy).
+  # launchd.user.agents, or system.activationScripts.
   darwinServiceStub = {
     options.launchd.daemons = lib.mkOption {
       type = lib.types.attrsOf lib.types.anything;
@@ -113,7 +111,7 @@
     };
   };
 
-  # Minimal stubs for service options that caddy reads (searxng, bifrost, vane).
+  # Minimal stubs for service options that caddy reads.
   caddyDependencyStub = {
     options.myConfig.searxng = {
       enable = lib.mkOption {
@@ -126,16 +124,6 @@
       };
     };
     options.myConfig.bifrost = {
-      enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-      };
-      port = lib.mkOption {
-        type = lib.types.port;
-        default = 8080;
-      };
-    };
-    options.myConfig.vane = {
       enable = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -236,11 +224,9 @@ in rec {
     ++ [../modules/home-manager/aerospace.nix];
 
   # Darwin service module stubs (base + launchd/activationScripts + module)
-  vane = base ++ darwinService ++ [../modules/services/vane/darwin.nix];
   searxng = base ++ darwinService ++ [../modules/services/searxng/darwin.nix];
   bifrost = base ++ darwinService ++ [../modules/services/bifrost/darwin.nix];
   caddy = base ++ darwinService ++ [caddyDependencyStub ../modules/services/caddy/darwin.nix];
-  vllmMlx = base ++ darwinService ++ [../modules/services/vllm-mlx/darwin.nix];
   loki = base ++ darwinService ++ [../modules/services/loki/darwin.nix];
   vector = base ++ darwinService ++ [../modules/services/loki/darwin.nix ../modules/services/vector/darwin.nix];
   alertmanager = base ++ darwinService ++ [../modules/services/alertmanager/darwin.nix];

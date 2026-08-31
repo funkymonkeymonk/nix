@@ -31,7 +31,7 @@ with lib; let
   # modules/nixos/alertmanager.nix — guard alertmanager wiring on option
   # *presence* so this module works standalone (mirrors the same guard
   # added to the Darwin prometheus module in PR #432 for
-  # bifrost/vllm-mlx/alertmanager).
+  # bifrost/oMLX/alertmanager).
   hasAlertmanager = builtins.hasAttr "alertmanager" (options.myConfig or {});
 
   alertmanagerEnabled = hasAlertmanager && config.myConfig.alertmanager.enable;

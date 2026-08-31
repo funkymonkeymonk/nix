@@ -89,7 +89,6 @@ The coverage tracker in `tests/test-coverage.nix` auto-discovers modules so cove
 
 Each test file corresponds to a module or role group:
 - `test-roles.nix` — all roles and their cascades
-- `test-services.nix` — vane module
 
 This matches the nix-unit recommendation that tests live near the logic they're testing[^2], adapted for a flat `tests/` tree.
 
@@ -142,7 +141,6 @@ in the PR description to confirm the new tests follow this style.
 
 ## Further Reading
 
-- `tests/test-vllm-mlx.nix` — Concrete example of `lib.evalModules` stubbing pattern
 - nix-unit documentation[^2]
 - Nix flake check reference[^1]
 - NixOS Testing Framework[^5]

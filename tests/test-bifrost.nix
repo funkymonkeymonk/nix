@@ -22,9 +22,9 @@
               logLevel = "debug";
               appDir = "/var/lib/bifrost";
               upstreams = {
-                "vllm-mlx-local" = {
+                "omlx" = {
                   url = "http://localhost:8300/v1";
-                  type = "vllm";
+                  type = "openai";
                   apiKey = "dummy";
                   allowPrivateNetwork = true;
                   requestTimeout = 60;
@@ -116,43 +116,43 @@ in {
     }
 
     ${
-      if bifrostCustom.upstreams ? "vllm-mlx-local"
-      then ''echo "  upstreams.vllm-mlx-local defined: OK"''
-      else ''echo "  upstreams.vllm-mlx-local should be defined!"; exit 1''
+      if bifrostCustom.upstreams ? "omlx"
+      then ''echo "  upstreams.omlx defined: OK"''
+      else ''echo "  upstreams.omlx should be defined!"; exit 1''
     }
 
     ${
-      if bifrostCustom.upstreams."vllm-mlx-local".url == "http://localhost:8300/v1"
+      if bifrostCustom.upstreams.omlx.url == "http://localhost:8300/v1"
       then ''echo "  upstream URL correct: OK"''
       else ''echo "  upstream URL should be http://localhost:8300/v1!"; exit 1''
     }
 
     ${
-      if bifrostCustom.upstreams."vllm-mlx-local".type == "vllm"
-      then ''echo "  upstream type = vllm: OK"''
-      else ''echo "  upstream type should be vllm!"; exit 1''
+      if bifrostCustom.upstreams.omlx.type == "openai"
+      then ''echo "  upstream type = openai: OK"''
+      else ''echo "  upstream type should be openai!"; exit 1''
     }
 
     ${
-      if builtins.elem "qwen3.5" bifrostCustom.upstreams."vllm-mlx-local".models
+      if builtins.elem "qwen3.5" bifrostCustom.upstreams.omlx.models
       then ''echo "  upstream models contains qwen3.5: OK"''
       else ''echo "  upstream models should contain qwen3.5!"; exit 1''
     }
 
     ${
-      if bifrostCustom.upstreams."vllm-mlx-local".maxRetries == 4
+      if bifrostCustom.upstreams.omlx.maxRetries == 4
       then ''echo "  upstream maxRetries = 4: OK"''
       else ''echo "  upstream maxRetries should be 4!"; exit 1''
     }
 
     ${
-      if bifrostCustom.upstreams."vllm-mlx-local".retryBackoffInitialMs == 250
+      if bifrostCustom.upstreams.omlx.retryBackoffInitialMs == 250
       then ''echo "  upstream retryBackoffInitialMs = 250: OK"''
       else ''echo "  upstream retryBackoffInitialMs should be 250!"; exit 1''
     }
 
     ${
-      if bifrostCustom.upstreams."vllm-mlx-local".retryBackoffMaxMs == 8000
+      if bifrostCustom.upstreams.omlx.retryBackoffMaxMs == 8000
       then ''echo "  upstream retryBackoffMaxMs = 8000: OK"''
       else ''echo "  upstream retryBackoffMaxMs should be 8000!"; exit 1''
     }
@@ -160,6 +160,43 @@ in {
     echo "All Bifrost custom options verified"
     touch $out
   '';
+
+  bifrostAnthropicConfigTest = let
+    anthropicEval =
+      (lib.evalModules {
+        modules =
+          stubs.bifrost
+          ++ [
+            {
+              config.myConfig.bifrost = {
+                enable = true;
+                upstreams.omlx = {
+                  url = "http://localhost:8300";
+                  type = "anthropic";
+                };
+              };
+            }
+          ];
+      })
+      .config;
+  in
+    pkgs.runCommand "test-bifrost-anthropic-config" {} ''
+      echo "=== Testing Bifrost Anthropic Provider Config ==="
+      SCRIPT=${anthropicEval.launchd.daemons.bifrost.command}
+
+      if grep -q '"base_provider_type":"anthropic"' "$SCRIPT"; then
+        echo "  custom provider base type = anthropic: OK"
+      else
+        echo "  custom provider base type should be anthropic!"; exit 1
+      fi
+
+      if grep -q '"responses":true' "$SCRIPT" && grep -q '"responses_stream":true' "$SCRIPT"; then
+        echo "  Anthropic responses routes enabled: OK"
+      else
+        echo "  Anthropic responses routes should be enabled!"; exit 1
+      fi
+      touch $out
+    '';
 
   # Verify the generated provider config (embedded in the launchd script)
   # carries retry settings into network_config. Bifrost's upstream default is

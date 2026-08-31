@@ -48,10 +48,8 @@ modules/
 │   ├── pi-coding-agent.nix
 │   └── skills/       # AI agent skills
 ├── services/         # Daemon service modules
-│   ├── vllm-mlx/     # vllm-mlx inference server
 │   ├── bifrost/      # Bifrost AI gateway
 │   ├── caddy/        # Caddy reverse proxy
-│   └── vane/         # Vane AI search engine
 └── nixos/            # NixOS-specific
     ├── base.nix      # Common NixOS settings
     ├── desktop.nix   # Desktop environment
@@ -147,8 +145,6 @@ flowchart TD
     usersnix -->|"myConfig.claude-code.enable"| home_manager_claude_code_nix
     home_manager_pi_coding_agent_nix["home-manager/pi-coding-agent.nix"]
     usersnix -->|"myConfig.pi.enable"| home_manager_pi_coding_agent_nix
-    home_manager_vane_secrets_nix["home-manager/vane-secrets.nix"]
-    usersnix -->|"myConfig.vane.openaiBaseUrlOpnixItem"| home_manager_vane_secrets_nix
     home_manager_zellij_nix["home-manager/zellij.nix"]
     usersnix -->|"myConfig.zellij.enable"| home_manager_zellij_nix
     home_manager_skills_install_nix["home-manager/skills/install.nix"]

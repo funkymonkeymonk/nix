@@ -26,7 +26,7 @@
         default = 9100;
       };
     };
-    options.myConfig.vllmMlx = {
+    options.myConfig.omlx = {
       enable = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -227,7 +227,7 @@ in {
   '';
 
   # Verify the generated prometheus.yml scrape config uses the configured ports
-  # for node-exporter, bifrost, and vllm-mlx.
+  # for node-exporter, bifrost, and oMLX.
   prometheusScrapeConfigTest = pkgs.runCommand "test-prometheus-scrape-config" {} ''
     echo "=== Testing Prometheus Scrape Config ==="
 
@@ -247,9 +247,9 @@ in {
     fi
 
     if grep -q '"targets":\["localhost:8300"\]' "$CONFIG"; then
-      echo "  vllm-mlx job targets localhost:8300: OK"
+      echo "  oMLX job targets localhost:8300: OK"
     else
-      echo "  FAIL: vllm-mlx job should target localhost:8300"; exit 1
+      echo "  FAIL: oMLX job should target localhost:8300"; exit 1
     fi
 
     echo "All Prometheus scrape config tests passed"

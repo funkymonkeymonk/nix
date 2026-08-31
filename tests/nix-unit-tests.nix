@@ -52,7 +52,6 @@ let
 
   evalBase = (lib.evalModules {modules = baseStubs;}).config;
 
-  vaneStubs = stubs.vane;
   searxngStubs = stubs.searxng;
   bifrostStubs = stubs.bifrost;
   caddyStubs = stubs.caddy;
@@ -63,7 +62,6 @@ let
   # inside a home-manager users.<name> block — see flake.nix.
   aerospaceStubs = stubs.aerospace;
 
-  evalVaneBase = (lib.evalModules {modules = vaneStubs;}).config;
   evalSearxngBase = (lib.evalModules {modules = searxngStubs;}).config;
   evalBifrostBase = (lib.evalModules {modules = bifrostStubs;}).config;
   evalCaddyBase = (lib.evalModules {modules = caddyStubs;}).config;
@@ -156,46 +154,6 @@ in {
     expected = {
       enable = true;
       model = "anthropic/claude-sonnet-4";
-    };
-  };
-
-  # ── Options: vane ─────────────────────────────────────────────
-  testVaneDefaults = {
-    expr = {
-      enable = evalVaneBase.myConfig.vane.enable;
-      port = evalVaneBase.myConfig.vane.port;
-      defaultModel = evalVaneBase.myConfig.vane.defaultModel;
-    };
-    expected = {
-      enable = false;
-      port = 3000;
-      defaultModel = "deepseek-r1:14b";
-    };
-  };
-
-  testVaneCustom = let
-    custom =
-      (lib.evalModules {
-        modules =
-          vaneStubs
-          ++ [
-            {
-              config.myConfig.vane = {
-                enable = true;
-                port = 8080;
-                openaiBaseUrl = "http://custom:8080";
-                defaultModel = "custom-model";
-              };
-            }
-          ];
-      }).config.myConfig.vane;
-  in {
-    expr = {inherit (custom) enable port openaiBaseUrl defaultModel;};
-    expected = {
-      enable = true;
-      port = 8080;
-      openaiBaseUrl = "http://custom:8080";
-      defaultModel = "custom-model";
     };
   };
 
@@ -351,11 +309,11 @@ in {
 
   # mkServiceRegistry: disabled service produces empty attrset
   testServiceRegistryDisabled = {
-    expr = commonLib.mkServiceRegistry "vane" {
-      displayName = "Vane";
-      port = 3000;
-      label = "org.nixos.vane";
-      errorLog = "/var/log/vane-error.log";
+    expr = commonLib.mkServiceRegistry "omlx" {
+      displayName = "oMLX";
+      port = 8300;
+      label = "org.omlx.server";
+      errorLog = "/var/log/omlx-error.log";
       enabled = false;
     };
     expected = {};

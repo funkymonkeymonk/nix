@@ -61,7 +61,7 @@ during the original 3-flake plan) references `targets/wweaver/default.nix`,
      - [ ] `hosts/wweaver/default.nix` confirmed to import `base-darwin.nix` + `workstation-darwin.nix` (already true)
      - [ ] `hosts/wweaver/default.nix` has no leftover references to deleted `profiles/`/`schema/` paths (already true — grep clean)
      - [ ] `devenv tasks run check:lint` and `devenv tasks run test` pass at HEAD (already true, verified above)
-     - [ ] Parity check against `hosts/megamanx/default.nix`: same archetype import, same shape of overrides (roles, vane, opencode) — confirmed via diff
+      - [ ] Parity check against `hosts/megamanx/default.nix`: same archetype import and override shape — confirmed via diff
 2. `yx done "Flake decomposition: Phase 7 — migrate wweaver"`
 3. `yx tag rm "Flake decomposition: Phase 8 — cleanup" "@blocked"`
 4. `yx sync`
@@ -91,7 +91,7 @@ already moved to `hosts/darwin-server`).
 
 - [ ] For each `-v2` output (`core-v2`, `darwin-server-v2`, `bootstrap-v2`,
       `zero-v2`, `type-server-v2`, `type-server-arm-v2`, `type-desktop-v2`,
-      `dev-vm-v2`, `openclaw-v2`, `matrix-v2`, `media-center-v2`): determine
+      `dev-vm-v2`, `matrix-v2`, `media-center-v2`): determine
       whether it's (a) the machine's *current* real output (no non-`-v2`
       twin exists, or the twin is stale/removable), (b) a genuine
       still-in-progress migration, or (c) dead code safe to delete outright.
@@ -152,7 +152,6 @@ machines can be declared.
 | `modules/nixos/base.nix` `system.autoUpgrade` | Exists, wired via `myConfig.autoUpgrade.flakeUrl` | **NixOS-only.** Already gives self-update today for `zero`, `type-server`, `type-desktop` |
 | nix-darwin `system.autoUpgrade` (upstream PR nix-darwin#1682) | **Still open, unmerged** (checked live: `state: open, merged: false`) | Darwin machines (including wweaver) **cannot** self-update natively yet — no code change here fixes this, it's an upstream blocker |
 | `modules/common/scripts/nix-cloud-init` + `switch-nix` | Exists, hardcodes `darwin_targets=("MegamanX" "wweaver" "core-v2")` / `nixos_items=(zero, type-server, ...)` | Manual provisioning path today; hardcoded target list is itself evidence this needs to become data-driven if instance generation becomes real |
-| `docs/how-to/setup-openclaw-microvm-automated.md`-style cloud-init flow | Exists for microvms | Closest existing analog to "generate + provision + self-maintain an instance" — but for guest VMs, not bare metal/Darwin |
 
 ### Constraint this surfaces for Phase 8.3
 

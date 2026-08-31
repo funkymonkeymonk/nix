@@ -41,8 +41,8 @@ in {
 
   options.myConfig.sharedModels = lib.mkOption {
     type = lib.types.listOf lib.types.str;
-    default = ["qwen3:4b" "gemma3:4b"];
-    description = "Central model configuration - change here to affect ALL Ollama services and instances.\n\nRecommended models:\n  qwen3:4b     - Research/Analysis\n  gemma3:4b    - Chat (fast responses)\n  qwen3.5      - Coding/Planning (best model)\n  qwen2.5-coder:7b - Coding alternatives\n  llama3.2     - Lightweight fallback";
+    default = ["qwen3.8-27b"];
+    description = "Central model configuration for local inference services.";
   };
 
   options.myConfig.llmEndpoints = lib.mkOption {

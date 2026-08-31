@@ -228,7 +228,6 @@ wweaver/nix-inventory (private)
 │   ├── wweaver.nix       # Darwin laptop — evaluation-time config only
 │   ├── zero.nix          # NixOS desktop
 │   ├── type-server-01.nix
-│   └── openclaw.nix      # Agent microvm
 ├── schema.nix            # Validates machine configs at eval time
 ├── flake.nix             # Composes library + machine configs
 └── .github/workflows/
@@ -246,8 +245,6 @@ wweaver/nix-inventory (private)
   hostname  = "wweaver";
 
   overrides = {
-    vane.colima = { cpu = 6; memory = 12; disk = 60; };
-    ollama.host = "0.0.0.0";
   };
 }
 ```
@@ -479,7 +476,7 @@ Migration order is **last-to-first** by risk. Protect daily drivers until last.
 
 ```
 Phase 1  MicroVMs (dispensable — replaced not upgraded)
-         dev-vm, openclaw, matrix, media-center
+         dev-vm, matrix, media-center
 
 Phase 2  Cattle NixOS (templates — no specific machine running them)
          type-server, type-server-arm, type-desktop

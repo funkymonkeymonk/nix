@@ -7,7 +7,7 @@
 }: let
   cfg = config.myConfig.roles.opencode;
   host = config.myConfig.llmClient.serverHost;
-  port = config.myConfig.llmClient.serverPort;
+  bifrostPort = toString (config.myConfig.bifrost.port or 8081);
 in {
   config = lib.mkIf cfg.enable {
     environment.systemPackages = with pkgs; [
@@ -17,16 +17,25 @@ in {
 
     # Auto-enable agent-skills
     myConfig.agent-skills.enable = true;
+    myConfig.opencode.enable = true;
 
     myConfig.llmClient = {
       serverHost = lib.mkDefault "127.0.0.1";
       serverPort = lib.mkDefault "8080";
     };
 
+    # Prefer the local gateway while keeping the provider map extensible.
+    myConfig.opencode.model = lib.mkDefault "local-bifrost/omlx/qwen3.8-27b";
+
     # Auto-configure bifrost as a model provider
     myConfig.opencode.providers.local-bifrost = lib.mkDefault {
       name = "Local Bifrost";
-      baseURL = "http://${host}:${port}/v1";
+      npm = "@ai-sdk/anthropic";
+      apiKey = "bifrost-local";
+      baseURL = "http://${host}:${bifrostPort}/anthropic/v1";
+      models."omlx/qwen3.8-27b" = {
+        name = "Qwen3.8 27B (oMLX)";
+      };
       dynamicModels = true;
     };
 
@@ -36,16 +45,13 @@ in {
     # myConfig.opencode.extraMcpServers.bifrost.enabled = true.
     myConfig.opencode.extraMcpServers.bifrost = lib.mkDefault {
       type = "remote";
-      url = "http://${host}:${port}/mcp";
+      url = "http://${host}:${bifrostPort}/mcp";
       enabled = false;
     };
 
     # Default global agent instructions — override per-machine with a direct assignment
     myConfig.opencode.agentsMd = lib.mkDefault (builtins.readFile ../common/AGENTS.md);
 
-    environment.shellAliases = {
-      llm-status = "curl http://${host}:${port}/status";
-    };
     # RTK integration is handled by modules/home-manager/opencode.nix
   };
 }

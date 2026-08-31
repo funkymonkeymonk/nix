@@ -15,7 +15,6 @@
   testCanonicalSkillsInstall = import ./test-skills-canonical-install.nix {inherit pkgs;};
   testEmail = import ./test-email.nix {inherit pkgs;};
   testSketchybarRemoved = import ./test-sketchybar-removed.nix {inherit pkgs;};
-  testServices = import ./test-services.nix {inherit pkgs self;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
@@ -23,11 +22,6 @@
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
 
-  testVllmMlx =
-    if self != null
-    then import ./test-vllm-mlx.nix {inherit pkgs self;}
-    else {};
-  testVllmMlxStream = import ./test-vllm-mlx-stream.nix {inherit pkgs;};
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
   testBifrost = import ./test-bifrost.nix {inherit pkgs;};
@@ -42,7 +36,6 @@
   testGrafana = import ./test-grafana.nix {inherit pkgs;};
   testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
   testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
-  testStackIntegration = import ./test-stack-integration.nix {inherit pkgs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
@@ -172,16 +165,10 @@ in
 
     # Service module tests
 
-    vane-options = testServices.vaneOptionsTest;
-    vane-custom-options = testServices.vaneCustomOptionsTest;
-    vane-darwin-autostart-default = testServices.vaneDarwinAutoStartDefaultTest;
-    vane-darwin-autostart-true = testServices.vaneDarwinAutoStartTrueTest;
-    vane-opnix-url-options = testServices.vaneOpnixUrlOptionsTest;
-    vane-megamanx-no-ollama-wiring = testServices.vaneMegamanxNoOllamaWiringTest;
-
     # Home-manager module tests
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
+    opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
 
@@ -254,17 +241,6 @@ in
     agent-user-enabled = testAgentUser.agentUserEnabledTest;
     agent-user-custom = testAgentUser.agentUserCustomTest;
 
-    # vMLX module tests
-
-    # vllm-mlx module tests
-    vllm-mlx-options = testVllmMlx.vllmMlxOptionsTest;
-    vllm-mlx-launchd = testVllmMlx.vllmMlxLaunchdTest;
-    megamanx-vllm = testVllmMlx.megamanxVllmMlxTest;
-    wweaver-vllm = testVllmMlx.wweaverVllmMlxTest;
-
-    # vllm-mlx package streaming tests (builds the package; darwin-only)
-    vllm-mlx-finish-reason = testVllmMlxStream.vllmMlxFinishReasonTest;
-
     # Claude Code module tests
     claude-code-options = testClaudeCode.claudeCodeOptionsTest;
     claude-code-custom-options = testClaudeCode.claudeCodeCustomOptionsTest;
@@ -276,6 +252,7 @@ in
     # Bifrost AI gateway module tests
     bifrost-options = testBifrost.bifrostOptionsTest;
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
+    bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
 
     # Caddy reverse proxy module tests
@@ -344,7 +321,6 @@ in
     type-server-observability = testNixosObservability.typeServerObservabilityTest;
 
     # LLM stack integration test
-    stack-integration = testStackIntegration.stackIntegrationTest;
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;

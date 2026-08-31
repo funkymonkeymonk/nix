@@ -30,29 +30,16 @@
 
       obsidian.vaults = ["personal"];
 
-      # Local Qwen 3.8 inference for the 48GB laptop. Keep the initial budget
-      # conservative until real-world memory headroom is measured.
-      vllmMlx = {
+      # Local Qwen 3.8 inference through oMLX.
+      omlx = {
         enable = true;
         server = {
           host = "0.0.0.0";
           port = 8300;
         };
-        memoryBudgetGb = 24;
-        contention = "preempt";
-        models."qwen3.8-27b" = {
-          path = "mlx-community/Qwen3.8-27B-4bit";
-          type = "lm";
-          estimatedMemoryGb = 18;
-          preload = true;
-        };
-        enableAutoToolChoice = true;
-        toolCallParser = "qwen";
-        reasoningParser = "qwen3";
-        maxKvSize = 65536;
-        timeout = 600;
-        logLevel = "INFO";
-        enableMetrics = true;
+        memoryGuardGb = 32;
+        maxConcurrentRequests = 4;
+        hotCacheMaxSize = "8GB";
       };
 
       # Work-specific roles beyond the workstation archetype
@@ -69,15 +56,20 @@
         "pi-subagents" = "^0.51.0";
       };
 
-      vane = {
+      bifrost = {
         enable = true;
-        autoStart = true;
-        defaultModel = "qwen3.5";
-        embeddingModel = "nomic-embed-text";
+        upstreams.omlx = {
+          url = "http://localhost:8300";
+          type = "anthropic";
+          requestTimeout = 600;
+          streamIdleTimeoutInSeconds = 600;
+          models = ["qwen3.8-27b"];
+        };
       };
       opencode = {
         enable = true;
         disabledProviders = ["opencode"];
+        model = "local-bifrost/omlx/qwen3.8-27b";
         commands = {
           diataxis = {
             description = "Audit and rewrite documentation using the Diataxis framework";

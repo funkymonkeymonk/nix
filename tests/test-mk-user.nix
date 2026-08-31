@@ -23,7 +23,7 @@
     onepassword.enable = true;
     opencode = {
       enable = true;
-      model = "opencode/big-pickle";
+      model = "local-bifrost/omlx/qwen3.8-27b";
     };
     claude-code = {
       enable = false;
@@ -86,9 +86,9 @@ in {
       }
 
       ${
-        if result.opencode.model == "opencode/big-pickle"
-        then ''echo "  opencode.model = opencode/big-pickle: OK"''
-        else ''echo "  FAIL: opencode.model should be opencode/big-pickle"; exit 1''
+        if result.opencode.model == "local-bifrost/omlx/qwen3.8-27b"
+        then ''echo "  opencode.model = managed Qwen: OK"''
+        else ''echo "  FAIL: opencode.model should be the managed Qwen model"; exit 1''
       }
 
       ${

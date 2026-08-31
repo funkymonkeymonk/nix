@@ -119,7 +119,7 @@ lib.hm.dag.entryAfter ["installPackages"] ''
 ```nix
 # Signature:
 mkOpnixSecretsGeneric:
-  namespace: str       # e.g. "higgs", "vane"
+  namespace: str       # e.g. "higgs", "omlx"
   defaultVault: str    # e.g. "Opnix"
   items: [{
     reference: str     # 1Password reference

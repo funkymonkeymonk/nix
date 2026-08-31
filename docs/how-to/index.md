@@ -44,4 +44,4 @@ Procedural guides that solve a concrete task. Choose the guide that matches what
 
 | Guide | What It Does |
 |-------|-------------|
-| [Configure the LLM Stack](configure-llm-stack.md) | Wire vllm-mlx, Bifrost, and Caddy together |
+| [Configure the LLM Stack](configure-llm-stack.md) | Wire oMLX and Bifrost together |

@@ -1,6 +1,6 @@
 ---
 title: "LLM Stack Reference"
-description: "Architecture and operations for the local LLM inference stack: vllm-mlx → Bifrost → Caddy → Applications"
+description: "Architecture and operations for the local oMLX and Bifrost inference stack"
 type: reference
 ---
 
@@ -8,324 +8,68 @@ type: reference
 
 ## Architecture
 
-The LLM stack follows a layered architecture where each layer has a single responsibility:
+Applications connect to Bifrost, which routes model requests to oMLX.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Layer 5: Applications                              │
-│  Vane · OpenCode · Pi                               │
-│  All connect to Bifrost at bifrost.internal:80       │
-├─────────────────────────────────────────────────────┤
-│  Layer 4: AI Gateway (Bifrost)                      │
-│  Proxies all AI requests to upstream inference       │
-│  Unified OpenAI-compatible API on port 8081          │
-├─────────────────────────────────────────────────────┤
-│  Layer 3: Inference (vllm-mlx)                      │
-│  MLX inference engine on Metal GPU                  │
-│  OpenAI-compatible API on port 8300                  │
-├─────────────────────────────────────────────────────┤
-│  Layer 2: Reverse Proxy (Caddy)                     │
-│  Routes *.internal → local services                 │
-│  Service discovery via hostnames                    │
-├─────────────────────────────────────────────────────┤
-│  Layer 1: DNS (dnsmasq)                             │
-│  Resolves *.internal → 127.0.0.1                    │
-│  Port 5353, configured via /etc/resolver            │
-└─────────────────────────────────────────────────────┘
-```
+| Layer | Service | Endpoint |
+|---|---|---|
+| Inference | oMLX | `http://localhost:8300` |
+| Gateway | Bifrost | `http://localhost:8081` |
+| Applications | OpenCode and Pi | `http://bifrost.internal/v1` |
 
-## Layers
+oMLX is installed from the upstream Homebrew formula through nix-darwin. The
+Qwen model itself is fetched and exposed by Nix at the stable alias
+`qwen3.8-27b`. Bifrost exposes that model as `omlx/qwen3.8-27b`.
 
-### Layer 1: DNS Resolver (dnsmasq)
+## oMLX
 
-| Property | Value |
-|----------|-------|
-| Service | `com.dnsmasq.service` |
-| Port | 5353 |
-| Config | `/etc/resolver/internal` |
-| Resolves | `*.internal` → `127.0.0.1` |
+The Darwin service is declared in `modules/services/omlx/darwin.nix` and runs
+as the `org.omlx.server` user agent on port `8300`. It enables continuous
+batching, hot KV caching, and SSD-backed cache storage.
 
-dnsmasq runs as a **root daemon** via launchd. It resolves all `.internal` hostnames to
-`127.0.0.1` so that Caddy can route them to local services.
-
-### Layer 2: Reverse Proxy (Caddy)
-
-| Property | Value |
-|----------|-------|
-| Service | `com.caddy.service` |
-| Port | 80 (HTTP only, no HTTPS) |
-| Config | Generated `Caddyfile` from Nix |
-| Data | `~/.local/share/caddy/` |
-
-Caddy runs as a **root daemon** and proxies `.internal` hostnames to their respective services:
-
-| Hostname | Upstream |
-|----------|----------|
-| `vllm-mlx.internal` | `localhost:8300` |
-| `bifrost.internal` | `localhost:8081` |
-| `vane.internal` | `localhost:3000` |
-| `searxng.internal` | `localhost:8080` |
-
-### Layer 3: Inference Server (vllm-mlx)
-
-| Property | Value |
-|----------|-------|
-| Service | `org.vllm-mlx.server` |
-| Port | 8300 |
-| API | OpenAI-compatible |
-| Binary | `~/.local/bin/vllm-mlx` (uv tool) or nix-packaged |
-| Config | `modules/services/vllm-mlx/darwin.nix` |
-
-vllm-mlx runs as a **user daemon**. The Nix build uses `mlx-metal`, which pulls prebuilt PyPI wheels with Metal GPU support. The running process maps the Apple GPU driver (`AGXMetalG13X.bundle`) and `mlx.metallib`. Text-only requests achieve 60+ tok/s on Apple Silicon.
-
-**Engine modes:**
-
-| Mode | Flag | Use When |
-|------|------|----------|
-| **SimpleEngine** (default) | *(none)* | Single-user, max per-request throughput. Serializes all requests behind one `asyncio.Lock`. |
-| **BatchedEngine** | `--continuous-batching` | Multiple concurrent users, or when prefix caching across conversation turns is needed. |
-
-**Prefix caching:**
-
-- **System-prompt snapshot** (SimpleEngine): Caches the system prompt KV state across requests with the same prefix hash. Works for repeating system prompts (sub-agent dispatch, retries). Does **not** cache conversation history — every new turn re-prefills the full message list.
-- **Prefix trie cache** (BatchedEngine): Uses `LRUPromptCache` to find the longest matching prefix from prior requests. Can reuse KV cache across turns in the same conversation. Requires `--continuous-batching --enable-prefix-cache`.
-
-**Binary selection:**
-
-| Mode | Binary | Metal | Notes |
-|------|--------|-------|-------|
-| Default (nix) | `${pkgs.vllm-mlx}/bin/vllm-mlx` | ✅ Yes | Prebuilt wheels with Metal |
-| UV override | `~/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx` | ✅ Yes | For testing upstream fixes |
-
-Set via `myConfig.vllmMlx.package`:
-
-```nix
-myConfig.vllmMlx = {
-  enable = true;
-  # Use uv-installed binary instead of Nix-packaged
-  package = "/Users/monkey/.local/share/uv/tools/vllm-mlx/bin/vllm-mlx";
-  # ...
-};
-```
-
-**Patching:** The PyPI vllm-mlx wheel lacks patches for Gemma 4 cross-thread MLX stream handling and `<turn|>` stop-token fixes. Run `scripts/patch-uv-vllm-mlx.sh` after any `uv tool upgrade vllm-mlx`.
-
-vllm-mlx supports:
-
-- Multi-model registry (lazy loading on first use)
-- Tool calling (with configurable parser: `qwen`, `gemma4`, etc.)
-- Continuous batching (BatchedEngine)
-- Prefix caching (BatchedEngine only)
-- Paged attention
-- System-prompt KV snapshot caching (SimpleEngine)
-
-### Layer 4: AI Gateway (Bifrost)
-
-| Property | Value |
-|----------|-------|
-| Service | `com.bifrost.service` |
-| Port | 8081 |
-| API | OpenAI-compatible |
-| Upstream | `http://vllm-mlx.internal` (via Caddy) |
-| Type | `openai` |
-| Config | `modules/services/bifrost/darwin.nix` |
-
-Bifrost runs as a **user daemon**. It provides a unified OpenAI-compatible API
-that routes to upstream inference servers. All LLM-consuming applications
-connect to Bifrost rather than directly to vllm-mlx.
-
-### Layer 5: Applications
-
-| Application | Bifrost URL | Model |
-|-------------|-------------|-------|
-| **Vane** | `bifrost.internal/v1` | Configured per-target |
-| **OpenCode** | `bifrost.internal/v1` | via Bifrost provider |
-| **Pi** | `bifrost.internal/v1` | via openai provider |
-
-## Configuration
-
-### Target Configuration (MegamanX)
-
-```nix
-myConfig = {
-  vllmMlx = {
-    enable = true;
-    server = {
-      host = "0.0.0.0";
-      port = 8300;
-    };
-    memoryBudgetGb = 32;
-    contention = "preempt";
-    models = {
-      "qwen3.6-35b" = {
-        path = "mlx-community/Qwen3.6-35B-A3B-4bit";
-        type = "lm";
-        estimatedMemoryGb = 21;
-      };
-    };
-    enableAutoToolChoice = true;
-    toolCallParser = "qwen";
-    timeout = 120;
-    logLevel = "INFO";
-    # Enable BatchedEngine + prefix cache for conversation turn reuse
-    enableContinuousBatching = true;
-    enablePrefixCache = true;
-    chunkedPrefillTokens = 0;  # workaround for large-prompt crash (#178)
-  };
-
-  bifrost = {
-    enable = true;
-    logLevel = "debug";
-    upstreams.vllm-mlx-local = {
-      url = "http://localhost:8300";
-      type = "openai";
-      requestTimeout = 120;
-      models = [ "qwen3.6-35b" ];
-    };
-  };
-
-  vane = {
-    enable = true;
-    openaiBaseUrl = "http://bifrost.internal/v1";
-    defaultModel = "qwen3.6-35b";
-    embeddingModel = "mlx-community/nomicai-modernbert-embed-base-4bit";
-  };
-
-  caddy = { enable = true; };
-  searxng = { enable = true; };
-};
-```
-
-## Available Models
-
-All models are served through vllm-mlx and exposed via Bifrost:
-
-| Model ID | Type | Source |
-|----------|------|--------|
-| `mlx-community/Qwen3.6-35B-A3B-4bit` | Chat | HuggingFace (runtime) |
-| `mlx-community/nomicai-modernbert-embed-base-4bit` | Embedding | HuggingFace (runtime) |
-
-All models should be sourced from [mlx-community collections](https://huggingface.co/mlx-community/collections). When adding new models, prefer MLX-converted models from the `mlx-community` org.
-
-## Operations
-
-### Restarting the Stack
-
-Use the restart script for clean lifecycle management:
+Useful checks:
 
 ```bash
-sudo ./scripts/restart-stack.sh
+curl http://localhost:8300/health
+curl http://localhost:8300/v1/models
+launchctl print gui/$(id -u)/org.omlx.server
 ```
 
-This restarts services bottom-up (DNS → Proxy → Inference → Gateway → Apps),
-ensuring ports are freed between stops and starts to prevent conflicts.
+Logs are stored in `~/Library/Logs/omlx/` and `~/.omlx/logs/`.
 
-### Manual Restart
+## Bifrost
 
-For individual services:
+Bifrost runs on port `8081`. Its MegamanX and wweaver configurations define an
+`omlx` OpenAI-compatible upstream at `http://localhost:8300`.
 
 ```bash
-# Kill process and let launchd restart
-launchctl kickstart -k gui/$(id -u)/org.vllm-mlx.server
-
-# Full unload/reload (for config changes)
-launchctl bootout gui/$(id -u)/org.vllm-mlx.server
-launchctl bootstrap gui/$(id -u) /Library/LaunchDaemons/org.vllm-mlx.server.plist
-
-# Root services (dnsmasq, Caddy)
-sudo launchctl bootout system/com.dnsmasq.service
-sudo launchctl bootstrap system /Library/LaunchDaemons/com.dnsmasq.service.plist
+curl http://localhost:8081/v1/models
+curl http://localhost:8081/metrics
 ```
 
-### Verifying the Stack
+Use `omlx/qwen3.8-27b` as the model ID through Bifrost. The gateway's
+`streamIdleTimeoutInSeconds` is set to 600 seconds to accommodate long prompt
+prefills.
 
-Run the integration test suite:
+## Prometheus
 
-```bash
-./tests/test-stack-integration.sh
-```
-
-This tests all layers from DNS resolution through to chat completions.
-
-## Port Reference
-
-| Port | Service | Protocol |
-|------|---------|----------|
-| 5353 | dnsmasq | DNS |
-| 80 | Caddy | HTTP |
-| 8300 | vllm-mlx | HTTP (OpenAI API) |
-| 8081 | Bifrost | HTTP (OpenAI API) |
-| 3000 | Vane | HTTP (Next.js) |
-| 8080 | SearXNG | HTTP |
-
-## Known Issues & Risks
-
-| Issue | Status | Impact | Workaround |
-|-------|--------|--------|------------|
-| **Prefix cache + large prompts crash** ([vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)) | Open | Segfault when `--enable-prefix-cache` + prompts >19k tokens | Set `chunkedPrefillTokens = 0` |
-| **Prefix cache not in SimpleEngine** ([vllm-mlx#567](https://github.com/waybarrios/vllm-mlx/issues/567)) | PR #574 open | No cross-turn prefix reuse in default mode | Use `enableContinuousBatching = true` |
-| **MLLM text routing disables system KV cache** | Unmerged | RotatingKVCache blocks snapshot path for Qwen MLLM models | Patched locally; upstream still uses hardcoded `isinstance(c, KVCache)` |
-| **BatchedEngine throughput lower** | Expected | ~10-20% per-request slowdown vs SimpleEngine | Acceptable trade-off for multi-turn prefix reuse |
-
-## System Prompt Inventory
-
-The 25 agent skills installed on this target contribute approximately **36,000 tokens** to the system prompt (measured at ~146,500 characters). This is the dominant contributor to long prefill times.
-
-**Active skills** (filtered by roles `developer`, `workstation`, `pi`):
-
-| Skill | Size (chars) | Role |
-|-------|-------------|------|
-| `watch-ci-jobs` | 16,270 | developer, workstation |
-| `jj` | 11,819 | developer |
-| `yak-shaving` | 10,570 | developer, pi |
-| `nix-adding-services` | 10,286 | developer, pi |
-| `zellij` | 10,736 | developer |
-| `refining-specs` | 7,167 | developer |
-| `ralph-specs` | 6,800 | developer |
-| `diataxis-docs` | 6,316 | developer |
-| `prd-review` | 5,388 | developer |
-| `nix-hf-models` | 5,359 | developer, pi |
-| `vendor-technical-evaluation` | 6,188 | developer, workstation |
-| `infra-investigation` | 7,211 | developer, workstation |
-| ... + 19 more | | |
-
-**To reduce prefill time:**
-1. Remove unused roles from the target (e.g. `workstation` if not needed)
-2. Override `myConfig.skills.enabledRoles` to a subset
-3. Use a smaller model (gemma4-e4b, ~5GB vs qwen's 16GB)
+Prometheus scrapes Bifrost, oMLX, node-exporter, and itself. The oMLX target is
+generated from the configured oMLX port rather than hard-coded in the service.
 
 ## Troubleshooting
 
-### Port Conflicts
-
-If a service fails with "address already in use", an old process is holding the port.
-Use `restart-stack.sh` which properly frees ports between stop and start cycles.
-
-### Service Not Starting
-
-Check the service log:
+If oMLX is not running, inspect the launchd state and logs:
 
 ```bash
-cat ~/Library/Logs/vllm-mlx/server.error.log # vllm-mlx errors
-cat /tmp/bifrost.error.log  # Bifrost errors
-cat /tmp/caddy.error.log    # Caddy errors
+launchctl print gui/$(id -u)/org.omlx.server
+cat ~/Library/Logs/omlx/server.error.log
+cat ~/.omlx/logs/server.log
 ```
 
-### Model Not Loading
-
-vllm-mlx downloads models from HuggingFace on first use. Check download progress:
+If a model is not listed, verify the Nix-managed model link:
 
 ```bash
-cat ~/Library/Logs/vllm-mlx/server.log | grep -i "loading\|download\|error"
+readlink ~/.omlx/models/qwen3.8-27b
 ```
 
-### Crash with Prefix Cache + Large Prompts
-
-If vllm-mlx crashes during prefill with `Segmentation fault` when using `--enable-prefix-cache`:
-
-```bash
-# Check if chunked prefill was re-enabled internally
-grep "mid_prefill_cache\|chunked_prefill" ~/Library/Logs/vllm-mlx/server.error.log
-```
-
-Ensure `chunkedPrefillTokens = 0` is set in your target config (workaround for [vllm-mlx#178](https://github.com/waybarrios/vllm-mlx/issues/178)).
+If Metal custom kernels are needed, install the Apple Metal Toolchain through
+Xcode before enabling the optional Homebrew custom-kernel build.

@@ -2,7 +2,7 @@
 name: nix-hf-models
 description: >
   Use when pre-downloading HuggingFace models into the Nix store for
-  local inference servers (vllm-mlx, ollama, mlx-lm). Covers the hf
+  local inference servers (oMLX, mlx-lm). Covers the hf
   download CLI, fixed-output derivations, hash computation, and
   handling CDN/auth issues that break plain curl.
   
@@ -122,7 +122,7 @@ nix build .#gemma4-31B-4bit --no-link --impure
 ## Wire Into the Inference Server
 
 ```nix
-# modules/services/vllm-mlx/darwin.nix
+# modules/services/omlx/darwin.nix
 resolveModelPath = path:
   let
     segments = lib.splitString "/" path;
@@ -187,4 +187,4 @@ ls /tmp/model-test/*.jinja
 
 - `packages/mlx-models/default.nix` in this repo for the full implementation
 - `overlays/default.nix` for model overlay examples
-- `modules/services/vllm-mlx/darwin.nix` for runtime resolution logic
+- `modules/services/omlx/darwin.nix` for runtime resolution logic

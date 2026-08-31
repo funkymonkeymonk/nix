@@ -10,7 +10,7 @@ name: email: {
   onepassword.enable = true;
   opencode = {
     enable = true;
-    model = "opencode/big-pickle";
+    model = "local-bifrost/omlx/qwen3.8-27b";
   };
   claude-code = {
     enable = false;

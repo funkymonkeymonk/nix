@@ -95,7 +95,7 @@
             };
           in
             {
-              inherit (pkgs) rtk yaks vane vllm-mlx mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-8bit qwen3_8-27B-4bit qwen3_8-27B-MTP-8bit qwen3_8-27B-MTP-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
+              inherit (pkgs) rtk yaks mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
               inherit (inputs.devenv.packages.${system}) devenv;
               installer = pkgs.callPackage ./packages/installer {};
             }
@@ -145,9 +145,9 @@
             extraSpecialArgs = {inherit mkUser;};
             modules = [
               ./library/archetypes/workstation-darwin.nix
-              ./modules/services/vane/darwin.nix
               ./modules/services/bifrost/darwin.nix
-              ./modules/services/vllm-mlx/darwin.nix
+              (inputs.nix-darwin + "/modules/homebrew.nix")
+              ./modules/services/omlx/darwin.nix
               ./modules/home-manager/aerospace.nix
               ./hosts/wweaver
             ];
@@ -183,13 +183,11 @@
             extraSpecialArgs = {inherit mkUser;};
             modules = [
               ./library/archetypes/workstation-darwin.nix
-              ./modules/services/vane/darwin.nix
+              (inputs.nix-darwin + "/modules/homebrew.nix")
               ./modules/services/bifrost/darwin.nix
               ./modules/services/searxng/darwin.nix
               ./modules/services/caddy/darwin.nix
-              ./modules/services/vllm-mlx/darwin-instances-options.nix
-              ./modules/services/vllm-mlx/darwin.nix
-              ./modules/services/vllm-mlx/darwin-instances-config.nix
+              ./modules/services/omlx/darwin.nix
               ./modules/services/prometheus/darwin.nix
               ./modules/services/node-exporter/darwin.nix
               ./modules/home-manager/aerospace.nix
@@ -383,28 +381,18 @@
                 sketchybar-wiring-removed
                 aerospace-options
                 aerospace-custom-options
-                vane-options
-                vane-custom-options
-                vane-opnix-url-options
-                vane-megamanx-no-ollama-wiring
-                vane-darwin-autostart-default
-                vane-darwin-autostart-true
                 opencode-options
                 opencode-custom-options
+                opencode-bifrost-defaults
                 opencode-provider-opnix-url
                 shell-aliases
                 workspace-switch
-                vllm-mlx-options
-                vllm-mlx-launchd
-                megamanx-vllm
-                wweaver-vllm
                 llm-client-opencode
                 llm-client-claude
                 llm-client-pi
                 llm-client-custom-host
                 llm-client-no-ai-roles
                 typed-attrs-options
-                stack-integration
                 core-bootstrap
                 phase3-zero
                 phase3-zero-flake-parts
@@ -426,6 +414,7 @@
                 pi-custom-options
                 bifrost-options
                 bifrost-custom-options
+                bifrost-anthropic-config
                 bifrost-retry-config
                 caddy-options
                 caddy-custom-options
@@ -477,8 +466,6 @@
                 ;
             }
             // nixpkgs.lib.optionalAttrs isDarwin {
-              # Builds the darwin-only vllm-mlx package; excluded on Linux.
-              inherit (tests) vllm-mlx-finish-reason;
             }
             // nixpkgs.lib.optionalAttrs isLinux {
               inherit

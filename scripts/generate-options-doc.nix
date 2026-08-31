@@ -95,7 +95,7 @@
   # Section headings use the full `myConfig.<domain>` path; table rows use
   # the path relative to the domain (e.g. `enable` instead of
   # `myConfig.onepassword.enable`) to keep the table readable — except for
-  # the domain's own top-level option (e.g. `myConfig.vllmMlx` itself, a
+  # the domain's own top-level option (e.g. `myConfig.omlx` itself, a
   # submodule), which is rendered as `(self)` since there's nothing to
   # strip and the section heading already states the full path.
   relativeName = domain: name: let

@@ -48,7 +48,6 @@ MANUAL_HM_EDGES = [
     ("myConfig.opencode.enable", "home-manager/opencode.nix"),
     ("myConfig.claude-code.enable", "home-manager/claude-code.nix"),
     ("myConfig.pi.enable", "home-manager/pi-coding-agent.nix"),
-    ("myConfig.vane.openaiBaseUrlOpnixItem", "home-manager/vane-secrets.nix"),
     ("myConfig.zellij.enable", "home-manager/zellij.nix"),
     ("myConfig.agent-skills.enable", "home-manager/skills/install.nix"),
     ("myConfig.email-agent.enable", "home-manager/email-agent.nix"),

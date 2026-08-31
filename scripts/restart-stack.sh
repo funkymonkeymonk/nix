@@ -9,13 +9,12 @@ ok()    { echo -e "${GREEN}[OK]${NC}   $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()   { echo -e "${RED}[ERR]${NC}  $*" >&2; }
 
-PORTS=(5353 80 8300 8081 3000)
+PORTS=(5353 80 8300 8081)
 SERVICES=(
   "dnsmasq:com.dnsmasq.service"
   "caddy:com.caddy.service"
-  "vmlx:org.vmlx.server"
+  "omlx:org.omlx.server"
   "bifrost:com.bifrost.service"
-  "vane:com.vane.service"
 )
 
 wait_for_port_free() {
@@ -84,32 +83,26 @@ echo ""
 # Layer 0: DNS (dnsmasq) — root
 restart_root_service "com.dnsmasq.service" "5353" "dnsmasq"
 sleep 2
-verify_service "http://vmlx.internal:5353" "DNS resolution"
+verify_service "http://bifrost.internal:5353" "DNS resolution"
 echo ""
 
 # Layer 1: Reverse proxy (Caddy) — root
 restart_root_service "com.caddy.service" "80" "Caddy"
 sleep 2
-verify_service "http://vmlx.internal/v1/models" "Caddy → vMLX"
+verify_service "http://bifrost.internal/v1/models" "Caddy → Bifrost"
 verify_service "http://bifrost.internal/v1/models" "Caddy → Bifrost"
 echo ""
 
-# Layer 2: Inference (vMLX)
-restart_service "org.vmlx.server" "8300" "vMLX"
-wait_for_port "8300" "vMLX" 60
-verify_service "http://localhost:8300/v1/models" "vMLX API"
+# Layer 2: Inference (oMLX)
+restart_service "org.omlx.server" "8300" "oMLX"
+wait_for_port "8300" "oMLX" 60
+verify_service "http://localhost:8300/v1/models" "oMLX API"
 echo ""
 
 # Layer 3: AI Gateway (Bifrost)
 restart_service "com.bifrost.service" "8081" "Bifrost"
 wait_for_port "8081" "Bifrost" 30
 verify_service "http://localhost:8081/v1/models" "Bifrost API"
-echo ""
-
-# Layer 4: Applications (Vane)
-restart_service "com.vane.service" "3000" "Vane"
-wait_for_port "3000" "Vane" 30
-verify_service "http://localhost:3000/" "Vane UI"
 echo ""
 
 echo "============================================"
@@ -123,4 +116,4 @@ for port in "${PORTS[@]}"; do
   fi
 done
 echo ""
-echo "Run 'nix build .#checks.aarch64-darwin.stack-integration' to verify the stack eval."
+echo "Run 'devenv tasks run smoke:llm-stack' to verify the stack."

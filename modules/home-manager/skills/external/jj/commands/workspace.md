@@ -19,7 +19,7 @@ jj-workspace clean                             # Remove all workspaces
 Naming convention: `<type>/<topic>-<date>-<id>`
 Types: feat, fix, hotfix, chore, release
 
-**Agent naming**: `feat/agent-<agent-id>-<topic>` (e.g. `feat/agent-openclaw-auth-fix`)
+**Agent naming**: `feat/agent-<agent-id>-<topic>` (e.g. `feat/agent-auth-fix`)
 
 After PR is merged, clean up:
 ```bash

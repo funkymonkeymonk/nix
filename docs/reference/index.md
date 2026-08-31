@@ -22,7 +22,7 @@ Information-oriented look-up tables. No narrative or opinion — just facts.
 | Document | Contents |
 |----------|----------|
 | [Skills Reference](skills.md) | Skill manifest format, autoload rules, external input handling |
-| [LLM Stack Reference](llm-stack.md) | vllm-mlx + Bifrost + Caddy architecture and options |
+| [LLM Stack Reference](llm-stack.md) | oMLX + Bifrost local inference architecture and operations |
 | [Known Issues](known-issues.md) | Tracked upstream bugs, workarounds, and resolution status |
 
 ## Infrastructure
