@@ -95,7 +95,7 @@
             };
           in
             {
-              inherit (pkgs) rtk yaks mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
+              inherit (pkgs) rtk yaks mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit qwen3_8-27B-mxfp4 lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
               inherit (inputs.devenv.packages.${system}) devenv;
               installer = pkgs.callPackage ./packages/installer {};
             }
@@ -466,6 +466,7 @@
                 ;
             }
             // nixpkgs.lib.optionalAttrs isDarwin {
+              overlay-qwen38-mxfp4 = tests.overlay-qwen38-mxfp4;
             }
             // nixpkgs.lib.optionalAttrs isLinux {
               inherit
