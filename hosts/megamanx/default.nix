@@ -1,13 +1,18 @@
 # MegamanX (personal desktop) target configuration
 # Thin host file — imports workstation archetype, adds machine-specific
 # LLM stack (oMLX and Bifrost) and pi customizations.
-{mkUser, ...}: {
+{
+  mkUser,
+  inputs,
+  ...
+}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
   imports = [
     ../../library/archetypes/workstation-darwin.nix
+    inputs.inference-worker.darwinModules.inference-worker
   ];
 
   myConfig =
@@ -141,4 +146,13 @@
         '';
       };
     };
+
+  services.inference-worker = {
+    enable = true;
+    temporal.address = "127.0.0.1:7233";
+    temporal.namespace = "inference";
+    taskQueue = "inference-worker";
+    inference.endpoint = "http://127.0.0.1:8081/v1";
+    maxConcurrentActivities = 1;
+  };
 }
