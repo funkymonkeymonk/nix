@@ -1017,11 +1017,11 @@
         "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1788496674,
-        "narHash": "sha256-Cgqd7aXGxqk5TUmv1D3cTMO/JP9indWo4h80tTnksNM=",
+        "lastModified": 1788498045,
+        "narHash": "sha256-uK7tsfsUYvjYvf17Q1WtEuL8oDzzMapnyZrQl36TJ3Q=",
         "owner": "funkymonkeymonk",
         "repo": "inference-worker",
-        "rev": "2c28d56960a9a71ce0351a776423ae4f37e42031",
+        "rev": "77bb495da79bc643834198d124a6b5714835b7ca",
         "type": "github"
       },
       "original": {

@@ -58,8 +58,8 @@
           omlx = {
             url = "http://localhost:8300";
             type = "anthropic";
-            requestTimeout = 600;
-            streamIdleTimeoutInSeconds = 600;
+            requestTimeout = 1800;
+            streamIdleTimeoutInSeconds = 1800;
             maxRetries = 3;
             models = [
               "qwen3.8-27b"
