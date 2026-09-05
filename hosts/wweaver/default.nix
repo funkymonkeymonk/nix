@@ -18,6 +18,11 @@
     "granola"
   ];
 
+  homebrew = {
+    taps = ["galaxy-io/tap"];
+    brews = ["tempo"];
+  };
+
   myConfig =
     mkUser "wweaver" "wweaver@justworks.com"
     // {
