@@ -13,6 +13,7 @@
   imports = [
     ../../library/archetypes/workstation-darwin.nix
     inputs.inference-worker.darwinModules.inference-worker
+    ../../modules/services/temporal/darwin.nix
   ];
 
   myConfig =
@@ -36,6 +37,8 @@
         maxConcurrentRequests = 8;
         hotCacheMaxSize = "20GB";
       };
+
+      temporal.enable = true;
 
       # Prometheus scrapes Bifrost, oMLX, and node-exporter metrics
       prometheus = {

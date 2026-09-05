@@ -347,6 +347,7 @@
                 foundation-options
                 core-packages
                 foundation-packages
+                temporal-options
                 overlay-rtk
                 overlay-yaks
                 overlay-pi-coding-agent
