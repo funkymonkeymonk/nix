@@ -1,13 +1,19 @@
 # MegamanX (personal desktop) target configuration
 # Thin host file — imports workstation archetype, adds machine-specific
 # LLM stack (oMLX and Bifrost) and pi customizations.
-{mkUser, ...}: {
+{
+  mkUser,
+  inputs,
+  ...
+}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
   imports = [
     ../../library/archetypes/workstation-darwin.nix
+    inputs.inference-worker.darwinModules.inference-worker
+    ../../modules/services/temporal/darwin.nix
   ];
 
   myConfig =
@@ -32,6 +38,8 @@
         hotCacheMaxSize = "20GB";
       };
 
+      temporal.enable = true;
+
       # Prometheus scrapes Bifrost, oMLX, and node-exporter metrics
       prometheus = {
         enable = true;
@@ -53,8 +61,8 @@
           omlx = {
             url = "http://localhost:8300";
             type = "anthropic";
-            requestTimeout = 600;
-            streamIdleTimeoutInSeconds = 600;
+            requestTimeout = 1800;
+            streamIdleTimeoutInSeconds = 1800;
             maxRetries = 3;
             models = [
               "qwen3.8-27b"
@@ -141,4 +149,13 @@
         '';
       };
     };
+
+  services.inference-worker = {
+    enable = true;
+    temporal.address = "127.0.0.1:7233";
+    temporal.namespace = "inference";
+    taskQueue = "inference-worker";
+    inference.endpoint = "http://127.0.0.1:8081/v1";
+    maxConcurrentActivities = 1;
+  };
 }

@@ -46,6 +46,7 @@
 
     # Pi plugins - extensions and skills for pi coding agent
     pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
+    inference-worker.url = "github:funkymonkeymonk/inference-worker";
     # Flake-parts (incremental migration — used for testing infrastructure first)
     flake-parts.url = "github:hercules-ci/flake-parts";
 
@@ -346,6 +347,7 @@
                 foundation-options
                 core-packages
                 foundation-packages
+                temporal-options
                 overlay-rtk
                 overlay-yaks
                 overlay-pi-coding-agent
