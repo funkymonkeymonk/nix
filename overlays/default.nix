@@ -50,6 +50,11 @@
     modelPath = "mlx-community/Qwen3.8-27B-4bit";
     outputHash = "sha256-1AZjlDLkca3d8SUM4ibKb8MjrUBsoboRiZvXdOsfhTg=";
   };
+  qwen3_8-27B-mxfp4 = final.mlx-models.fetchModel {
+    name = "qwen3_8-27B-mxfp4";
+    modelPath = "mlx-community/Qwen3.8-27B-mxfp4";
+    outputHash = "sha256-936KGFXn/RDapliSBvcNWMDAUdAj/Djg5HtqlyEOStc=";
+  };
   # Package Override Registry
   # See ../docs/reference/package-overrides.md for full documentation
 
