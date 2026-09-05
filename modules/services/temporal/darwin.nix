@@ -70,7 +70,7 @@ in {
       serviceConfig = {
         RunAtLoad = true;
         KeepAlive = true;
-        WorkingDirectory = cfg.stateDir;
+        WorkingDirectory = homeDir;
         StandardOutPath = "${homeDir}/Library/Logs/temporal/server.log";
         StandardErrorPath = "${homeDir}/Library/Logs/temporal/server.error.log";
         EnvironmentVariables = {
