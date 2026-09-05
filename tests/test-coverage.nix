@@ -118,6 +118,8 @@
     # Tested via test-grafana.nix (option defaults, custom values,
     # datasource/dashboard provisioning assertions)
     "services/grafana/darwin.nix"
+    # Tested via test-temporal.nix (option defaults and launchd script).
+    "services/temporal/darwin.nix"
     # Tested via test-home-manager.nix (opencode, shell aliases)
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"

@@ -8,6 +8,21 @@
 # expected binary -- these tests catch that at eval/build time rather than
 # at `darwin-rebuild switch` time on a real machine.
 {pkgs, ...}: {
+  # Test that the Qwen3.8 mxfp4 checkpoint is available as an overlay package.
+  qwen38Mxfp4PackageTest =
+    pkgs.runCommand "test-qwen38-mxfp4-package"
+    {}
+    ''
+      echo "=== Testing Qwen3.8 mxfp4 package ==="
+      if [ "${pkgs.qwen3_8-27B-mxfp4.pname}" = "qwen3_8-27B-mxfp4" ]; then
+        echo "  package name = qwen3_8-27B-mxfp4: OK"
+      else
+        echo "  FAIL: unexpected package name"
+        exit 1
+      fi
+      touch $out
+    '';
+
   # Test that rtk (Rust Token Killer CLI proxy) builds and its binary works
   rtkPackageTest =
     pkgs.runCommand "test-rtk-package"

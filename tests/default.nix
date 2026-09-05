@@ -29,6 +29,7 @@
   testSearxng = import ./test-searxng.nix {inherit pkgs;};
   testLume = import ./test-lume.nix {inherit pkgs;};
   testObservability = import ./test-observability.nix {inherit pkgs;};
+  testTemporal = import ./test-temporal.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
   testLoki = import ./test-loki.nix {inherit pkgs;};
   testVector = import ./test-vector.nix {inherit pkgs;};
@@ -95,6 +96,7 @@ in
     foundation-packages = testPackages.foundationPackagesTest;
 
     # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
+    overlay-qwen38-mxfp4 = testOverlayPackages.qwen38Mxfp4PackageTest;
     overlay-rtk = testOverlayPackages.rtkPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
@@ -164,6 +166,7 @@ in
     sketchybar-wiring-removed = testSketchybarRemoved.sketchybarWiringRemovedTest;
 
     # Service module tests
+    temporal-options = testTemporal.temporalOptionsTest;
 
     # Home-manager module tests
     opencode-options = testHomeManager.opencodeOptionsTest;

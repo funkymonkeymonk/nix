@@ -46,6 +46,7 @@
 
     # Pi plugins - extensions and skills for pi coding agent
     pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
+    inference-worker.url = "github:funkymonkeymonk/inference-worker";
     # Flake-parts (incremental migration — used for testing infrastructure first)
     flake-parts.url = "github:hercules-ci/flake-parts";
 
@@ -95,7 +96,7 @@
             };
           in
             {
-              inherit (pkgs) rtk yaks mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
+              inherit (pkgs) rtk yaks mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit qwen3_8-27B-mxfp4 lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
               inherit (inputs.devenv.packages.${system}) devenv;
               installer = pkgs.callPackage ./packages/installer {};
             }
@@ -346,6 +347,7 @@
                 foundation-options
                 core-packages
                 foundation-packages
+                temporal-options
                 overlay-rtk
                 overlay-yaks
                 overlay-pi-coding-agent
@@ -466,6 +468,7 @@
                 ;
             }
             // nixpkgs.lib.optionalAttrs isDarwin {
+              overlay-qwen38-mxfp4 = tests.overlay-qwen38-mxfp4;
             }
             // nixpkgs.lib.optionalAttrs isLinux {
               inherit

@@ -14,7 +14,7 @@
   modelDir = "${darwinHomeDir}/.omlx/models";
   cacheDir = "${darwinHomeDir}/.omlx/cache";
   logDir = "${darwinHomeDir}/.omlx/logs";
-  modelPath = "${pkgs.qwen3_8-27B-4bit}";
+  modelPath = "${pkgs.qwen3_8-27B-mxfp4}";
   # oMLX is an ARM-only formula, so it must use Homebrew's native ARM prefix.
   homebrewPrefix = "/opt/homebrew";
   omlxPython = "${homebrewPrefix}/opt/omlx/libexec/bin/python3.11";
