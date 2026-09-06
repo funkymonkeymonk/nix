@@ -69,11 +69,9 @@
       imports = [
         ./library/flake-module.nix
         ./library/machines/zero.nix
+        ./library/machines/darwin.nix
       ];
       flake = let
-        # Helper to create user config
-        mkUser = import ./library/lib/mk-user.nix;
-
         # Package overlays for each system
         forAllSystems = nixpkgs.lib.genAttrs [
           "aarch64-darwin"
@@ -135,60 +133,6 @@
               ];
             }
           ];
-        };
-
-        darwinConfigurations = {
-          # wweaver — work laptop (Will Weaver)
-          # Composed from workstation-darwin archetype + machine-specific overrides.
-          "wweaver" = libraryLib.mkDarwinSystem {
-            inherit inputs;
-            hostname = "wweaver";
-            extraSpecialArgs = {inherit mkUser;};
-            modules = [
-              ./library/archetypes/workstation-darwin.nix
-              ./modules/services/bifrost/darwin.nix
-              (inputs.nix-darwin + "/modules/homebrew.nix")
-              ./modules/services/omlx/darwin.nix
-              ./modules/home-manager/aerospace.nix
-              ./hosts/wweaver
-            ];
-          };
-
-          # darwin-server — headless macOS server for VM hosting
-          # Composed from headless-server-darwin archetype + machine-specific overrides.
-          "darwin-server" = libraryLib.mkDarwinSystem {
-            inherit inputs;
-            hostname = "darwin-server";
-            extraSpecialArgs = {inherit mkUser;};
-            modules = [
-              ./library/archetypes/headless-server-darwin.nix
-              {
-                nixpkgs.config.permittedInsecurePackages = [
-                  "olm-3.2.16"
-                ];
-              }
-              ./hosts/darwin-server
-            ];
-          };
-          # MegamanX — personal desktop/workstation
-          # Composed from workstation-darwin archetype + local LLM stack services.
-          "MegamanX" = libraryLib.mkDarwinSystem {
-            inherit inputs;
-            hostname = "MegamanX";
-            extraSpecialArgs = {inherit mkUser;};
-            modules = [
-              ./library/archetypes/workstation-darwin.nix
-              (inputs.nix-darwin + "/modules/homebrew.nix")
-              ./modules/services/bifrost/darwin.nix
-              ./modules/services/searxng/darwin.nix
-              ./modules/services/caddy/darwin.nix
-              ./modules/services/omlx/darwin.nix
-              ./modules/services/prometheus/darwin.nix
-              ./modules/services/node-exporter/darwin.nix
-              ./modules/home-manager/aerospace.nix
-              ./hosts/megamanx
-            ];
-          };
         };
 
         nixosConfigurations = {

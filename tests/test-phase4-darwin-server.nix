@@ -17,6 +17,13 @@
     }
     echo "  darwin-server: defined ✓"
 
+    ${
+      if hasConfig "wweaver" && hasConfig "MegamanX"
+      then ""
+      else ''echo "FAIL: Darwin machine configurations should be exposed by flake-parts modules"; exit 1''
+    }
+    echo "  Darwin machine targets: defined ✓"
+
     # The generic type target was redundant with the shared server archetype.
     ${
       if !hasConfig "type-darwin-server"

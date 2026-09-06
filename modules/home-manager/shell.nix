@@ -11,11 +11,6 @@
   programs.zsh = {
     enable = true;
     initContent = ''
-      # Source switch-nix function (same source as system-wide install)
-      if [ -f /etc/nix-cloud-init/switch-nix ]; then
-        . /etc/nix-cloud-init/switch-nix
-      fi
-
       # Docker functions
       drm() { docker rm $(docker ps -q -a); }
       dri() { docker rmi $(docker images -q); }

@@ -91,7 +91,7 @@ module.
 | `library/flake-module.nix` (extended) | Currently only re-exports `modules/` as `flake.nixosModules.library`. Extend it to also provide `_module.args.libraryLib` (from `library/lib/mk-system.nix`) and `_module.args.mkUser` (from `library/lib/mk-user.nix`) as shared module arguments for any flake-parts module that imports alongside it — starting with `library/machines/zero.nix`, and every future per-machine module Phase 8.6 adds. |
 | `library/machines/zero.nix` (new) | Flake-parts module: `{ libraryLib, mkUser, ... }: { flake.nixosConfigurations.zero = libraryLib.mkNixosSystem { ...exact same args as today... }; }` |
 | `tests/test-phase3-zero.nix` | Extend to keep the existing "zero exists / zero-v2 retired" assertions, and add a structural check that `zero` is now defined via the flake-parts module path (e.g., assert `library/machines/zero.nix` exists and `flake.nix` no longer defines `zero` inline). |
-| `modules/common/scripts/nix-cloud-init` | No change — the output name stays `zero`. |
+| Legacy machine bootstrap helper | Removed; machine selection is handled by explicit flake-parts targets. |
 
 ## Auto-update / autoUpgrade impact
 
