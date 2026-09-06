@@ -86,7 +86,7 @@
       actualBinaries = map (pkg: pkg.meta.mainProgram or pkg.pname or pkg.name) node.environment.systemPackages;
       expected = expectedBinaries.${role};
       missingBinaries = builtins.filter (b: !(builtins.elem b actualBinaries)) expected;
-      script = vmTests.${testAttr}.config.testScript;
+       script = vmTests.${testAttr}.config.testScriptString;
       scriptChecksBinary = b: lib.hasInfix "command -v ${b}" script || lib.hasInfix "command -v '${b}'" script;
       missingFromScript = builtins.filter (b: !(scriptChecksBinary b)) expected;
     in ''

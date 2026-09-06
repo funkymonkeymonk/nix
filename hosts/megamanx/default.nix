@@ -155,6 +155,7 @@
     temporal.address = "127.0.0.1:7233";
     temporal.namespace = "inference";
     taskQueue = "inference-worker";
+    repositoryRoot = "/Users/monkey/src/funkymonkeymonk/nix";
     inference.endpoint = "http://127.0.0.1:8081/v1";
     maxConcurrentActivities = 1;
   };
