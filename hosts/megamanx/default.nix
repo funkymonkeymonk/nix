@@ -10,6 +10,16 @@
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
+  homebrew = {
+    taps = [
+      {
+        name = "galaxy-io/tap";
+        trusted = true;
+      }
+    ];
+    brews = ["tempo"];
+  };
+
   imports = [
     ../../library/archetypes/workstation-darwin.nix
     inputs.inference-worker.darwinModules.inference-worker
