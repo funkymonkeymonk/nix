@@ -83,9 +83,6 @@ in {
     # Cleanup temp variables
     unset _JJ_WORKSPACE_ROOT _JJ_REPO_ROOT 2>/dev/null || true
 
-    # Source switch-nix function (same source as system-wide install)
-    source ./modules/common/scripts/switch-nix
-
     # Source interactive TUI functions (use these instead of devenv tasks)
     source ./modules/common/scripts/dev-ide
     source ./modules/common/scripts/pr-review

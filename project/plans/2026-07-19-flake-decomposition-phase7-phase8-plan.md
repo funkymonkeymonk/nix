@@ -151,13 +151,13 @@ machines can be declared.
 | `library/lib/mk-system.nix` (`mkDarwinSystem`, `mkNixosSystem`) | Exists, used by several `-v2` outputs | This is the composition function an instance flake would call |
 | `modules/nixos/base.nix` `system.autoUpgrade` | Exists, wired via `myConfig.autoUpgrade.flakeUrl` | **NixOS-only.** Already gives self-update today for `zero`, `type-server`, `type-desktop` |
 | nix-darwin `system.autoUpgrade` (upstream PR nix-darwin#1682) | **Still open, unmerged** (checked live: `state: open, merged: false`) | Darwin machines (including wweaver) **cannot** self-update natively yet — no code change here fixes this, it's an upstream blocker |
-| `modules/common/scripts/nix-cloud-init` + `switch-nix` | Exists, hardcodes `darwin_targets=("MegamanX" "wweaver" "core-v2")` / `nixos_items=(zero, type-server, ...)` | Manual provisioning path today; hardcoded target list is itself evidence this needs to become data-driven if instance generation becomes real |
+| `modules/common/scripts/nix-cloud-init` + `switch-nix` | Removed | Machine selection is now represented by flake-parts machine modules and explicit flake targets |
 
 ### Constraint this surfaces for Phase 8.3
 
 Any flake-parts design for "generate an instance flake" must account for:
 1. **Darwin can't self-upgrade until nix-darwin#1682 merges.** A generated Darwin instance flake can compose cleanly but still requires a human/cron to run `darwin-rebuild switch` — that's not this repo's bug, it's upstream. Track this explicitly rather than silently deferring it.
-2. **`nix-cloud-init`'s target lists are hardcoded strings**, not derived from `flake.nix` outputs. If instance generation becomes real, either the tool needs to read available targets from the flake (`nix flake show --json`), or the generated instance flake supplies its own bootstrap and never touches the shared `nix-cloud-init` script's hardcoded list at all.
+2. Machine selection is represented by flake-parts machine modules rather than a shared cloud-init bootstrap script.
 3. **NixOS instances already have a working self-update story** (`autoUpgrade.flakeUrl`). The flake-parts work for NixOS instance generation is mostly "make composition ergonomic," not "invent self-update from scratch."
 
 ### Added sub-yak: 8.6 — Design instance-flake generation
@@ -167,7 +167,7 @@ Any flake-parts design for "generate an instance flake" must account for:
 - [ ] Decide the interface: is a generated instance a *standalone flake* with `inputs.library.url = "github:funkymonkeymonk/nix?dir=library"` (per Section 2 of the design doc's original `?dir=` pattern), or a data file consumed by this repo's own `flake.nix` (closer to how `machines/wweaver.nix` was envisioned in Section 7)?
 - [ ] Prototype one instance (suggest a disposable NixOS target like `type-server`, which already has working `autoUpgrade` — avoids the Darwin upstream blocker for the first proof-of-concept) generated end-to-end: template → composed flake → boots → self-updates on schedule with no further manual steps.
 - [ ] Document the Darwin gap explicitly (link nix-darwin#1682) so "self-updating Darwin instance" isn't silently assumed solved by this work.
-- [ ] Decide whether `nix-cloud-init`'s hardcoded target lists get replaced by flake introspection, or become irrelevant because generated instances carry their own bootstrap.
+- [x] Remove the cloud-init target-selection path; generated instances should compose explicit flake targets instead.
 
 ---
 
