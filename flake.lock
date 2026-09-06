@@ -5,11 +5,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-      "lastModified": 1787939042,
-      "narHash": "sha256-NMIGSVd5WhPsCG6nmggKokNcxRRUUpJ0XzvFzJ8sP1Y=",
+        "lastModified": 1787939042,
+        "narHash": "sha256-NMIGSVd5WhPsCG6nmggKokNcxRRUUpJ0XzvFzJ8sP1Y=",
         "owner": "maximhq",
         "repo": "bifrost",
-      "rev": "2a5f2dee5b50c3f79c009c87754bbf3524ea7c58",
+        "rev": "2a5f2dee5b50c3f79c009c87754bbf3524ea7c58",
         "type": "github"
       },
       "original": {
@@ -1018,11 +1018,11 @@
         "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1788498045,
-        "narHash": "sha256-uK7tsfsUYvjYvf17Q1WtEuL8oDzzMapnyZrQl36TJ3Q=",
+        "lastModified": 1788656803,
+        "narHash": "sha256-le1pe/hUBv7jHIgGpdYATrE8dskWklLGYfswtCzEqXs=",
         "owner": "funkymonkeymonk",
         "repo": "inference-worker",
-        "rev": "77bb495da79bc643834198d124a6b5714835b7ca",
+        "rev": "27326978197f7a21daf43f0d115a8e7d65869305",
         "type": "github"
       },
       "original": {
