@@ -19,7 +19,12 @@
   ];
 
   homebrew = {
-    taps = ["galaxy-io/tap"];
+    taps = [
+      {
+        name = "galaxy-io/tap";
+        trusted = true;
+      }
+    ];
     brews = ["tempo"];
   };
 
