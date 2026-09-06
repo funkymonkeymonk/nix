@@ -167,12 +167,6 @@
                   "olm-3.2.16"
                 ];
               }
-              ./modules/services/prometheus/darwin.nix
-              ./modules/services/node-exporter/darwin.nix
-              ./modules/services/alertmanager/darwin.nix
-              ./modules/services/loki/darwin.nix
-              ./modules/services/vector/darwin.nix
-              ./modules/services/grafana/darwin.nix
               ./hosts/darwin-server
             ];
           };
@@ -193,18 +187,6 @@
               ./modules/services/node-exporter/darwin.nix
               ./modules/home-manager/aerospace.nix
               ./hosts/megamanx
-            ];
-          };
-
-          # type-darwin-server — generic headless macOS server template
-          # Composed from headless-server-darwin archetype + minimal overrides.
-          "type-darwin-server" = libraryLib.mkDarwinSystem {
-            inherit inputs;
-            hostname = "type-darwin-server";
-            extraSpecialArgs = {inherit mkUser;};
-            modules = [
-              ./library/archetypes/headless-server-darwin.nix
-              ./targets/type-darwin-server
             ];
           };
         };
