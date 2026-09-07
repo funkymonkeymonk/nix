@@ -285,6 +285,7 @@
                 cross-platform-entertainment-guard
                 cross-platform-creative-control
                 config-validation
+                zero-hardware-packages
                 zero-steam-sdl-hidapi-env
                 all-role-tests
                 module-coverage

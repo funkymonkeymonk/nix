@@ -210,6 +210,7 @@ in
     zero-tailscale-secret-file = testZero.zeroTailscaleSecretFileTest;
     zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
+    zero-hardware-packages = testZero.zeroHardwarePackagesTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;
