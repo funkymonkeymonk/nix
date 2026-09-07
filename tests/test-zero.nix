@@ -129,4 +129,40 @@ in {
       echo "Tailscale fail-loud test passed"
       touch $out
     '';
+
+  # Test: zero should have hardware-specific packages for connected peripherals
+  # Corsair H100i RGB PRO XT AIO (liquidctl), Razer Naga Trinity (openrazer + polychromatic),
+  # IT8297 RGB controller (openrgb), NVMe drives (nvme-cli + smartmontools), AMD GPU
+  # diagnostics (amdgpu_top + libva-utils + vulkan-tools), C920 webcam (v4l-utils),
+  # and general hardware debug tools (pciutils + usbutils)
+  zeroHardwarePackagesTest = let
+    expectedPackages = [
+      "liquidctl"
+      "openrgb"
+      "polychromatic"
+      "nvme-cli"
+      "smartmontools"
+      "v4l-utils"
+      "amdgpu_top"
+      "libva-utils"
+      "vulkan-tools"
+      "pciutils"
+      "usbutils"
+    ];
+    checkPkg = pkg:
+      assertContainsStr "has ${pkg}" pkg zeroConfigText;
+  in
+    pkgs.runCommand "test-zero-hardware-packages"
+    {}
+    ''
+      echo "=== Testing Zero hardware packages ==="
+
+      ${lib.concatMapStringsSep "\n" checkPkg expectedPackages}
+      ${assertContainsStr "openrazer block" "hardware.openrazer = {" zeroConfigText}
+      ${assertContainsStr "openrazer enabled" "enable = true" zeroConfigText}
+      ${assertContainsStr "openrazer users" ''"monkey"'' zeroConfigText}
+
+      echo "Zero hardware packages test passed"
+      touch $out
+    '';
 }

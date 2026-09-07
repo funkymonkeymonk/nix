@@ -57,7 +57,27 @@
 
   environment.systemPackages = with pkgs; [
     discord
+
+    # Hardware-specific packages for connected peripherals
+    liquidctl # Corsair H100i RGB PRO XT AIO cooling control
+    openrgb # IT8297 RGB LED controller on motherboard
+    openrazer-daemon # Razer Naga Trinity mouse (driver userspace)
+    polychromatic # GUI for openrazer device management
+    nvme-cli # Samsung NVMe SSD diagnostics
+    smartmontools # Drive health monitoring
+    v4l-utils # Logitech C920 webcam (v4l2-ctl)
+    amdgpu_top # AMD GPU monitoring
+    libva-utils # AMD GPU VA-API diagnostics (vainfo)
+    vulkan-tools # AMD GPU Vulkan diagnostics (vulkaninfo)
+    pciutils # Hardware debug (lspci)
+    usbutils # Hardware debug (lsusb)
   ];
+
+  # Razer Naga Trinity mouse support (udev rules + userspace daemon)
+  hardware.openrazer = {
+    enable = true;
+    users = ["monkey"];
+  };
 
   # Hardware: NVMe, AMD CPU/GPU
   boot.initrd.availableKernelModules = [
