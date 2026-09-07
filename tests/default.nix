@@ -204,6 +204,7 @@ in
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
 
     # Zero target tests
+    zero-steam-sdl-hidapi-env = testZero.zeroSteamSdlHidapiEnvTest;
     zero-tailscale-opnix-dep = testZero.zeroTailscaleOpnixDepTest;
     zero-tailscale-no-env-var = testZero.zeroTailscaleNoEnvVarTest;
     zero-tailscale-secret-file = testZero.zeroTailscaleSecretFileTest;

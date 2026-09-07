@@ -21,6 +21,13 @@
     if !(lib.hasInfix needle haystack)
     then ''echo "  ${name}: OK"''
     else throw "${name}: '${needle}' should not be in zero config";
+
+  # Helper: check substring occurs at least N times, throw if not.
+  # builtins.split returns a list of length (2 * occurrences + 1).
+  assertOccursAtLeast = name: count: needle: haystack:
+    if (builtins.length (builtins.split needle haystack) > (count * 2))
+    then ''echo "  ${name}: OK"''
+    else throw "${name}: '${needle}' should occur at least ${toString count} times in zero config";
 in {
   # Test: zero config should set defaultVault and override authKeyOpnixItem
   zeroTailscaleSecretConfigTest =
@@ -33,6 +40,28 @@ in {
       ${assertContainsStr "auth key item" "Tailscale Auth Key/credential" zeroConfigText}
 
       echo "Tailscale opnix secret config test passed"
+      touch $out
+    '';
+
+  # Test: the gaming module should disable SDL's HIDAPI joystick driver for
+  # Steam so xpadneo Bluetooth controllers work. Steam/SDL2 reads Xbox
+  # Bluetooth controllers over hidraw via the SDL_JOYSTICK_HIDAPI driver,
+  # which produces wrong/absent SDL mappings for xpadneo devices — Steam
+  # detects the controller (jstest works) but games receive no input.
+  # xpadneo's documented workaround is to export SDL_JOYSTICK_HIDAPI=0.
+  zeroSteamSdlHidapiEnvTest = let
+    gamingModuleText = builtins.readFile ../modules/nixos/gaming.nix;
+  in
+    pkgs.runCommand "test-zero-steam-sdl-hidapi-env"
+    {}
+    ''
+      echo "=== Testing Steam SDL HIDAPI disabled for xpadneo ==="
+
+      ${assertContainsStr "steam package override" "SDL_JOYSTICK_HIDAPI" gamingModuleText}
+      ${assertContainsStr "hidapi disabled" ''"0"'' gamingModuleText}
+      ${assertOccursAtLeast "both package and gamescope session" 2 "SDL_JOYSTICK_HIDAPI = \"0\";" gamingModuleText}
+
+      echo "Steam SDL HIDAPI env test passed"
       touch $out
     '';
 
