@@ -50,6 +50,16 @@
     }
     echo "  observability stack enabled: ✓"
 
+    ${
+      let
+        megamanx = self.darwinConfigurations.MegamanX.config;
+      in
+        if !(builtins.hasAttr "temporal" megamanx.myConfig)
+        then ""
+        else ''echo "FAIL: MegamanX should not configure Temporal"; exit 1''
+    }
+    echo "  MegamanX: Temporal removed ✓"
+
     echo ""
     echo "All darwin-server tests passed"
     touch $out
