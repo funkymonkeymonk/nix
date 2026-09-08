@@ -64,6 +64,7 @@
                 pi.enable = true;
                 assistant.enable = true;
                 email-backup.enable = true;
+                homebrew.enable = true;
               };
             };
           }
@@ -191,6 +192,11 @@
           echo "  All ${toString (builtins.length allRoles)} roles enabled simultaneously: OK"
           echo "  System packages count: ${toString (builtins.length evalAllRoles.environment.systemPackages)}"
           echo "  Enabled roles: ${builtins.concatStringsSep ", " evalAllRoles.myConfig.skills.enabledRoles}"
+          ${
+            if builtins.elem "1password" evalAllRoles.homebrew.casks
+            then ''echo "  homebrew role includes 1password cask: OK"''
+            else ''echo "  homebrew role is missing the 1password cask"; exit 1''
+          }
         ''
         else ''
           echo "  All roles composition: FAILED"

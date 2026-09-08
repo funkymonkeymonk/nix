@@ -18,6 +18,7 @@
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
+  testSwitchTask = import ./test-switch-task.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
@@ -177,6 +178,7 @@ in
 
     # Workspace-aware switch shell function tests
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
+    switch-task = testSwitchTask.switchTaskTest;
 
     # Aerospace option tests
     aerospace-options = testHomeManager.aerospaceOptionsTest;
@@ -211,6 +213,7 @@ in
     zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
+    zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;

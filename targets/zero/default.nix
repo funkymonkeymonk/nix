@@ -24,6 +24,7 @@
         developer.enable = true;
         desktop.enable = true;
         opencode.enable = true;
+        pi.enable = true;
       };
       tailscale = {
         enable = true;
@@ -35,15 +36,87 @@
       };
       gaming.enable = true;
       streaming.enable = true;
-      llmEndpoints = {
-        MegamanX = {
-          host = "MegamanX.local";
-          port = "4000";
-        };
-      };
       onepassword = {
         enable = true;
         defaultVault = "Homelab";
+      };
+
+      # Cloud-only LLM access via OpenCode Go (falls back to OpenCode Zen).
+      # Mirrors the MegamanX setup: no local models on this machine.
+      opencode = {
+        model = "opencode-go/gpt-5.6-luna";
+        # Replace the role's local model default with the cloud provider.
+        providers = lib.mkForce {
+          "opencode-go" = {
+            name = "OpenCode Go";
+            onePasswordItem = "op://Homelab/OpenCode Go API/credential";
+          };
+        };
+      };
+
+      # Mirror MegamanX's pi setup, minus the local oMLX/Bifrost model.
+      pi = {
+        pluginsSource = inputs.pi-plugins.outPath or null;
+        npmPackages = {
+          "pi-opencode-provider" = "^0.7.3";
+          "pi-web-access" = "^0.10.7";
+          "pi-subagents" = "^0.33.1";
+        };
+
+        settings = {
+          theme = "dark";
+          defaultProvider = "opencode-go";
+          defaultModel = "gpt-5.6-luna";
+          editor = {
+            vimMode = true;
+          };
+          compaction = {
+            enabled = true;
+            reserveTokens = 24576;
+            keepRecentTokens = 16000;
+          };
+          retry = {
+            enabled = true;
+            maxRetries = 5;
+            baseDelayMs = 3000;
+            provider = {
+              timeoutMs = 600000;
+              maxRetries = 0;
+              maxRetryDelayMs = 60000;
+            };
+          };
+          httpIdleTimeoutMs = 300000;
+        };
+
+        agentsMd = ''
+          # Global Agent Instructions
+
+          This is a Nix-managed system. When working with Nix configurations:
+          - Always run `devenv tasks run check:lint` before committing
+          - Use the existing module patterns in modules/
+          - Follow the conventional commit style
+        '';
+
+        # OpenCode Go falls back to OpenCode Zen, so a single provider + key
+        # covers both. Replace the role's local bifrost model.
+        models = lib.mkForce {
+          "opencode-go" = {
+            name = "OpenCode Go";
+            provider = "opencode-go";
+            modelId = "";
+            onePasswordItem = "op://Homelab/OpenCode Go API/credential";
+          };
+        };
+
+        prompts.review = ''
+          Review this code for:
+          1. Bugs and logic errors
+          2. Security issues
+          3. Performance problems
+          4. Nix best practices (if applicable)
+
+          Provide specific suggestions with line numbers.
+        '';
       };
     };
 

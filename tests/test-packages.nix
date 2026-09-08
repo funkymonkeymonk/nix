@@ -435,6 +435,16 @@
               default = pkgs._1password-cli;
             };
           };
+          options.programs._1password-gui = {
+            enable = pkgs.lib.mkOption {
+              type = pkgs.lib.types.bool;
+              default = false;
+            };
+            polkitPolicyOwners = pkgs.lib.mkOption {
+              type = pkgs.lib.types.listOf pkgs.lib.types.str;
+              default = [];
+            };
+          };
           options.services = pkgs.lib.mkOption {
             type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
             default = {};
@@ -444,7 +454,10 @@
           config._module.args = {inherit pkgs;};
         }
         {
-          config.myConfig.onepassword.enable = true;
+          config.myConfig = {
+            onepassword.enable = true;
+            users = [{name = "testuser";}];
+          };
         }
       ];
     };
@@ -492,6 +505,12 @@
             if !hasCli
             then ''echo "  NixOS: _1password-cli NOT in systemPackages: OK (handled by programs._1password)"''
             else ''echo "  NixOS: _1password-cli should not be in systemPackages!"; exit 1''
+          }
+
+          ${
+            if evalCfg.programs._1password-gui.enable
+            then ''echo "  NixOS: 1Password GUI enabled: OK"''
+            else ''echo "  NixOS: 1Password GUI should be enabled!"; exit 1''
           }
         ''
       }

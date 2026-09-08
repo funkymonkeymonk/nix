@@ -79,7 +79,10 @@ with lib; let
         hasSecretApiKey = (provider.onePasswordItem or "") != "";
         hasApiKey = hasSecretApiKey || provider.apiKey != null;
         hasModels = provider.models or {} != {};
-        baseOptions = {inherit (provider) baseURL;};
+        # Omit baseURL when unset so built-in providers (e.g. opencode-go,
+        # opencode) keep their registry endpoints — an empty baseURL would
+        # clobber the provider default and break every model on it.
+        baseOptions = lib.optionalAttrs (provider.baseURL != "") {inherit (provider) baseURL;};
         optionsWithKey =
           baseOptions
           // {

@@ -10,6 +10,8 @@ with lib; let
   inherit (config.myConfig) isDarwin;
   # Check if the opnix module is available (onepassword-secrets option exists)
   hasOpnix = builtins.hasAttr "onepassword-secrets" (options.services or {});
+  hasGui = builtins.hasAttr "_1password-gui" (options.programs or {});
+  hasGuiPolkit = hasGui && builtins.hasAttr "polkitPolicyOwners" options.programs._1password-gui;
 in {
   options.myConfig.onepassword = {
     enable = mkOption {
@@ -143,6 +145,15 @@ in {
         enable = true;
         package = pkgs._1password-cli;
       };
+    })
+    (mkIf (!isDarwin && cfg.enableGUI && hasGui) {
+      programs._1password-gui =
+        {
+          enable = true;
+        }
+        // optionalAttrs hasGuiPolkit {
+          polkitPolicyOwners = map (user: user.name) config.myConfig.users;
+        };
     })
     (mkIf isDarwin {
       environment.systemPackages = [pkgs._1password-cli];

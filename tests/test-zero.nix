@@ -165,4 +165,27 @@ in {
       echo "Zero hardware packages test passed"
       touch $out
     '';
+  # Test: zero is cloud-only (OpenCode Go, which falls back to OpenCode Zen) —
+  # no local models, no legacy LLM endpoint declarations, and the OpenCode Go
+  # API key wired through 1Password like on MegamanX.
+  zeroCloudOnlyConfigTest =
+    pkgs.runCommand "test-zero-cloud-only-config"
+    {}
+    ''
+      echo "=== Testing Zero cloud-only LLM configuration ==="
+
+      # Default model is a cloud model via the opencode-go provider
+      ${assertContainsStr "cloud default model" "opencode-go/gpt-5.6-luna" zeroConfigText}
+      # No local model targeting anywhere
+      ${assertNotContainsStr "no local-bifrost" "local-bifrost" zeroConfigText}
+      ${assertNotContainsStr "no local qwen model" "qwen3.8-27b" zeroConfigText}
+      ${assertNotContainsStr "no omlx" "omlx" zeroConfigText}
+      # Legacy llmEndpoints block removed
+      ${assertNotContainsStr "no llmEndpoints" "llmEndpoints" zeroConfigText}
+      # OpenCode Go API key wired through 1Password (same item as MegamanX)
+      ${assertContainsStr "go 1password item" "op://Homelab/OpenCode Go API/credential" zeroConfigText}
+
+      echo "Zero cloud-only config test passed"
+      touch $out
+    '';
 }
