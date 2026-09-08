@@ -358,6 +358,10 @@
             type = pkgs.lib.types.anything;
             default = {};
           };
+          options.programs._1password-gui = pkgs.lib.mkOption {
+            type = pkgs.lib.types.anything;
+            default = {};
+          };
           # No services.onepassword-secrets option here — simulates no opnix
           options.services = pkgs.lib.mkOption {
             type = pkgs.lib.types.attrsOf pkgs.lib.types.anything;
