@@ -287,6 +287,7 @@
                 config-validation
                 zero-hardware-packages
                 zero-steam-sdl-hidapi-env
+                zero-cloud-only-config
                 all-role-tests
                 module-coverage
                 skills-manifest
@@ -317,6 +318,7 @@
                 opencode-provider-opnix-url
                 shell-aliases
                 workspace-switch
+                switch-task
                 llm-client-opencode
                 llm-client-claude
                 llm-client-pi

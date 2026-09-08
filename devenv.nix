@@ -49,6 +49,17 @@ in {
     alias dtl="devenv tasks list"
     alias agentsudo='op read "op://Private/$(hostname -s) Sudo Password/password" | sudo -S '
 
+    # devenv requires namespaced task names, but keep the documented short
+    # command working for users already inside the devenv shell.
+    devenv() {
+      if [[ "''${1:-}" == "tasks" && "''${2:-}" == "run" && "''${3:-}" == "switch" ]]; then
+        shift 3
+        command devenv tasks run system:switch "$@"
+      else
+        command devenv "$@"
+      fi
+    }
+
     # ============================================
     # JJ Workspace Support - Check if in workspace
     # ============================================
@@ -412,12 +423,43 @@ in {
           echo "Configuration: $CONFIG_NAME"
           echo ""
 
+          # devenv tasks do not guarantee an interactive terminal, so provide
+          # sudo with the configured password just as the Darwin path does.
+          if ! command -v op &> /dev/null; then
+            echo "ERROR: 1Password CLI (op) not found"
+            echo "Install 1Password CLI to use this task"
+            exit 1
+          fi
+
+          CUSTOM_REF=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
+          if [[ -n "$CUSTOM_REF" ]]; then
+            PASSWORD_PATH="$CUSTOM_REF"
+          else
+            PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+          fi
+          echo "Fetching sudo password from 1Password..."
+          echo "  Path: $PASSWORD_PATH"
+
+          SUDO_PASSWORD=$(op read "$PASSWORD_PATH" 2>&1) || {
+            echo ""
+            echo "ERROR: Failed to read sudo password from 1Password"
+            echo "  Attempted path: $PASSWORD_PATH"
+            echo ""
+            echo "Ensure the item exists in 1Password."
+            echo "You can set myConfig.onepassword.sudoPasswordRef in the machine config"
+            echo "to override the default path (op://Private/<hostname> Sudo Password/password)."
+            exit 1
+          }
+          echo "Sudo password: retrieved"
+          echo ""
+
           echo "--- Building Configuration ---"
           echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"
           echo ""
 
-          sudo nixos-rebuild switch \
+          echo "$SUDO_PASSWORD" | sudo -S nixos-rebuild switch \
             --flake "./#$CONFIG_NAME" \
+            --impure \
             --show-trace 2>&1 || {
             EXIT_CODE=$?
             echo ""

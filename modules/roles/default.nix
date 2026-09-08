@@ -23,7 +23,7 @@ in {
     ./assistant.nix
     ./email-backup.nix
     ./tailscale.nix
-    # Note: homebrew.nix is imported separately by configurations that use nix-homebrew
+    ./homebrew.nix
   ];
 
   # Derive enabledRoles from the roles options so skills/install.nix can use it

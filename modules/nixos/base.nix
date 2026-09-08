@@ -20,7 +20,7 @@ with lib; {
         value = {
           isNormalUser = true;
           description = user.fullName;
-          extraGroups = ["networkmanager" "wheel"];
+          extraGroups = ["networkmanager" "wheel" "onepassword-secrets"];
           shell = pkgs.zsh;
         };
       })
