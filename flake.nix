@@ -69,6 +69,7 @@
       imports = [
         ./library/flake-module.nix
         ./library/machines/bootstrap.nix
+        ./library/machines/cattle.nix
         ./library/machines/installer-iso.nix
         ./library/machines/zero.nix
         ./library/machines/darwin.nix
@@ -80,9 +81,7 @@
           "x86_64-linux"
         ];
 
-        # Library helpers from the new modular library
         inherit (nixpkgs) lib;
-        libraryLib = import ./library/lib/mk-system.nix {inherit lib;};
       in {
         lib = {
           optionsDoc = import ./scripts/generate-options-doc.nix {inherit lib self;};
@@ -122,82 +121,6 @@
             };
           }
         );
-
-        nixosConfigurations = {
-          # NAS - Network Attached Storage with ZFS and paperless-ngx
-          # Composed from headless-server-nixos archetype + NAS-specific overrides.
-          "type-nas" = libraryLib.mkNixosSystem {
-            inherit inputs;
-            hostname = "type-nas";
-            modules = [
-              ./library/archetypes/headless-server-nixos.nix
-              inputs.disko.nixosModules.disko
-              ./disk-configs/zfs-nas.nix
-              ./targets/type-nas
-            ];
-            overrides = {
-              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
-            };
-          };
-
-          # CATTLE CONFIGURATIONS - Generic machine types
-          # These require no hardware-configuration.nix!
-          # Use with: ./scripts/install-machine.sh <type> <host> <disk>
-
-          # Foundation-based server configuration
-          # Minimal required fields: system architecture, SSH authorized keys
-          # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
-          "type-server" = libraryLib.mkNixosSystem {
-            inherit inputs;
-            hostname = "type-server";
-            modules = [
-              ./library/archetypes/headless-server-nixos.nix
-              ./disk-configs/single-disk-ext4.nix
-              ./modules/nixos/vector.nix
-              ./modules/nixos/loki.nix
-              ./modules/nixos/prometheus.nix
-              ./modules/nixos/alertmanager.nix
-              ./targets/type-server
-            ];
-            overrides = {
-              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
-            };
-          };
-
-          # ARM64 server variant
-          # Uses libraryLib.mkNixosSystem + headless-server-nixos archetype
-          "type-server-arm" = libraryLib.mkNixosSystem {
-            inherit inputs;
-            hostname = "type-server-arm";
-            system = "aarch64-linux";
-            modules = [
-              ./library/archetypes/headless-server-nixos.nix
-              ./disk-configs/single-disk-ext4.nix
-              ./targets/type-server-arm
-            ];
-            overrides = {
-              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
-              tailscale.enable = false;
-            };
-          };
-
-          # Uses libraryLib.mkNixosSystem + desktop-nixos archetype
-          "type-desktop" = libraryLib.mkNixosSystem {
-            inherit inputs;
-            hostname = "type-desktop";
-            modules = [
-              ./library/archetypes/desktop-nixos.nix
-              ./modules/nixos/desktop.nix
-              ./modules/nixos/ghostty-terminfo.nix
-              inputs.disko.nixosModules.disko
-              ./disk-configs/single-disk-ext4.nix
-              ./targets/type-desktop
-            ];
-            overrides = {
-              autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
-            };
-          };
-        };
 
         # Flake checks for CI - run on Linux and Darwin
         checks = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-darwin"] (

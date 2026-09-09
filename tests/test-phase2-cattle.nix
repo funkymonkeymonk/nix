@@ -5,6 +5,7 @@
 }: let
   hasConfig = name: builtins.hasAttr name self.nixosConfigurations;
   hasTargetModule = name: builtins.pathExists (../targets + "/${name}/default.nix");
+  flakeText = builtins.readFile ../flake.nix;
 
   phase2CattleTest = pkgs.runCommand "test-phase2-cattle" {} ''
     echo "=== Testing Cattle NixOS Configs ==="
@@ -53,6 +54,18 @@
       else ''echo "FAIL: type-desktop target module not found"; exit 1''
     }
     echo "  type-desktop target module: defined ✓"
+
+    ${
+      if builtins.pathExists ../library/machines/cattle.nix
+      then ''echo "  cattle machine module: defined ✓"''
+      else ''echo "FAIL: cattle machine module not found"; exit 1''
+    }
+
+    ${
+      if pkgs.lib.hasInfix "./library/machines/cattle.nix" flakeText
+      then ""
+      else ''echo "FAIL: cattle machine module not imported by flake.nix"; exit 1''
+    }
 
     echo ""
     echo "All cattle tests passed"
