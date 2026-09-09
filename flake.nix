@@ -68,6 +68,8 @@
       systems = ["aarch64-darwin" "x86_64-linux"];
       imports = [
         ./library/flake-module.nix
+        ./library/machines/bootstrap.nix
+        ./library/machines/installer-iso.nix
         ./library/machines/zero.nix
         ./library/machines/darwin.nix
       ];
@@ -121,39 +123,7 @@
           }
         );
 
-        # ISO installer image (x86_64-linux only)
-        nixosConfigurations.installer-iso = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
-          modules = [
-            ./targets/installer-iso/default.nix
-            {
-              # Bundle the flake into the ISO for offline fallback
-              isoImage.contents = [
-                {
-                  source = ./.;
-                  target = "nix-flake";
-                }
-              ];
-            }
-          ];
-        };
-
         nixosConfigurations = {
-          # Bootstrap configuration - minimal setup for initial install
-          # Uses core.nix for absolute minimum, no foundation
-          "bootstrap" = nixpkgs.lib.nixosSystem {
-            system = "x86_64-linux";
-            modules = [
-              ./modules/common/core.nix
-              ./targets/bootstrap
-              ./modules/common/options.nix
-              {
-                nixpkgs.hostPlatform = "x86_64-linux";
-                system.stateVersion = "25.05";
-              }
-            ];
-          };
-
           # NAS - Network Attached Storage with ZFS and paperless-ngx
           # Composed from headless-server-nixos archetype + NAS-specific overrides.
           "type-nas" = libraryLib.mkNixosSystem {
