@@ -3,6 +3,7 @@
 {
   pkgs,
   lib,
+  inputs,
   modulesPath,
   ...
 }: {
@@ -17,6 +18,12 @@
     volumeID = "NIXOS_INSTALLER";
     makeEfiBootable = true;
     makeUsbBootable = true;
+    contents = [
+      {
+        source = inputs.self;
+        target = "nix-flake";
+      }
+    ];
   };
 
   # Boot loader for BIOS and UEFI
