@@ -94,9 +94,12 @@
             };
           in
             {
-              inherit (pkgs) rtk yaks mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit qwen3_8-27B-mxfp4 lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
+              inherit (pkgs) rtk yaks lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
               inherit (inputs.devenv.packages.${system}) devenv;
               installer = pkgs.callPackage ./packages/installer {};
+            }
+            // nixpkgs.lib.optionalAttrs (system == "aarch64-darwin") {
+              inherit (pkgs) mlx-vlm mlx-audio mlx-embeddings gemma4-31B-4bit gemma4-e4B-4bit qwen3_8-27B-4bit qwen3_8-27B-mxfp4;
             }
             // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
               # ISO installer only for x86_64-linux
