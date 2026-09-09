@@ -12,6 +12,7 @@
         ../archetypes/headless-server-nixos.nix
         inputs.disko.nixosModules.disko
         ../../disk-configs/zfs-nas.nix
+        ../../targets/hardware-facter.nix
         ../../targets/type-nas
       ];
       overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
@@ -28,6 +29,7 @@
         ../../modules/nixos/loki.nix
         ../../modules/nixos/prometheus.nix
         ../../modules/nixos/alertmanager.nix
+        ../../targets/hardware-facter.nix
         ../../targets/type-server
       ];
       overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
@@ -41,6 +43,7 @@
       modules = [
         ../archetypes/headless-server-nixos.nix
         ../../disk-configs/single-disk-ext4.nix
+        ../../targets/hardware-facter.nix
         ../../targets/type-server-arm
       ];
       overrides = {
@@ -59,6 +62,7 @@
         ../../modules/nixos/ghostty-terminfo.nix
         inputs.disko.nixosModules.disko
         ../../disk-configs/single-disk-ext4.nix
+        ../../targets/hardware-facter.nix
         ../../targets/type-desktop
       ];
       overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
