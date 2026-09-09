@@ -4,6 +4,7 @@
   ...
 }: let
   hasConfig = name: builtins.hasAttr name self.nixosConfigurations;
+  hasTargetModule = name: builtins.pathExists (../targets + "/${name}/default.nix");
 
   phase2CattleTest = pkgs.runCommand "test-phase2-cattle" {} ''
     echo "=== Testing Cattle NixOS Configs ==="
@@ -31,6 +32,27 @@
       else ''echo "FAIL: type-desktop not found"; exit 1''
     }
     echo "  type-desktop: defined ✓"
+
+    ${
+      if hasTargetModule "type-server"
+      then ""
+      else ''echo "FAIL: type-server target module not found"; exit 1''
+    }
+    echo "  type-server target module: defined ✓"
+
+    ${
+      if hasTargetModule "type-server-arm"
+      then ""
+      else ''echo "FAIL: type-server-arm target module not found"; exit 1''
+    }
+    echo "  type-server-arm target module: defined ✓"
+
+    ${
+      if hasTargetModule "type-desktop"
+      then ""
+      else ''echo "FAIL: type-desktop target module not found"; exit 1''
+    }
+    echo "  type-desktop target module: defined ✓"
 
     echo ""
     echo "All cattle tests passed"

@@ -184,21 +184,7 @@
               ./modules/nixos/loki.nix
               ./modules/nixos/prometheus.nix
               ./modules/nixos/alertmanager.nix
-              {
-                users.users.admin.openssh.authorizedKeys.keys = [
-                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-                ];
-                # Centralized logging: Vector ships journald logs to a local
-                # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
-                myConfig.vector.enable = true;
-                myConfig.loki.enable = true;
-                myConfig.prometheus = {
-                  enable = true;
-                  openFirewallTailscale = true;
-                };
-                myConfig.nodeExporter.enable = true;
-                myConfig.alertmanager.enable = true;
-              }
+              ./targets/type-server
             ];
             overrides = {
               autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
@@ -214,15 +200,7 @@
             modules = [
               ./library/archetypes/headless-server-nixos.nix
               ./disk-configs/single-disk-ext4.nix
-              {
-                users.users.admin.openssh.authorizedKeys.keys = [
-                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-                ];
-              }
-              ({lib, ...}: {
-                hardware.cpu.intel.updateMicrocode = lib.mkForce false;
-                hardware.cpu.amd.updateMicrocode = lib.mkForce false;
-              })
+              ./targets/type-server-arm
             ];
             overrides = {
               autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
@@ -240,11 +218,7 @@
               ./modules/nixos/ghostty-terminfo.nix
               inputs.disko.nixosModules.disko
               ./disk-configs/single-disk-ext4.nix
-              {
-                users.users.root.openssh.authorizedKeys.keys = [
-                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-                ];
-              }
+              ./targets/type-desktop
             ];
             overrides = {
               autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
