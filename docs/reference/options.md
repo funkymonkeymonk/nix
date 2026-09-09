@@ -82,7 +82,7 @@ or changing a `myConfig.*` option.
 | `upstreams.<name>.retryBackoffInitialMs` | positive integer, meaning >0 | `500` | Initial retry backoff in milliseconds (matches Bifrost's upstream default of 500ms). Retries back off exponentially up to retryBackoffMaxMs. |
 | `upstreams.<name>.retryBackoffMaxMs` | positive integer, meaning >0 | `5000` | Maximum retry backoff in milliseconds (matches Bifrost's upstream default of 5s). |
 | `upstreams.<name>.streamIdleTimeoutInSeconds` | unsigned integer, meaning >=0 | `60` | Idle timeout for streaming responses. If no chunk arrives from the upstream within this window, Bifrost closes the connection. Must be >= the upstream's longest prefill time. For oMLX with long system prompts (22k+ tokens), set to 600s to avoid 500 errors during chunked prefill. Bifrost default is 60s. |
-| `upstreams.<name>.type` | one of "openai", "vllm" | `"openai"` | Provider type for the upstream. Use 'vllm' for vLLM-compatible servers (uses bifrost's native vLLM provider integration) |
+| `upstreams.<name>.type` | one of "openai", "anthropic", "vllm" | `"openai"` | Provider type for the upstream. Use 'openai' or 'anthropic' for compatible APIs, or 'vllm' for Bifrost's native vLLM integration |
 | `upstreams.<name>.url` | string | *required* | Base URL for the upstream inference server (e.g., http://localhost:8300/v1) |
 
 ### myConfig.cachix
