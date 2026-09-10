@@ -133,20 +133,6 @@ with lib; {
         };
       };
 
-      assistant = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Agent email tools (himalaya, gmailctl) for reading, moving, and filtering Gmail";
-        };
-      };
-      email-backup = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Immutable encrypted email backups (mbsync + restic + notmuch) with searchable archive";
-        };
-      };
       homebrew = {
         enable = mkOption {
           type = types.bool;
