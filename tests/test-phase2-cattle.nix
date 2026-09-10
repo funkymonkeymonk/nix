@@ -67,6 +67,12 @@
       else ''echo "FAIL: cattle machine module not imported by flake.nix"; exit 1''
     }
 
+    ${
+      if builtins.pathExists ../targets/hardware-facter.nix
+      then ''echo "  explicit hardware-facter module: defined ✓"''
+      else ''echo "FAIL: explicit hardware-facter module not found"; exit 1''
+    }
+
     echo ""
     echo "All cattle tests passed"
     touch $out
