@@ -2,14 +2,7 @@
   perSystem = {system, ...}: let
     pkgs = import inputs.nixpkgs {
       inherit system;
-      config = {
-        allowUnfree = true;
-        permittedInsecurePackages = [
-          "electron-39.8.10"
-          "google-chrome-144.0.7559.97"
-          "olm-3.2.16"
-        ];
-      };
+      config = import ./lib/nixpkgs-config-values.nix;
       overlays = [(import ../overlays {inherit inputs;})];
     };
     tests = import ../tests {

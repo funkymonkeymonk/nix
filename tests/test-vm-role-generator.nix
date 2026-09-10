@@ -21,17 +21,13 @@
 }: let
   lib = pkgs.lib;
   inputs = self.inputs;
+  nixpkgsConfig = import ../library/lib/nixpkgs-config-values.nix;
 
   # Same construction as flake.nix's `checks` output, pinned to
   # x86_64-linux (the only system VM tests are ever exposed under).
   linuxPkgs = import inputs.nixpkgs {
     system = "x86_64-linux";
-    config.allowUnfree = true;
-    config.permittedInsecurePackages = [
-      "electron-39.8.10"
-      "google-chrome-144.0.7559.97"
-      "olm-3.2.16"
-    ];
+    config = nixpkgsConfig;
     overlays = [(import ../overlays {inherit inputs;})];
   };
 
