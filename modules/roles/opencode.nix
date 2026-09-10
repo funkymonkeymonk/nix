@@ -9,6 +9,12 @@
   host = config.myConfig.llmClient.serverHost;
   bifrostPort = toString (config.myConfig.bifrost.port or 8081);
 in {
+  options.myConfig.roles.opencode.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "OpenCode AI assistant with rtk";
+  };
+
   config = lib.mkIf cfg.enable {
     environment.systemPackages = with pkgs; [
       opencode
