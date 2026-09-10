@@ -27,11 +27,7 @@ in {
       ]
       ++ lib.optionals hasHomebrew [
         (lib.mkIf isDarwin {
-          homebrew.casks = [
-            "steam"
-            "obs"
-            "discord"
-          ];
+          homebrew.casks = lib.mkAfter ["steam" "obs" "discord"];
         })
       ]
     )

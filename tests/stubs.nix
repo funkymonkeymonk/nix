@@ -83,7 +83,30 @@
       default = {};
     };
     options.homebrew = lib.mkOption {
-      type = lib.types.anything;
+      type = lib.types.submodule {
+        options = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+          };
+          onActivation = lib.mkOption {
+            type = lib.types.attrs;
+            default = {};
+          };
+          taps = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [];
+          };
+          brews = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [];
+          };
+          casks = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [];
+          };
+        };
+      };
       default = {};
     };
     options.users = lib.mkOption {

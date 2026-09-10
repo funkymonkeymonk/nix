@@ -30,9 +30,7 @@ in {
       ]
       ++ lib.optionals hasHomebrew [
         (lib.mkIf isDarwin {
-          homebrew.casks = [
-            "element"
-          ];
+          homebrew.casks = lib.mkAfter ["element"];
         })
       ])
   );

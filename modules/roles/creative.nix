@@ -21,9 +21,7 @@ in {
       ]
       ++ lib.optionals hasHomebrew [
         (lib.mkIf isDarwin {
-          homebrew.casks = [
-            "elgato-stream-deck"
-          ];
+          homebrew.casks = lib.mkAfter ["elgato-stream-deck"];
         })
       ])
   );
