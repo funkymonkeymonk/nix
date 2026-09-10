@@ -34,6 +34,7 @@
   # Structural regression guard for the flake-parts pilot migration: zero
   # must be defined via library/machines/zero.nix, not inline in flake.nix.
   flakeText = builtins.readFile ../flake.nix;
+  zeroText = builtins.readFile ../library/machines/zero.nix;
 
   phase3ZeroFlakePartsTest = pkgs.runCommand "test-phase3-zero-flake-parts" {} ''
     echo "=== Testing Zero is wired via flake-parts, not inline in flake.nix ==="
@@ -60,6 +61,18 @@
       if lib.hasInfix "./library/machines/zero.nix" flakeText
       then ''echo "  flake.nix imports library/machines/zero.nix: OK"''
       else ''echo "  FAIL: flake.nix should import library/machines/zero.nix"; exit 1''
+    }
+
+    ${
+      if builtins.pathExists ../library/archetypes/desktop-machine.nix
+      then ''echo "  desktop machine archetype exists: OK"''
+      else ''echo "  FAIL: desktop machine archetype should exist"; exit 1''
+    }
+
+    ${
+      if lib.hasInfix "../../machine-types/desktop.nix" zeroText
+      then ''echo "  FAIL: zero should use a library archetype"; exit 1''
+      else ''echo "  zero no longer imports machine-types directly: OK"''
     }
 
     echo "All zero flake-parts structural tests passed"
