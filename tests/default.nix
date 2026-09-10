@@ -50,6 +50,7 @@
   testMkUser = import ./test-mk-user.nix {inherit pkgs;};
   testFlakeModule = import ./test-flake-module.nix {inherit pkgs;};
   testNixUnitRunner = import ./test-nix-unit-runner.nix {inherit pkgs;};
+  testDevBaseMigration = import ./test-dev-base-migration.nix {inherit pkgs;};
   testOptionsDoc =
     if self != null
     then import ./test-options-doc.nix {inherit pkgs self;}
@@ -93,6 +94,7 @@ in
     # nix-unit eval-time tests (fast, no derivation builds)
     inherit nix-unit-tests;
     nix-unit-runner = testNixUnitRunner.nixUnitRunner;
+    dev-base-migration = testDevBaseMigration.devBaseMigration;
 
     # Package availability tests
     core-packages = testPackages.corePackagesTest;

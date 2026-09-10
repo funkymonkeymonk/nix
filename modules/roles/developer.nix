@@ -5,29 +5,10 @@
   ...
 }: let
   cfg = config.myConfig.roles.developer;
+  developerPackages = import ./developer-packages.nix {inherit pkgs;};
 in {
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = with pkgs; [
-      clang
-      python3
-      nodejs
-      yarn
-      k3d
-      kubectl
-      kubernetes-helm
-      k9s
-      gh-dash
-      gomuks
-      slidev-cli
-      temporal-cli
-      yaks
-      # AST-aware merge tool. jj ships a default `merge-tools.mergiraf`
-      # entry out of the box (see `jj config list --include-defaults
-      # merge-tools`), so no jj config is needed here -- just the binary
-      # on PATH. Use `jj resolve --tool mergiraf [<path>]` to resolve
-      # conflicts. See https://mergiraf.org/usage.html.
-      mergiraf
-    ];
+    environment.systemPackages = developerPackages;
 
     myConfig.zellij.enable = true;
 
