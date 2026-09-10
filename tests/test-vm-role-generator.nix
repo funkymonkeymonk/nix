@@ -62,10 +62,13 @@
   hasFoundationAttr = builtins.hasAttr "vm-role-foundation" vmTests;
   hasDeveloperAttr = builtins.hasAttr "vm-role-developer" vmTests;
   permitsOlm = builtins.elem "olm-3.2.16" linuxPkgs.config.permittedInsecurePackages;
+  foundationScript = vmTests.vm-role-foundation.config.testScriptString;
+  checksNonExecutableZinit = lib.hasInfix "command -v zinit" foundationScript;
+  checksBasePackageBcacheTools = lib.hasInfix "command -v bcache-tools" foundationScript;
 
-  # Binary names each role's VM test is expected to presence-check, derived
-  # the same way mkRoleVmTest does: pkg.meta.mainProgram or pkg.pname or
-  # pkg.name. Verified against this repo's real overlay-enabled nixpkgs.
+  # Binary names each role's VM test is expected to presence-check. The
+  # generator only includes packages with an explicit meta.mainProgram;
+  # packages such as shell plugins are not executable commands.
   expectedBinaries = {
     foundation = ["hx" "jj" "rg" "gh" "jq" "delta"];
     developer = ["clang" "node" "yarn" "yx"];
@@ -74,7 +77,7 @@
   # Check a role's generated test: the role must be enabled on the node,
   # the shared node modules (proving module-list reuse) must be present,
   # every expected binary must be resolvable from environment.systemPackages
-  # using the mainProgram/pname/name formula, and the rendered testScript
+  # using the mainProgram metadata, and the rendered testScript
   # must presence-check each binary via `command -v` (never `--version`).
   checkRole = role: let
     testAttr = "vm-role-${role}";
@@ -89,7 +92,7 @@
       node = vmTests.${testAttr}.nodes.machine;
       roleEnabled = node.myConfig.roles.${role}.enable or false;
       sharesModules = builtins.hasAttr "testuser" node.users.users;
-      actualBinaries = map (pkg: pkg.meta.mainProgram or pkg.pname or pkg.name) node.environment.systemPackages;
+      actualBinaries = builtins.filter (program: program != null) (map (pkg: pkg.meta.mainProgram or null) node.environment.systemPackages);
       expected = expectedBinaries.${role};
       missingBinaries = builtins.filter (b: !(builtins.elem b actualBinaries)) expected;
       script = vmTests.${testAttr}.config.testScriptString;
@@ -204,6 +207,22 @@
       then ''echo "  Linux VM package set permits the shared olm exception: OK"''
       else ''
         echo "  Linux VM package set must permit olm-3.2.16 like system configurations"
+        exit 1
+      ''
+    }
+    ${
+      if !checksNonExecutableZinit
+      then ''echo "  Non-executable packages are excluded from role binary checks: OK"''
+      else ''
+        echo "  FAIL: role generator must not check zinit as an executable"
+        exit 1
+      ''
+    }
+    ${
+      if !checksBasePackageBcacheTools
+      then ''echo "  Base-system packages are excluded from role binary checks: OK"''
+      else ''
+        echo "  FAIL: role generator must not check base-system bcache-tools"
         exit 1
       ''
     }
