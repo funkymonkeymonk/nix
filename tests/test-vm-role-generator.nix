@@ -27,6 +27,11 @@
   linuxPkgs = import inputs.nixpkgs {
     system = "x86_64-linux";
     config.allowUnfree = true;
+    config.permittedInsecurePackages = [
+      "electron-39.8.10"
+      "google-chrome-144.0.7559.97"
+      "olm-3.2.16"
+    ];
     overlays = [(import ../overlays {inherit inputs;})];
   };
 
@@ -56,6 +61,7 @@
 
   hasFoundationAttr = builtins.hasAttr "vm-role-foundation" vmTests;
   hasDeveloperAttr = builtins.hasAttr "vm-role-developer" vmTests;
+  permitsOlm = builtins.elem "olm-3.2.16" linuxPkgs.config.permittedInsecurePackages;
 
   # Binary names each role's VM test is expected to presence-check, derived
   # the same way mkRoleVmTest does: pkg.meta.mainProgram or pkg.pname or
@@ -190,6 +196,14 @@
       then ''echo "  vm-role-developer exported from tests/vm/default.nix: OK"''
       else ''
         echo "  vm-role-developer NOT exported from tests/vm/default.nix"
+        exit 1
+      ''
+    }
+    ${
+      if permitsOlm
+      then ''echo "  Linux VM package set permits the shared olm exception: OK"''
+      else ''
+        echo "  Linux VM package set must permit olm-3.2.16 like system configurations"
         exit 1
       ''
     }
