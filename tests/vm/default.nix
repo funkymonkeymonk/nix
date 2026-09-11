@@ -57,6 +57,7 @@
           };
 
           # Minimal VM config
+          networking.networkmanager.enable = true;
           system.stateVersion = "25.05";
           virtualisation.memorySize = 1024;
         };
@@ -69,11 +70,11 @@
   # Boots the exact same NixOS node mkTest always boots (mkTest is the
   # single source of truth for the module list -- called here, not
   # duplicated), enabling only the given role. The resulting node's
-  # environment.systemPackages is introspected to derive the binary each
-  # package actually provides (meta.mainProgram, falling back to
-  # pname/name), and every resolved binary is presence-checked on the
-  # booted VM via `command -v` -- presence-only, never actually run --
-  # which previously risked hanging on GUI/Electron packages (e.g. logseq).
+  # environment.systemPackages is introspected to derive packages that
+  # explicitly declare a main program, and every resolved binary is
+  # presence-checked on the booted VM via `command -v` -- presence-only,
+  # never actually run. Packages without a main program (such as shell
+  # plugins) are not executable commands and must be skipped.
   #
   # `nodes.machine` on a nixosTest derivation exposes the fully evaluated
   # NixOS config for that node (see nixpkgs' nixos/lib/testing/nodes.nix),
@@ -81,14 +82,26 @@
   # compute the binaries list.
   mkRoleVmTest = role: let
     roles = {${role}.enable = true;};
+    baseline = mkTest {
+      name = "vm-role-${role}-baseline";
+      roles = {${role}.enable = false;};
+      testScript = "";
+    };
     introspected = mkTest {
       name = "vm-role-${role}-introspect";
       inherit roles;
       testScript = "";
     };
-    binaries =
-      map (pkg: pkg.meta.mainProgram or pkg.pname or pkg.name)
+    baselinePaths = map toString baseline.nodes.machine.environment.systemPackages;
+    rolePackages =
+      builtins.filter (
+        pkg: !(builtins.elem (toString pkg) baselinePaths)
+      )
       introspected.nodes.machine.environment.systemPackages;
+    binaries = builtins.filter (program: program != null) (
+      map (pkg: pkg.meta.mainProgram or null)
+      rolePackages
+    );
   in
     mkTest {
       name = "vm-role-${role}";

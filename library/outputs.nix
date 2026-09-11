@@ -2,7 +2,7 @@
   perSystem = {system, ...}: let
     pkgs = import inputs.nixpkgs {
       inherit system;
-      config.allowUnfree = true;
+      config = import ./lib/nixpkgs-config-values.nix;
       overlays = [(import ../overlays {inherit inputs;})];
     };
     tests = import ../tests {

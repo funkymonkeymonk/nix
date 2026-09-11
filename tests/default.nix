@@ -49,6 +49,7 @@
     else {};
   testMkUser = import ./test-mk-user.nix {inherit pkgs;};
   testFlakeModule = import ./test-flake-module.nix {inherit pkgs;};
+  testNixUnitRunner = import ./test-nix-unit-runner.nix {inherit pkgs;};
   testOptionsDoc =
     if self != null
     then import ./test-options-doc.nix {inherit pkgs self;}
@@ -79,7 +80,7 @@
     pkgs.runCommand "nix-unit-tests"
     {
       nativeBuildInputs = [pkgs.nix-unit pkgs.nix];
-      NIX_PATH = "nixpkgs=${toString pkgs.path}";
+      NIX_PATH = "nixpkgs=${pkgs.path}";
     }
     ''
       cp -r ${src} source
@@ -91,6 +92,7 @@ in
   {
     # nix-unit eval-time tests (fast, no derivation builds)
     inherit nix-unit-tests;
+    nix-unit-runner = testNixUnitRunner.nixUnitRunner;
 
     # Package availability tests
     core-packages = testPackages.corePackagesTest;
