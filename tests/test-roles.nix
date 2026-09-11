@@ -197,6 +197,21 @@
             then ''echo "  homebrew role includes 1password cask: OK"''
             else ''echo "  homebrew role is missing the 1password cask"; exit 1''
           }
+          ${
+            if evalAllRoles.myConfig.isDarwin
+            then let
+              entertainmentCasks = ["steam" "obs" "discord"];
+              missingCasks =
+                builtins.filter (
+                  cask: !(builtins.elem cask evalAllRoles.homebrew.casks)
+                )
+                entertainmentCasks;
+            in
+              if missingCasks == []
+              then ''echo "  entertainment role casks are preserved: OK"''
+              else ''echo "  missing entertainment casks: ${builtins.concatStringsSep ", " missingCasks}"; exit 1''
+            else ''echo "  Darwin-only entertainment cask check skipped on Linux: OK"''
+          }
         ''
         else ''
           echo "  All roles composition: FAILED"
