@@ -23,7 +23,6 @@
     onepassword.enable = true;
     opencode = {
       enable = true;
-      model = "local-bifrost/omlx/qwen3.8-27b";
     };
     claude-code = {
       enable = false;
@@ -86,9 +85,9 @@ in {
       }
 
       ${
-        if result.opencode.model == "local-bifrost/omlx/qwen3.8-27b"
-        then ''echo "  opencode.model = managed Qwen: OK"''
-        else ''echo "  FAIL: opencode.model should be the managed Qwen model"; exit 1''
+        if !(result.opencode ? model)
+        then ''echo "  opencode.model omitted for model discovery: OK"''
+        else ''echo "  FAIL: opencode.model should remain unset for model discovery"; exit 1''
       }
 
       ${

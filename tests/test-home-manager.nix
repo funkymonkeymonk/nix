@@ -70,7 +70,7 @@
     }).config.myConfig.opencode;
 
   # Evaluate the OpenCode role defaults, including its generated Bifrost
-  # provider and default model.
+  # provider and model discovery configuration.
   opencodeRole =
     (lib.evalModules {
       modules =
@@ -231,9 +231,9 @@ in {
       }
 
       ${
-        if opencodeRole.opencode.model == "local-bifrost/omlx/qwen3.8-27b"
-        then ''echo "  default model = local-bifrost/omlx/qwen3.8-27b: OK"''
-        else ''echo "  default model should be the managed Qwen model!"; exit 1''
+        if opencodeRole.opencode.model == null
+        then ''echo "  default model unset for model discovery: OK"''
+        else ''echo "  default model should be unset for model discovery!"; exit 1''
       }
 
       ${
@@ -261,9 +261,9 @@ in {
       }
 
       ${
-        if opencodeHome.programs.opencode.settings.model == "local-bifrost/omlx/qwen3.8-27b"
-        then ''echo "  generated OpenCode default model = managed Qwen: OK"''
-        else ''echo "  generated OpenCode default model is incorrect!"; exit 1''
+        if !(opencodeHome.programs.opencode.settings ? model)
+        then ''echo "  generated OpenCode model omitted for discovery: OK"''
+        else ''echo "  generated OpenCode model should be omitted for discovery!"; exit 1''
       }
 
       ${

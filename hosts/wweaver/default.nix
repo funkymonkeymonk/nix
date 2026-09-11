@@ -79,7 +79,6 @@
       opencode = {
         enable = true;
         disabledProviders = ["opencode"];
-        model = "local-bifrost/omlx/qwen3.8-27b";
         commands = {
           diataxis = {
             description = "Audit and rewrite documentation using the Diataxis framework";
