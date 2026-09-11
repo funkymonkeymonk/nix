@@ -16,7 +16,6 @@
       obsidian.vaults = ["personal"];
 
       roles.opencode.enable = true;
-      opencode.model = "local-bifrost/omlx/qwen3.8-27b";
 
       # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
       # continuous-batching and tiered KV-cache engine.

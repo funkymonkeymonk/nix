@@ -30,10 +30,8 @@ in {
       serverPort = lib.mkDefault "8080";
     };
 
-    # Prefer the local gateway while keeping the provider map extensible.
-    myConfig.opencode.model = lib.mkDefault "local-bifrost/omlx/qwen3.8-27b";
-
-    # Auto-configure bifrost as a model provider
+    # Auto-configure Bifrost as a model provider. Model selection is handled by
+    # the discovery plugin rather than pinned in the generated config.
     myConfig.opencode.providers.local-bifrost = lib.mkDefault {
       name = "Local Bifrost";
       npm = "@ai-sdk/anthropic";
