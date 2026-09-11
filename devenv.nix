@@ -1,5 +1,9 @@
 {pkgs, ...}: let
-  devBase = import ./library/dev-base.nix {inherit pkgs;};
+  foundationPackages = (import ./modules/roles/foundation-packages.nix {inherit pkgs;}).common;
+  developerPackages = import ./modules/roles/developer-packages.nix {
+    inherit pkgs;
+    includeGomuks = false;
+  };
 
   # Benchmarking suites are not in upstream nixpkgs; call them directly from
   # the repo packages so they are available in the devenv shell and tasks.
@@ -12,8 +16,18 @@
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
 in {
   packages =
-    devBase.packages
+    foundationPackages
+    ++ developerPackages
     ++ [
+      # Nix tooling specific to developing this repository
+      pkgs.eza
+      pkgs.alejandra
+      pkgs.statix
+      pkgs.deadnix
+      pkgs.nix-tree
+      pkgs.nvd
+      pkgs.nixd
+
       # Devenv-specific additions for working on this repo
       pkgs.optnix
       pkgs.nix-unit
