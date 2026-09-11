@@ -31,7 +31,6 @@
 
     opencode = {
       enable = true;
-      model = "local-bifrost/omlx/qwen3.8-27b";
     };
 
     llmClient.rtk.enable = true;

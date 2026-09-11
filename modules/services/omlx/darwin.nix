@@ -35,6 +35,32 @@
   # Keep the signed system shell as the launchd child. Homebrew's Python
   # executable is ad-hoc signed and macOS 26 rejects it as a direct agent.
   omlxCommand = "/bin/sh -c ${lib.escapeShellArg omlxArguments}";
+  metalToolchainMountPoint = "/Volumes/MetalToolchainCryptex";
+  metalToolchainMountScript = ''
+    set -eu
+
+    assetRoot="/System/Library/AssetsV2/com_apple_MobileAsset_MetalToolchain"
+    mountPoint="${metalToolchainMountPoint}"
+
+    if /sbin/mount | /usr/bin/grep -Fq " on $mountPoint "; then
+      exit 0
+    fi
+
+    /bin/mkdir -p "$mountPoint"
+
+    latestDmg=$(
+      /usr/bin/find "$assetRoot" -type f -name '*.dmg' -print 2>/dev/null \
+        | while IFS= read -r dmg; do
+            printf '%s %s\n' "$(/usr/bin/stat -f '%m' "$dmg")" "$dmg"
+          done \
+        | /usr/bin/sort -nr \
+        | /usr/bin/sed -n '1s/^[0-9]* //p'
+    )
+
+    if [ -n "$latestDmg" ]; then
+      /usr/bin/hdiutil attach "$latestDmg" -nobrowse -mountpoint "$mountPoint"
+    fi
+  '';
 in {
   options.myConfig.omlx = {
     enable = lib.mkEnableOption "oMLX inference server";
@@ -84,8 +110,20 @@ in {
     homebrew.brews = [
       {
         name = "jundot/omlx/omlx";
+        args = ["with-custom-kernel"];
       }
     ];
+
+    launchd.user.agents.metal-toolchain-mount = {
+      script = metalToolchainMountScript;
+      serviceConfig = {
+        RunAtLoad = true;
+        StartInterval = 300;
+        WatchPaths = ["/Volumes"];
+        StandardOutPath = "${darwinHomeDir}/Library/Logs/omlx/metal-toolchain-mount.log";
+        StandardErrorPath = "${darwinHomeDir}/Library/Logs/omlx/metal-toolchain-mount.error.log";
+      };
+    };
 
     launchd.user.agents.omlx = {
       command = omlxCommand;
