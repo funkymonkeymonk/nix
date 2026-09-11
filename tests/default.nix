@@ -22,6 +22,7 @@
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
+  testOmlx = import ./test-omlx.nix {inherit pkgs;};
 
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
@@ -211,6 +212,10 @@ in
     # Obsidian option tests
     obsidian-options = testObsidian.obsidianOptionsTest;
     obsidian-custom-options = testObsidian.obsidianCustomOptionsTest;
+
+    # oMLX Darwin Homebrew and Metal toolchain integration tests
+    omlx-custom-kernel-homebrew = testOmlx.omlxCustomKernelHomebrewTest;
+    omlx-metal-toolchain-mount-agent = testOmlx.metalToolchainMountAgentTest;
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
