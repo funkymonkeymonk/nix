@@ -53,6 +53,7 @@
   testDevBaseMigration = import ./test-dev-base-migration.nix {inherit pkgs;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
   testSkillsOptionOwnership = import ./test-skills-option-ownership.nix {inherit pkgs;};
+  testAgentOptionOwnership = import ./test-agent-option-ownership.nix {inherit pkgs;};
   testOptionsDoc =
     if self != null
     then import ./test-options-doc.nix {inherit pkgs self;}
@@ -99,6 +100,7 @@ in
     dev-base-migration = testDevBaseMigration.devBaseMigration;
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
+    agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
 
     # Package availability tests
     core-packages = testPackages.corePackagesTest;

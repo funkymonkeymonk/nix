@@ -104,27 +104,6 @@ with lib; {
           description = "Entertainment apps — macOS homebrew casks (steam, obs, discord)";
         };
       };
-      opencode = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "OpenCode AI assistant with rtk";
-        };
-      };
-      claude = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Claude Code AI assistant with rtk";
-        };
-      };
-      pi = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Pi coding agent with rtk";
-        };
-      };
 
       homebrew = {
         enable = mkOption {

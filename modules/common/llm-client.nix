@@ -13,9 +13,9 @@
 }: let
   cfg = config.myConfig.llmClient;
   anyAiRoleActive =
-    config.myConfig.roles.claude.enable
-    || config.myConfig.roles.opencode.enable
-    || config.myConfig.roles.pi.enable;
+    (config.myConfig.roles.claude.enable or false)
+    || (config.myConfig.roles.opencode.enable or false)
+    || (config.myConfig.roles.pi.enable or false);
 in {
   options.myConfig.llmClient = {
     serverHost = lib.mkOption {

@@ -9,6 +9,12 @@
   host = config.myConfig.llmClient.serverHost;
   port = config.myConfig.llmClient.serverPort;
 in {
+  options.myConfig.roles.claude.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Claude Code AI assistant with rtk";
+  };
+
   config = lib.mkIf cfg.enable {
     environment.systemPackages = with pkgs; [
       claude-code
