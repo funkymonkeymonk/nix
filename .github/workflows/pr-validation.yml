@@ -446,6 +446,45 @@ jobs:
           else
             exit 1
           fi
+  # VM checks require KVM and are kept separate from the non-VM check loop.
+  vm-tests:
+    name: NixOS VM Checks
+    runs-on: ubuntu-latest
+    needs: [lint, changes]
+    if: >
+      ${{
+        needs.changes.outputs.nix-files == 'true' ||
+        needs.changes.outputs.workflows == 'true'
+      }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          skipPush: true
+      - name: Build VM checks
+        run: |
+          set -euo pipefail
+          for check in \
+            vm-users \
+            vm-ssh \
+            vm-packages \
+            vm-role-foundation \
+            vm-role-developer; do
+            echo "--- Building $check ---"
+            nix build ".#checks.x86_64-linux.$check" \
+              --no-link --print-build-logs
+          done
+
   # Run foundation tests and auxiliary validation in a single job.
   # Both need identical setup (Nix + Cachix + devenv) and run on the same
   # runner, so merging them saves ~2.5 minutes of redundant setup per PR.
