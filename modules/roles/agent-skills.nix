@@ -5,6 +5,12 @@
 }: let
   cfg = config.myConfig.roles.agent-skills;
 in {
+  options.myConfig.roles.agent-skills.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "AI agent skills management (auto-enabled by opencode/claude)";
+  };
+
   options.myConfig.agent-skills.enable = lib.mkOption {
     type = lib.types.bool;
     default = false;

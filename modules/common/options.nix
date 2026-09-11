@@ -104,13 +104,6 @@ with lib; {
           description = "Entertainment apps — macOS homebrew casks (steam, obs, discord)";
         };
       };
-      agent-skills = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "AI agent skills management (auto-enabled by opencode/claude)";
-        };
-      };
       opencode = {
         enable = mkOption {
           type = types.bool;
