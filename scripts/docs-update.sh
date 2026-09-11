@@ -156,7 +156,7 @@ EOF
     
     if [[ -z "$roles" ]]; then
         log_warn "No role modules found in modules/roles/"
-        roles="base developer creative gaming desktop workstation entertainment agent-skills opencode claude pi llm-host"
+        roles="base developer creative gaming desktop workstation entertainment agent-skills opencode claude pi"
     fi
     
     # Generate documentation for each role from module filenames
@@ -272,20 +272,6 @@ Pi coding agent with rtk token optimization.
 **Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
 
 **Enables:** `agent-skills`, `pi` config management
-
-EOF
-                ;;
-            llm-host)
-                cat >> "$output_file" << 'EOF'
-Local model hosting.
-
-**Packages:** oMLX
-
-EOF
-                ;;
-            llm-server)
-                cat >> "$output_file" << 'EOF'
-LiteLLM server (placeholder).
 
 EOF
                 ;;

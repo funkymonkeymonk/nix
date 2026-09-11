@@ -4,19 +4,6 @@
   "description": "Clean up dead code, fix inconsistencies, improve documentation, and enhance developer experience in the Nix configuration repository",
   "userStories": [
     {
-      "id": "US-001",
-      "title": "Remove dead llm-server role",
-      "description": "As a maintainer, I want to remove the unused llm-server role from bundles.nix so the codebase is cleaner",
-      "acceptanceCriteria": [
-        "llm-server entry removed from bundles.nix roles",
-        "devenv tasks run ci:lint passes",
-        "nix flake check --no-build passes"
-      ],
-      "priority": 1,
-      "passes": false,
-      "notes": ""
-    },
-    {
       "id": "US-002",
       "title": "Uncomment zero NixOS config in build task",
       "description": "As a maintainer, I want the zero NixOS configuration to be tested in CI so all configs are validated",
@@ -77,19 +64,6 @@
         "devenv tasks run ci:lint passes"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": "US-007",
-      "title": "Document llm-server role",
-      "description": "As a user, I want documentation for the llm-server role to understand its purpose",
-      "acceptanceCriteria": [
-        "If llm-server is kept, docs/reference/roles.md includes it",
-        "If removed, bundles.nix no longer references it",
-        "devenv tasks run docs:generate succeeds"
-      ],
-      "priority": 7,
       "passes": false,
       "notes": ""
     },

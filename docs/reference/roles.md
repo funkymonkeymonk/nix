@@ -48,6 +48,8 @@ Development tools and environment.
 
 **Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj
 
+### developer-packages
+
 ### email-backup
 
 ### entertainment
