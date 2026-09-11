@@ -150,13 +150,15 @@ Roles are defined as NixOS modules in `modules/roles/`. Each role is gated by `m
 
 EOF
 
-    # Get role names from filenames
+    # Get role names from filenames without maintaining a separate role list.
     local roles
-    roles=$(ls "$roles_dir"/*.nix 2>/dev/null | xargs -I{} basename {} .nix | grep -v default | sort)
-    
+    roles=$(find "$roles_dir" -maxdepth 1 -type f -name '*.nix' ! -name 'default.nix' -printf '%f\n' \
+        | sed 's/\.nix$//' \
+        | sort)
+
     if [[ -z "$roles" ]]; then
-        log_warn "No role modules found in modules/roles/"
-        roles="base developer creative gaming desktop workstation entertainment agent-skills opencode claude pi"
+        log_error "No role modules found in modules/roles/"
+        return 1
     fi
     
     # Generate documentation for each role from module filenames
