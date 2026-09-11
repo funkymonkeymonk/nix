@@ -1,1 +1,0 @@
-Extend tests/test-phase3-zero.nix to assert zero is composed via flake-parts module
