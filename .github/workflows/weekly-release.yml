@@ -183,10 +183,8 @@ jobs:
           fi
       - name: Create PR with auto-merge
         if: >
-          ${{
-            steps.check-updates.outputs.changes_detected == 'true' &&
-            steps.validate.outputs.status == 'passed'
-          }}
+          steps.check-updates.outputs.changes_detected == 'true' &&
+          steps.validate.outputs.status == 'passed'
         id: create-pr
         run: |
           branch_name="weekly-release-$(date +%Y-%m-%d)"
