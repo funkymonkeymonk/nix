@@ -238,26 +238,26 @@ jobs:
     steps:
       - name: Report results
         run: |
-          echo "## Weekly Flake Update Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Weekly Flake Update Summary"
+            echo ""
 
-          FLAKE="${{ needs.flake-update.result }}"
+            FLAKE="${{ needs.flake-update.result }}"
 
-          echo "| Step | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Flake Update | $FLAKE |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Step | Status |"
+            echo "|------|--------|"
+            echo "| Flake Update | $FLAKE |"
 
-          if [ -n "${{ needs.flake-update.outputs.pr-url }}" ]; then
-            PR_URL="${{ needs.flake-update.outputs.pr-url }}"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "PR created: $PR_URL" >> "$GITHUB_STEP_SUMMARY"
-            echo "Auto-merge enabled. Release will trigger on merge." \
-              >> "$GITHUB_STEP_SUMMARY"
-          elif [ "${{ needs.flake-update.outputs.changes-detected }}" = "true" ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Validation failed** — PR was not created." \
-              >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "No flake input changes detected." >> "$GITHUB_STEP_SUMMARY"
-          fi
+            if [ -n "${{ needs.flake-update.outputs.pr-url }}" ]; then
+              PR_URL="${{ needs.flake-update.outputs.pr-url }}"
+              echo ""
+              echo "PR created: $PR_URL"
+              echo "Auto-merge enabled. Release will trigger on merge."
+            elif [ "${{ needs.flake-update.outputs.changes-detected }}" = "true" ]; then
+              echo ""
+              echo "**Validation failed** — PR was not created."
+            else
+              echo ""
+              echo "No flake input changes detected."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
