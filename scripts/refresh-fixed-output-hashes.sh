@@ -23,6 +23,7 @@ for encoded_target in "${targets[@]}"; do
   file=$(jq -r '.file' <<< "$target")
   start=$(jq -r '.start' <<< "$target")
   field=$(jq -r '.field' <<< "$target")
+  bootstrap=$(jq -r '.bootstrap // "lib.fakeHash"' <<< "$target")
   build_log=$(mktemp)
   trap 'rm -f "$build_log"' EXIT
   built=false
@@ -44,6 +45,14 @@ for encoded_target in "${targets[@]}"; do
       's/.*To correct the hash mismatch for ([^,]+), use "([^"]+)".*/\1|\2/p' \
       "$build_log" | sed -n '$p')
     if [ -z "$mismatch" ]; then
+      if grep -Eq "(npmDepsHash|vendorHash) is out of date" "$build_log"; then
+        sed -i \
+          -e "/$start/,/^[[:space:]]*});/ s|$field = .*;|$field = $bootstrap;|" \
+          "$file"
+        echo "Bootstrapped $name with lib.fakeHash"
+        continue
+      fi
+
       derivation=$(sed -nE \
         "s|.*fixed-output derivation '.*/([^/]+)\\.drv':|\\1|p" \
         "$build_log" | sed -n '$p')
