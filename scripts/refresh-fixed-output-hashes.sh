@@ -44,8 +44,18 @@ for encoded_target in "${targets[@]}"; do
       's/.*To correct the hash mismatch for ([^,]+), use "([^"]+)".*/\1|\2/p' \
       "$build_log" | sed -n '$p')
     if [ -z "$mismatch" ]; then
-      echo "ERROR: $name failed without a recognized fixed-output hash" >&2
-      exit 1
+      derivation=$(sed -nE \
+        "s|.*fixed-output derivation '.*/([^/]+)\\.drv':|\\1|p" \
+        "$build_log" | sed -n '$p')
+      replacement_hash=$(sed -nE \
+        's/.*got:[[:space:]]+(sha256-[^[:space:]]+).*/\1/p' \
+        "$build_log" | sed -n '$p')
+      if [ -n "$derivation" ] && [ -n "$replacement_hash" ]; then
+        mismatch="$derivation|$replacement_hash"
+      else
+        echo "ERROR: $name failed without a recognized fixed-output hash" >&2
+        exit 1
+      fi
     fi
 
     derivation=${mismatch%%|*}
