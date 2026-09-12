@@ -40,6 +40,8 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           upstream-cache: false
+      - name: Install devenv
+        run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Close existing flake update PRs
         id: close-existing
         run: |
@@ -84,71 +86,21 @@ jobs:
             git checkout -- flake.lock
           fi
           rm -f flake.lock.before
-      - name: Refresh Bifrost fixed-output hashes
+      - name: Refresh fixed-output hashes
         if: steps.check-updates.outputs.changes_detected == 'true'
         run: |
-          set -euo pipefail
-
-          # Bifrost publishes generated npm and Go dependency trees. Their
-          # hashes are pinned in our overlay and must move with the input.
-          build_log=$(mktemp)
-          trap 'rm -f "$build_log"' EXIT
-          built=false
-
-          for attempt in 1 2 3; do
-            echo "Building Bifrost compatibility target (attempt $attempt/3)..."
-            if nix build \
-                .#darwinConfigurations.wweaver.system \
-                --no-link --print-build-logs 2>&1 | tee "$build_log"; then
-              echo "Bifrost compatibility target built successfully"
-              built=true
-              break
-            fi
-
-            mismatch=$(sed -nE \
-              's/.*To correct the hash mismatch for ([^,]+), use "([^"]+)".*/\1|\2/p' \
-              "$build_log" | sed -n '$p')
-            if [ -z "$mismatch" ]; then
-              echo "::error::Bifrost build failed without a recognized hash"
-              exit 1
-            fi
-
-            derivation=${mismatch%%|*}
-            replacement_hash=${mismatch#*|}
-            case "$derivation" in
-              bifrost-ui-npm-deps)
-                sed -i \
-                  -e '/bifrost-ui =/,/^[[:space:]]*});/ {' \
-                  -e "s|hash = \"sha256-[^\"]*\";|hash = \"$replacement_hash\";|" \
-                  -e '}' \
-                  overlays/default.nix
-                ;;
-              bifrost-http-go-modules|bifrost-http-vendor)
-                sed -i \
-                  -e '/bifrost-http =/,/^[[:space:]]*});/ {' \
-                  -e "s|vendorHash = \"sha256-[^\"]*\";|vendorHash = \"$replacement_hash\";|" \
-                  -e '}' \
-                  overlays/default.nix
-                ;;
-              *)
-                echo "::error::Unsupported Bifrost fixed-output derivation: $derivation"
-                exit 1
-                ;;
-            esac
-
-            if git diff --quiet -- overlays/default.nix; then
-              echo "::error::Could not update the overlay for $derivation"
-              exit 1
-            fi
-            git diff -- overlays/default.nix
-            git add overlays/default.nix
-            git commit -m "fix: refresh Bifrost dependency hash"
-          done
-
-          if [ "$built" != true ]; then
-            echo "::error::Bifrost target still fails after three hash refresh attempts"
+          devenv tasks run maintenance:refresh-fixed-output-hashes
+      - name: Commit refreshed fixed-output hashes
+        if: steps.check-updates.outputs.changes_detected == 'true'
+        run: |
+          if git diff --quiet; then
+            echo "No fixed-output hash changes were produced"
             exit 1
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add overlays .github/fixed-output-hashes.json
+          git commit -m "fix: refresh fixed-output dependency hashes"
       - name: Validate flake
         if: steps.check-updates.outputs.changes_detected == 'true'
         id: validate
