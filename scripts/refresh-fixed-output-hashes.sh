@@ -78,7 +78,7 @@ for encoded_target in "${targets[@]}"; do
 
     sed -i \
       -e "/$start/,/^[[:space:]]*});/ {" \
-      -e "s|$field = \"sha256-[^\"]*\";|$field = \"$replacement_hash\";|" \
+      -e "s|$field = .*;|$field = \"$replacement_hash\";|" \
       -e '}' \
       "$file"
 
