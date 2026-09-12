@@ -98,7 +98,7 @@ jobs:
           for attempt in 1 2 3; do
             echo "Building Bifrost compatibility target (attempt $attempt/3)..."
             if nix build \
-                .#darwinConfigurations.wweaver.system \
+                .#checks.x86_64-linux.vm-role-foundation \
                 --no-link --print-build-logs 2>&1 | tee "$build_log"; then
               echo "Bifrost compatibility target built successfully"
               built=true
