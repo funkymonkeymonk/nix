@@ -54,7 +54,7 @@ for encoded_target in "${targets[@]}"; do
       fi
 
       derivation=$(sed -nE \
-        "s|.*fixed-output derivation '.*/([^/]+)\\.drv':|\\1|p" \
+        "s|.*fixed-output derivation '.*/[a-z0-9]{32}-(.*)\\.drv':|\\1|p" \
         "$build_log" | sed -n '$p')
       replacement_hash=$(sed -nE \
         's/.*got:[[:space:]]+(sha256-[^[:space:]]+).*/\1/p' \
