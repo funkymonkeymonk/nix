@@ -45,7 +45,9 @@ for encoded_target in "${targets[@]}"; do
       's/.*To correct the hash mismatch for ([^,]+), use "([^"]+)".*/\1|\2/p' \
       "$build_log" | sed -n '$p')
     if [ -z "$mismatch" ]; then
-      if grep -Eq "(npmDepsHash|vendorHash) is out of date" "$build_log"; then
+      if grep -Eq \
+        "(npmDepsHash|vendorHash) is out of date|missing go.sum entry" \
+        "$build_log"; then
         sed -i \
           -e "/$start/,/^[[:space:]]*});/ s|$field = .*;|$field = $bootstrap;|" \
           "$file"
