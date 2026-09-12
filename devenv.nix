@@ -509,6 +509,13 @@ in {
     # VALIDATION TASKS
     # ============================================
 
+    "maintenance:refresh-fixed-output-hashes" = {
+      description = "Refresh fixed-output hashes for imported flake packages";
+      exec = ''
+        ./scripts/refresh-fixed-output-hashes.sh
+      '';
+    };
+
     "validate:all" = {
       description = "Run all validation tasks (disko + install-script)";
       after = ["validate:disko" "validate:install-script"];
