@@ -2,7 +2,7 @@
   "targets": [
     {
       "name": "bifrost-ui-npm-deps",
-      "buildTarget": ".#checks.x86_64-linux.vm-role-foundation",
+      "buildTarget": ".#packages.x86_64-linux.bifrost-ui",
       "file": "overlays/default.nix",
       "start": "bifrost-ui =",
       "field": "hash",
@@ -11,7 +11,7 @@
     {
       "name": "bifrost-http-go-modules",
       "derivationPattern": "^bifrost-http-(go-modules|vendor)$",
-      "buildTarget": ".#checks.x86_64-linux.vm-role-foundation",
+      "buildTarget": ".#packages.x86_64-linux.bifrost-http",
       "file": "overlays/default.nix",
       "start": "bifrost-http =",
       "field": "vendorHash",

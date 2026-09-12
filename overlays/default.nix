@@ -118,12 +118,19 @@
     });
 
     bifrost-http =
-      ((inputs.bifrost.packages.${final.system}.bifrost-http).override {
+      (inputs.bifrost.packages.${final.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
-      }).overrideAttrs (_prev: {
+      }).overrideAttrs (prev: {
         # The latest upstream revision ships vendor/modules.txt from an older
         # module graph. Regenerate it from go.mod until upstream refreshes it.
         vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
+        preBuild =
+          (prev.preBuild or "")
+          + ''
+            if [ "''${GOPROXY:-off}" != off ]; then
+              go mod download github.com/mattn/go-isatty@v0.0.24
+            fi
+          '';
       });
   }
   else {}
