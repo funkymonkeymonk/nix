@@ -18,6 +18,7 @@ fi
 for encoded_target in "${targets[@]}"; do
   target=$(printf '%s' "$encoded_target" | base64 --decode)
   name=$(jq -r '.name' <<< "$target")
+  derivation_pattern=$(jq -r '.derivationPattern // ("^" + .name + "$" )' <<< "$target")
   build_target=$(jq -r '.buildTarget' <<< "$target")
   file=$(jq -r '.file' <<< "$target")
   start=$(jq -r '.start' <<< "$target")
@@ -49,8 +50,8 @@ for encoded_target in "${targets[@]}"; do
 
     derivation=${mismatch%%|*}
     replacement_hash=${mismatch#*|}
-    if [ "$derivation" != "$name" ]; then
-      echo "ERROR: expected $name but Nix reported $derivation" >&2
+    if ! printf '%s\n' "$derivation" | grep -Eq "$derivation_pattern"; then
+      echo "ERROR: expected $derivation_pattern but Nix reported $derivation" >&2
       exit 1
     fi
 

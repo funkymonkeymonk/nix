@@ -9,6 +9,7 @@
     },
     {
       "name": "bifrost-http-go-modules",
+      "derivationPattern": "^bifrost-http-(go-modules|vendor)$",
       "buildTarget": ".#checks.x86_64-linux.vm-role-foundation",
       "file": "overlays/default.nix",
       "start": "bifrost-http =",
