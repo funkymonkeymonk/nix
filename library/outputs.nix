@@ -14,7 +14,7 @@
   in {
     packages =
       {
-        inherit (pkgs) rtk yaks lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp;
+        inherit (pkgs) rtk yaks lm-eval lighteval bfcl-eval bigcodebench evalscope openai-evals humaneval-mbpp bifrost-ui bifrost-http;
         inherit (inputs.devenv.packages.${system}) devenv;
         installer = pkgs.callPackage ../packages/installer {};
       }
