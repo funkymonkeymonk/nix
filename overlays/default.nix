@@ -124,11 +124,13 @@
         # The latest upstream revision ships vendor/modules.txt from an older
         # module graph. Regenerate it from go.mod until upstream refreshes it.
         vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
-        preBuild =
-          (prev.preBuild or "")
+        postPatch =
+          (prev.postPatch or "")
           + ''
-            if [ "''${GOPROXY:-off}" != off ]; then
-              go mod download github.com/mattn/go-isatty@v0.0.24
+            if ! grep -q '^github.com/mattn/go-isatty v0.0.24/go.mod ' transports/go.sum; then
+              printf '%s\n' \
+                'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \
+                >> transports/go.sum
             fi
           '';
       });
