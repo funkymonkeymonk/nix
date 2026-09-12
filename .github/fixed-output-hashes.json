@@ -5,7 +5,8 @@
       "buildTarget": ".#checks.x86_64-linux.vm-role-foundation",
       "file": "overlays/default.nix",
       "start": "bifrost-ui =",
-      "field": "hash"
+      "field": "hash",
+      "bootstrap": "final.lib.fakeHash"
     },
     {
       "name": "bifrost-http-go-modules",
@@ -13,7 +14,8 @@
       "buildTarget": ".#checks.x86_64-linux.vm-role-foundation",
       "file": "overlays/default.nix",
       "start": "bifrost-http =",
-      "field": "vendorHash"
+      "field": "vendorHash",
+      "bootstrap": "final.lib.fakeHash"
     }
   ]
 }
