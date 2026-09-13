@@ -102,6 +102,13 @@
         exit 1
       fi
 
+      if python -c 'import modelscope' > /dev/null 2>&1; then
+        echo "  FAIL: ModelScope is still in the EvalScope runtime closure"
+        exit 1
+      else
+        echo "  ModelScope is not in the EvalScope runtime closure: OK"
+      fi
+
       echo "evalscope package test passed"
       touch $out
     '';

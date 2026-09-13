@@ -39,6 +39,7 @@ python3Packages.buildPythonApplication rec {
     # Still included via propagatedBuildInputs below; just drop the
     # unsatisfiable metadata requirement check.
     "dotenv"
+    "modelscope"
   ];
 
   propagatedBuildInputs = with python3Packages; [
@@ -54,7 +55,6 @@ python3Packages.buildPythonApplication rec {
     jsonschema
     litellm
     markdown
-    modelscope
     datasets
     more-itertools
     nltk
