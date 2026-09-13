@@ -3,7 +3,6 @@
   permittedInsecurePackages = [
     "electron-39.8.10"
     "google-chrome-144.0.7559.97"
-    "python3.14-modelscope-1.39.1"
     "olm-3.2.16"
   ];
   allowInsecurePredicate = attrs: let
@@ -13,7 +12,6 @@
     builtins.elem fullName [
       "electron-39.8.10"
       "google-chrome-144.0.7559.97"
-      "modelscope-1.39.1"
       "olm-3.2.16"
     ];
 }
