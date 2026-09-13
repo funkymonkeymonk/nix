@@ -123,6 +123,7 @@
       }).overrideAttrs (prev: {
         # The latest upstream revision ships vendor/modules.txt from an older
         # module graph. Regenerate it from go.mod until upstream refreshes it.
+        deleteVendor = true;
         vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
         postPatch =
           (prev.postPatch or "")
