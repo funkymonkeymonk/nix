@@ -97,7 +97,7 @@
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
-        hash = "sha256-1eEw976l9xb0nLyoc5vUv1536EUvmdVtCBdz+FpprgQ=";
+        hash = "sha256-cOswnT4ZahWX66h9oiw4t3r5GZeOH/yjbnTCAsjVgnw=";
       };
       # Temporary compatibility patch for the latest upstream OSS fallback:
       # VKCreationPolicyResponse is referenced there but is no longer exported
@@ -123,7 +123,7 @@
       }).overrideAttrs (prev: {
         # The latest upstream revision ships vendor/modules.txt from an older
         # module graph. Regenerate it from go.mod until upstream refreshes it.
-        vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
+        vendorHash = "sha256-nBBAYul5IBjuDOx8gwtI5w6nq31hn0v+kjLD8PA3ahY=";
         postPatch =
           (prev.postPatch or "")
           + ''
