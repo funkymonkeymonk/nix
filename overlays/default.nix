@@ -123,11 +123,11 @@
       }).overrideAttrs (prev: {
         # The latest upstream revision ships vendor/modules.txt from an older
         # module graph. Regenerate it from go.mod until upstream refreshes it.
-        deleteVendor = true;
         vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
         postPatch =
           (prev.postPatch or "")
           + ''
+            rm -rf transports/vendor
             if ! grep -q '^github.com/mattn/go-isatty v0.0.24/go.mod ' transports/go.sum; then
               printf '%s\n' \
                 'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \
