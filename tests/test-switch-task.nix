@@ -11,10 +11,15 @@
       grep -q 'switch() {.*system:switch' <<< "$source"
       grep -q 'command devenv tasks run system:switch' <<< "$source"
 
-      # NixOS runs from devenv without an interactive sudo prompt.
+      # The shared helper provides non-interactive sudo for system tasks.
+      grep -q 'runWithSudoPassword = ' "$devenv"
+      grep -q 'run_with_sudo_password()' "$devenv"
+      grep -q 'sudo -S' "$devenv"
+      grep -q 'op read' "$devenv"
+
+      # system:switch includes the shared helper in its task body.
       linux_task=$(sed -n '/"system:switch" = {/,/^[[:space:]]*};/p' "$devenv")
-      grep -q 'sudo -S' <<< "$linux_task"
-      grep -q 'op read' <<< "$linux_task"
+      grep -q 'runWithSudoPassword' <<< "$linux_task"
 
       touch "$out"
     '';
