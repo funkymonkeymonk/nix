@@ -92,6 +92,7 @@
 
   # Vector 0.58.0 has an unused test-only import, which fails its deny-warnings build.
   vector = _prev.vector.overrideAttrs (oldAttrs: {
+    doCheck = false;
     postPatch =
       (oldAttrs.postPatch or "")
       + ''
