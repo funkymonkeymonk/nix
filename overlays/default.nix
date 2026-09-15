@@ -89,6 +89,16 @@
       outputHash = "sha256-YKVG2x4ipquJIQGTD22S1VEpmjLhNQiEEbAU6OiZRYE=";
     });
   });
+
+  # Vector 0.58.0 has an unused test-only import, which fails its deny-warnings build.
+  vector = _prev.vector.overrideAttrs (oldAttrs: {
+    postPatch =
+      (oldAttrs.postPatch or "")
+      + ''
+        substituteInPlace src/trace.rs \
+          --replace-fail "    use futures::StreamExt as _;" ""
+      '';
+  });
 }
 // (
   if inputs ? bifrost
