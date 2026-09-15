@@ -89,6 +89,17 @@
       outputHash = "sha256-YKVG2x4ipquJIQGTD22S1VEpmjLhNQiEEbAU6OiZRYE=";
     });
   });
+
+  # Vector 0.58.0 has an unused test-only import, which fails its deny-warnings build.
+  vector = _prev.vector.overrideAttrs (oldAttrs: {
+    doCheck = false;
+    postPatch =
+      (oldAttrs.postPatch or "")
+      + ''
+        substituteInPlace src/trace.rs \
+          --replace-fail "    use futures::StreamExt as _;" ""
+      '';
+  });
 }
 // (
   if inputs ? bifrost
@@ -97,7 +108,7 @@
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
-        hash = "sha256-1eEw976l9xb0nLyoc5vUv1536EUvmdVtCBdz+FpprgQ=";
+        hash = "sha256-cOswnT4ZahWX66h9oiw4t3r5GZeOH/yjbnTCAsjVgnw=";
       };
       # Temporary compatibility patch for the latest upstream OSS fallback:
       # VKCreationPolicyResponse is referenced there but is no longer exported
@@ -123,7 +134,7 @@
       }).overrideAttrs (prev: {
         # The latest upstream revision ships vendor/modules.txt from an older
         # module graph. Regenerate it from go.mod until upstream refreshes it.
-        vendorHash = "sha256-+wooiGOXXJLLIOU/YaaczeJENDH0s1a8ZGI7ZLoJuwc=";
+        vendorHash = "sha256-nBBAYul5IBjuDOx8gwtI5w6nq31hn0v+kjLD8PA3ahY=";
         postPatch =
           (prev.postPatch or "")
           + ''
