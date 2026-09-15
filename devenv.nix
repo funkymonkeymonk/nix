@@ -14,6 +14,29 @@
   evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
   openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
+  runWithSudoPassword = ''
+    run_with_sudo_password() {
+      local password_path="$1"
+      shift
+
+      if ! command -v op &> /dev/null; then
+        echo "ERROR: 1Password CLI (op) not found"
+        echo "Install 1Password CLI to use this task"
+        return 1
+      fi
+
+      local sudo_password
+      echo "Fetching sudo password from 1Password..."
+      echo "  Path: $password_path"
+      sudo_password=$(op read "$password_path" 2>&1) || {
+        echo "ERROR: Failed to read sudo password from 1Password"
+        echo "  Attempted path: $password_path"
+        return 1
+      }
+
+      printf '%s\n' "$sudo_password" | sudo -S "$@"
+    }
+  '';
 in {
   packages =
     foundationPackages
@@ -111,6 +134,39 @@ in {
     # Source interactive TUI functions (use these instead of devenv tasks)
     source ./modules/common/scripts/dev-ide
     source ./modules/common/scripts/pr-review
+  '';
+
+  scripts.nix-gc.exec = ''
+    set -euo pipefail
+    ${runWithSudoPassword}
+
+    case "$(uname -s)" in
+      Darwin)
+        PLATFORM="macOS"
+        ;;
+      Linux)
+        PLATFORM="NixOS/Linux"
+        ;;
+      *)
+        echo "This script only supports macOS and NixOS/Linux"
+        exit 1
+        ;;
+    esac
+
+    KEEP_DAYS="''${KEEP_DAYS:-30}"
+    if [[ ! "$KEEP_DAYS" =~ ^[1-9][0-9]*$ ]]; then
+      echo "KEEP_DAYS must be a positive number of days (default: 30)"
+      exit 1
+    fi
+
+    echo "Platform: $PLATFORM"
+    echo "Removing unused Nix store paths and generations older than $KEEP_DAYS days"
+    echo "Run with KEEP_DAYS=7 for a more aggressive cleanup."
+
+    HOSTNAME=$(hostname -s)
+    PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+    run_with_sudo_password "$PASSWORD_PATH" \
+      nix-collect-garbage --delete-older-than "''${KEEP_DAYS}d"
   '';
 
   # Disable devenv's built-in cachix module — we manage cachix manually via pkgs.cachix.
@@ -327,6 +383,7 @@ in {
       description = "Apply configuration to current system (platform-aware)";
       exec = ''
         set -euo pipefail
+        ${runWithSudoPassword}
 
         echo "=== System Switch ==="
         echo ""
@@ -377,14 +434,6 @@ in {
           echo "Configuration: $CONFIG_NAME"
           echo ""
 
-          # Check for 1Password CLI
-          if ! command -v op &> /dev/null; then
-            echo "ERROR: 1Password CLI (op) not found"
-            echo "Install 1Password CLI to use this task"
-            exit 1
-          fi
-          echo "1Password CLI: found"
-
           # Get sudo password from 1Password
           # Check if config defines a custom sudoPasswordRef, otherwise use default pattern
           CUSTOM_REF=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
@@ -393,29 +442,14 @@ in {
           else
             PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
           fi
-          echo "Fetching sudo password from 1Password..."
-          echo "  Path: $PASSWORD_PATH"
-
-          SUDO_PASSWORD=$(op read "$PASSWORD_PATH" 2>&1) || {
-            echo ""
-            echo "ERROR: Failed to read sudo password from 1Password"
-            echo "  Attempted path: $PASSWORD_PATH"
-            echo ""
-            echo "Ensure the item exists in 1Password."
-            echo "You can set myConfig.onepassword.sudoPasswordRef in the machine config"
-            echo "to override the default path (op://Private/<hostname> Sudo Password/password)."
-            exit 1
-          }
-          echo "Sudo password: retrieved"
-          echo ""
-
           # Build and switch with output logging
           SWITCH_LOG="/tmp/system-switch-$(date +%Y%m%d-%H%M%S).log"
           echo "Build log: $SWITCH_LOG"
           echo ""
 
           set -o pipefail
-          echo "$SUDO_PASSWORD" | sudo -S NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
+          run_with_sudo_password "$PASSWORD_PATH" \
+            env NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
             --flake "./#$CONFIG_NAME" \
             --impure \
             --show-trace 2>&1 | tee "$SWITCH_LOG" || {
@@ -439,39 +473,18 @@ in {
 
           # devenv tasks do not guarantee an interactive terminal, so provide
           # sudo with the configured password just as the Darwin path does.
-          if ! command -v op &> /dev/null; then
-            echo "ERROR: 1Password CLI (op) not found"
-            echo "Install 1Password CLI to use this task"
-            exit 1
-          fi
-
           CUSTOM_REF=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
           if [[ -n "$CUSTOM_REF" ]]; then
             PASSWORD_PATH="$CUSTOM_REF"
           else
             PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
           fi
-          echo "Fetching sudo password from 1Password..."
-          echo "  Path: $PASSWORD_PATH"
-
-          SUDO_PASSWORD=$(op read "$PASSWORD_PATH" 2>&1) || {
-            echo ""
-            echo "ERROR: Failed to read sudo password from 1Password"
-            echo "  Attempted path: $PASSWORD_PATH"
-            echo ""
-            echo "Ensure the item exists in 1Password."
-            echo "You can set myConfig.onepassword.sudoPasswordRef in the machine config"
-            echo "to override the default path (op://Private/<hostname> Sudo Password/password)."
-            exit 1
-          }
-          echo "Sudo password: retrieved"
-          echo ""
-
           echo "--- Building Configuration ---"
           echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"
           echo ""
 
-          echo "$SUDO_PASSWORD" | sudo -S nixos-rebuild switch \
+          run_with_sudo_password "$PASSWORD_PATH" \
+            nixos-rebuild switch \
             --flake "./#$CONFIG_NAME" \
             --impure \
             --show-trace 2>&1 || {
@@ -492,6 +505,11 @@ in {
         echo "=== System Switch Complete ==="
         echo "Configuration '$CONFIG_NAME' applied successfully"
       '';
+    };
+
+    "system:gc" = {
+      description = "Remove unused Nix store paths and old generations (macOS and NixOS)";
+      exec = "nix-gc";
     };
 
     "system:init" = {
