@@ -27,6 +27,12 @@ in {
       description = "Temporal frontend bind address.";
     };
 
+    uiIp = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      description = "Temporal Web UI bind address.";
+    };
+
     port = lib.mkOption {
       type = lib.types.port;
       default = 7233;
@@ -62,7 +68,7 @@ in {
           --ip ${lib.escapeShellArg cfg.ip} \
           --port ${toString cfg.port} \
           --headless=false \
-          --ui-ip ${lib.escapeShellArg cfg.ip} \
+           --ui-ip ${lib.escapeShellArg cfg.uiIp} \
           --ui-port ${toString cfg.uiPort} \
           ${namespaceArgs} \
           --db-filename ${lib.escapeShellArg "${cfg.stateDir}/temporal.sqlite"}

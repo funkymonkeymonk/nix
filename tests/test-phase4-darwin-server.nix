@@ -54,11 +54,25 @@
       let
         megamanx = self.darwinConfigurations.MegamanX.config;
       in
-        if !(builtins.hasAttr "temporal" megamanx.myConfig)
+        if
+          !megamanx.myConfig.roles.developer.enable
+          && !megamanx.myConfig.roles.desktop.enable
+          && !megamanx.myConfig.roles.workstation.enable
+          && !megamanx.myConfig.roles.entertainment.enable
+          && !megamanx.myConfig.roles.homebrew.enable
+          && !megamanx.myConfig.roles.opencode.enable
+          && megamanx.myConfig.omlx.enable
+          && megamanx.myConfig.omlx.server.host == "0.0.0.0"
+          && megamanx.myConfig.bifrost.enable
+          && megamanx.myConfig.bifrost.host == "0.0.0.0"
+          && megamanx.myConfig.temporal.enable
+          && megamanx.myConfig.temporal.ip == "0.0.0.0"
+          && megamanx.myConfig.temporal.uiIp == "0.0.0.0"
+          && pkgs.lib.hasInfix "ghostty-terminfo" megamanx.environment.variables.TERMINFO_DIRS
         then ""
-        else ''echo "FAIL: MegamanX should not configure Temporal"; exit 1''
+        else ''echo "FAIL: MegamanX should be a minimal remotely accessible headless server"; exit 1''
     }
-    echo "  MegamanX: Temporal removed ✓"
+    echo "  MegamanX: minimal headless LLM server with remote Temporal ✓"
 
     echo ""
     echo "All darwin-server tests passed"

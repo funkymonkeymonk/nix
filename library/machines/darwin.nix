@@ -50,15 +50,11 @@ in {
       // {
         hostname = "MegamanX";
         modules = [
-          ../archetypes/workstation-darwin.nix
+          ../archetypes/headless-omlx-darwin.nix
           (inputs.nix-darwin + "/modules/homebrew.nix")
           ../../modules/services/bifrost/darwin.nix
-          ../../modules/services/searxng/darwin.nix
-          ../../modules/services/caddy/darwin.nix
           ../../modules/services/omlx/darwin.nix
-          ../../modules/services/prometheus/darwin.nix
-          ../../modules/services/node-exporter/darwin.nix
-          ../../modules/home-manager/aerospace.nix
+          ../../modules/services/temporal/darwin.nix
           ../../hosts/megamanx
         ];
       }
