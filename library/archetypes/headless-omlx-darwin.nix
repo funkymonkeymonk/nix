@@ -8,9 +8,15 @@
     ./base-darwin.nix
     inputs.nix-homebrew.darwinModules.nix-homebrew
     ../../modules/nixos/ghostty-terminfo.nix
+    ../../modules/services/prometheus/darwin.nix
+    ../../modules/services/node-exporter/darwin.nix
   ];
 
-  myConfig.skills.superpowersPath = inputs.superpowers or null;
+  myConfig = {
+    skills.superpowersPath = inputs.superpowers or null;
+    prometheus.enable = true;
+    nodeExporter.enable = true;
+  };
 
   services.openssh = {
     enable = true;

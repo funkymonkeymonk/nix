@@ -60,11 +60,18 @@
           && !megamanx.myConfig.roles.workstation.enable
           && !megamanx.myConfig.roles.entertainment.enable
           && !megamanx.myConfig.roles.homebrew.enable
+          && !megamanx.myConfig.roles.developer.enable
           && !megamanx.myConfig.roles.opencode.enable
+          && megamanx.myConfig.roles.pi.enable
+          && megamanx.myConfig.zellij.enable
+          && megamanx.myConfig.llmClient.serverPort == "8081"
           && megamanx.myConfig.omlx.enable
           && megamanx.myConfig.omlx.server.host == "0.0.0.0"
           && megamanx.myConfig.bifrost.enable
           && megamanx.myConfig.bifrost.host == "0.0.0.0"
+          && megamanx.myConfig.prometheus.enable
+          && megamanx.myConfig.nodeExporter.enable
+          && megamanx.myConfig.searxng.enable
           && megamanx.myConfig.temporal.enable
           && megamanx.myConfig.temporal.ip == "0.0.0.0"
           && megamanx.myConfig.temporal.uiIp == "0.0.0.0"

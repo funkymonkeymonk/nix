@@ -53,6 +53,7 @@ in {
           ../archetypes/headless-omlx-darwin.nix
           (inputs.nix-darwin + "/modules/homebrew.nix")
           ../../modules/services/bifrost/darwin.nix
+          ../../modules/services/searxng/darwin.nix
           ../../modules/services/omlx/darwin.nix
           ../../modules/services/temporal/darwin.nix
           ../../hosts/megamanx

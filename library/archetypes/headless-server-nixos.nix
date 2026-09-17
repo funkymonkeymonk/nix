@@ -7,10 +7,13 @@
   imports = [
     inputs.disko.nixosModules.disko
     ../../modules/nixos/base.nix
+    ../../modules/nixos/prometheus.nix
   ];
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers or null;
+    prometheus.enable = true;
+    nodeExporter.enable = true;
     onepassword = {
       tokenFile = "/etc/opnix/token";
       defaultVault = "Homelab";

@@ -378,6 +378,14 @@ or changing a `myConfig.*` option.
 | `work.enable` | boolean | `false` | This machine is used for an employer/work context (as opposed to purely personal use). Orthogonal to workstation (machine form-factor) — set explicitly per-host, not via a shared archetype. |
 | `workstation.enable` | boolean | `false` | Developer workstation/desktop tools (slack, trippy, unar) |
 
+### myConfig.searxng
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Enable SearXNG privacy-respecting metasearch engine |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8080` | Port for SearXNG web interface |
+| `secretKey` | string | `""` | Secret key for SearXNG. Auto-generated if empty. Set a stable value to avoid session resets. |
+
 ### myConfig.serviceRegistry
 
 | Option | Type | Default | Description |

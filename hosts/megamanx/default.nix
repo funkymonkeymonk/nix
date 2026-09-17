@@ -1,6 +1,11 @@
 # MegamanX headless inference server target configuration.
 # The host runs only the local oMLX/Bifrost stack and Temporal.
-{mkUser, ...}: {
+{
+  lib,
+  mkUser,
+  pkgs,
+  ...
+}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
@@ -26,6 +31,13 @@
         hotCacheMaxSize = "20GB";
       };
 
+      roles.pi.enable = true;
+      zellij.enable = true;
+      llmClient = {
+        serverHost = "127.0.0.1";
+        serverPort = "8081";
+      };
+
       bifrost = {
         enable = true;
         # UI for request tracing, logs, token analytics:
@@ -46,10 +58,34 @@
         };
       };
 
+      searxng.enable = true;
+
       temporal = {
         enable = true;
         ip = "0.0.0.0";
         uiIp = "0.0.0.0";
       };
     };
+
+  environment.systemPackages = with pkgs;
+    [
+      clang
+      python3
+      nodejs
+      yarn
+      gh-dash
+      slidev-cli
+      temporal-cli
+      mergiraf
+      gomuks
+    ]
+    ++ lib.optional (pkgs ? yaks) pkgs.yaks;
+
+  environment.shellAliases = {
+    yl = "yx ls";
+    yla = "yx ls --all";
+    ya = "yx add";
+    yd = "yx done";
+    ys = "yx sync";
+  };
 }
