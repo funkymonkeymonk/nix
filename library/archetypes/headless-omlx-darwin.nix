@@ -1,6 +1,7 @@
 # Minimal headless Darwin server profile for local inference services.
 {
   inputs,
+  lib,
   pkgs,
   ...
 }: {
@@ -14,6 +15,7 @@
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers or null;
+    pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
     prometheus.enable = true;
     nodeExporter.enable = true;
   };

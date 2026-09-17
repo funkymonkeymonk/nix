@@ -51,6 +51,7 @@ in {
           && lib.hasInfix "--namespace testing" agent.script
           && lib.hasInfix "--ip 0.0.0.0" agent.script
           && lib.hasInfix "--ui-ip 0.0.0.0" agent.script
+          && lib.hasInfix "--headless=true" agent.script
           && lib.hasInfix "--db-filename /Users/monkey/.local/share/temporal/temporal.sqlite" agent.script
           && agent.serviceConfig.RunAtLoad
           && agent.serviceConfig.KeepAlive

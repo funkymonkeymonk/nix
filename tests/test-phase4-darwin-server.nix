@@ -63,6 +63,7 @@
           && !megamanx.myConfig.roles.developer.enable
           && !megamanx.myConfig.roles.opencode.enable
           && megamanx.myConfig.roles.pi.enable
+          && megamanx.myConfig.pi.pluginsSource != null
           && megamanx.myConfig.zellij.enable
           && megamanx.myConfig.llmClient.serverPort == "8081"
           && megamanx.myConfig.omlx.enable

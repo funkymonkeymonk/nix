@@ -117,6 +117,12 @@ in {
       else ''echo "  port should default to 9100!"; exit 1''
     }
 
+    ${
+      if nodeExporterDefaults.listenAddress == "127.0.0.1:9100"
+      then ''echo "  listenAddress default is loopback: OK"''
+      else ''echo "  listenAddress should default to loopback!"; exit 1''
+    }
+
     echo "All node_exporter option defaults verified"
     touch $out
   '';

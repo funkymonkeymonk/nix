@@ -67,7 +67,7 @@ in {
           --log-format=json \
           --ip ${lib.escapeShellArg cfg.ip} \
           --port ${toString cfg.port} \
-          --headless=false \
+           --headless=true \
            --ui-ip ${lib.escapeShellArg cfg.uiIp} \
           --ui-port ${toString cfg.uiPort} \
           ${namespaceArgs} \

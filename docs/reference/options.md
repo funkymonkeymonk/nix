@@ -232,7 +232,7 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Enable Prometheus node_exporter for system metrics |
-| `listenAddress` | string | `"0.0.0.0:9100"` | Bind address for node_exporter HTTP server |
+| `listenAddress` | string | `"127.0.0.1:9100"` | Bind address for node_exporter HTTP server |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9100` | Port for node_exporter HTTP server |
 
 ### myConfig.obsidian
