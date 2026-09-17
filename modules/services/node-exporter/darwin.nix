@@ -46,7 +46,7 @@ in {
 
     listenAddress = lib.mkOption {
       type = lib.types.str;
-      default = "0.0.0.0:9100";
+      default = "127.0.0.1:9100";
       description = "Bind address for node_exporter HTTP server";
     };
   };

@@ -19,6 +19,8 @@
             config.myConfig.users = [{name = "monkey";}];
             config.myConfig.temporal = {
               enable = true;
+              ip = "0.0.0.0";
+              uiIp = "0.0.0.0";
               namespaces = ["inference" "testing"];
             };
           }
@@ -47,6 +49,9 @@ in {
         if
           lib.hasInfix "--namespace inference" agent.script
           && lib.hasInfix "--namespace testing" agent.script
+          && lib.hasInfix "--ip 0.0.0.0" agent.script
+          && lib.hasInfix "--ui-ip 0.0.0.0" agent.script
+          && lib.hasInfix "--headless=true" agent.script
           && lib.hasInfix "--db-filename /Users/monkey/.local/share/temporal/temporal.sqlite" agent.script
           && agent.serviceConfig.RunAtLoad
           && agent.serviceConfig.KeepAlive

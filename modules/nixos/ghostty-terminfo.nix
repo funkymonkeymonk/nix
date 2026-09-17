@@ -70,12 +70,20 @@
       tic -o $out/share/terminfo -x ghostty.terminfo
     '';
 in {
-  # Install ghostty terminfo into the system terminfo database
-  # This allows Ghostty users to SSH into this host without terminfo errors
-  environment.systemPackages = [ghosttyTerminfo];
-
-  # Ensure the terminfo search path includes system locations
-  environment.sessionVariables = {
-    TERMINFO_DIRS = lib.mkDefault "/etc/terminfo:${ghosttyTerminfo}/share/terminfo:/run/current-system/sw/share/terminfo";
-  };
+  # Install ghostty terminfo into the system terminfo database. This allows
+  # Ghostty users to SSH into this host without terminal capability errors.
+  # Darwin calls this option `variables`; NixOS calls it `sessionVariables`.
+  environment =
+    {
+      systemPackages = [ghosttyTerminfo];
+    }
+    // (
+      if pkgs.stdenv.hostPlatform.isDarwin
+      then {
+        variables.TERMINFO_DIRS = lib.mkForce "${ghosttyTerminfo}/share/terminfo:/etc/terminfo:/run/current-system/sw/share/terminfo";
+      }
+      else {
+        sessionVariables.TERMINFO_DIRS = lib.mkForce "${ghosttyTerminfo}/share/terminfo:/etc/terminfo:/run/current-system/sw/share/terminfo";
+      }
+    );
 }

@@ -8,10 +8,6 @@
   # Loki instance on this host. See modules/nixos/{vector,loki}.nix.
   myConfig.vector.enable = true;
   myConfig.loki.enable = true;
-  myConfig.prometheus = {
-    enable = true;
-    openFirewallTailscale = true;
-  };
-  myConfig.nodeExporter.enable = true;
+  myConfig.prometheus.openFirewallTailscale = true;
   myConfig.alertmanager.enable = true;
 }

@@ -91,15 +91,6 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `enable` | boolean | `true` | Enable Cachix binary cache |
 
-### myConfig.caddy
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `dataDir` | string | `"$HOME/.local/share/caddy"` | Directory for Caddy data (certs, config) |
-| `enable` | boolean | `false` | Enable Caddy reverse proxy with .internal hostnames to local services |
-| `hosts` | attribute set of string | `{ }` | Additional hostname->upstream mappings (e.g. { "app.internal" = "localhost:9000"; }) |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `80` | Port for Caddy HTTP listener |
-
 ### myConfig.charm
 
 | Option | Type | Default | Description |
@@ -241,7 +232,7 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Enable Prometheus node_exporter for system metrics |
-| `listenAddress` | string | `"0.0.0.0:9100"` | Bind address for node_exporter HTTP server |
+| `listenAddress` | string | `"127.0.0.1:9100"` | Bind address for node_exporter HTTP server |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9100` | Port for node_exporter HTTP server |
 
 ### myConfig.obsidian
@@ -440,6 +431,19 @@ or changing a `myConfig.*` option.
 | `authKeyOpnixItem` | string | `"Tailscale/auth-key"` | 1Password item reference for Tailscale auth key. If the value does not start with 'op://', it is treated as 'Item/Field' and the default vault is prepended. |
 | `enable` | boolean | `false` | Tailscale VPN with auto-connect via 1Password secrets |
 | `exitNode` | boolean | `false` | Advertise this machine as a Tailscale exit node |
+
+### myConfig.temporal
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable local Temporal server. |
+| `ip` | string | `"127.0.0.1"` | Temporal frontend bind address. |
+| `namespaces` | list of string | `[ "inference" ]` | Namespaces to create when the server starts. |
+| `package` | package | `<derivation temporal-cli-1.8.3>` | Temporal CLI package providing the development server. |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7233` | Temporal frontend gRPC port. |
+| `stateDir` | absolute path | `"/Users/monkey/.local/share/temporal"` | Directory containing Temporal's persistent SQLite state. |
+| `uiIp` | string | `"127.0.0.1"` | Temporal Web UI bind address. |
+| `uiPort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8233` | Temporal Web UI port. |
 
 ### myConfig.users
 
