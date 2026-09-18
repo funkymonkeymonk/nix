@@ -11,6 +11,9 @@
   zeroConfigText = builtins.readFile ../targets/zero/default.nix;
   streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
   caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
+  jellyfinNixosModuleText = builtins.readFile ../modules/nixos/jellyfin.nix;
+  backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
+  mediaAutomationModuleText = builtins.readFile ../modules/nixos/media-automation.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -249,6 +252,58 @@ in {
       ${assertContainsStr "Caddy firewall" "allowedTCPPorts = [80 443]" caddyNixosModuleText}
 
       echo "Zero Sunshine Caddy proxy test passed"
+      touch $out
+    '';
+
+  # Test: Jellyfin should use the existing root filesystem for media and be
+  # reachable through Caddy rather than exposing its native port directly.
+  zeroJellyfinTest =
+    pkgs.runCommand "test-zero-jellyfin"
+    {}
+    ''
+      echo "=== Testing Zero Jellyfin configuration ==="
+
+      ${assertContainsStr "Jellyfin enabled" "jellyfin.enable = true" zeroConfigText}
+      ${assertContainsStr "Backups enabled" "backup = {" zeroConfigText}
+      ${assertContainsStr "R2 backup repository" "personal-backups/zero" zeroConfigText}
+      ${assertContainsStr "Jellyfin media root" ''default = "/srv/media"'' jellyfinNixosModuleText}
+      ${assertContainsStr "Jellyfin service enabled" "services.jellyfin =" jellyfinNixosModuleText}
+      ${assertContainsStr "Jellyfin direct firewall disabled" "openFirewall = false" jellyfinNixosModuleText}
+      ${assertContainsStr "Jellyfin backup registration" ''path = "/var/lib/jellyfin"'' jellyfinNixosModuleText}
+      ${assertContainsStr "Jellyfin backup excludes cache" ''"cache"'' jellyfinNixosModuleText}
+      ${assertContainsStr "Jellyfin Caddy app" "apps.jellyfin = {" zeroConfigText}
+      ${assertContainsStr "Jellyfin hostname" "jellyfin.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Jellyfin upstream" "127.0.0.1:8096" zeroConfigText}
+      ${assertContainsStr "backup registry" "myConfig.backup.paths" backupNixosModuleText}
+      ${assertContainsStr "Restic integration" "services.restic.backups" backupNixosModuleText}
+
+      echo "Zero Jellyfin configuration test passed"
+      touch $out
+    '';
+
+  # Test: the media automation services should be native NixOS services,
+  # private behind Caddy, and share the media group for library management.
+  zeroMediaAutomationTest =
+    pkgs.runCommand "test-zero-media-automation"
+    {}
+    ''
+      echo "=== Testing Zero media automation services ==="
+
+      ${assertContainsStr "media automation enabled" "mediaAutomation.enable = true" zeroConfigText}
+      ${assertContainsStr "Sonarr service" "sonarr = {" mediaAutomationModuleText}
+      ${assertContainsStr "Radarr service" "radarr = {" mediaAutomationModuleText}
+      ${assertContainsStr "Prowlarr service" "prowlarr = {" mediaAutomationModuleText}
+      ${assertContainsStr "Bazarr service" "bazarr = {" mediaAutomationModuleText}
+      ${assertContainsStr "Seerr service" "seerr = {" mediaAutomationModuleText}
+      ${assertContainsStr "shared media group" "users.groups.media" mediaAutomationModuleText}
+      ${assertContainsStr "no direct firewall" "openFirewall = false" mediaAutomationModuleText}
+      ${assertContainsStr "Seerr Caddy app" "apps.seerr = {" zeroConfigText}
+      ${assertContainsStr "Sonarr Caddy app" "apps.sonarr = {" zeroConfigText}
+      ${assertContainsStr "Radarr Caddy app" "apps.radarr = {" zeroConfigText}
+      ${assertContainsStr "Prowlarr Caddy app" "apps.prowlarr = {" zeroConfigText}
+      ${assertContainsStr "Bazarr Caddy app" "apps.bazarr = {" zeroConfigText}
+
+      echo "Zero media automation test passed"
       touch $out
     '';
 }

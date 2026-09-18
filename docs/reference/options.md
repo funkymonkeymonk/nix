@@ -64,6 +64,20 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. |
 
+### myConfig.backup
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `accessKeyFile` | absolute path | `"/run/secrets/personal-backups-accesskey-id"` | Runtime file containing the object-storage access key ID |
+| `enable` | boolean | `false` | Whether to enable centralized Restic backups. |
+| `environmentFile` | absolute path | `"/run/secrets/restic-r2.env"` | Runtime environment file containing object-storage credentials |
+| `passwordFile` | absolute path | `"/run/secrets/zero-restic-password"` | Runtime file containing the Restic repository password |
+| `paths` | list of (submodule) | `[ ]` | Backup paths contributed by enabled service modules |
+| `paths.*.exclude` | list of string | `[ ]` | Paths relative to the entry to exclude |
+| `paths.*.path` | absolute path | *required* | Directory or file to include in the backup |
+| `repository` | string | `""` | Restic repository URL |
+| `secretAccessKeyFile` | absolute path | `"/run/secrets/personal-backups-secret-access-key"` | Runtime file containing the object-storage secret access key |
+
 ### myConfig.bifrost
 
 | Option | Type | Default | Description |
@@ -189,6 +203,13 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `(self)` | boolean | *(read-only)* | Whether the current system is Darwin (macOS) |
 
+### myConfig.jellyfin
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable Jellyfin media server. |
+| `mediaDir` | absolute path | `"/srv/media"` | Root directory containing Jellyfin media libraries |
+
 ### myConfig.llmClient
 
 | Option | Type | Default | Description |
@@ -226,6 +247,12 @@ or changing a `myConfig.*` option.
 | `package` | package | `<derivation lume-0.3.9>` | Lume package to use |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7777` | Port for Lume HTTP API |
 | `prePullImages` | list of string | `[ ]` | List of VM images to pre-pull on activation (e.g., macos-tahoe-vanilla:latest) |
+
+### myConfig.mediaAutomation
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable media automation services. |
 
 ### myConfig.motd
 

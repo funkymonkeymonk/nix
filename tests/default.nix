@@ -232,6 +232,8 @@ in
     zero-sunshine-lan-pairing = testZero.zeroSunshineLanPairingTest;
     zero-sunshine-password-secret = testZero.zeroSunshinePasswordSecretTest;
     zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
+    zero-jellyfin = testZero.zeroJellyfinTest;
+    zero-media-automation = testZero.zeroMediaAutomationTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;

@@ -88,6 +88,12 @@
     "common/service-registry.nix"
     # Tested via VM integration tests (tests/vm/)
     "nixos/base.nix"
+    # Tested via test-zero.nix (central Restic path registry)
+    "nixos/backup.nix"
+    # Tested via test-zero.nix (Jellyfin service and media directory setup)
+    "nixos/jellyfin.nix"
+    # Tested via test-zero.nix (native media automation service composition)
+    "nixos/media-automation.nix"
     "common/users.nix"
     "home-manager/themes.nix"
     # Tested via test-packages.nix onepasswordGuardTest + onepasswordConfigOutputTest
