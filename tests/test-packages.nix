@@ -308,6 +308,11 @@
 
       # Verify new opnix options
       echo "  tokenFile: ${builtins.toJSON cfg.tokenFile}"
+      ${
+        if cfg.defaultVault == "Homelab"
+        then ''echo "  defaultVault = Homelab: OK"''
+        else ''echo "  ERROR: defaultVault should be Homelab"; exit 1''
+      }
       echo "  secrets count: ${toString (builtins.length (builtins.attrNames cfg.secrets))}"
 
       # Verify secrets structure

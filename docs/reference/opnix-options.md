@@ -73,7 +73,8 @@ Attribute set of secrets to fetch from 1Password.
 ```nix
 myConfig.onepassword.secrets = {
   apiKey = {
-    reference = "op://Private/MyAPI/credential";
+    # Homelab is the default vault for unattended machine secrets.
+    reference = "MyAPI/credential";
     path = "/run/secrets/api-key";
     mode = "0600";
     owner = "myapp";
@@ -101,10 +102,14 @@ Each secret in `myConfig.onepassword.secrets` is an attribute set with the follo
 **Examples:**
 
 ```nix
-reference = "op://Private/Database/password";
+reference = "Database/password";
 reference = "op://Homelab/WiFi/password";
 reference = "op://Work/AWS Access Key/access-key-id";
 ```
+
+Unqualified references resolve through `myConfig.onepassword.defaultVault`,
+which defaults to `Homelab`. Use explicit `op://...` syntax only when the
+secret intentionally belongs to another vault.
 
 **Reference Format:**
 - `vault` - The 1Password vault name (URL-encoded if contains spaces)
@@ -315,7 +320,7 @@ sudo journalctl -u opnix-secrets
     secrets = {
       # Database password for PostgreSQL
       dbPassword = {
-        reference = "op://Private/Production DB/password";
+        reference = "Production DB/password";
         path = "/run/secrets/db-password";
         mode = "0400";
         owner = "postgres";

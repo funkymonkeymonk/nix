@@ -3,7 +3,7 @@ title: "opnix Security Architecture"
 description: "Understanding how opnix keeps your secrets secure on NixOS machines"
 type: explanation
 audience: user
-last-reviewed: 2026-04-08
+last-reviewed: 2026-09-18
 ---
 
 # opnix Security Architecture
@@ -19,6 +19,23 @@ opnix follows these core security principles:
 3. **Minimal privilege** - Each machine gets only the secrets it needs via service accounts
 4. **Fail-secure** - If authentication fails, no secrets are exposed
 5. **Ephemeral storage** - Secrets live in RAM (tmpfs), not on disk
+
+## Vault Policy
+
+Machine and service credentials belong in the `Homelab` vault. The NixOS
+service-account token is granted access to this operational vault, and
+unqualified references resolve there by default:
+
+```nix
+myConfig.onepassword.secrets.cloudflare = {
+  reference = "cloudflare.com/dns-api-token";
+};
+```
+
+This resolves to `op://Homelab/cloudflare.com/dns-api-token`. Use explicit
+`op://...` references only when a secret intentionally belongs in another
+vault. Keep personal interactive credentials in `Private` and do not make
+the unattended opnix service account depend on that vault.
 
 ## How It Works
 

@@ -2,6 +2,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 with lib; let
@@ -17,6 +18,32 @@ in {
       autoStart = true;
       capSysAdmin = true; # needed for Wayland
       openFirewall = true;
+      settings = {
+        # Allow a phone or another LAN browser to submit Moonlight's pairing PIN.
+        origin_pin_allowed = "lan";
+        origin_web_ui_allowed = "lan";
+        sunshine_name = config.networking.hostName;
+      };
+    };
+
+    # Apply the opnix-managed password immediately before Sunshine starts so
+    # the credential is never embedded in the Nix store or service unit.
+    systemd.user.services.sunshine.preStart = ''
+      password_file=/run/secrets/sunshine-password
+      for attempt in $(seq 1 60); do
+        if [ -r "$password_file" ]; then
+          break
+        fi
+        sleep 1
+      done
+      if [ ! -r "$password_file" ]; then
+        echo "Sunshine password secret is missing: $password_file" >&2
+        exit 1
+      fi
+      ${pkgs.sunshine}/bin/sunshine --creds monkey "$(cat "$password_file")"
+    '';
+    systemd.user.services.sunshine.serviceConfig = {
+      Restart = "on-failure";
     };
   };
 }

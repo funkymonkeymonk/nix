@@ -3,7 +3,7 @@ title: "Agents Guide"
 description: "Complete guide for AI agents working with this Nix system configuration repository. Includes testing and workflows."
 type: reference
 audience: agent
-last-reviewed: 2026-04-06
+last-reviewed: 2026-09-18
 ---
 
 # Agents Guide
@@ -42,6 +42,24 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 ## Principles
 
 **Do not document directory structures.** Agents reviewing code can use `ls`, `find`, or file exploration tools to traverse the codebase. Tree diagrams in documentation rot quickly and add noise. Document *concepts* and *relationships*, not folder listings.
+
+### 1Password Vault Policy
+
+Store all unattended machine and service credentials used by Nix or opnix in
+the `Homelab` vault. The repository default for unqualified opnix references
+is `Homelab`, so prefer item/field paths without an `op://` prefix:
+
+```nix
+myConfig.onepassword.secrets.cloudflare = {
+  reference = "cloudflare.com/dns-api-token";
+};
+```
+
+This resolves to `op://Homelab/cloudflare.com/dns-api-token`. Ensure the
+machine's opnix service account has read access to `Homelab` before switching.
+Use `Private` only for personal interactive credentials, such as the existing
+interactive sudo helpers, not for unattended services. Use an explicit vault
+reference only when a service has a documented need for a different vault.
 
 ---
 

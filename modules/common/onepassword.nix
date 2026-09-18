@@ -57,8 +57,8 @@ in {
 
     defaultVault = mkOption {
       type = types.str;
-      default = "Personal";
-      description = "Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references.";
+      default = "Homelab";
+      description = "Default 1Password vault for machine and service secrets. Homelab is used for unqualified opnix references unless overridden per machine.";
     };
 
     tokenFile = mkOption {
@@ -124,7 +124,7 @@ in {
         Example:
         {
           myApiKey = {
-            reference = "op://Private/MyAPI/credential";
+             reference = "MyAPI/credential";
             path = "/run/secrets/my-api-key";
             mode = "0600";
             owner = "myuser";
