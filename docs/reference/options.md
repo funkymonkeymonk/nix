@@ -91,6 +91,17 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `enable` | boolean | `true` | Enable Cachix binary cache |
 
+### myConfig.caddy
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apps` | attribute set of (submodule) | `{ }` | Internal applications exposed through Caddy |
+| `apps.<name>.host` | string | *required* | Hostname served by Caddy |
+| `apps.<name>.upstream` | string | *required* | Upstream URL or address for the application |
+| `apps.<name>.upstreamTlsSkipVerify` | boolean | `false` | Disable TLS certificate verification for this HTTPS upstream |
+| `cloudflareApiTokenPath` | null or string | `null` | Runtime path containing the Cloudflare API token used for DNS-01 certificates |
+| `enable` | boolean | `false` | Whether to enable Caddy internal reverse proxy. |
+
 ### myConfig.charm
 
 | Option | Type | Default | Description |
@@ -261,12 +272,12 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `defaultVault` | string | `"Personal"` | Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references. |
+| `defaultVault` | string | `"Homelab"` | Default 1Password vault for machine and service secrets. Homelab is used for unqualified opnix references unless overridden per machine. |
 | `enable` | boolean | `true` | Enable 1Password integration |
 | `enableGUI` | boolean | `true` | Enable 1Password GUI application |
 | `enableGitSigning` | boolean | `true` | Enable git commit signing with 1Password |
 | `enableSSHAgent` | boolean | `true` | Enable 1Password SSH agent |
-| `secrets` | attribute set of (submodule) | `{ }` | Secrets to fetch from 1Password using opnix. Secrets are fetched at boot time and written to the specified paths. The 1Password service account must have access to the referenced vaults. Example: { myApiKey = { reference = "op://Private/MyAPI/credential"; path = "/run/secrets/my-api-key"; mode = "0600"; owner = "myuser"; }; } |
+| `secrets` | attribute set of (submodule) | `{ }` | Secrets to fetch from 1Password using opnix. Secrets are fetched at boot time and written to the specified paths. The 1Password service account must have access to the referenced vaults. Example: { myApiKey = { reference = "MyAPI/credential"; path = "/run/secrets/my-api-key"; mode = "0600"; owner = "myuser"; }; } |
 | `secrets.<name>.group` | string | `"root"` | Group of the secret file |
 | `secrets.<name>.mode` | string | `"0600"` | File permissions for the secret |
 | `secrets.<name>.owner` | string | `"root"` | Owner of the secret file |

@@ -3,7 +3,7 @@ title: "Getting Started with opnix"
 description: "Learn how to securely manage secrets on your NixOS machines using 1Password and opnix"
 type: tutorial
 audience: user
-last-reviewed: 2026-04-08
+last-reviewed: 2026-09-18
 ---
 
 # Getting Started with opnix
@@ -28,7 +28,7 @@ In this tutorial, you'll learn how to use opnix to securely manage secrets on yo
 First, let's create a secret to work with.
 
 1. Open 1Password
-2. Create a new item in your Private vault
+2. Create a new item in your Homelab vault
 3. Choose "API Credential" as the type
 4. Fill in:
    - **Name:** Demo API Key
@@ -36,7 +36,7 @@ First, let's create a secret to work with.
    - **Username:** demo-user
 5. Save the item
 
-Note the item's location: `op://Private/Demo API Key/credential`
+Note the item's location: `op://Homelab/Demo API Key/credential`
 
 ## Step 2: Create a Service Account
 
@@ -45,7 +45,7 @@ Service accounts let machines access 1Password without your master password.
 1. Go to [https://my.1password.com/developer-tools/service-accounts](https://my.1password.com/developer-tools/service-accounts)
 2. Click **Create Service Account**
 3. Name it: `nixos-tutorial`
-4. Grant access to your **Private** vault
+4. Grant access to your **Homelab** vault
 5. Copy the token (starts with `ops_`)
 
 > ⚠️ The token is shown only once. Keep it safe!
@@ -81,7 +81,9 @@ Add the secret configuration:
 {
   myConfig.onepassword.secrets = {
     demoApiKey = {
-      reference = "op://Private/Demo API Key/credential";
+       # Homelab is the default vault; this resolves to
+       # op://Homelab/Demo API Key/credential.
+       reference = "Demo API Key/credential";
       path = "/run/secrets/demo-api-key";
       mode = "0600";
       owner = "your-username";

@@ -9,6 +9,8 @@
 
   # Read zero config as a string for pattern checking (pure Nix, no derivation needed)
   zeroConfigText = builtins.readFile ../targets/zero/default.nix;
+  streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
+  caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -186,6 +188,67 @@ in {
       ${assertContainsStr "go 1password item" "op://Homelab/OpenCode Go API/credential" zeroConfigText}
 
       echo "Zero cloud-only config test passed"
+      touch $out
+    '';
+
+  # Test: Sunshine pairing should be completable from a LAN phone or other
+  # browser, while the web UI remains limited to LAN clients.
+  zeroSunshineLanPairingTest =
+    pkgs.runCommand "test-zero-sunshine-lan-pairing"
+    {}
+    ''
+      echo "=== Testing Zero Sunshine LAN pairing ==="
+
+      ${assertContainsStr "LAN PIN origin" ''origin_pin_allowed = "lan"'' streamingModuleText}
+      ${assertContainsStr "LAN web UI origin" ''origin_web_ui_allowed = "lan"'' streamingModuleText}
+      ${assertContainsStr "stable Sunshine name" "sunshine_name = config.networking.hostName" streamingModuleText}
+      ${assertContainsStr "firewall enabled" "firewall.enable = true" zeroConfigText}
+
+      echo "Zero Sunshine LAN pairing test passed"
+      touch $out
+    '';
+
+  # Test: Sunshine's web password must come from opnix at runtime rather than
+  # being embedded in the Nix-generated configuration.
+  zeroSunshinePasswordSecretTest =
+    pkgs.runCommand "test-zero-sunshine-password-secret"
+    {}
+    ''
+      echo "=== Testing Zero Sunshine 1Password password ==="
+
+      ${assertContainsStr "Sunshine password reference" "Sunshine/password" zeroConfigText}
+      ${assertContainsStr "runtime secret path" "/run/secrets/sunshine-password" zeroConfigText}
+      ${assertContainsStr "credential update hook" "--creds monkey" streamingModuleText}
+      ${assertNotContainsStr "no plaintext password" "password =" streamingModuleText}
+
+      echo "Zero Sunshine 1Password password test passed"
+      touch $out
+    '';
+
+  # Test: Caddy should expose Sunshine's web UI through Cloudflare-backed
+  # public HTTPS without attempting to proxy Moonlight's streaming protocols.
+  zeroSunshineCaddyProxyTest =
+    pkgs.runCommand "test-zero-sunshine-caddy-proxy"
+    {}
+    ''
+      echo "=== Testing Zero Sunshine Caddy proxy ==="
+
+      ${assertContainsStr "Caddy enabled" "caddy = {" zeroConfigText}
+      ${assertContainsStr "Sunshine Caddy app" "apps.sunshine = {" zeroConfigText}
+      ${assertContainsStr "public Sunshine hostname" "sunshine.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Cloudflare DNS challenge" "dns cloudflare {env.CLOUDFLARE_API_TOKEN}" caddyNixosModuleText}
+      ${assertContainsStr "runtime Cloudflare secret" "/run/secrets/cloudflare-api-token" zeroConfigText}
+      ${assertContainsStr "Cloudflare token reference" "cloudflare.com/dns-api-token" zeroConfigText}
+      ${assertContainsStr "Cloudflare Caddy plugin" "caddy-dns/cloudflare@v0.2.4" caddyNixosModuleText}
+      ${assertContainsStr "Caddy secret path option" "cloudflareApiTokenPath" caddyNixosModuleText}
+      ${assertContainsStr "LAN proxy restriction" "remote_ip 10.0.0.0/8" caddyNixosModuleText}
+      ${assertContainsStr "Sunshine upstream TLS override" "upstreamTlsSkipVerify = true" zeroConfigText}
+      ${assertContainsStr "Sunshine secret readiness wait" "for attempt in" streamingModuleText}
+      ${assertContainsStr "HTTPS Sunshine upstream" "https://127.0.0.1:47990" zeroConfigText}
+      ${assertContainsStr "Caddy virtual hosts" "virtualHosts = mapAttrs'" caddyNixosModuleText}
+      ${assertContainsStr "Caddy firewall" "allowedTCPPorts = [80 443]" caddyNixosModuleText}
+
+      echo "Zero Sunshine Caddy proxy test passed"
       touch $out
     '';
 }

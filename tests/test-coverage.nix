@@ -98,6 +98,8 @@
     # Tested via test-stack-integration.nix (LLM stack composition)
     "services/bifrost/darwin.nix"
     "services/caddy/darwin.nix"
+    # Tested via test-zero.nix (Cloudflare-backed Sunshine virtual host)
+    "services/caddy/nixos.nix"
     # Tested via test-searxng.nix (option defaults and custom values)
     "services/searxng/darwin.nix"
     # Tested via test-lume.nix (option defaults and custom values)

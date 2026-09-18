@@ -229,6 +229,9 @@ in
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
+    zero-sunshine-lan-pairing = testZero.zeroSunshineLanPairingTest;
+    zero-sunshine-password-secret = testZero.zeroSunshinePasswordSecretTest;
+    zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;
