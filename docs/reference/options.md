@@ -294,6 +294,14 @@ or changing a `myConfig.*` option.
 | `server.host` | string | `"0.0.0.0"` | Bind address for oMLX |
 | `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Port for oMLX's OpenAI-compatible API |
 
+### myConfig.onePacerr
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable OnePacerr One Pace automation. |
+| `image` | string | `"ghcr.io/eltharynd/onepacerr:latest"` | — |
+| `jellyfinPasswordFile` | absolute path | `"/run/secrets/jellyfin-admin-password"` | — |
+
 ### myConfig.onepassword
 
 | Option | Type | Default | Description |

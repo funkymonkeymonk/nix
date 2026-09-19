@@ -13,7 +13,35 @@ with lib; let
     hash = "sha256-dQvk6ezY6TQ1J7PjhCXnThF/SqVgPwBO8/RXzHCY+js=";
   };
 
-  mkVirtualHost = _name: app: {
+  mkVirtualHost = _name: app: let
+    proxyConfig =
+      if app.webRoot == null
+      then ''
+        reverse_proxy ${app.upstream} {
+          ${optionalString (app.upstreamTlsSkipVerify && hasPrefix "https://" app.upstream) ''
+          transport http {
+            tls_insecure_skip_verify
+          }
+        ''}
+        }
+      ''
+      else ''
+        @upstream_api path /transmission/rpc
+        handle @upstream_api {
+          reverse_proxy ${app.upstream}
+        }
+        @upstream_web_root path /transmission/web
+        redir @upstream_web_root /transmission/web/ 308
+        @upstream_web path /transmission/web/*
+        handle @upstream_web {
+          reverse_proxy ${app.upstream}
+        }
+        handle {
+          rewrite * ${app.webRoot}{uri}
+          reverse_proxy ${app.upstream}
+        }
+      '';
+  in {
     name = app.host;
     value = {
       extraConfig = ''
@@ -23,13 +51,7 @@ with lib; let
         }
         @external not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 127.0.0.0/8 fd00::/8 ::1
         respond @external 403
-        reverse_proxy ${app.upstream} {
-          ${optionalString (app.upstreamTlsSkipVerify && hasPrefix "https://" app.upstream) ''
-          transport http {
-            tls_insecure_skip_verify
-          }
-        ''}
-        }
+        ${proxyConfig}
       '';
     };
   };
@@ -60,6 +82,12 @@ in {
             type = types.bool;
             default = false;
             description = "Disable TLS certificate verification for this HTTPS upstream";
+          };
+
+          webRoot = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Path prefix for applications whose web UI is not served at the upstream root";
           };
         };
       });

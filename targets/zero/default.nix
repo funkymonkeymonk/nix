@@ -37,6 +37,9 @@
       gaming.enable = true;
       homepage.enable = true;
       mediaConfig.enable = true;
+      onePacerr = {
+        enable = true;
+      };
       backup = {
         enable = true;
         repository = "s3:https://fa5cd9ae588234f20b8889e7619ad6ad.r2.cloudflarestorage.com/personal-backups/zero";
@@ -98,6 +101,7 @@
         apps.transmission = {
           host = "transmission.home.buildingbananas.com";
           upstream = "http://127.0.0.1:9091";
+          webRoot = "/transmission/web";
         };
         apps.dashboard = {
           host = "dashboard.home.buildingbananas.com";
@@ -296,6 +300,15 @@
       vp9 = true;
       av1 = true;
     };
+  };
+
+  services.transmission.settings = {
+    "ratio-limit-enabled" = true;
+    "ratio-limit" = 0;
+    "idle-seeding-limit-enabled" = true;
+    "idle-seeding-limit" = 0;
+    "rpc-host-whitelist" = "transmission.home.buildingbananas.com";
+    "rpc-host-whitelist-enabled" = true;
   };
 
   services.sonarr.settings.auth.required = "DisabledForLocalAddresses";

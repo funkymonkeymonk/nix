@@ -14,6 +14,7 @@
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
   homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
   mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
+  onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -305,10 +306,18 @@ in {
       ${assertContainsStr "SABnzbd generated settings" "services.sabnzbd.configFile = lib.mkForce null" zeroConfigText}
       ${assertContainsStr "Nixarr Autobrr" "autobrr.enable = true" zeroConfigText}
       ${assertContainsStr "Nixarr Transmission" "transmission = {" zeroConfigText}
+      ${assertContainsStr "Transmission seed ratio disabled" ''"ratio-limit-enabled" = true'' zeroConfigText}
+      ${assertContainsStr "Transmission seed ratio zero" ''"ratio-limit" = 0'' zeroConfigText}
+      ${assertContainsStr "Transmission host whitelist" ''"rpc-host-whitelist"'' zeroConfigText}
       ${assertContainsStr "Prowlarr settings sync" "enable-nixarr-apps = true" zeroConfigText}
       ${assertContainsStr "Bazarr settings sync" "settings-sync" zeroConfigText}
       ${assertContainsStr "Sonarr Transmission sync" "sonarr.settings-sync.transmission.enable = true" zeroConfigText}
       ${assertContainsStr "Radarr Transmission sync" "radarr.settings-sync.transmission.enable = true" zeroConfigText}
+      ${assertContainsStr "OnePacerr enabled" "onePacerr = {" zeroConfigText}
+      ${assertContainsStr "OnePacerr image" "ghcr.io/eltharynd/onepacerr" onePacerrNixosModuleText}
+      ${assertContainsStr "OnePacerr library" "LIBRARY_SERIES_NAME" onePacerrNixosModuleText}
+      ${assertContainsStr "OnePacerr Transmission" "TORRENT_CLIENT" onePacerrNixosModuleText}
+      ${assertContainsStr "OnePacerr Jellyfin" "JELLYFIN_URL" onePacerrNixosModuleText}
       ${assertContainsStr "Recyclarr Sonarr API" ''"!env_var SONARR_API_KEY"'' zeroConfigText}
       ${assertContainsStr "Recyclarr Radarr API" ''"!env_var RADARR_API_KEY"'' zeroConfigText}
       ${assertContainsStr "Lidarr auth method" ''services.lidarr.settings.auth.method = "Forms"'' zeroConfigText}
@@ -323,6 +332,7 @@ in {
       ${assertContainsStr "SABnzbd Caddy app" "apps.sabnzbd = {" zeroConfigText}
       ${assertContainsStr "Autobrr Caddy app" "apps.autobrr = {" zeroConfigText}
       ${assertContainsStr "Transmission Caddy app" "apps.transmission = {" zeroConfigText}
+      ${assertContainsStr "Transmission Caddy web root" ''webRoot = "/transmission/web"'' zeroConfigText}
 
       echo "Zero media automation test passed"
       touch $out

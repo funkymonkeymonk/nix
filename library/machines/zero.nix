@@ -22,6 +22,7 @@
       ../../modules/nixos/gaming.nix
       ../../modules/nixos/homepage.nix
       ../../modules/nixos/media-config.nix
+      ../../modules/nixos/onepacerr.nix
       ../../modules/nixos/streaming.nix
       ../../modules/services/caddy/nixos.nix
       ../../os/nixos.nix
