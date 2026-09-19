@@ -94,6 +94,8 @@
     "nixos/jellyfin.nix"
     # Tested via test-zero.nix (native media automation service composition)
     "nixos/media-automation.nix"
+    # Tested via test-zero.nix (Homepage dashboard configuration)
+    "nixos/homepage.nix"
     "common/users.nix"
     "home-manager/themes.nix"
     # Tested via test-packages.nix onepasswordGuardTest + onepasswordConfigOutputTest
