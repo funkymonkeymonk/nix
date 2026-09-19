@@ -61,6 +61,34 @@ Use `Private` only for personal interactive credentials, such as the existing
 interactive sudo helpers, not for unattended services. Use an explicit vault
 reference only when a service has a documented need for a different vault.
 
+### Sudo With 1Password
+
+For interactive sudo commands on a machine, derive the password item from the
+short hostname:
+
+```bash
+PASSWORD_PATH="op://Private/$(hostname -s) Sudo Password/password"
+op read "$PASSWORD_PATH" | sudo -S <command>
+```
+
+Do not print, hardcode, or store the password. For a multi-command root
+operation, pass a quoted script to one `sudo` invocation:
+
+```bash
+op read "$PASSWORD_PATH" | sudo -S bash -c 'set -eu; command-one; command-two'
+```
+
+The `system:switch` task already derives this path and retrieves the password
+itself. If a machine defines `myConfig.onepassword.sudoPasswordRef`, use that
+reference instead; inspect the target configuration before falling back to the
+hostname-based path. If `op read` fails or reports that it cannot connect to
+the desktop app, stop and have the user start and unlock 1Password rather than
+retrying with a guessed path or asking for the password in chat.
+
+Before destructive commands, verify the target devices and obtain explicit
+confirmation. Never use `sudo -S` with a password copied into the command or
+shell history.
+
 ---
 
 ## Tasks
