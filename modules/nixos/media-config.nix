@@ -17,6 +17,7 @@ in {
       wantedBy = ["multi-user.target"];
       after = ["jellyfin.service" "opnix-secrets.service"];
       requires = ["jellyfin.service" "opnix-secrets.service"];
+      unitConfig.RequiresMountsFor = ["/srv/media"];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
@@ -48,6 +49,14 @@ in {
             -H 'Content-Type: application/json' \
             -d '{}'
         fi
+
+        api_status=""
+        for attempt in $(seq 1 60); do
+          api_status="$(${pkgs.curl}/bin/curl -sS -o /dev/null -w '%{http_code}' "$base_url/System/Info/Public" || true)"
+          [ "$api_status" = "200" ] && break
+          sleep 1
+        done
+        [ "$api_status" = "200" ]
 
         auth_response="$(${pkgs.curl}/bin/curl -fsS -X POST "$base_url/Users/AuthenticateByName" \
           -H 'Content-Type: application/json' \

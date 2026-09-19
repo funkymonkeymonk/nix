@@ -28,6 +28,7 @@
       ../../os/nixos.nix
       inputs.disko.nixosModules.disko
       ../../disk-configs/zero.nix
+      ../../disk-configs/portable-media-mirror.nix
       ../archetypes/desktop-machine.nix
       ../../modules/nixos/ghostty-terminfo.nix
       ../../targets/zero

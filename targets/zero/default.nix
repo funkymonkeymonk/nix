@@ -234,6 +234,7 @@
 
   networking = {
     hostName = "zero";
+    hostId = lib.mkDefault "0badc0de";
     networkmanager.enable = true;
     firewall.enable = true;
   };

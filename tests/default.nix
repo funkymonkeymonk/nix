@@ -221,6 +221,8 @@ in
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
 
     # Zero target tests
+    zero-media-mirror-storage = testZero.zeroMediaMirrorStorageTest;
+    portable-media-migration-storage = testZero.zeroMediaMigrationStorageTest;
     zero-steam-sdl-hidapi-env = testZero.zeroSteamSdlHidapiEnvTest;
     zero-tailscale-opnix-dep = testZero.zeroTailscaleOpnixDepTest;
     zero-tailscale-no-env-var = testZero.zeroTailscaleNoEnvVarTest;

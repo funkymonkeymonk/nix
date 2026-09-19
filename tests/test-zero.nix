@@ -15,6 +15,9 @@
   homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
   mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
   onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
+  zeroMediaMirrorText = builtins.readFile ../disk-configs/portable-media-mirror.nix;
+  zeroMediaMigrationText = builtins.readFile ../disk-configs/portable-media-mirror-migration.nix;
+  zeroMachineText = builtins.readFile ../library/machines/zero.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -35,6 +38,47 @@
     then ''echo "  ${name}: OK"''
     else throw "${name}: '${needle}' should occur at least ${toString count} times in zero config";
 in {
+  # Test: Zero's external media disks use stable serial paths and a mirrored
+  # ZFS pool without changing the existing NVMe disko layout.
+  zeroMediaMirrorStorageTest =
+    pkgs.runCommand "test-zero-media-mirror-storage"
+    {}
+    ''
+      echo "=== Testing Zero external media mirror storage ==="
+
+      ${assertContainsStr "first disk serial path" "ZRT2MCJL" zeroMediaMirrorText}
+      ${assertContainsStr "second disk serial path" "ZRT2MDDE" zeroMediaMirrorText}
+      ${assertContainsStr "ZFS pool" ''type = "zpool"'' zeroMediaMirrorText}
+      ${assertContainsStr "mirror layout" ''mode = "mirror"'' zeroMediaMirrorText}
+      ${assertContainsStr "media mountpoint" ''mountpoint = "/srv/media"'' zeroMediaMirrorText}
+      ${assertNotContainsStr "Nixarr state stays local" ''"/var/lib/nixarr"'' zeroMediaMirrorText}
+      ${assertContainsStr "optional mount" ''"nofail"'' zeroMediaMirrorText}
+      ${assertContainsStr "ZFS-aware mount" ''"zfsutil"'' zeroMediaMirrorText}
+      ${assertContainsStr "automount" ''"x-systemd.automount"'' zeroMediaMirrorText}
+      ${assertContainsStr "Jellyfin waits for media mount" "RequiresMountsFor" mediaConfigModuleText}
+      ${assertContainsStr "Jellyfin API readiness" "/System/Info/Public" mediaConfigModuleText}
+      ${assertContainsStr "Zero imports media mirror" "portable-media-mirror.nix" zeroMachineText}
+
+      echo "Zero external media mirror storage test passed"
+      touch $out
+    '';
+
+  # Test: the temporary migration overlay uses purpose-based, host-neutral
+  # mountpoints and reuses the portable mirror definition.
+  zeroMediaMigrationStorageTest =
+    pkgs.runCommand "test-zero-media-migration-storage"
+    {}
+    ''
+      echo "=== Testing Zero media migration mountpoints ==="
+
+      ${assertContainsStr "portable mirror import" "portable-media-mirror.nix" zeroMediaMigrationText}
+      ${assertContainsStr "temporary media mountpoint" ''"/mnt/media"'' zeroMediaMigrationText}
+      ${assertNotContainsStr "host name absent" "zero-media" zeroMediaMigrationText}
+
+      echo "Zero media migration storage test passed"
+      touch $out
+    '';
+
   # Test: zero config should set defaultVault and override authKeyOpnixItem
   zeroTailscaleSecretConfigTest =
     pkgs.runCommand "test-zero-tailscale-secret-config"
