@@ -197,6 +197,12 @@ or changing a `myConfig.*` option.
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3000` | Port for Grafana HTTP server |
 | `typeServerPrometheusUrl` | null or string | `null` | URL of type-server's Prometheus instance (see modules/nixos/prometheus.nix), reachable over Tailscale. When set, adds a second "Prometheus (type-server)" datasource here instead of running a duplicate Grafana on type-server. Genuinely TBD as of this option's introduction — type-server's real Tailscale MagicDNS name isn't known at eval time. Example: "http://type-server.<tailnet>.ts.net:9090". |
 
+### myConfig.homepage
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable Homepage service dashboard. |
+
 ### myConfig.isDarwin
 
 | Option | Type | Default | Description |

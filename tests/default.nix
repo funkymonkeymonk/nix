@@ -234,6 +234,7 @@ in
     zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
     zero-jellyfin = testZero.zeroJellyfinTest;
     zero-media-automation = testZero.zeroMediaAutomationTest;
+    zero-homepage = testZero.zeroHomepageTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;

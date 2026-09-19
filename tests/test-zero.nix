@@ -14,6 +14,7 @@
   jellyfinNixosModuleText = builtins.readFile ../modules/nixos/jellyfin.nix;
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
   mediaAutomationModuleText = builtins.readFile ../modules/nixos/media-automation.nix;
+  homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -238,7 +239,7 @@ in {
 
       ${assertContainsStr "Caddy enabled" "caddy = {" zeroConfigText}
       ${assertContainsStr "Sunshine Caddy app" "apps.sunshine = {" zeroConfigText}
-      ${assertContainsStr "public Sunshine hostname" "sunshine.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "LAN Sunshine hostname" "sunshine.home.buildingbananas.com" zeroConfigText}
       ${assertContainsStr "Cloudflare DNS challenge" "dns cloudflare {env.CLOUDFLARE_API_TOKEN}" caddyNixosModuleText}
       ${assertContainsStr "runtime Cloudflare secret" "/run/secrets/cloudflare-api-token" zeroConfigText}
       ${assertContainsStr "Cloudflare token reference" "cloudflare.com/dns-api-token" zeroConfigText}
@@ -275,7 +276,7 @@ in {
       ${assertContainsStr "Jellyfin render device" ''device = "/dev/dri/renderD128"'' zeroConfigText}
       ${assertContainsStr "Jellyfin render group" ''extraGroups = ["render" "video"]'' zeroConfigText}
       ${assertContainsStr "Jellyfin Caddy app" "apps.jellyfin = {" zeroConfigText}
-      ${assertContainsStr "Jellyfin hostname" "jellyfin.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Jellyfin hostname" "jellyfin.home.buildingbananas.com" zeroConfigText}
       ${assertContainsStr "Jellyfin upstream" "127.0.0.1:8096" zeroConfigText}
       ${assertContainsStr "backup registry" "myConfig.backup.paths" backupNixosModuleText}
       ${assertContainsStr "Restic integration" "services.restic.backups" backupNixosModuleText}
@@ -307,6 +308,27 @@ in {
       ${assertContainsStr "Bazarr Caddy app" "apps.bazarr = {" zeroConfigText}
 
       echo "Zero media automation test passed"
+      touch $out
+    '';
+
+  # Test: Homepage should provide a declarative media-center landing page
+  # through Caddy without opening its native port directly.
+  zeroHomepageTest =
+    pkgs.runCommand "test-zero-homepage"
+    {}
+    ''
+      echo "=== Testing Zero Homepage dashboard ==="
+
+      ${assertContainsStr "Homepage enabled" "homepage.enable = true" zeroConfigText}
+      ${assertContainsStr "Homepage service" "services.homepage-dashboard" homepageNixosModuleText}
+      ${assertContainsStr "Homepage private port" "listenPort = 8082" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Caddy app" "apps.dashboard = {" zeroConfigText}
+      ${assertContainsStr "Homepage hostname" "dashboard.home.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Homepage upstream" "127.0.0.1:8082" zeroConfigText}
+      ${assertContainsStr "Homepage Jellyfin link" "jellyfin.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Seerr link" "seerr.home.buildingbananas.com" homepageNixosModuleText}
+
+      echo "Zero Homepage dashboard test passed"
       touch $out
     '';
 }

@@ -20,6 +20,7 @@
       ../../modules/nixos/backup.nix
       ../../modules/nixos/desktop.nix
       ../../modules/nixos/gaming.nix
+      ../../modules/nixos/homepage.nix
       ../../modules/nixos/jellyfin.nix
       ../../modules/nixos/media-automation.nix
       ../../modules/nixos/streaming.nix

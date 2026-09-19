@@ -36,6 +36,7 @@
       };
       gaming.enable = true;
       jellyfin.enable = true;
+      homepage.enable = true;
       mediaAutomation.enable = true;
       backup = {
         enable = true;
@@ -46,33 +47,37 @@
         enable = true;
         cloudflareApiTokenPath = "/run/secrets/cloudflare-api-token";
         apps.sunshine = {
-          host = "sunshine.buildingbananas.com";
+          host = "sunshine.home.buildingbananas.com";
           upstream = "https://127.0.0.1:47990";
           upstreamTlsSkipVerify = true;
         };
         apps.jellyfin = {
-          host = "jellyfin.buildingbananas.com";
+          host = "jellyfin.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8096";
         };
         apps.seerr = {
-          host = "seerr.buildingbananas.com";
+          host = "seerr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:5055";
         };
         apps.sonarr = {
-          host = "sonarr.buildingbananas.com";
+          host = "sonarr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8989";
         };
         apps.radarr = {
-          host = "radarr.buildingbananas.com";
+          host = "radarr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:7878";
         };
         apps.prowlarr = {
-          host = "prowlarr.buildingbananas.com";
+          host = "prowlarr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:9696";
         };
         apps.bazarr = {
-          host = "bazarr.buildingbananas.com";
+          host = "bazarr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:6767";
+        };
+        apps.dashboard = {
+          host = "dashboard.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:8082";
         };
       };
       onepassword = {
