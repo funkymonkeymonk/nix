@@ -26,6 +26,8 @@ in {
           Media = [
             (serviceLink "Jellyfin" "jellyfin.home.buildingbananas.com" "Media server")
             (serviceLink "Seerr" "seerr.home.buildingbananas.com" "Media requests")
+            (serviceLink "Audiobookshelf" "audiobookshelf.home.buildingbananas.com" "Audiobooks and podcasts")
+            (serviceLink "Shelfmark" "shelfmark.home.buildingbananas.com" "Book requests")
           ];
         }
         {
@@ -34,6 +36,14 @@ in {
             (serviceLink "Radarr" "radarr.home.buildingbananas.com" "Movie automation")
             (serviceLink "Prowlarr" "prowlarr.home.buildingbananas.com" "Indexer management")
             (serviceLink "Bazarr" "bazarr.home.buildingbananas.com" "Subtitle management")
+            (serviceLink "Lidarr" "lidarr.home.buildingbananas.com" "Music automation")
+          ];
+        }
+        {
+          Downloads = [
+            (serviceLink "SABnzbd" "sabnzbd.home.buildingbananas.com" "Usenet downloads")
+            (serviceLink "Transmission" "transmission.home.buildingbananas.com" "Torrent downloads")
+            (serviceLink "Autobrr" "autobrr.home.buildingbananas.com" "Download automation")
           ];
         }
         {

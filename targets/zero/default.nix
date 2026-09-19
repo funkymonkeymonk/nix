@@ -75,6 +75,30 @@
           host = "bazarr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:6767";
         };
+        apps.audiobookshelf = {
+          host = "audiobookshelf.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:9292";
+        };
+        apps.lidarr = {
+          host = "lidarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:8686";
+        };
+        apps.shelfmark = {
+          host = "shelfmark.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:8084";
+        };
+        apps.sabnzbd = {
+          host = "sabnzbd.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:6336";
+        };
+        apps.autobrr = {
+          host = "autobrr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:7474";
+        };
+        apps.transmission = {
+          host = "transmission.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:9091";
+        };
         apps.dashboard = {
           host = "dashboard.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8082";
@@ -219,6 +243,32 @@
     seerr.enable = true;
     sonarr.enable = true;
     radarr.enable = true;
+    audiobookshelf.enable = true;
+    lidarr.enable = true;
+    shelfmark.enable = true;
+    autobrr.enable = true;
+    sabnzbd = {
+      enable = true;
+      whitelistHostnames = ["zero" "sabnzbd.home.buildingbananas.com"];
+      whitelistRanges = ["192.168.1.0/24" "100.64.0.0/10"];
+    };
+    transmission = {
+      enable = true;
+    };
+    recyclarr = {
+      enable = true;
+      schedule = "daily";
+      configuration = {
+        sonarr.series = {
+          base_url = "http://127.0.0.1:8989";
+          api_key = "!env_var SONARR_API_KEY";
+        };
+        radarr.movies = {
+          base_url = "http://127.0.0.1:7878";
+          api_key = "!env_var RADARR_API_KEY";
+        };
+      };
+    };
     prowlarr = {
       enable = true;
       settings-sync.enable-nixarr-apps = true;
@@ -230,6 +280,8 @@
         radarr.enable = true;
       };
     };
+    sonarr.settings-sync.transmission.enable = true;
+    radarr.settings-sync.transmission.enable = true;
   };
 
   services.jellyfin = {
@@ -247,8 +299,15 @@
   };
 
   services.sonarr.settings.auth.required = "DisabledForLocalAddresses";
+  services.sonarr.settings.auth.method = "Forms";
   services.radarr.settings.auth.required = "DisabledForLocalAddresses";
+  services.radarr.settings.auth.method = "Forms";
   services.prowlarr.settings.auth.required = "DisabledForLocalAddresses";
+  services.prowlarr.settings.auth.method = "Forms";
+  services.lidarr.settings.auth.required = "DisabledForLocalAddresses";
+  services.lidarr.settings.auth.method = "Forms";
+  services.sabnzbd.configFile = lib.mkForce null;
+  nixarr.autobrr.settings.host = "127.0.0.1";
 
   users.users.jellyfin.extraGroups = ["render" "video"];
 

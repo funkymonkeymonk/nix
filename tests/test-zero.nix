@@ -297,13 +297,32 @@ in {
       ${assertContainsStr "Nixarr Prowlarr" "prowlarr = {" zeroConfigText}
       ${assertContainsStr "Nixarr Bazarr" "bazarr = {" zeroConfigText}
       ${assertContainsStr "Nixarr Seerr" "seerr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Audiobookshelf" "audiobookshelf.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Lidarr" "lidarr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Shelfmark" "shelfmark.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Recyclarr" "recyclarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr SABnzbd" "sabnzbd = {" zeroConfigText}
+      ${assertContainsStr "SABnzbd generated settings" "services.sabnzbd.configFile = lib.mkForce null" zeroConfigText}
+      ${assertContainsStr "Nixarr Autobrr" "autobrr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Transmission" "transmission = {" zeroConfigText}
       ${assertContainsStr "Prowlarr settings sync" "enable-nixarr-apps = true" zeroConfigText}
       ${assertContainsStr "Bazarr settings sync" "settings-sync" zeroConfigText}
+      ${assertContainsStr "Sonarr Transmission sync" "sonarr.settings-sync.transmission.enable = true" zeroConfigText}
+      ${assertContainsStr "Radarr Transmission sync" "radarr.settings-sync.transmission.enable = true" zeroConfigText}
+      ${assertContainsStr "Recyclarr Sonarr API" ''"!env_var SONARR_API_KEY"'' zeroConfigText}
+      ${assertContainsStr "Recyclarr Radarr API" ''"!env_var RADARR_API_KEY"'' zeroConfigText}
+      ${assertContainsStr "Lidarr auth method" ''services.lidarr.settings.auth.method = "Forms"'' zeroConfigText}
       ${assertContainsStr "Seerr Caddy app" "apps.seerr = {" zeroConfigText}
       ${assertContainsStr "Sonarr Caddy app" "apps.sonarr = {" zeroConfigText}
       ${assertContainsStr "Radarr Caddy app" "apps.radarr = {" zeroConfigText}
       ${assertContainsStr "Prowlarr Caddy app" "apps.prowlarr = {" zeroConfigText}
       ${assertContainsStr "Bazarr Caddy app" "apps.bazarr = {" zeroConfigText}
+      ${assertContainsStr "Audiobookshelf Caddy app" "apps.audiobookshelf = {" zeroConfigText}
+      ${assertContainsStr "Lidarr Caddy app" "apps.lidarr = {" zeroConfigText}
+      ${assertContainsStr "Shelfmark Caddy app" "apps.shelfmark = {" zeroConfigText}
+      ${assertContainsStr "SABnzbd Caddy app" "apps.sabnzbd = {" zeroConfigText}
+      ${assertContainsStr "Autobrr Caddy app" "apps.autobrr = {" zeroConfigText}
+      ${assertContainsStr "Transmission Caddy app" "apps.transmission = {" zeroConfigText}
 
       echo "Zero media automation test passed"
       touch $out
@@ -325,6 +344,12 @@ in {
       ${assertContainsStr "Homepage upstream" "127.0.0.1:8082" zeroConfigText}
       ${assertContainsStr "Homepage Jellyfin link" "jellyfin.home.buildingbananas.com" homepageNixosModuleText}
       ${assertContainsStr "Homepage Seerr link" "seerr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Audiobookshelf link" "audiobookshelf.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Lidarr link" "lidarr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Shelfmark link" "shelfmark.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage SABnzbd link" "sabnzbd.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Autobrr link" "autobrr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Transmission link" "transmission.home.buildingbananas.com" homepageNixosModuleText}
 
       echo "Zero Homepage dashboard test passed"
       touch $out
@@ -340,6 +365,9 @@ in {
 
       ${assertContainsStr "Jellyfin admin secret" "zero-jellyfin-admin/password" zeroConfigText}
       ${assertContainsStr "Nixarr settings sync" "settings-sync" zeroConfigText}
+      ${assertContainsStr "Sonarr auth method" ''services.sonarr.settings.auth.method = "Forms"'' zeroConfigText}
+      ${assertContainsStr "Radarr auth method" ''services.radarr.settings.auth.method = "Forms"'' zeroConfigText}
+      ${assertContainsStr "Prowlarr auth method" ''services.prowlarr.settings.auth.method = "Forms"'' zeroConfigText}
       ${assertContainsStr "Jellyfin startup bootstrap" "jellyfin-declarative-config" mediaConfigModuleText}
       ${assertContainsStr "Jellyfin startup completion" "/Startup/Complete" mediaConfigModuleText}
       ${assertContainsStr "Jellyfin library reconciliation" "/Library/VirtualFolders" mediaConfigModuleText}
