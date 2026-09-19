@@ -235,6 +235,7 @@ in
     zero-jellyfin = testZero.zeroJellyfinTest;
     zero-media-automation = testZero.zeroMediaAutomationTest;
     zero-homepage = testZero.zeroHomepageTest;
+    zero-media-declarative-config = testZero.zeroMediaDeclarativeConfigTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;

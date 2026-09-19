@@ -11,10 +11,9 @@
   zeroConfigText = builtins.readFile ../targets/zero/default.nix;
   streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
   caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
-  jellyfinNixosModuleText = builtins.readFile ../modules/nixos/jellyfin.nix;
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
-  mediaAutomationModuleText = builtins.readFile ../modules/nixos/media-automation.nix;
   homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
+  mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -267,11 +266,9 @@ in {
       ${assertContainsStr "Jellyfin enabled" "jellyfin.enable = true" zeroConfigText}
       ${assertContainsStr "Backups enabled" "backup = {" zeroConfigText}
       ${assertContainsStr "R2 backup repository" "personal-backups/zero" zeroConfigText}
-      ${assertContainsStr "Jellyfin media root" ''default = "/srv/media"'' jellyfinNixosModuleText}
-      ${assertContainsStr "Jellyfin service enabled" "services.jellyfin =" jellyfinNixosModuleText}
-      ${assertContainsStr "Jellyfin direct firewall disabled" "openFirewall = false" jellyfinNixosModuleText}
-      ${assertContainsStr "Jellyfin backup registration" ''path = "/var/lib/jellyfin"'' jellyfinNixosModuleText}
-      ${assertContainsStr "Jellyfin backup excludes cache" ''"cache"'' jellyfinNixosModuleText}
+      ${assertContainsStr "Nixarr media root" ''mediaDir = "/srv/media"'' zeroConfigText}
+      ${assertContainsStr "Nixarr state root" ''stateDir = "/var/lib/nixarr"'' zeroConfigText}
+      ${assertContainsStr "Nixarr backup registration" ''path = "/var/lib/nixarr"'' zeroConfigText}
       ${assertContainsStr "Jellyfin VA-API" ''type = "vaapi"'' zeroConfigText}
       ${assertContainsStr "Jellyfin render device" ''device = "/dev/dri/renderD128"'' zeroConfigText}
       ${assertContainsStr "Jellyfin render group" ''extraGroups = ["render" "video"]'' zeroConfigText}
@@ -285,22 +282,23 @@ in {
       touch $out
     '';
 
-  # Test: the media automation services should be native NixOS services,
-  # private behind Caddy, and share the media group for library management.
+  # Test: Nixarr should manage the media services and settings synchronization
+  # while Caddy keeps their native ports private.
   zeroMediaAutomationTest =
     pkgs.runCommand "test-zero-media-automation"
     {}
     ''
       echo "=== Testing Zero media automation services ==="
 
-      ${assertContainsStr "media automation enabled" "mediaAutomation.enable = true" zeroConfigText}
-      ${assertContainsStr "Sonarr service" "sonarr = {" mediaAutomationModuleText}
-      ${assertContainsStr "Radarr service" "radarr = {" mediaAutomationModuleText}
-      ${assertContainsStr "Prowlarr service" "prowlarr = {" mediaAutomationModuleText}
-      ${assertContainsStr "Bazarr service" "bazarr = {" mediaAutomationModuleText}
-      ${assertContainsStr "Seerr service" "seerr = {" mediaAutomationModuleText}
-      ${assertContainsStr "shared media group" "users.groups.media" mediaAutomationModuleText}
-      ${assertContainsStr "no direct firewall" "openFirewall = false" mediaAutomationModuleText}
+      ${assertContainsStr "Nixarr enabled" "nixarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr Jellyfin" "jellyfin.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Sonarr" "sonarr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Radarr" "radarr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Prowlarr" "prowlarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr Bazarr" "bazarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr Seerr" "seerr.enable = true" zeroConfigText}
+      ${assertContainsStr "Prowlarr settings sync" "enable-nixarr-apps = true" zeroConfigText}
+      ${assertContainsStr "Bazarr settings sync" "settings-sync" zeroConfigText}
       ${assertContainsStr "Seerr Caddy app" "apps.seerr = {" zeroConfigText}
       ${assertContainsStr "Sonarr Caddy app" "apps.sonarr = {" zeroConfigText}
       ${assertContainsStr "Radarr Caddy app" "apps.radarr = {" zeroConfigText}
@@ -329,6 +327,24 @@ in {
       ${assertContainsStr "Homepage Seerr link" "seerr.home.buildingbananas.com" homepageNixosModuleText}
 
       echo "Zero Homepage dashboard test passed"
+      touch $out
+    '';
+
+  # Test: application-level media configuration must be declared in Nix and
+  # receive its credentials from runtime opnix secrets.
+  zeroMediaDeclarativeConfigTest =
+    pkgs.runCommand "test-zero-media-declarative-config"
+    {}
+    ''
+      echo "=== Testing Zero declarative media configuration ==="
+
+      ${assertContainsStr "Jellyfin admin secret" "zero-jellyfin-admin/password" zeroConfigText}
+      ${assertContainsStr "Nixarr settings sync" "settings-sync" zeroConfigText}
+      ${assertContainsStr "Jellyfin startup bootstrap" "jellyfin-declarative-config" mediaConfigModuleText}
+      ${assertContainsStr "Jellyfin startup completion" "/Startup/Complete" mediaConfigModuleText}
+      ${assertContainsStr "Jellyfin library reconciliation" "/Library/VirtualFolders" mediaConfigModuleText}
+
+      echo "Zero declarative media configuration test passed"
       touch $out
     '';
 }

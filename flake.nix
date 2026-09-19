@@ -29,6 +29,9 @@
     opnix.url = "github:brizzbuzz/opnix";
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
+    nixarr.url = "github:nix-media-server/nixarr";
+    nixarr.inputs.nixpkgs.follows = "nixpkgs";
+
     devenv.url = "github:cachix/devenv";
 
     # NEW: Takeout container infrastructure for automated installs
