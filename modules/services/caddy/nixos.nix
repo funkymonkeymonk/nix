@@ -89,8 +89,8 @@ in {
       description = "Prepare the Caddy Cloudflare API token";
       wantedBy = ["multi-user.target"];
       before = ["caddy.service"];
-      after = ["onepassword-secrets.service"];
-      requires = ["onepassword-secrets.service"];
+      after = ["opnix-secrets.service"];
+      requires = ["opnix-secrets.service"];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;

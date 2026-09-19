@@ -80,7 +80,7 @@ in {
     ''
       echo "=== Testing Zero Tailscale opnix dependency ==="
 
-      ${assertContainsStr "onepassword-secrets dep" "onepassword-secrets.service" tailscaleModuleText}
+      ${assertContainsStr "opnix-secrets dep" "opnix-secrets.service" tailscaleModuleText}
       ${assertContainsStr "tailscale auth key name" "tailscale-auth-key" tailscaleModuleText}
 
       echo "Tailscale opnix dependency test passed"

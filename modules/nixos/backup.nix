@@ -93,8 +93,8 @@ in {
       description = "Prepare Restic object-storage credentials";
       wantedBy = ["multi-user.target"];
       before = ["restic-backups-zero.service"];
-      after = ["onepassword-secrets.service"];
-      requires = ["onepassword-secrets.service"];
+      after = ["opnix-secrets.service"];
+      requires = ["opnix-secrets.service"];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
