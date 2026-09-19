@@ -35,12 +35,12 @@
         autoLoginUser = "monkey";
       };
       gaming.enable = true;
-      jellyfin.enable = true;
       homepage.enable = true;
-      mediaAutomation.enable = true;
+      mediaConfig.enable = true;
       backup = {
         enable = true;
         repository = "s3:https://fa5cd9ae588234f20b8889e7619ad6ad.r2.cloudflarestorage.com/personal-backups/zero";
+        paths = [{path = "/var/lib/nixarr";}];
       };
       streaming.enable = true;
       caddy = {
@@ -90,6 +90,12 @@
           owner = "monkey";
           group = "users";
           services = ["sunshine"];
+        };
+        secrets.jellyfinAdminPassword = {
+          reference = "zero-jellyfin-admin/password";
+          path = "/run/secrets/jellyfin-admin-password";
+          mode = "0400";
+          services = ["jellyfin-declarative-config"];
         };
         secrets.cloudflareApiToken = {
           reference = "cloudflare.com/dns-api-token";
@@ -204,6 +210,28 @@
     firewall.enable = true;
   };
 
+  nixarr = {
+    enable = true;
+    mediaDir = "/srv/media";
+    stateDir = "/var/lib/nixarr";
+    mediaUsers = ["monkey"];
+    jellyfin.enable = true;
+    seerr.enable = true;
+    sonarr.enable = true;
+    radarr.enable = true;
+    prowlarr = {
+      enable = true;
+      settings-sync.enable-nixarr-apps = true;
+    };
+    bazarr = {
+      enable = true;
+      settings-sync = {
+        sonarr.enable = true;
+        radarr.enable = true;
+      };
+    };
+  };
+
   services.jellyfin = {
     hardwareAcceleration = {
       type = "vaapi";
@@ -217,6 +245,10 @@
       av1 = true;
     };
   };
+
+  services.sonarr.settings.auth.required = "DisabledForLocalAddresses";
+  services.radarr.settings.auth.required = "DisabledForLocalAddresses";
+  services.prowlarr.settings.auth.required = "DisabledForLocalAddresses";
 
   users.users.jellyfin.extraGroups = ["render" "video"];
 

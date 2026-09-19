@@ -21,8 +21,7 @@
       ../../modules/nixos/desktop.nix
       ../../modules/nixos/gaming.nix
       ../../modules/nixos/homepage.nix
-      ../../modules/nixos/jellyfin.nix
-      ../../modules/nixos/media-automation.nix
+      ../../modules/nixos/media-config.nix
       ../../modules/nixos/streaming.nix
       ../../modules/services/caddy/nixos.nix
       ../../os/nixos.nix
@@ -31,6 +30,7 @@
       ../archetypes/desktop-machine.nix
       ../../modules/nixos/ghostty-terminfo.nix
       ../../targets/zero
+      inputs.nixarr.nixosModules.default
     ];
     overrides = {
       autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";

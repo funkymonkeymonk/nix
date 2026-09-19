@@ -209,13 +209,6 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `(self)` | boolean | *(read-only)* | Whether the current system is Darwin (macOS) |
 
-### myConfig.jellyfin
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Whether to enable Jellyfin media server. |
-| `mediaDir` | absolute path | `"/srv/media"` | Root directory containing Jellyfin media libraries |
-
 ### myConfig.llmClient
 
 | Option | Type | Default | Description |
@@ -254,11 +247,11 @@ or changing a `myConfig.*` option.
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7777` | Port for Lume HTTP API |
 | `prePullImages` | list of string | `[ ]` | List of VM images to pre-pull on activation (e.g., macos-tahoe-vanilla:latest) |
 
-### myConfig.mediaAutomation
+### myConfig.mediaConfig
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enable` | boolean | `false` | Whether to enable media automation services. |
+| `enable` | boolean | `false` | Whether to enable declarative media application configuration. |
 
 ### myConfig.motd
 
