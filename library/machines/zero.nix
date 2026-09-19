@@ -17,8 +17,11 @@
     modules = [
       ../archetypes/desktop-nixos.nix
       ../../modules/nixos/base.nix
+      ../../modules/nixos/backup.nix
       ../../modules/nixos/desktop.nix
       ../../modules/nixos/gaming.nix
+      ../../modules/nixos/jellyfin.nix
+      ../../modules/nixos/media-automation.nix
       ../../modules/nixos/streaming.nix
       ../../modules/services/caddy/nixos.nix
       ../../os/nixos.nix

@@ -35,6 +35,12 @@
         autoLoginUser = "monkey";
       };
       gaming.enable = true;
+      jellyfin.enable = true;
+      mediaAutomation.enable = true;
+      backup = {
+        enable = true;
+        repository = "s3:https://fa5cd9ae588234f20b8889e7619ad6ad.r2.cloudflarestorage.com/personal-backups/zero";
+      };
       streaming.enable = true;
       caddy = {
         enable = true;
@@ -43,6 +49,30 @@
           host = "sunshine.buildingbananas.com";
           upstream = "https://127.0.0.1:47990";
           upstreamTlsSkipVerify = true;
+        };
+        apps.jellyfin = {
+          host = "jellyfin.buildingbananas.com";
+          upstream = "http://127.0.0.1:8096";
+        };
+        apps.seerr = {
+          host = "seerr.buildingbananas.com";
+          upstream = "http://127.0.0.1:5055";
+        };
+        apps.sonarr = {
+          host = "sonarr.buildingbananas.com";
+          upstream = "http://127.0.0.1:8989";
+        };
+        apps.radarr = {
+          host = "radarr.buildingbananas.com";
+          upstream = "http://127.0.0.1:7878";
+        };
+        apps.prowlarr = {
+          host = "prowlarr.buildingbananas.com";
+          upstream = "http://127.0.0.1:9696";
+        };
+        apps.bazarr = {
+          host = "bazarr.buildingbananas.com";
+          upstream = "http://127.0.0.1:6767";
         };
       };
       onepassword = {
@@ -63,6 +93,24 @@
           owner = "root";
           group = "root";
           services = ["caddy-cloudflare-env" "caddy"];
+        };
+        secrets.zeroResticPassword = {
+          reference = "zero-restic/password";
+          path = "/run/secrets/zero-restic-password";
+          mode = "0400";
+          services = ["restic-backup-env" "restic-backups-zero"];
+        };
+        secrets.personalBackupsAccessKeyId = {
+          reference = "cloudflare.com/personal-backups-accesskey-id";
+          path = "/run/secrets/personal-backups-accesskey-id";
+          mode = "0400";
+          services = ["restic-backup-env" "restic-backups-zero"];
+        };
+        secrets.personalBackupsSecretAccessKey = {
+          reference = "cloudflare.com/personal-backups-secret-access-key";
+          path = "/run/secrets/personal-backups-secret-access-key";
+          mode = "0400";
+          services = ["restic-backup-env" "restic-backups-zero"];
         };
       };
 
