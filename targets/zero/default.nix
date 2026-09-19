@@ -199,6 +199,22 @@
     firewall.enable = true;
   };
 
+  services.jellyfin = {
+    hardwareAcceleration = {
+      type = "vaapi";
+      device = "/dev/dri/renderD128";
+    };
+    transcoding.hardwareDecodingCodecs = {
+      h264 = true;
+      hevc = true;
+      hevc10bit = true;
+      vp9 = true;
+      av1 = true;
+    };
+  };
+
+  users.users.jellyfin.extraGroups = ["render" "video"];
+
   time.timeZone = "America/New_York";
 
   environment.systemPackages = with pkgs; [

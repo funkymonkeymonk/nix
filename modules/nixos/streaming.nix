@@ -13,6 +13,10 @@ in {
   };
 
   config = mkIf cfg.enable {
+    # opnix creates /run/secrets as root:root; the user-level Sunshine unit
+    # needs directory traversal to read its own 0400 secret file.
+    systemd.tmpfiles.rules = ["z /run/secrets 0750 root users -"];
+
     services.sunshine = {
       enable = true;
       autoStart = true;

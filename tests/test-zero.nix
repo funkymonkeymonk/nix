@@ -80,7 +80,7 @@ in {
     ''
       echo "=== Testing Zero Tailscale opnix dependency ==="
 
-      ${assertContainsStr "onepassword-secrets dep" "onepassword-secrets.service" tailscaleModuleText}
+      ${assertContainsStr "opnix-secrets dep" "opnix-secrets.service" tailscaleModuleText}
       ${assertContainsStr "tailscale auth key name" "tailscale-auth-key" tailscaleModuleText}
 
       echo "Tailscale opnix dependency test passed"
@@ -271,6 +271,9 @@ in {
       ${assertContainsStr "Jellyfin direct firewall disabled" "openFirewall = false" jellyfinNixosModuleText}
       ${assertContainsStr "Jellyfin backup registration" ''path = "/var/lib/jellyfin"'' jellyfinNixosModuleText}
       ${assertContainsStr "Jellyfin backup excludes cache" ''"cache"'' jellyfinNixosModuleText}
+      ${assertContainsStr "Jellyfin VA-API" ''type = "vaapi"'' zeroConfigText}
+      ${assertContainsStr "Jellyfin render device" ''device = "/dev/dri/renderD128"'' zeroConfigText}
+      ${assertContainsStr "Jellyfin render group" ''extraGroups = ["render" "video"]'' zeroConfigText}
       ${assertContainsStr "Jellyfin Caddy app" "apps.jellyfin = {" zeroConfigText}
       ${assertContainsStr "Jellyfin hostname" "jellyfin.buildingbananas.com" zeroConfigText}
       ${assertContainsStr "Jellyfin upstream" "127.0.0.1:8096" zeroConfigText}
