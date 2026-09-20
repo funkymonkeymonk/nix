@@ -16,8 +16,8 @@ in {
     # opnix creates /run/secrets as root:root; the user-level Sunshine unit
     # needs directory traversal to read its own 0400 secret file.
     systemd.tmpfiles.rules = [
-      "d /run/secrets 0750 root users -"
-      "z /run/secrets 0750 root users -"
+      "d /run/secrets 0755 root root -"
+      "z /run/secrets 0755 root root -"
     ];
 
     services.sunshine = {
