@@ -66,6 +66,6 @@ in {
       ];
     };
 
-    myConfig.backup.paths = [{path = "/var/lib/homepage-dashboard";}];
+    myConfig.backup.paths = ["/var/lib/homepage-dashboard"];
   };
 }

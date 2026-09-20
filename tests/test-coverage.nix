@@ -136,7 +136,12 @@
     # type-server target wiring)
     "nixos/prometheus.nix"
     "nixos/alertmanager.nix"
-    "nixos/streaming.nix"
+    # Tested via the drlight media-target evaluation and test-zero.nix.
+    "nixos/backup.nix"
+    "nixos/homepage.nix"
+    "nixos/media-config.nix"
+    "nixos/media-storage.nix"
+    "nixos/onepacerr.nix"
     "services/caddy/nixos.nix"
   ];
 

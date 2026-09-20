@@ -35,16 +35,6 @@
         autoLoginUser = "monkey";
       };
       gaming.enable = true;
-      homepage.enable = true;
-      mediaConfig.enable = true;
-      onePacerr = {
-        enable = true;
-      };
-      backup = {
-        enable = true;
-        repository = "s3:https://fa5cd9ae588234f20b8889e7619ad6ad.r2.cloudflarestorage.com/personal-backups/zero";
-        paths = [{path = "/var/lib/nixarr";}];
-      };
       streaming.enable = true;
       caddy = {
         enable = true;
@@ -53,51 +43,6 @@
           host = "sunshine.home.buildingbananas.com";
           upstream = "https://127.0.0.1:47990";
           upstreamTlsSkipVerify = true;
-        };
-        apps.jellyfin = {
-          host = "jellyfin.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8096";
-        };
-        apps.seerr = {
-          host = "seerr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:5055";
-        };
-        apps.sonarr = {
-          host = "sonarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8989";
-        };
-        apps.radarr = {
-          host = "radarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:7878";
-        };
-        apps.prowlarr = {
-          host = "prowlarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:9696";
-        };
-        apps.bazarr = {
-          host = "bazarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:6767";
-        };
-        apps.audiobookshelf = {
-          host = "audiobookshelf.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:9292";
-        };
-        apps.lidarr = {
-          host = "lidarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8686";
-        };
-        apps.shelfmark = {
-          host = "shelfmark.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8084";
-        };
-        apps.transmission = {
-          host = "transmission.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:9091";
-          webRoot = "/transmission/web";
-        };
-        apps.dashboard = {
-          host = "dashboard.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8082";
         };
       };
       onepassword = {
@@ -110,38 +55,6 @@
           owner = "monkey";
           group = "users";
           services = ["sunshine-user-restart"];
-        };
-        secrets.jellyfinAdminPassword = {
-          reference = "zero-jellyfin-admin/password";
-          path = "/run/secrets/jellyfin-admin-password";
-          mode = "0400";
-          services = ["jellyfin-declarative-config"];
-        };
-        secrets.cloudflareApiToken = {
-          reference = "cloudflare.com/dns-api-token";
-          path = "/run/secrets/cloudflare-api-token";
-          mode = "0400";
-          owner = "root";
-          group = "root";
-          services = ["caddy-cloudflare-env" "caddy"];
-        };
-        secrets.zeroResticPassword = {
-          reference = "zero-restic/password";
-          path = "/run/secrets/zero-restic-password";
-          mode = "0400";
-          services = ["restic-backup-env" "restic-backups-zero"];
-        };
-        secrets.personalBackupsAccessKeyId = {
-          reference = "cloudflare.com/personal-backups-accesskey-id";
-          path = "/run/secrets/personal-backups-accesskey-id";
-          mode = "0400";
-          services = ["restic-backup-env" "restic-backups-zero"];
-        };
-        secrets.personalBackupsSecretAccessKey = {
-          reference = "cloudflare.com/personal-backups-secret-access-key";
-          path = "/run/secrets/personal-backups-secret-access-key";
-          mode = "0400";
-          services = ["restic-backup-env" "restic-backups-zero"];
         };
       };
 
@@ -230,83 +143,6 @@
     networkmanager.enable = true;
     firewall.enable = true;
   };
-
-  nixarr = {
-    enable = true;
-    mediaDir = "/srv/media";
-    stateDir = "/var/lib/nixarr";
-    mediaUsers = ["monkey"];
-    jellyfin.enable = true;
-    seerr.enable = true;
-    sonarr.enable = true;
-    radarr.enable = true;
-    audiobookshelf.enable = true;
-    lidarr.enable = true;
-    shelfmark.enable = true;
-    transmission = {
-      enable = true;
-    };
-    recyclarr = {
-      enable = true;
-      schedule = "daily";
-      configuration = {
-        sonarr.series = {
-          base_url = "http://127.0.0.1:8989";
-          api_key = "!env_var SONARR_API_KEY";
-        };
-        radarr.movies = {
-          base_url = "http://127.0.0.1:7878";
-          api_key = "!env_var RADARR_API_KEY";
-        };
-      };
-    };
-    prowlarr = {
-      enable = true;
-      settings-sync.enable-nixarr-apps = true;
-    };
-    bazarr = {
-      enable = true;
-      settings-sync = {
-        sonarr.enable = true;
-        radarr.enable = true;
-      };
-    };
-    sonarr.settings-sync.transmission.enable = true;
-    radarr.settings-sync.transmission.enable = true;
-  };
-
-  services.jellyfin = {
-    hardwareAcceleration = {
-      type = "vaapi";
-      device = "/dev/dri/renderD128";
-    };
-    transcoding.hardwareDecodingCodecs = {
-      h264 = true;
-      hevc = true;
-      hevc10bit = true;
-      vp9 = true;
-      av1 = true;
-    };
-  };
-
-  services.transmission.settings = {
-    "ratio-limit-enabled" = true;
-    "ratio-limit" = 0;
-    "idle-seeding-limit-enabled" = true;
-    "idle-seeding-limit" = 0;
-    "rpc-host-whitelist" = "transmission.home.buildingbananas.com";
-    "rpc-host-whitelist-enabled" = true;
-  };
-
-  services.sonarr.settings.auth.required = "DisabledForLocalAddresses";
-  services.sonarr.settings.auth.method = "Forms";
-  services.radarr.settings.auth.required = "DisabledForLocalAddresses";
-  services.radarr.settings.auth.method = "Forms";
-  services.prowlarr.settings.auth.required = "DisabledForLocalAddresses";
-  services.prowlarr.settings.auth.method = "Forms";
-  services.lidarr.settings.auth.required = "DisabledForLocalAddresses";
-  services.lidarr.settings.auth.method = "Forms";
-  users.users.jellyfin.extraGroups = ["render" "video"];
 
   time.timeZone = "America/New_York";
 

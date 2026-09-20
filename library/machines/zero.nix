@@ -21,11 +21,6 @@
       ../../modules/nixos/gaming.nix
       ../../modules/nixos/streaming.nix
       ../../modules/services/caddy/nixos.nix
-      ../../modules/nixos/media-storage.nix
-      ../../modules/nixos/media-config.nix
-      ../../modules/nixos/backup.nix
-      ../../modules/nixos/onepacerr.nix
-      ../../modules/nixos/homepage.nix
       ../../os/nixos.nix
       inputs.disko.nixosModules.disko
       ../../disk-configs/zero.nix
