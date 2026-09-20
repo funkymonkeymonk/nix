@@ -62,7 +62,7 @@ in {
       };
       systemd.services.tailscale-autoconnect = {
         description = "Automatic connection to Tailscale";
-        after = ["network-pre.target" "tailscale.service" "onepassword-secrets.service"];
+        after = ["network-pre.target" "tailscale.service" "opnix-secrets.service"];
         wants = ["network-pre.target" "tailscale.service"];
         wantedBy = ["multi-user.target"];
         serviceConfig.Type = "oneshot";

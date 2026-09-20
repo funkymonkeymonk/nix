@@ -9,6 +9,14 @@
 
   # Read zero config as a string for pattern checking (pure Nix, no derivation needed)
   zeroConfigText = builtins.readFile ../targets/zero/default.nix;
+  streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
+  caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
+  backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
+  homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
+  mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
+  onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
+  drlightTargetText = builtins.readFile ../targets/drlight/default.nix;
+  drlightStorageText = builtins.readFile ../modules/nixos/media-storage.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -29,6 +37,25 @@
     then ''echo "  ${name}: OK"''
     else throw "${name}: '${needle}' should occur at least ${toString count} times in zero config";
 in {
+  # Test: the existing media pool moves to drlight without provisioning disks.
+  zeroMediaMirrorStorageTest =
+    pkgs.runCommand "test-zero-media-mirror-storage"
+    {}
+    ''
+      echo "=== Testing Zero external media mirror storage ==="
+
+       ${assertContainsStr "existing media pool import" ''extraPools = ["media"]'' drlightStorageText}
+       ${assertContainsStr "primary media mount" ''"/srv/media"'' drlightStorageText}
+       ${assertContainsStr "compatibility media mount" ''"/media"'' drlightStorageText}
+       ${assertNotContainsStr "no disk provisioning" "disko.devices" drlightStorageText}
+       ${assertContainsStr "drlight media config" "mediaConfig.enable = true" drlightTargetText}
+      ${assertContainsStr "Jellyfin waits for media mount" "RequiresMountsFor" mediaConfigModuleText}
+       ${assertNotContainsStr "Zero no longer owns media config" "mediaConfig.enable" zeroConfigText}
+
+      echo "Zero external media mirror storage test passed"
+      touch $out
+    '';
+
   # Test: zero config should set defaultVault and override authKeyOpnixItem
   zeroTailscaleSecretConfigTest =
     pkgs.runCommand "test-zero-tailscale-secret-config"
@@ -75,7 +102,7 @@ in {
     ''
       echo "=== Testing Zero Tailscale opnix dependency ==="
 
-      ${assertContainsStr "onepassword-secrets dep" "onepassword-secrets.service" tailscaleModuleText}
+      ${assertContainsStr "opnix-secrets dep" "opnix-secrets.service" tailscaleModuleText}
       ${assertContainsStr "tailscale auth key name" "tailscale-auth-key" tailscaleModuleText}
 
       echo "Tailscale opnix dependency test passed"
@@ -186,6 +213,202 @@ in {
       ${assertContainsStr "go 1password item" "op://Homelab/OpenCode Go API/credential" zeroConfigText}
 
       echo "Zero cloud-only config test passed"
+      touch $out
+    '';
+
+  # Test: Sunshine pairing should be completable from a LAN phone or other
+  # browser, while the web UI remains limited to LAN clients.
+  zeroSunshineLanPairingTest =
+    pkgs.runCommand "test-zero-sunshine-lan-pairing"
+    {}
+    ''
+      echo "=== Testing Zero Sunshine LAN pairing ==="
+
+      ${assertContainsStr "LAN PIN origin" ''origin_pin_allowed = "lan"'' streamingModuleText}
+      ${assertContainsStr "LAN web UI origin" ''origin_web_ui_allowed = "lan"'' streamingModuleText}
+      ${assertContainsStr "Sunshine CSRF origin" ''csrf_allowed_origins = "https://sunshine.home.buildingbananas.com"'' streamingModuleText}
+      ${assertContainsStr "stable Sunshine name" "sunshine_name = config.networking.hostName" streamingModuleText}
+      ${assertContainsStr "firewall enabled" "firewall.enable = true" zeroConfigText}
+
+      echo "Zero Sunshine LAN pairing test passed"
+      touch $out
+    '';
+
+  # Test: Sunshine's web password must come from opnix at runtime rather than
+  # being embedded in the Nix-generated configuration.
+  zeroSunshinePasswordSecretTest =
+    pkgs.runCommand "test-zero-sunshine-password-secret"
+    {}
+    ''
+      echo "=== Testing Zero Sunshine 1Password password ==="
+
+      ${assertContainsStr "Sunshine password reference" "Sunshine/password" zeroConfigText}
+      ${assertContainsStr "runtime secret path" "/var/lib/opnix/secrets/sunshinePassword" zeroConfigText}
+      ${assertContainsStr "Sunshine secret path" "/var/lib/opnix/secrets/sunshinePassword" streamingModuleText}
+      ${assertContainsStr "credential update hook" "--creds monkey" streamingModuleText}
+      ${assertNotContainsStr "no plaintext password" "password =" streamingModuleText}
+
+      echo "Zero Sunshine 1Password password test passed"
+      touch $out
+    '';
+
+  # Test: Caddy should expose Sunshine's web UI through Cloudflare-backed
+  # public HTTPS without attempting to proxy Moonlight's streaming protocols.
+  zeroSunshineCaddyProxyTest =
+    pkgs.runCommand "test-zero-sunshine-caddy-proxy"
+    {}
+    ''
+      echo "=== Testing Zero Sunshine Caddy proxy ==="
+
+      ${assertContainsStr "Caddy enabled" "caddy = {" zeroConfigText}
+      ${assertContainsStr "Sunshine Caddy app" "apps.sunshine = {" zeroConfigText}
+      ${assertContainsStr "LAN Sunshine hostname" "sunshine.home.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Cloudflare DNS challenge" "dns cloudflare {env.CLOUDFLARE_API_TOKEN}" caddyNixosModuleText}
+      ${assertContainsStr "runtime Cloudflare secret" "/run/secrets/cloudflare-api-token" zeroConfigText}
+      ${assertContainsStr "Cloudflare token reference" "cloudflare.com/dns-api-token" zeroConfigText}
+      ${assertContainsStr "Cloudflare Caddy plugin" "caddy-dns/cloudflare@v0.2.4" caddyNixosModuleText}
+      ${assertContainsStr "Caddy secret path option" "cloudflareApiTokenPath" caddyNixosModuleText}
+      ${assertContainsStr "LAN proxy restriction" "remote_ip 10.0.0.0/8" caddyNixosModuleText}
+      ${assertContainsStr "Sunshine upstream TLS override" "upstreamTlsSkipVerify = true" zeroConfigText}
+      ${assertContainsStr "Sunshine secret readiness wait" "for attempt in" streamingModuleText}
+      ${assertContainsStr "Sunshine secret service ordering" "opnix-secrets.service" streamingModuleText}
+      ${assertContainsStr "Sunshine restart delay" "RestartSec = lib.mkForce \"10s\"" streamingModuleText}
+      ${assertContainsStr "Sunshine user restart bridge" "systemctl --machine=monkey@.host --user restart sunshine.service" streamingModuleText}
+      ${assertContainsStr "HTTPS Sunshine upstream" "https://127.0.0.1:47990" zeroConfigText}
+      ${assertContainsStr "Caddy virtual hosts" "virtualHosts = mapAttrs'" caddyNixosModuleText}
+      ${assertContainsStr "Caddy firewall" "allowedTCPPorts = [80 443]" caddyNixosModuleText}
+
+      echo "Zero Sunshine Caddy proxy test passed"
+      touch $out
+    '';
+
+  # Test: Jellyfin should use the existing root filesystem for media and be
+  # reachable through Caddy rather than exposing its native port directly.
+  zeroJellyfinTest =
+    pkgs.runCommand "test-zero-jellyfin"
+    {}
+    ''
+      echo "=== Testing Zero Jellyfin configuration ==="
+
+      ${assertContainsStr "Jellyfin enabled" "jellyfin.enable = true" zeroConfigText}
+      ${assertContainsStr "Backups enabled" "backup = {" zeroConfigText}
+      ${assertContainsStr "R2 backup repository" "personal-backups/zero" zeroConfigText}
+      ${assertContainsStr "Nixarr media root" ''mediaDir = "/srv/media"'' zeroConfigText}
+      ${assertContainsStr "Nixarr state root" ''stateDir = "/var/lib/nixarr"'' zeroConfigText}
+      ${assertContainsStr "Nixarr backup registration" ''path = "/var/lib/nixarr"'' zeroConfigText}
+      ${assertContainsStr "Jellyfin VA-API" ''type = "vaapi"'' zeroConfigText}
+      ${assertContainsStr "Jellyfin render device" ''device = "/dev/dri/renderD128"'' zeroConfigText}
+      ${assertContainsStr "Jellyfin render group" ''extraGroups = ["render" "video"]'' zeroConfigText}
+      ${assertContainsStr "Jellyfin Caddy app" "apps.jellyfin = {" zeroConfigText}
+      ${assertContainsStr "Jellyfin hostname" "jellyfin.home.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Jellyfin upstream" "127.0.0.1:8096" zeroConfigText}
+      ${assertContainsStr "backup registry" "myConfig.backup.paths" backupNixosModuleText}
+      ${assertContainsStr "Restic integration" "services.restic.backups" backupNixosModuleText}
+
+      echo "Zero Jellyfin configuration test passed"
+      touch $out
+    '';
+
+  # Test: Nixarr should manage the media services and settings synchronization
+  # while Caddy keeps their native ports private.
+  zeroMediaAutomationTest =
+    pkgs.runCommand "test-zero-media-automation"
+    {}
+    ''
+      echo "=== Testing Zero media automation services ==="
+
+      ${assertContainsStr "Nixarr enabled" "nixarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr Jellyfin" "jellyfin.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Sonarr" "sonarr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Radarr" "radarr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Prowlarr" "prowlarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr Bazarr" "bazarr = {" zeroConfigText}
+      ${assertContainsStr "Nixarr Seerr" "seerr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Audiobookshelf" "audiobookshelf.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Lidarr" "lidarr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Shelfmark" "shelfmark.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Recyclarr" "recyclarr = {" zeroConfigText}
+      ${assertNotContainsStr "Nixarr SABnzbd removed" "sabnzbd = {" zeroConfigText}
+      ${assertNotContainsStr "SABnzbd generated settings removed" "services.sabnzbd.configFile = lib.mkForce null" zeroConfigText}
+      ${assertNotContainsStr "Nixarr Autobrr removed" "autobrr.enable = true" zeroConfigText}
+      ${assertContainsStr "Nixarr Transmission" "transmission = {" zeroConfigText}
+      ${assertContainsStr "Transmission seed ratio disabled" ''"ratio-limit-enabled" = true'' zeroConfigText}
+      ${assertContainsStr "Transmission seed ratio zero" ''"ratio-limit" = 0'' zeroConfigText}
+      ${assertContainsStr "Transmission host whitelist" ''"rpc-host-whitelist"'' zeroConfigText}
+      ${assertContainsStr "Prowlarr settings sync" "enable-nixarr-apps = true" zeroConfigText}
+      ${assertContainsStr "Bazarr settings sync" "settings-sync" zeroConfigText}
+      ${assertContainsStr "Sonarr Transmission sync" "sonarr.settings-sync.transmission.enable = true" zeroConfigText}
+      ${assertContainsStr "Radarr Transmission sync" "radarr.settings-sync.transmission.enable = true" zeroConfigText}
+      ${assertContainsStr "OnePacerr enabled" "onePacerr = {" zeroConfigText}
+      ${assertContainsStr "OnePacerr image" "ghcr.io/eltharynd/onepacerr" onePacerrNixosModuleText}
+      ${assertContainsStr "OnePacerr library" "LIBRARY_SERIES_NAME" onePacerrNixosModuleText}
+      ${assertContainsStr "OnePacerr Transmission" "TORRENT_CLIENT" onePacerrNixosModuleText}
+      ${assertContainsStr "OnePacerr Jellyfin" "JELLYFIN_URL" onePacerrNixosModuleText}
+      ${assertContainsStr "Recyclarr Sonarr API" ''"!env_var SONARR_API_KEY"'' zeroConfigText}
+      ${assertContainsStr "Recyclarr Radarr API" ''"!env_var RADARR_API_KEY"'' zeroConfigText}
+      ${assertContainsStr "Lidarr auth method" ''services.lidarr.settings.auth.method = "Forms"'' zeroConfigText}
+      ${assertContainsStr "Seerr Caddy app" "apps.seerr = {" zeroConfigText}
+      ${assertContainsStr "Sonarr Caddy app" "apps.sonarr = {" zeroConfigText}
+      ${assertContainsStr "Radarr Caddy app" "apps.radarr = {" zeroConfigText}
+      ${assertContainsStr "Prowlarr Caddy app" "apps.prowlarr = {" zeroConfigText}
+      ${assertContainsStr "Bazarr Caddy app" "apps.bazarr = {" zeroConfigText}
+      ${assertContainsStr "Audiobookshelf Caddy app" "apps.audiobookshelf = {" zeroConfigText}
+      ${assertContainsStr "Lidarr Caddy app" "apps.lidarr = {" zeroConfigText}
+      ${assertContainsStr "Shelfmark Caddy app" "apps.shelfmark = {" zeroConfigText}
+      ${assertNotContainsStr "SABnzbd Caddy app removed" "apps.sabnzbd = {" zeroConfigText}
+      ${assertNotContainsStr "Autobrr Caddy app removed" "apps.autobrr = {" zeroConfigText}
+      ${assertContainsStr "Transmission Caddy app" "apps.transmission = {" zeroConfigText}
+      ${assertContainsStr "Transmission Caddy web root" ''webRoot = "/transmission/web"'' zeroConfigText}
+
+      echo "Zero media automation test passed"
+      touch $out
+    '';
+
+  # Test: Homepage should provide a declarative media-center landing page
+  # through Caddy without opening its native port directly.
+  zeroHomepageTest =
+    pkgs.runCommand "test-zero-homepage"
+    {}
+    ''
+      echo "=== Testing Zero Homepage dashboard ==="
+
+      ${assertContainsStr "Homepage enabled" "homepage.enable = true" zeroConfigText}
+      ${assertContainsStr "Homepage service" "services.homepage-dashboard" homepageNixosModuleText}
+      ${assertContainsStr "Homepage private port" "listenPort = 8082" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Caddy app" "apps.dashboard = {" zeroConfigText}
+      ${assertContainsStr "Homepage hostname" "dashboard.home.buildingbananas.com" zeroConfigText}
+      ${assertContainsStr "Homepage upstream" "127.0.0.1:8082" zeroConfigText}
+      ${assertContainsStr "Homepage Jellyfin link" "jellyfin.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Seerr link" "seerr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Audiobookshelf link" "audiobookshelf.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Lidarr link" "lidarr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Shelfmark link" "shelfmark.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertNotContainsStr "Homepage SABnzbd link removed" "sabnzbd.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertNotContainsStr "Homepage Autobrr link removed" "autobrr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertContainsStr "Homepage Transmission link" "transmission.home.buildingbananas.com" homepageNixosModuleText}
+
+      echo "Zero Homepage dashboard test passed"
+      touch $out
+    '';
+
+  # Test: application-level media configuration must be declared in Nix and
+  # receive its credentials from runtime opnix secrets.
+  zeroMediaDeclarativeConfigTest =
+    pkgs.runCommand "test-zero-media-declarative-config"
+    {}
+    ''
+      echo "=== Testing Zero declarative media configuration ==="
+
+      ${assertContainsStr "Jellyfin admin secret" "zero-jellyfin-admin/password" zeroConfigText}
+      ${assertContainsStr "Nixarr settings sync" "settings-sync" zeroConfigText}
+      ${assertContainsStr "Sonarr auth method" ''services.sonarr.settings.auth.method = "Forms"'' zeroConfigText}
+      ${assertContainsStr "Radarr auth method" ''services.radarr.settings.auth.method = "Forms"'' zeroConfigText}
+      ${assertContainsStr "Prowlarr auth method" ''services.prowlarr.settings.auth.method = "Forms"'' zeroConfigText}
+      ${assertContainsStr "Jellyfin startup bootstrap" "jellyfin-declarative-config" mediaConfigModuleText}
+      ${assertContainsStr "Jellyfin startup completion" "/Startup/Complete" mediaConfigModuleText}
+      ${assertContainsStr "Jellyfin library reconciliation" "/Library/VirtualFolders" mediaConfigModuleText}
+
+      echo "Zero declarative media configuration test passed"
       touch $out
     '';
 }

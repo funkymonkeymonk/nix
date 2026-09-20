@@ -64,6 +64,14 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. |
 
+### myConfig.backup
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable system backups. |
+| `paths` | list of string | `[ ]` | — |
+| `repository` | string | *required* | — |
+
 ### myConfig.bifrost
 
 | Option | Type | Default | Description |
@@ -90,6 +98,18 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | boolean | `true` | Enable Cachix binary cache |
+
+### myConfig.caddy
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apps` | attribute set of (submodule) | `{ }` | Internal applications exposed through Caddy |
+| `apps.<name>.host` | string | *required* | Hostname served by Caddy |
+| `apps.<name>.upstream` | string | *required* | Upstream URL or address for the application |
+| `apps.<name>.upstreamTlsSkipVerify` | boolean | `false` | Disable TLS certificate verification for this HTTPS upstream |
+| `apps.<name>.webRoot` | null or string | `null` | Path prefix for applications whose web UI is not served at the upstream root |
+| `cloudflareApiTokenPath` | null or string | `null` | Runtime path containing the Cloudflare API token used for DNS-01 certificates |
+| `enable` | boolean | `false` | Whether to enable Caddy internal reverse proxy. |
 
 ### myConfig.charm
 
@@ -172,6 +192,12 @@ or changing a `myConfig.*` option.
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3000` | Port for Grafana HTTP server |
 | `typeServerPrometheusUrl` | null or string | `null` | URL of type-server's Prometheus instance (see modules/nixos/prometheus.nix), reachable over Tailscale. When set, adds a second "Prometheus (type-server)" datasource here instead of running a duplicate Grafana on type-server. Genuinely TBD as of this option's introduction — type-server's real Tailscale MagicDNS name isn't known at eval time. Example: "http://type-server.<tailnet>.ts.net:9090". |
 
+### myConfig.homepage
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable Homepage service dashboard. |
+
 ### myConfig.isDarwin
 
 | Option | Type | Default | Description |
@@ -216,6 +242,12 @@ or changing a `myConfig.*` option.
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7777` | Port for Lume HTTP API |
 | `prePullImages` | list of string | `[ ]` | List of VM images to pre-pull on activation (e.g., macos-tahoe-vanilla:latest) |
 
+### myConfig.mediaConfig
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable media services. |
+
 ### myConfig.motd
 
 | Option | Type | Default | Description |
@@ -256,6 +288,12 @@ or changing a `myConfig.*` option.
 | `memoryGuardGb` | positive integer, meaning >0 | `96` | Maximum oMLX process memory in GB |
 | `server.host` | string | `"0.0.0.0"` | Bind address for oMLX |
 | `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Port for oMLX's OpenAI-compatible API |
+
+### myConfig.onePacerr
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable OnePacerr. |
 
 ### myConfig.onepassword
 
