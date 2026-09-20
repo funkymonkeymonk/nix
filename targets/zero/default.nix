@@ -105,7 +105,7 @@
         defaultVault = "Homelab";
         secrets.sunshinePassword = {
           reference = "Sunshine/password";
-          path = "/run/secrets/sunshine-password";
+          path = "/var/lib/opnix/secrets/sunshinePassword";
           mode = "0400";
           owner = "monkey";
           group = "users";

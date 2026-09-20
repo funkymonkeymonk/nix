@@ -266,9 +266,8 @@ in {
       echo "=== Testing Zero Sunshine 1Password password ==="
 
       ${assertContainsStr "Sunshine password reference" "Sunshine/password" zeroConfigText}
-      ${assertContainsStr "runtime secret path" "/run/secrets/sunshine-password" zeroConfigText}
-      ${assertContainsStr "secret directory created for Sunshine" "d /run/secrets 0755 root root -" streamingModuleText}
-      ${assertContainsStr "secret directory traversable by Sunshine" "z /run/secrets 0755 root root -" streamingModuleText}
+      ${assertContainsStr "runtime secret path" "/var/lib/opnix/secrets/sunshinePassword" zeroConfigText}
+      ${assertContainsStr "Sunshine secret path" "/var/lib/opnix/secrets/sunshinePassword" streamingModuleText}
       ${assertContainsStr "credential update hook" "--creds monkey" streamingModuleText}
       ${assertNotContainsStr "no plaintext password" "password =" streamingModuleText}
 

@@ -13,13 +13,6 @@ in {
   };
 
   config = mkIf cfg.enable {
-    # opnix creates /run/secrets as root:root; the user-level Sunshine unit
-    # needs directory traversal to read its own 0400 secret file.
-    systemd.tmpfiles.rules = [
-      "d /run/secrets 0755 root root -"
-      "z /run/secrets 0755 root root -"
-    ];
-
     services.sunshine = {
       enable = true;
       autoStart = true;
@@ -37,7 +30,7 @@ in {
     # Apply the opnix-managed password immediately before Sunshine starts so
     # the credential is never embedded in the Nix store or service unit.
     systemd.user.services.sunshine.preStart = ''
-      password_file=/run/secrets/sunshine-password
+      password_file=/var/lib/opnix/secrets/sunshinePassword
       for attempt in $(seq 1 60); do
         if [ -r "$password_file" ]; then
           break
