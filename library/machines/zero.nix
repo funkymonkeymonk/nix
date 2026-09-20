@@ -20,6 +20,7 @@
       ../../modules/nixos/desktop.nix
       ../../modules/nixos/gaming.nix
       ../../modules/nixos/streaming.nix
+      ../../modules/services/caddy/nixos.nix
       ../../os/nixos.nix
       inputs.disko.nixosModules.disko
       ../../disk-configs/zero.nix

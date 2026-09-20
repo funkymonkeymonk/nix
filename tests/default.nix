@@ -229,6 +229,7 @@ in
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
+    drlight-media-storage = testZero.zeroMediaMirrorStorageTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;

@@ -68,6 +68,7 @@
         ./library/machines/cattle.nix
         ./library/machines/installer-iso.nix
         ./library/machines/zero.nix
+        ./library/machines/drlight.nix
         ./library/machines/darwin.nix
       ];
       flake = {};
