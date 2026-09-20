@@ -249,6 +249,7 @@ in {
 
       ${assertContainsStr "LAN PIN origin" ''origin_pin_allowed = "lan"'' streamingModuleText}
       ${assertContainsStr "LAN web UI origin" ''origin_web_ui_allowed = "lan"'' streamingModuleText}
+      ${assertContainsStr "Sunshine CSRF origin" ''csrf_allowed_origins = "https://sunshine.home.buildingbananas.com"'' streamingModuleText}
       ${assertContainsStr "stable Sunshine name" "sunshine_name = config.networking.hostName" streamingModuleText}
       ${assertContainsStr "firewall enabled" "firewall.enable = true" zeroConfigText}
 

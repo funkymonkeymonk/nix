@@ -29,6 +29,7 @@ in {
         # Allow a phone or another LAN browser to submit Moonlight's pairing PIN.
         origin_pin_allowed = "lan";
         origin_web_ui_allowed = "lan";
+        csrf_allowed_origins = "https://sunshine.home.buildingbananas.com";
         sunshine_name = config.networking.hostName;
       };
     };
