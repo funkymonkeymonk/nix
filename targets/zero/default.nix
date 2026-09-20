@@ -36,9 +36,26 @@
       };
       gaming.enable = true;
       streaming.enable = true;
+      caddy = {
+        enable = true;
+        cloudflareApiTokenPath = "/run/secrets/cloudflare-api-token";
+        apps.sunshine = {
+          host = "sunshine.home.buildingbananas.com";
+          upstream = "https://127.0.0.1:47990";
+          upstreamTlsSkipVerify = true;
+        };
+      };
       onepassword = {
         enable = true;
         defaultVault = "Homelab";
+        secrets.sunshinePassword = {
+          reference = "Sunshine/password";
+          path = "/var/lib/opnix/secrets/sunshinePassword";
+          mode = "0400";
+          owner = "monkey";
+          group = "users";
+          services = ["sunshine-user-restart"];
+        };
       };
 
       # Cloud-only LLM access via OpenCode Go (falls back to OpenCode Zen).
@@ -122,8 +139,9 @@
 
   networking = {
     hostName = "zero";
+    hostId = lib.mkDefault "0badc0de";
     networkmanager.enable = true;
-    firewall.enable = false;
+    firewall.enable = true;
   };
 
   time.timeZone = "America/New_York";
