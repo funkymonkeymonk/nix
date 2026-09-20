@@ -136,6 +136,8 @@
     # type-server target wiring)
     "nixos/prometheus.nix"
     "nixos/alertmanager.nix"
+    "nixos/streaming.nix"
+    "services/caddy/nixos.nix"
   ];
 
   # Modules not yet covered by tests
