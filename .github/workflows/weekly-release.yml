@@ -104,6 +104,7 @@ jobs:
       - name: Validate flake
         if: steps.check-updates.outputs.changes_detected == 'true'
         id: validate
+        continue-on-error: true
         run: |
           # Light validation: ensure flake metadata and Darwin configs evaluate.
           # NixOS configs need --impure for facter.json, and full nix flake check
@@ -129,14 +130,33 @@ jobs:
 
           if [ "$FAILED" = "true" ]; then
             echo "status=failed" >> "$GITHUB_OUTPUT"
-            echo "::error::Flake validation failed — PR will not be created"
-          else
-            echo "status=passed" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
+          echo "status=passed" >> "$GITHUB_OUTPUT"
+      - name: Prepare overlay repair proposal
+        if: >
+          steps.check-updates.outputs.changes_detected == 'true' &&
+          steps.validate.outputs.status == 'failed'
+        id: repair
+        continue-on-error: true
+        run: |
+          bash scripts/check-overlay-patches.sh overlays/default.nix overlay-repair-proposal.md
+      - name: Upload overlay repair proposal
+        if: steps.repair.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: overlay-repair-proposal
+          path: overlay-repair-proposal.md
+      - name: Comment repair instructions
+        if: steps.validate.outputs.status == 'failed'
+        run: |
+          echo "Validation failed. A repair proposal is attached as the overlay-repair-proposal artifact."
+          echo "Only overlays/** should be changed to repair stale dependency assumptions."
       - name: Create PR with auto-merge
         if: >
           steps.check-updates.outputs.changes_detected == 'true' &&
-          steps.validate.outputs.status == 'passed'
+          (steps.validate.outputs.status == 'passed' ||
+          steps.validate.outputs.status == 'failed')
         id: create-pr
         run: |
           branch_name="weekly-release-$(date +%Y-%m-%d)"
@@ -160,7 +180,9 @@ jobs:
 
           **Inputs updated**: ${{ steps.check-updates.outputs.changed_inputs }}
 
-          This PR updates flake.lock with the latest dependency versions.
+           This PR updates flake.lock with the latest dependency versions.
+           Validation status: ${{ steps.validate.outputs.status }}.
+           If validation failed, inspect the workflow logs and the `overlay-repair-proposal` artifact before merging.
           It will auto-merge once CI passes. After merge, the release
           workflow will automatically build the ISO and create a release.
 

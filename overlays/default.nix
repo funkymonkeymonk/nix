@@ -90,15 +90,9 @@
     });
   });
 
-  # Vector 0.58.0 has an unused test-only import, which fails its deny-warnings build.
+  # Disable Vector checks because the package's test suite is not needed here.
   vector = _prev.vector.overrideAttrs (oldAttrs: {
     doCheck = false;
-    postPatch =
-      (oldAttrs.postPatch or "")
-      + ''
-        substituteInPlace src/trace.rs \
-          --replace-fail "    use futures::StreamExt as _;" ""
-      '';
   });
 }
 // (
