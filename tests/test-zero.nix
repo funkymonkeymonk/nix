@@ -266,6 +266,8 @@ in {
 
       ${assertContainsStr "Sunshine password reference" "Sunshine/password" zeroConfigText}
       ${assertContainsStr "runtime secret path" "/run/secrets/sunshine-password" zeroConfigText}
+      ${assertContainsStr "secret directory created for Sunshine" "d /run/secrets 0750 root users -" streamingModuleText}
+      ${assertContainsStr "secret directory traversable by Sunshine" "z /run/secrets 0750 root users -" streamingModuleText}
       ${assertContainsStr "credential update hook" "--creds monkey" streamingModuleText}
       ${assertNotContainsStr "no plaintext password" "password =" streamingModuleText}
 
