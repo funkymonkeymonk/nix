@@ -41,9 +41,7 @@ in {
         }
         {
           Downloads = [
-            (serviceLink "SABnzbd" "sabnzbd.home.buildingbananas.com" "Usenet downloads")
             (serviceLink "Transmission" "transmission.home.buildingbananas.com" "Torrent downloads")
-            (serviceLink "Autobrr" "autobrr.home.buildingbananas.com" "Download automation")
           ];
         }
         {

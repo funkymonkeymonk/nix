@@ -346,9 +346,9 @@ in {
       ${assertContainsStr "Nixarr Lidarr" "lidarr.enable = true" zeroConfigText}
       ${assertContainsStr "Nixarr Shelfmark" "shelfmark.enable = true" zeroConfigText}
       ${assertContainsStr "Nixarr Recyclarr" "recyclarr = {" zeroConfigText}
-      ${assertContainsStr "Nixarr SABnzbd" "sabnzbd = {" zeroConfigText}
-      ${assertContainsStr "SABnzbd generated settings" "services.sabnzbd.configFile = lib.mkForce null" zeroConfigText}
-      ${assertContainsStr "Nixarr Autobrr" "autobrr.enable = true" zeroConfigText}
+      ${assertNotContainsStr "Nixarr SABnzbd removed" "sabnzbd = {" zeroConfigText}
+      ${assertNotContainsStr "SABnzbd generated settings removed" "services.sabnzbd.configFile = lib.mkForce null" zeroConfigText}
+      ${assertNotContainsStr "Nixarr Autobrr removed" "autobrr.enable = true" zeroConfigText}
       ${assertContainsStr "Nixarr Transmission" "transmission = {" zeroConfigText}
       ${assertContainsStr "Transmission seed ratio disabled" ''"ratio-limit-enabled" = true'' zeroConfigText}
       ${assertContainsStr "Transmission seed ratio zero" ''"ratio-limit" = 0'' zeroConfigText}
@@ -373,8 +373,8 @@ in {
       ${assertContainsStr "Audiobookshelf Caddy app" "apps.audiobookshelf = {" zeroConfigText}
       ${assertContainsStr "Lidarr Caddy app" "apps.lidarr = {" zeroConfigText}
       ${assertContainsStr "Shelfmark Caddy app" "apps.shelfmark = {" zeroConfigText}
-      ${assertContainsStr "SABnzbd Caddy app" "apps.sabnzbd = {" zeroConfigText}
-      ${assertContainsStr "Autobrr Caddy app" "apps.autobrr = {" zeroConfigText}
+      ${assertNotContainsStr "SABnzbd Caddy app removed" "apps.sabnzbd = {" zeroConfigText}
+      ${assertNotContainsStr "Autobrr Caddy app removed" "apps.autobrr = {" zeroConfigText}
       ${assertContainsStr "Transmission Caddy app" "apps.transmission = {" zeroConfigText}
       ${assertContainsStr "Transmission Caddy web root" ''webRoot = "/transmission/web"'' zeroConfigText}
 
@@ -401,8 +401,8 @@ in {
       ${assertContainsStr "Homepage Audiobookshelf link" "audiobookshelf.home.buildingbananas.com" homepageNixosModuleText}
       ${assertContainsStr "Homepage Lidarr link" "lidarr.home.buildingbananas.com" homepageNixosModuleText}
       ${assertContainsStr "Homepage Shelfmark link" "shelfmark.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage SABnzbd link" "sabnzbd.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Autobrr link" "autobrr.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertNotContainsStr "Homepage SABnzbd link removed" "sabnzbd.home.buildingbananas.com" homepageNixosModuleText}
+      ${assertNotContainsStr "Homepage Autobrr link removed" "autobrr.home.buildingbananas.com" homepageNixosModuleText}
       ${assertContainsStr "Homepage Transmission link" "transmission.home.buildingbananas.com" homepageNixosModuleText}
 
       echo "Zero Homepage dashboard test passed"

@@ -90,14 +90,6 @@
           host = "shelfmark.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8084";
         };
-        apps.sabnzbd = {
-          host = "sabnzbd.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:6336";
-        };
-        apps.autobrr = {
-          host = "autobrr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:7474";
-        };
         apps.transmission = {
           host = "transmission.home.buildingbananas.com";
           upstream = "http://127.0.0.1:9091";
@@ -251,12 +243,6 @@
     audiobookshelf.enable = true;
     lidarr.enable = true;
     shelfmark.enable = true;
-    autobrr.enable = true;
-    sabnzbd = {
-      enable = true;
-      whitelistHostnames = ["zero" "sabnzbd.home.buildingbananas.com"];
-      whitelistRanges = ["192.168.1.0/24" "100.64.0.0/10"];
-    };
     transmission = {
       enable = true;
     };
@@ -320,9 +306,6 @@
   services.prowlarr.settings.auth.method = "Forms";
   services.lidarr.settings.auth.required = "DisabledForLocalAddresses";
   services.lidarr.settings.auth.method = "Forms";
-  services.sabnzbd.configFile = lib.mkForce null;
-  nixarr.autobrr.settings.host = "127.0.0.1";
-
   users.users.jellyfin.extraGroups = ["render" "video"];
 
   time.timeZone = "America/New_York";
