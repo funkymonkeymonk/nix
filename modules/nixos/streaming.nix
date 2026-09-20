@@ -46,8 +46,13 @@ in {
       fi
       ${pkgs.sunshine}/bin/sunshine --creds monkey "$(cat "$password_file")"
     '';
+    systemd.user.services.sunshine.unitConfig = {
+      After = ["graphical-session.target" "opnix-secrets.service"];
+      Wants = ["graphical-session.target"];
+    };
     systemd.user.services.sunshine.serviceConfig = {
       Restart = "on-failure";
+      RestartSec = lib.mkForce "10s";
     };
   };
 }

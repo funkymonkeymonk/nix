@@ -292,6 +292,8 @@ in {
       ${assertContainsStr "LAN proxy restriction" "remote_ip 10.0.0.0/8" caddyNixosModuleText}
       ${assertContainsStr "Sunshine upstream TLS override" "upstreamTlsSkipVerify = true" zeroConfigText}
       ${assertContainsStr "Sunshine secret readiness wait" "for attempt in" streamingModuleText}
+      ${assertContainsStr "Sunshine secret service ordering" "opnix-secrets.service" streamingModuleText}
+      ${assertContainsStr "Sunshine restart delay" "RestartSec = lib.mkForce \"10s\"" streamingModuleText}
       ${assertContainsStr "HTTPS Sunshine upstream" "https://127.0.0.1:47990" zeroConfigText}
       ${assertContainsStr "Caddy virtual hosts" "virtualHosts = mapAttrs'" caddyNixosModuleText}
       ${assertContainsStr "Caddy firewall" "allowedTCPPorts = [80 443]" caddyNixosModuleText}
