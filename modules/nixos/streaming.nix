@@ -27,6 +27,17 @@ in {
       };
     };
 
+    # Opnix runs as a system service, while Sunshine runs in the user's
+    # graphical systemd instance. Bridge secret-triggered restarts explicitly.
+    systemd.services.sunshine-user-restart = {
+      after = ["opnix-secrets.service"];
+      wantedBy = ["multi-user.target"];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user restart sunshine.service";
+      };
+    };
+
     # Apply the opnix-managed password immediately before Sunshine starts so
     # the credential is never embedded in the Nix store or service unit.
     systemd.user.services.sunshine.preStart = ''

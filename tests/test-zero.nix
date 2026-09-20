@@ -296,6 +296,7 @@ in {
       ${assertContainsStr "Sunshine secret readiness wait" "for attempt in" streamingModuleText}
       ${assertContainsStr "Sunshine secret service ordering" "opnix-secrets.service" streamingModuleText}
       ${assertContainsStr "Sunshine restart delay" "RestartSec = lib.mkForce \"10s\"" streamingModuleText}
+      ${assertContainsStr "Sunshine user restart bridge" "systemctl --machine=monkey@.host --user restart sunshine.service" streamingModuleText}
       ${assertContainsStr "HTTPS Sunshine upstream" "https://127.0.0.1:47990" zeroConfigText}
       ${assertContainsStr "Caddy virtual hosts" "virtualHosts = mapAttrs'" caddyNixosModuleText}
       ${assertContainsStr "Caddy firewall" "allowedTCPPorts = [80 443]" caddyNixosModuleText}

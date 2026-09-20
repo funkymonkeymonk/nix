@@ -109,7 +109,7 @@
           mode = "0400";
           owner = "monkey";
           group = "users";
-          services = ["sunshine"];
+          services = ["sunshine-user-restart"];
         };
         secrets.jellyfinAdminPassword = {
           reference = "zero-jellyfin-admin/password";
