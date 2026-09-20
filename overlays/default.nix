@@ -91,7 +91,7 @@
   });
 
   # Disable Vector checks because the package's test suite is not needed here.
-  vector = _prev.vector.overrideAttrs (oldAttrs: {
+  vector = _prev.vector.overrideAttrs (_oldAttrs: {
     doCheck = false;
   });
 }

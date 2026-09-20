@@ -150,7 +150,8 @@ jobs:
       - name: Comment repair instructions
         if: steps.validate.outputs.status == 'failed'
         run: |
-          echo "Validation failed. A repair proposal is attached as the overlay-repair-proposal artifact."
+          echo "Validation failed. A repair proposal is attached as the"
+          echo "overlay-repair-proposal artifact."
           echo "Only overlays/** should be changed to repair stale dependency assumptions."
       - name: Create PR with auto-merge
         if: >
@@ -182,7 +183,8 @@ jobs:
 
            This PR updates flake.lock with the latest dependency versions.
            Validation status: ${{ steps.validate.outputs.status }}.
-           If validation failed, inspect the workflow logs and the `overlay-repair-proposal` artifact before merging.
+           If validation failed, inspect the workflow logs and the
+           `overlay-repair-proposal` artifact before merging.
           It will auto-merge once CI passes. After merge, the release
           workflow will automatically build the ISO and create a release.
 
