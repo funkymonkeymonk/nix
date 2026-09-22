@@ -27,9 +27,14 @@ in
             inherit (final) system config;
           };
         })
-        # Use devenv 2.x from the cachix/devenv flake
-        (final: _prev: {
-          inherit (inputs.devenv.packages.${final.stdenv.hostPlatform.system}) devenv;
+        # The Cachix devenv build currently discovers Homebrew OpenSSL on
+        # Darwin. Use nixpkgs' native build there; retain Cachix's tested
+        # devenv package on Linux.
+        (final: prev: {
+          devenv =
+            if final.stdenv.hostPlatform.isDarwin
+            then prev.devenv
+            else inputs.devenv.packages.${final.stdenv.hostPlatform.system}.devenv;
         })
         # zellij-pane-tracker WASM plugin from its own flake
         (final: _prev: {
