@@ -1,9 +1,6 @@
 {pkgs, ...}: let
   foundationPackages = (import ./modules/roles/foundation-packages.nix {inherit pkgs;}).common;
-  developerPackages = import ./modules/roles/developer-packages.nix {
-    inherit pkgs;
-    includeGomuks = false;
-  };
+  developerPackages = import ./modules/roles/developer-packages.nix {inherit pkgs;};
 
   # Benchmarking suites are not in upstream nixpkgs; call them directly from
   # the repo packages so they are available in the devenv shell and tasks.

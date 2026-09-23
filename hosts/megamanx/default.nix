@@ -5,9 +5,7 @@
   mkUser,
   pkgs,
   ...
-}: let
-  gomuks = builtins.tryEval pkgs.gomuks;
-in {
+}: {
   nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
@@ -80,7 +78,6 @@ in {
       temporal-cli
       mergiraf
     ]
-    ++ lib.optional gomuks.success gomuks.value
     ++ lib.optional (pkgs ? yaks) pkgs.yaks;
 
   environment.shellAliases = {
