@@ -56,6 +56,14 @@
           group = "users";
           services = ["sunshine-user-restart"];
         };
+        secrets.cloudflareApiToken = {
+          reference = "cloudflare.com/dns-api-token";
+          path = "/run/secrets/cloudflare-api-token";
+          mode = "0400";
+          owner = "root";
+          group = "root";
+          services = ["caddy-cloudflare-env" "caddy"];
+        };
       };
 
       # Cloud-only LLM access via OpenCode Go (falls back to OpenCode Zen).
