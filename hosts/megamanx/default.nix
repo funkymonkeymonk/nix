@@ -77,7 +77,6 @@
       slidev-cli
       temporal-cli
       mergiraf
-      gomuks
     ]
     ++ lib.optional (pkgs ? yaks) pkgs.yaks;
 

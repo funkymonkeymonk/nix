@@ -1,7 +1,4 @@
-{
-  pkgs,
-  includeGomuks ? true,
-}:
+{pkgs, ...}:
 with pkgs;
   [
     clang
@@ -17,5 +14,4 @@ with pkgs;
     temporal-cli
     mergiraf
   ]
-  ++ pkgs.lib.optional includeGomuks pkgs.gomuks
   ++ pkgs.lib.optionals (pkgs ? yaks) [pkgs.yaks]

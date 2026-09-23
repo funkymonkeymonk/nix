@@ -29,6 +29,10 @@
     opnix.url = "github:brizzbuzz/opnix";
     opnix.inputs.nixpkgs.follows = "nixpkgs";
 
+    # devenv intentionally retains Cachix's tested rolling nixpkgs input.
+    # It appears as `nixpkgs_2` in flake.lock because it is distinct from the
+    # system's nixpkgs input; do not merge the two without checking devenv's
+    # patch and compatibility requirements.
     devenv.url = "github:cachix/devenv";
 
     # NEW: Takeout container infrastructure for automated installs
