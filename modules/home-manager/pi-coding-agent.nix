@@ -40,6 +40,8 @@ with lib; let
       apiKey =
         if model.onePasswordItem != ""
         then "{file:~/.pi/agent/secrets/${_name}-apikey}"
+        else if model.apiKeyFile != null
+        then "{file:${model.apiKeyFile}}"
         else if model.apiKey != ""
         then model.apiKey
         else if model.modelId != ""
