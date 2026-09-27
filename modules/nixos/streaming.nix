@@ -69,6 +69,9 @@ in {
         RemainAfterExit = true;
       };
       script = ''
+        if ! ${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user is-active --quiet graphical-session.target; then
+          exit 0
+        fi
         ${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user daemon-reload
         ${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user restart sunshine.service
       '';

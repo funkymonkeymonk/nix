@@ -247,6 +247,7 @@ in {
 
       ${assertContainsStr "user manager reload" "--user daemon-reload" streamingModuleText}
       ${assertContainsStr "Sunshine restart" "--user restart sunshine.service" streamingModuleText}
+      ${assertContainsStr "graphical session guard" "is-active --quiet graphical-session.target" streamingModuleText}
       ${assertContainsStr "restart trigger" "restartTriggers" streamingModuleText}
       ${assertContainsStr "persistent oneshot" "RemainAfterExit = true" streamingModuleText}
 
