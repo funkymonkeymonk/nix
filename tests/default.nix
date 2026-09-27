@@ -231,6 +231,7 @@ in
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
     zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
     zero-sunshine-lan-pairing = testZero.zeroSunshineLanPairingTest;
+    zero-sunshine-user-restart = testZero.zeroSunshineUserRestartTest;
     drlight-media-storage = testZero.zeroMediaMirrorStorageTest;
 
     # Core and bootstrap configs

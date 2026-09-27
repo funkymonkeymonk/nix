@@ -237,6 +237,23 @@ in {
       touch $out
     '';
 
+  # Test: changes to the NixOS-managed Sunshine user unit are propagated to
+  # the logged-in user's systemd manager during a system switch.
+  zeroSunshineUserRestartTest =
+    pkgs.runCommand "test-zero-sunshine-user-restart"
+    {}
+    ''
+      echo "=== Testing Sunshine user service restart bridge ==="
+
+      ${assertContainsStr "user manager reload" "--user daemon-reload" streamingModuleText}
+      ${assertContainsStr "Sunshine restart" "--user restart sunshine.service" streamingModuleText}
+      ${assertContainsStr "restart trigger" "restartTriggers" streamingModuleText}
+      ${assertContainsStr "persistent oneshot" "RemainAfterExit = true" streamingModuleText}
+
+      echo "Sunshine user service restart bridge test passed"
+      touch $out
+    '';
+
   # Test: Sunshine's web password must come from opnix at runtime rather than
   # being embedded in the Nix-generated configuration.
   zeroSunshinePasswordSecretTest =
