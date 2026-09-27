@@ -226,11 +226,32 @@ in {
 
       ${assertContainsStr "LAN PIN origin" ''origin_pin_allowed = "lan"'' streamingModuleText}
       ${assertContainsStr "LAN web UI origin" ''origin_web_ui_allowed = "lan"'' streamingModuleText}
+      ${assertContainsStr "KMS capture" ''capture = "kms"'' streamingModuleText}
+      ${assertContainsStr "Steam Big Picture app" ''name = "Steam Big Picture"'' streamingModuleText}
+      ${assertContainsStr "Desktop app" ''name = "Desktop"'' streamingModuleText}
       ${assertContainsStr "Sunshine CSRF origin" ''csrf_allowed_origins = "https://sunshine.home.buildingbananas.com"'' streamingModuleText}
       ${assertContainsStr "stable Sunshine name" "sunshine_name = config.networking.hostName" streamingModuleText}
       ${assertContainsStr "firewall enabled" "firewall.enable = true" zeroConfigText}
 
       echo "Zero Sunshine LAN pairing test passed"
+      touch $out
+    '';
+
+  # Test: changes to the NixOS-managed Sunshine user unit are propagated to
+  # the logged-in user's systemd manager during a system switch.
+  zeroSunshineUserRestartTest =
+    pkgs.runCommand "test-zero-sunshine-user-restart"
+    {}
+    ''
+      echo "=== Testing Sunshine user service restart bridge ==="
+
+      ${assertContainsStr "user manager reload" "--user daemon-reload" streamingModuleText}
+      ${assertContainsStr "Sunshine restart" "--user restart sunshine.service" streamingModuleText}
+      ${assertContainsStr "graphical session guard" "is-active --quiet graphical-session.target" streamingModuleText}
+      ${assertContainsStr "restart trigger" "restartTriggers" streamingModuleText}
+      ${assertContainsStr "persistent oneshot" "RemainAfterExit = true" streamingModuleText}
+
+      echo "Sunshine user service restart bridge test passed"
       touch $out
     '';
 

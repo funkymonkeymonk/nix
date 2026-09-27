@@ -3,7 +3,7 @@ title: "Agents Guide"
 description: "Complete guide for AI agents working with this Nix system configuration repository. Includes testing and workflows."
 type: reference
 audience: agent
-last-reviewed: 2026-04-06
+last-reviewed: 2026-09-27
 ---
 
 # Agents Guide
@@ -42,6 +42,10 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 ## Principles
 
 **Do not document directory structures.** Agents reviewing code can use `ls`, `find`, or file exploration tools to traverse the codebase. Tree diagrams in documentation rot quickly and add noise. Document *concepts* and *relationships*, not folder listings.
+
+### NixOS User Services
+
+NixOS does not reliably restart changed `systemd.user.services` during a system switch. New graphical user services must use the existing Sunshine restart-bridge pattern, or introduce a shared helper once more than one NixOS module needs it. Restart bridges must reload the user manager, restart only when their service configuration changes, and guard on `graphical-session.target`; do not rely on manual restarts.
 
 ---
 

@@ -7,6 +7,10 @@
 }:
 with lib; let
   cfg = config.myConfig.streaming;
+  sunshineUserServiceTrigger = pkgs.writeText "sunshine-user-service-trigger" (builtins.toJSON {
+    settings = config.services.sunshine.settings;
+    applications = config.services.sunshine.applications;
+  });
 in {
   options.myConfig.streaming = {
     enable = mkEnableOption "Sunshine game streaming";
@@ -19,23 +23,58 @@ in {
       capSysAdmin = true; # needed for Wayland
       openFirewall = true;
       settings = {
+        # Gamescope exposes the console session through DRM/KMS. This is the
+        # reliable capture path for a native Sunshine package on KDE Wayland.
+        capture = "kms";
         # Allow a phone or another LAN browser to submit Moonlight's pairing PIN.
         origin_pin_allowed = "lan";
         origin_web_ui_allowed = "lan";
         csrf_allowed_origins = "https://sunshine.home.buildingbananas.com";
         sunshine_name = config.networking.hostName;
       };
+      applications = {
+        apps = [
+          {
+            name = "Desktop";
+          }
+          {
+            name = "Steam Big Picture";
+            prep-cmd = [
+              {
+                undo = "${pkgs.util-linux}/bin/setsid ${lib.getExe pkgs.steam} steam://close/bigpicture";
+              }
+            ];
+            detached = [
+              "${pkgs.util-linux}/bin/setsid ${lib.getExe pkgs.steam} steam://open/bigpicture"
+            ];
+            auto-detach = true;
+          }
+        ];
+      };
     };
 
-    # Opnix runs as a system service, while Sunshine runs in the user's
-    # graphical systemd instance. Bridge secret-triggered restarts explicitly.
+    # NixOS does not restart changed systemd.user units during a system switch.
+    # Use a system service as the activation bridge so Sunshine receives the
+    # new unit and configuration without requiring a logout or manual restart.
     systemd.services.sunshine-user-restart = {
       after = ["opnix-secrets.service"];
+      restartTriggers = [
+        ./streaming.nix
+        config.services.sunshine.package
+        sunshineUserServiceTrigger
+      ];
       wantedBy = ["multi-user.target"];
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = "${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user restart sunshine.service";
+        RemainAfterExit = true;
       };
+      script = ''
+        if ! ${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user is-active --quiet graphical-session.target; then
+          exit 0
+        fi
+        ${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user daemon-reload
+        ${pkgs.systemd}/bin/systemctl --machine=monkey@.host --user restart sunshine.service
+      '';
     };
 
     # Apply the opnix-managed password immediately before Sunshine starts so
