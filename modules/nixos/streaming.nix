@@ -19,11 +19,33 @@ in {
       capSysAdmin = true; # needed for Wayland
       openFirewall = true;
       settings = {
+        # Gamescope exposes the console session through DRM/KMS. This is the
+        # reliable capture path for a native Sunshine package on KDE Wayland.
+        capture = "kms";
         # Allow a phone or another LAN browser to submit Moonlight's pairing PIN.
         origin_pin_allowed = "lan";
         origin_web_ui_allowed = "lan";
         csrf_allowed_origins = "https://sunshine.home.buildingbananas.com";
         sunshine_name = config.networking.hostName;
+      };
+      applications = {
+        apps = [
+          {
+            name = "Desktop";
+          }
+          {
+            name = "Steam Big Picture";
+            prep-cmd = [
+              {
+                undo = "${pkgs.util-linux}/bin/setsid ${lib.getExe pkgs.steam} steam://close/bigpicture";
+              }
+            ];
+            detached = [
+              "${pkgs.util-linux}/bin/setsid ${lib.getExe pkgs.steam} steam://open/bigpicture"
+            ];
+            auto-detach = true;
+          }
+        ];
       };
     };
 
