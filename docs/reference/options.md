@@ -368,6 +368,7 @@ or changing a `myConfig.*` option.
 | `keybindings` | attribute set of string | `{ }` | Custom keybindings configuration. Keys are action names, values are key combinations. See https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/keybindings.md |
 | `models` | attribute set of (submodule) | `{ }` | Custom models configuration for ~/.pi/agent/models.json. Allows adding custom providers and models. |
 | `models.<name>.apiKey` | string | `""` | API key for the model (use onePasswordItem for secrets) |
+| `models.<name>.apiKeyFile` | null or string | `null` | Path to a file containing the API key (supports Pi's {file:...} reference) |
 | `models.<name>.baseUrl` | string | `""` | Base URL for the API (for custom endpoints) |
 | `models.<name>.compat` | attribute set of (boolean or string) | `{ }` | Compatibility settings for the model provider. Common keys: supportsDeveloperRole, supportsReasoningEffort, supportsUsageInStreaming, maxTokensField, thinkingFormat. Set supportsDeveloperRole = false for local OpenAI-compatible servers that do not understand the "developer" role. |
 | `models.<name>.maxTokens` | null or signed integer | `null` | Maximum output tokens for the model |
