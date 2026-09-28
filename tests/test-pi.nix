@@ -44,6 +44,7 @@
                   name = "Custom";
                   provider = "openai-compatible";
                   modelId = "qwen3.5";
+                  apiKeyFile = "~/.config/opencode/secrets/provider-key";
                 };
               };
               prompts = {
@@ -197,6 +198,12 @@ in {
       if piCustom.models ? custom-model
       then ''echo "  models.custom-model defined: OK"''
       else ''echo "  models.custom-model should be defined!"; exit 1''
+    }
+
+    ${
+      if piCustom.models.custom-model.apiKeyFile == "~/.config/opencode/secrets/provider-key"
+      then ''echo "  models.custom-model.apiKeyFile configured: OK"''
+      else ''echo "  models.custom-model.apiKeyFile should be configured!"; exit 1''
     }
 
     ${

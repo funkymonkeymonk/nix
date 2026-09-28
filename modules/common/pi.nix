@@ -67,6 +67,11 @@
             default = "";
             description = "API key for the model (use onePasswordItem for secrets)";
           };
+          apiKeyFile = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Path to a file containing the API key (supports Pi's {file:...} reference)";
+          };
           onePasswordItem = lib.mkOption {
             type = lib.types.str;
             default = "";
