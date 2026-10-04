@@ -112,6 +112,8 @@
         ../modules/home-manager/opencode.nix
       ];
     }).config;
+  opencodeWorkspaceAccessPlugin =
+    opencodeHome.home.file.".config/opencode/plugin/jj-workspace-access.js";
 
   # --- shell aliases test ---
   # Import aliases.nix as a home-manager module to check it defines shellAliases
@@ -470,6 +472,35 @@ in {
       }
 
       echo "All opencode provider opnix URL option tests verified"
+      touch $out
+    '';
+
+  # Verify the jj workspace access plugin is installed in OpenCode's global
+  # plugin directory when OpenCode is enabled.
+  opencodeWorkspaceAccessInstallTest =
+    pkgs.runCommand "test-opencode-jj-workspace-access-install"
+    {}
+    ''
+      echo "=== Testing OpenCode jj Workspace Access Plugin Installation ==="
+
+      ${
+        if opencodeWorkspaceAccessPlugin.source == ../modules/home-manager/opencode/jj-workspace-access.js
+        then ''echo "  plugin linked from Nix source into global directory: OK"''
+        else ''echo "  plugin source is not the expected Nix file!"; exit 1''
+      }
+
+      ${
+        if opencodeWorkspaceAccessPlugin.force or false
+        then ''echo "  existing local plugin path can be replaced: OK"''
+        else ''echo "  plugin install must replace the existing local file!"; exit 1''
+      }
+
+      ${
+        if lib.hasInfix "if(root, json(root) ++ \"\\\\n\")" (builtins.readFile opencodeWorkspaceAccessPlugin.source)
+        then ''echo "  jj root template matches current jj output: OK"''
+        else ''echo "  plugin has an incompatible jj root template!"; exit 1''
+      }
+
       touch $out
     '';
 }
