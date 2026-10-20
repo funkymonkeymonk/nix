@@ -57,6 +57,7 @@
       roles.work.enable = true;
 
       pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
+      pi.jevOnePasswordItem = "Opencode/Service Accounts/wweaver";
 
       pi.npmPackages = {
         # Subagent dispatch tool (scout/researcher/worker/reviewer/oracle)

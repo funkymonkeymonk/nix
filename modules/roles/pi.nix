@@ -26,6 +26,7 @@ in {
 
     # Enable pi configuration management via home-manager
     myConfig.pi.enable = true;
+    myConfig.pi.npmPackages."pi-jev" = lib.mkDefault "^0.7.0";
 
     # Default plugin selection. pluginsSource (the flake input providing these
     # plugins) is set at the composition point (archetype/host), not here —

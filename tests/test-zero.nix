@@ -209,10 +209,27 @@ in {
       ${assertNotContainsStr "no omlx" "omlx" zeroConfigText}
       # Legacy llmEndpoints block removed
       ${assertNotContainsStr "no llmEndpoints" "llmEndpoints" zeroConfigText}
-      # OpenCode Go API key wired through 1Password (same item as MegamanX)
-      ${assertContainsStr "go 1password item" "op://Homelab/OpenCode Go API/credential" zeroConfigText}
+      # OpenCode Go service-account key wired through 1Password.
+      ${assertContainsStr "go service account item" ''onePasswordItem = "Opencode/Service Accounts/Zero"'' zeroConfigText}
 
       echo "Zero cloud-only config test passed"
+      touch $out
+    '';
+
+  # Test: zero uses Pi's native OpenCode Go provider with a service-account key.
+  zeroPiProviderPackageTest =
+    pkgs.runCommand "test-zero-pi-provider-config"
+    {}
+    ''
+      echo "=== Testing Zero Pi OpenCode provider config ==="
+
+      ${assertNotContainsStr "no OAuth provider package" "pi-provider-opencode-console" zeroConfigText}
+      ${assertContainsStr "native Go provider" ''defaultProvider = "opencode-go"'' zeroConfigText}
+      ${assertContainsStr "Go service-account key" "Service Accounts/Zero" zeroConfigText}
+      ${assertContainsStr "Pi explicitly opts into Go" ''opencodeGoOnePasswordItem = "Opencode/Service Accounts/Zero"'' zeroConfigText}
+      ${assertContainsStr "Pi Jev uses the same service account" ''jevOnePasswordItem = "Opencode/Service Accounts/Zero"'' zeroConfigText}
+
+      echo "Zero Pi OpenCode provider config test passed"
       touch $out
     '';
 

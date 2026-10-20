@@ -23,6 +23,25 @@ with lib; let
     modelsWithSecrets
   );
 
+  opencodeGoSecretPath = ".pi/agent/secrets/opencode-go-apikey";
+  opencodeGoOpnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
+    lib.optionalAttrs (cfg.opencodeGoOnePasswordItem != "") {
+      "opencode-go" = {
+        onePasswordItem = cfg.opencodeGoOnePasswordItem;
+        secretPath = opencodeGoSecretPath;
+      };
+    }
+  );
+  jevOpnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
+    lib.optionalAttrs (cfg.jevOnePasswordItem != "") {
+      jev = {
+        onePasswordItem = cfg.jevOnePasswordItem;
+        secretPath = ".pi/agent/secrets/typesafe_api_key";
+      };
+    }
+  );
+  allOpnixSecrets = opnixSecrets // opencodeGoOpnixSecrets // jevOpnixSecrets;
+
   # Build models config for pi v0.75.4+ schema
   # Maps our per-model options to the nested provider+models format pi expects
   # When modelId is empty, treats this as a built-in provider override
@@ -368,6 +387,11 @@ in {
     # All pi configuration files
     home.file = allFiles;
 
+    home.sessionVariables = {
+      PI_JEV_BASE_URL = "https://opencode.ai/inference/systemone";
+      TYPESAFE_DEFAULT_MODEL = "jev-1.13";
+    };
+
     # pi-dev script for testing local plugin changes
     home.packages = [pi-dev-script] ++ lib.optional (cfg.npmPackages != {}) pkgs.nodejs;
 
@@ -385,9 +409,27 @@ in {
     '');
 
     # Configure opnix secrets for models with 1Password items
-    programs.onepassword-secrets = mkIf (modelsWithSecrets != {} && osConfig.myConfig.onepassword.enable) {
+    programs.onepassword-secrets = mkIf (allOpnixSecrets != {} && osConfig.myConfig.onepassword.enable) {
       enable = true;
-      secrets = opnixSecrets;
+      secrets = allOpnixSecrets;
     };
+
+    # Configure Pi's native OpenCode Go provider without putting the API key in
+    # the Nix store or auth.json.
+    home.activation.piOpenCodeGoAuth = mkIf (cfg.opencodeGoOnePasswordItem != "") (lib.hm.dag.entryAfter ["installPackages" "retrieveOpnixSecrets"] ''
+      secret_file="$HOME/${opencodeGoSecretPath}"
+      auth_file="$HOME/.pi/agent/auth.json"
+      if [ -f "$secret_file" ]; then
+        mkdir -p "$HOME/.pi/agent"
+        if [ -f "$auth_file" ]; then
+          auth_input="$auth_file"
+        else
+          auth_input=/dev/null
+        fi
+        ${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}' "$auth_input" > "$auth_file.tmp"
+        chmod 600 "$auth_file.tmp"
+        mv "$auth_file.tmp" "$auth_file"
+      fi
+    '');
   };
 }
