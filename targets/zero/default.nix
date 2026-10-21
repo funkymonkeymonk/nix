@@ -92,7 +92,6 @@
         settings = {
           theme = "dark";
           defaultProvider = "opencode-go";
-          defaultModel = "gpt-5.6-luna";
           editor = {
             vimMode = true;
           };

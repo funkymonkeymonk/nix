@@ -201,8 +201,9 @@ in {
     ''
       echo "=== Testing Zero cloud-only LLM configuration ==="
 
-      # Default model is a cloud model via the opencode-go provider
+      # OpenCode keeps its host-specific cloud model; Pi uses the global role default.
       ${assertContainsStr "cloud default model" "opencode-go/gpt-5.6-luna" zeroConfigText}
+      ${assertNotContainsStr "Pi does not pin the old global model" ''defaultModel = "gpt-5.6-luna"'' zeroConfigText}
       # No local model targeting anywhere
       ${assertNotContainsStr "no local-bifrost" "local-bifrost" zeroConfigText}
       ${assertNotContainsStr "no local qwen model" "qwen3.8-27b" zeroConfigText}

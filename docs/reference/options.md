@@ -208,6 +208,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `defaultModel` | string | `"gpt-6-luna"` | Default model for Pi on systems using the Pi role; override myConfig.pi.settings.defaultModel per system |
 | `rtk.enable` | boolean | `false` | Enable RTK (Rust Token Killer) for token-optimized LLM tool output. Automatically integrates with OpenCode and Claude Code when their respective roles are enabled. |
 | `serverHost` | string | `"127.0.0.1"` | Default LLM server host for client tools |
 | `serverPort` | string | `"8080"` | Default LLM server port for client tools (bifrost gateway) |

@@ -37,7 +37,6 @@
         jevOnePasswordItem = "Opencode/Service Accounts/MegamanX";
         settings = {
           defaultProvider = "opencode-go";
-          defaultModel = "gpt-6-luna";
         };
       };
       zellij.enable = true;
