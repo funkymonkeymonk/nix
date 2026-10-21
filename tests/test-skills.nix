@@ -121,6 +121,25 @@
 
   testExternalCommand = externalSkillCommand "test-external-skill" testExternalManifest."test-external-skill";
 in {
+  # Test that the retired Ralph/PRD workflow is no longer shipped
+  ralphWorkflowRemovedTest =
+    pkgs.runCommand "test-ralph-workflow-removed"
+    {}
+    ''
+      echo "=== Testing retired Ralph/PRD workflow removal ==="
+      ${
+        if !(builtins.hasAttr "ralph-specs" manifest) && !(builtins.hasAttr "prd-review" manifest)
+        then ''echo "  Ralph/PRD skills absent from manifest: OK"''
+        else ''echo "  Ralph/PRD skills still present in manifest!"; exit 1''
+      }
+      ${
+        if !(builtins.pathExists ../modules/home-manager/skills/internal/ralph-specs) && !(builtins.pathExists ../modules/home-manager/skills/internal/prd-review) && !(builtins.pathExists ../prd.json)
+        then ''echo "  Ralph/PRD workflow files absent: OK"''
+        else ''echo "  Ralph/PRD workflow files still present!"; exit 1''
+      }
+      touch $out
+    '';
+
   # Test that manifest parses and all skills have required fields
   manifestValidationTest =
     pkgs.runCommand "test-manifest-validation"
