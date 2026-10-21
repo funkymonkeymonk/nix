@@ -20,7 +20,7 @@ Claude Code AI assistant with rtk token optimization.
 
 **Packages:** claude-code, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
 **Enables:** `agent-skills`
 
@@ -76,7 +76,7 @@ OpenCode AI assistant with rtk token optimization.
 
 **Packages:** opencode, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
 **Enables:** `agent-skills`
 
@@ -86,7 +86,7 @@ Pi coding agent with rtk token optimization.
 
 **Packages:** pi-coding-agent, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs, ralph-specs, prd-review
+**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
 **Enables:** `agent-skills`, `pi` config management
 
