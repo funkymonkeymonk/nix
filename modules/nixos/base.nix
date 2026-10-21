@@ -20,11 +20,14 @@ with lib; {
         value = {
           isNormalUser = true;
           description = user.fullName;
-          extraGroups = ["networkmanager" "wheel" "onepassword-secrets"];
+          extraGroups = ["networkmanager" "wheel" "onepassword-secrets" "docker"];
           shell = pkgs.zsh;
         };
       })
       config.myConfig.users);
+
+    # Enable Docker for NixOS systems using the shared base configuration.
+    virtualisation.docker.enable = true;
 
     # Ensure zsh and ghostty terminfo are available system-wide
     environment.systemPackages = [pkgs.zsh pkgs.ghostty];
