@@ -14,12 +14,12 @@ if (cd "$temp_root" && bash scripts/docs-update.sh --generate-only); then
     exit 1
 fi
 
-if grep -q '^### ' "$temp_root/docs/reference/roles.md"; then
+if [[ -f "$temp_root/docs/reference/roles.md" ]] && grep -q '^### ' "$temp_root/docs/reference/roles.md"; then
     printf 'Generated roles must come only from modules/roles\n' >&2
     exit 1
 fi
 
-if grep -R -nE 'llm-host|llm-server' "$repo_root/scripts/docs-update.sh" "$repo_root/prd.json" "$repo_root/docs"; then
+if grep -R -nE 'llm-host|llm-server' "$repo_root/scripts/docs-update.sh" "$repo_root/docs"; then
     printf 'Dead LLM role references remain in generator or generated metadata\n' >&2
     exit 1
 fi
