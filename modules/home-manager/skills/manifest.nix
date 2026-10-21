@@ -91,27 +91,6 @@
     };
   };
 
-  # Ralph Loop specification skills
-  "ralph-specs" = {
-    description = "Use when planning features for autonomous AI implementation, converting ideas into Ralph Loop PRDs, or breaking work into atomic user stories for unattended agent execution";
-    roles = ["opencode" "claude" "pi"];
-    source = {
-      type = "internal";
-      path = ./internal/ralph-specs;
-    };
-    deps = [];
-  };
-
-  "prd-review" = {
-    description = "Use when reviewing a PRD before or during Ralph Loop execution, checking story completion status, or validating story structure and dependencies in a prd.json file";
-    roles = ["opencode" "claude" "pi"];
-    source = {
-      type = "internal";
-      path = ./internal/prd-review;
-    };
-    deps = [];
-  };
-
   "refining-specs" = {
     description = "Use when a specification has open questions requiring research, technical decisions, or user input to resolve";
     roles = ["opencode" "claude" "pi"];

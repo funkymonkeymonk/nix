@@ -136,6 +136,7 @@ in
 
     # Skills tests
     skills-manifest = testSkills.manifestValidationTest;
+    skills-ralph-workflow-removed = testSkills.ralphWorkflowRemovedTest;
     skills-autoload-filtering = testSkills.autoLoadFilteringTest;
     skills-autoload-content = testSkills.autoLoadContentTest;
     skills-role-filtering = testSkills.roleFilteringTest;
