@@ -93,7 +93,7 @@
   # Map of roles to their expected nix packages (name attr of the derivation)
   # Only includes packages added via environment.systemPackages (not homebrew)
   roleExpectedPackages = {
-    developer = ["clang" "python3" "nodejs" "yarn" "k9s" "gh-dash" "yaks"];
+    developer = ["clang" "python3" "nodejs" "yarn" "k9s" "gh-dash" "ste" "yaks"];
     creative = ["ffmpeg" "imagemagick" "pandoc"];
     gaming = ["moonlight-qt"];
     desktop = []; # logseq removed due to electron-forge build hangs

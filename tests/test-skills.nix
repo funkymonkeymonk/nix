@@ -248,6 +248,12 @@ in {
       }
 
       ${
+        if builtins.hasAttr "ste-implementation-plans" allSkills
+        then ''echo "  developer and agent roles get ste-implementation-plans: OK"''
+        else ''echo "  ste-implementation-plans should be available to agent roles!"; exit 1''
+      }
+
+      ${
         if builtins.hasAttr "nix-adding-services" allSkills
         then ''echo "  developer gets nix-adding-services: OK"''
         else ''echo "  developer should get nix-adding-services!"; exit 1''

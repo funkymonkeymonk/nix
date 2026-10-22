@@ -307,6 +307,16 @@
     deps = [];
   };
 
+  "ste-implementation-plans" = {
+    description = "Use when a user explicitly requests a software implementation plan in ASD-STE100 Simplified Technical English or practical STE-style prose.";
+    roles = ["opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/ste-implementation-plans;
+    };
+    deps = [];
+  };
+
   "requesting-code-review" = {
     description = "Use when completing tasks, implementing major features, or before merging to verify work meets requirements - dispatches a code-reviewer subagent to review implementation against plan or requirements before proceeding";
     roles = ["opencode" "claude" "pi"];
