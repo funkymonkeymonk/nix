@@ -34,6 +34,7 @@
   testObservability = import ./test-observability.nix {inherit pkgs;};
   testTemporal = import ./test-temporal.nix {inherit pkgs;};
   testNixosModules = import ./test-nixos-modules.nix {inherit pkgs;};
+  testDocker = import ./test-docker.nix {inherit pkgs;};
   testLoki = import ./test-loki.nix {inherit pkgs;};
   testVector = import ./test-vector.nix {inherit pkgs;};
   testAlertmanager = import ./test-alertmanager.nix {inherit pkgs;};
@@ -127,6 +128,7 @@ in
 
     # Configuration validation tests
     config-validation = testPackages.configValidationTest;
+    nixos-docker-config = testDocker.dockerNixosConfigTest;
 
     # Option validation tests
     foundation-options = testPackages.foundationOptionsTest;
