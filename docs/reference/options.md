@@ -208,6 +208,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `defaultModel` | string | `"gpt-6-luna"` | Default model for Pi on systems using the Pi role; override myConfig.pi.settings.defaultModel per system |
 | `rtk.enable` | boolean | `false` | Enable RTK (Rust Token Killer) for token-optimized LLM tool output. Automatically integrates with OpenCode and Claude Code when their respective roles are enabled. |
 | `serverHost` | string | `"127.0.0.1"` | Default LLM server host for client tools |
 | `serverPort` | string | `"8080"` | Default LLM server port for client tools (bifrost gateway) |
@@ -365,6 +366,7 @@ or changing a `myConfig.*` option.
 | `agentsMd` | strings concatenated with "\n" | `""` | Global AGENTS.md content. This is loaded at startup from ~/.pi/agent/AGENTS.md and provides project-agnostic instructions to pi. |
 | `enable` | boolean | `false` | Enable pi coding agent configuration management |
 | `extensions` | attribute set of strings concatenated with "\n" | `{ }` | Extensions as attribute set. Each key is the extension name, value is the TypeScript source. Written to ~/.pi/agent/extensions/<name>.ts |
+| `jevOnePasswordItem` | string | `""` | Optional 1Password item reference for Pi Jev's System One API key |
 | `keybindings` | attribute set of string | `{ }` | Custom keybindings configuration. Keys are action names, values are key combinations. See https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/keybindings.md |
 | `models` | attribute set of (submodule) | `{ }` | Custom models configuration for ~/.pi/agent/models.json. Allows adding custom providers and models. |
 | `models.<name>.apiKey` | string | `""` | API key for the model (use onePasswordItem for secrets) |
@@ -377,7 +379,8 @@ or changing a `myConfig.*` option.
 | `models.<name>.onePasswordItem` | string | `""` | 1Password item reference (e.g., 'op://vault/item/field') |
 | `models.<name>.provider` | string | *required* | Provider ID (e.g., 'anthropic', 'openai', 'omlx') |
 | `models.<name>.reasoning` | boolean | `false` | Whether the model supports extended thinking/reasoning |
-| `npmPackages` | attribute set of string | `{ }` | NPM packages to install for pi extensions. Each key is the package name, value is the version constraint. Written to ~/.pi/agent/npm/package.json and installed on activation. Example: { "pi-web-access" = "^0.10.7"; "pi-opencode-provider" = "^0.7.3"; } |
+| `npmPackages` | attribute set of string | `{ }` | NPM packages to install for pi extensions. Each key is the package name, value is the version constraint. Written to ~/.pi/agent/npm/package.json and installed on activation. Example: { "pi-web-access" = "^0.10.7"; "pi-jev" = "^0.7.0"; } |
+| `opencodeGoOnePasswordItem` | string | `""` | Optional 1Password item reference for Pi's OpenCode Go API key; empty disables OpenCode Go for Pi |
 | `plugins` | list of string | `[ ]` | List of plugin names to install from pluginsSource. Each name corresponds to a package in packages/<name>/src/index.ts within the pi-plugins repository. The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts and any matching skill in .pi/skills/<name>/ is copied to ~/.pi/agent/skills/. |
 | `pluginsSource` | null or absolute path | `null` | Path to the pi-plugins repository. Set to inputs.pi-plugins for the locked flake version, or an absolute local path (e.g., /home/user/src/pi-plugins) for development. When null, no plugins are copied from an external source. |
 | `prompts` | attribute set of strings concatenated with "\n" | `{ }` | Prompt templates as attribute set. Each key is the prompt name, value is the template content. Written to ~/.pi/agent/prompts/<name>.md |

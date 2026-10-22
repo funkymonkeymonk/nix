@@ -2,6 +2,7 @@
 # Validates option defaults and custom values
 {pkgs, ...}: let
   inherit (pkgs) lib;
+  piHomeManagerModuleText = builtins.readFile ../modules/home-manager/pi-coding-agent.nix;
 
   stubModules = [
     ../modules/common/options.nix
@@ -47,6 +48,7 @@
                   apiKeyFile = "~/.config/opencode/secrets/provider-key";
                 };
               };
+              jevOnePasswordItem = "Opencode/Service Accounts/TestHost";
               prompts = {
                 "explain" = "Explain this";
               };
@@ -70,6 +72,37 @@
         ];
     }).config.myConfig.pi;
 in {
+  piAuthJsonInitializationTest =
+    pkgs.runCommand "test-pi-auth-json-initialization"
+    {}
+    ''
+      echo "=== Testing Pi auth.json initialization ==="
+
+      ${
+        if lib.hasInfix "jq -s --arg key" piHomeManagerModuleText
+        then ''echo "  jq slurp handles missing and empty auth files: OK"''
+        else throw "Pi auth activation must use jq -s to initialize absent/empty auth.json"
+      }
+
+      empty_auth=$(${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}' </dev/null)
+      if [ "$(${pkgs.jq}/bin/jq -r '."opencode-go".key' <<<"$empty_auth")" = "!cat ~/.pi/agent/secrets/opencode-go-apikey" ]; then
+        echo "  missing auth.json produces a valid Go credential: OK"
+      else
+        echo "  missing auth.json did not produce a Go credential"
+        exit 1
+      fi
+
+      existing_auth=$(printf '%s\n' '{"openai":{"type":"api_key","key":"keep"}}' | ${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}')
+      if [ "$(${pkgs.jq}/bin/jq -r '.openai.key' <<<"$existing_auth")" = "keep" ] && [ "$(${pkgs.jq}/bin/jq -r '."opencode-go".type' <<<"$existing_auth")" = "api_key" ]; then
+        echo "  existing credentials are preserved while adding Go: OK"
+      else
+        echo "  existing auth.json credentials were not preserved"
+        exit 1
+      fi
+
+      touch $out
+    '';
+
   piOptionsTest = pkgs.runCommand "test-pi-options" {} ''
     echo "=== Testing Pi Option Defaults ==="
 
@@ -83,6 +116,18 @@ in {
       if piDefaults.settings == {}
       then ''echo "  settings default = {}: OK"''
       else ''echo "  settings should default to {}!"; exit 1''
+    }
+
+    ${
+      if piDefaults.opencodeGoOnePasswordItem == ""
+      then ''echo "  OpenCode Go credential default = off: OK"''
+      else ''echo "  OpenCode Go credential should default to off!"; exit 1''
+    }
+
+    ${
+      if piDefaults.jevOnePasswordItem == ""
+      then ''echo "  Jev credential default = empty: OK"''
+      else ''echo "  Jev credential should default to empty!"; exit 1''
     }
 
     ${
@@ -204,6 +249,12 @@ in {
       if piCustom.models.custom-model.apiKeyFile == "~/.config/opencode/secrets/provider-key"
       then ''echo "  models.custom-model.apiKeyFile configured: OK"''
       else ''echo "  models.custom-model.apiKeyFile should be configured!"; exit 1''
+    }
+
+    ${
+      if piCustom.jevOnePasswordItem == "Opencode/Service Accounts/TestHost"
+      then ''echo "  Jev credential reference configured: OK"''
+      else ''echo "  Jev credential reference should be configured!"; exit 1''
     }
 
     ${

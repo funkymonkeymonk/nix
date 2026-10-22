@@ -18,6 +18,12 @@
     || (config.myConfig.roles.pi.enable or false);
 in {
   options.myConfig.llmClient = {
+    defaultModel = lib.mkOption {
+      type = lib.types.str;
+      default = "gpt-6-luna";
+      description = "Default model for Pi on systems using the Pi role; override myConfig.pi.settings.defaultModel per system";
+    };
+
     serverHost = lib.mkOption {
       type = lib.types.str;
       default = "127.0.0.1";

@@ -19,6 +19,18 @@
       '';
     };
 
+    opencodeGoOnePasswordItem = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Optional 1Password item reference for Pi's OpenCode Go API key; empty disables OpenCode Go for Pi";
+    };
+
+    jevOnePasswordItem = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Optional 1Password item reference for Pi Jev's System One API key";
+    };
+
     agentsMd = lib.mkOption {
       type = lib.types.lines;
       default = "";
@@ -153,7 +165,7 @@
         Example:
         {
           "pi-web-access" = "^0.10.7";
-          "pi-opencode-provider" = "^0.7.3";
+          "pi-jev" = "^0.7.0";
         }
       '';
     };
