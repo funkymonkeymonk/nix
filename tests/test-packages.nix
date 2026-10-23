@@ -75,6 +75,36 @@
       touch $out
     '';
 
+  steLinterPackageTest = let
+    ste = pkgs.callPackage ../packages/ste {};
+    nonSteSample = pkgs.writeText "ste-linter-non-ste.md" "The migration will be performed by the service after the configuration has been loaded.";
+    steSample = pkgs.writeText "ste-linter-ste.md" "After the service loads the configuration, it migrates the cache.";
+  in
+    pkgs.runCommand "test-ste-linter-package"
+    {
+      nativeBuildInputs = [ste];
+    }
+    ''
+      ste version
+      ste rules > /dev/null
+
+      findings=$(ste lint --no-config --mode=flavored --format=agent ${nonSteSample})
+      printf '%s\n' "$findings"
+      case "$findings" in
+        *"passive voice"*) ;;
+        *) echo "Expected the linter to report passive voice"; exit 1 ;;
+      esac
+
+      clean=$(ste lint --no-config --mode=flavored --format=agent ${steSample})
+      printf '%s\n' "$clean"
+      case "$clean" in
+        *"clean"*) ;;
+        *) echo "Expected the clear active-voice sample to pass"; exit 1 ;;
+      esac
+
+      touch $out
+    '';
+
   # Test configuration structure by evaluating modules
   configValidationTest = let
     # Evaluate modules to verify they compose without errors

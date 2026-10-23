@@ -13,5 +13,6 @@ with pkgs;
     slidev-cli
     temporal-cli
     mergiraf
+    (callPackage ../../packages/ste {})
   ]
   ++ pkgs.lib.optionals (pkgs ? yaks) [pkgs.yaks]

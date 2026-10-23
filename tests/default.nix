@@ -108,6 +108,7 @@ in
     # Package availability tests
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
+    ste-linter-package = testPackages.steLinterPackageTest;
 
     # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
     overlay-qwen38-mxfp4 = testOverlayPackages.qwen38Mxfp4PackageTest;
