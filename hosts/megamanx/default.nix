@@ -32,6 +32,13 @@
       };
 
       roles.pi.enable = true;
+      pi = {
+        opencodeGoOnePasswordItem = "Opencode/Service Accounts/MegamanX";
+        jevOnePasswordItem = "Opencode/Service Accounts/MegamanX";
+        settings = {
+          defaultProvider = "opencode-go";
+        };
+      };
       zellij.enable = true;
       llmClient = {
         serverHost = "127.0.0.1";

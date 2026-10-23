@@ -74,7 +74,7 @@
         providers = lib.mkForce {
           "opencode-go" = {
             name = "OpenCode Go";
-            onePasswordItem = "op://Homelab/OpenCode Go API/credential";
+            onePasswordItem = "Opencode/Service Accounts/Zero";
           };
         };
       };
@@ -82,8 +82,9 @@
       # Mirror MegamanX's pi setup, minus the local oMLX/Bifrost model.
       pi = {
         pluginsSource = inputs.pi-plugins.outPath or null;
+        opencodeGoOnePasswordItem = "Opencode/Service Accounts/Zero";
+        jevOnePasswordItem = "Opencode/Service Accounts/Zero";
         npmPackages = {
-          "pi-opencode-provider" = "^0.7.3";
           "pi-web-access" = "^0.10.7";
           "pi-subagents" = "^0.33.1";
         };
@@ -91,7 +92,6 @@
         settings = {
           theme = "dark";
           defaultProvider = "opencode-go";
-          defaultModel = "gpt-5.6-luna";
           editor = {
             vimMode = true;
           };

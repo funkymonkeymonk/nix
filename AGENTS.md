@@ -47,6 +47,10 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 
 NixOS does not reliably restart changed `systemd.user.services` during a system switch. New graphical user services must use the existing Sunshine restart-bridge pattern, or introduce a shared helper once more than one NixOS module needs it. Restart bridges must reload the user manager, restart only when their service configuration changes, and guard on `graphical-session.target`; do not rely on manual restarts.
 
+### 1Password Secret References
+
+Machine-managed API keys and passwords must use the machine's `myConfig.onepassword.defaultVault`. Prefer an unqualified `Item/field` reference so the shared opnix helpers prepend `defaultVault`; do not hard-code another vault in a new target or role configuration. If a requested secret currently exists outside `defaultVault`, warn the user and ask them to move it or explicitly change the machine's default vault before wiring it into Nix. Do not silently create a cross-vault exception.
+
 ---
 
 ## Tasks

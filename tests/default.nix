@@ -236,6 +236,7 @@ in
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
+    zero-pi-provider-package = testZero.zeroPiProviderPackageTest;
     zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
     zero-sunshine-lan-pairing = testZero.zeroSunshineLanPairingTest;
     zero-sunshine-user-restart = testZero.zeroSunshineUserRestartTest;
@@ -280,6 +281,7 @@ in
     claude-code-custom-options = testClaudeCode.claudeCodeCustomOptionsTest;
 
     # Pi coding agent module tests
+    pi-auth-json-initialization = testPi.piAuthJsonInitializationTest;
     pi-options = testPi.piOptionsTest;
     pi-custom-options = testPi.piCustomOptionsTest;
 

@@ -33,6 +33,18 @@
     .config;
 
   # Helper: evaluate with ALL roles enabled
+  evalPiModelOverride =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          {
+            config.myConfig.roles.pi.enable = true;
+            config.myConfig.pi.settings.defaultModel = "system-specific-model";
+          }
+        ];
+    }).config.myConfig.pi.settings.defaultModel;
+
   evalAllRoles =
     (lib.evalModules {
       modules =
@@ -117,6 +129,7 @@
     pi = {
       "agent-skills.enable" = true;
       "pi.enable" = true;
+      "pi.settings.defaultModel" = "gpt-6-luna";
       # Default local model served through Bifrost.
       # Must match a model alias on hosts that run the local stack.
       "pi.models.bifrost.modelId" = "qwen3.8-27b";
@@ -273,6 +286,11 @@
     in ''
       echo "=== Testing Role Cascade Activation ==="
       ${cascadeChecks}
+      ${
+        if evalPiModelOverride == "system-specific-model"
+        then ''echo "  Pi system-specific model overrides global default: OK"''
+        else ''echo "  Pi system-specific model did not override global default"; exit 1''
+      }
       echo "All role cascades work correctly"
     '';
 
