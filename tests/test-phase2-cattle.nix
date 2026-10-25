@@ -56,15 +56,15 @@
     echo "  type-desktop target module: defined ✓"
 
     ${
-      if builtins.pathExists ../library/machines/cattle.nix
-      then ''echo "  cattle machine module: defined ✓"''
-      else ''echo "FAIL: cattle machine module not found"; exit 1''
+      if builtins.pathExists ../library/machines/catalog.nix
+      then ''echo "  canonical machine catalog: defined ✓"''
+      else ''echo "FAIL: canonical machine catalog not found"; exit 1''
     }
 
     ${
-      if pkgs.lib.hasInfix "./library/machines/cattle.nix" flakeText
-      then ""
-      else ''echo "FAIL: cattle machine module not imported by flake.nix"; exit 1''
+      if pkgs.lib.hasInfix "./library/machines/flake-parts.nix" flakeText
+      then ''echo "  generated flake-parts projection imported by flake.nix ✓"''
+      else ''echo "FAIL: generated machine projection not imported by flake.nix"; exit 1''
     }
 
     ${

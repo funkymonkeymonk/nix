@@ -1,51 +1,70 @@
 {
   pkgs,
   self,
+  inputs,
   ...
 }: let
-  hasNixosConfig = name: builtins.hasAttr name self.nixosConfigurations;
-  flakeText = builtins.readFile ../flake.nix;
-
+  inherit (pkgs) lib;
+  catalog = import ../library/machines/catalog.nix {inherit inputs;};
+  machineProjectionText = builtins.readFile ../library/machines/flake-parts.nix;
+  bootstrap = catalog.bootstrap;
+  installerIso = catalog."installer-iso";
+  expectedBootstrapModules = [
+    ../modules/common/core.nix
+    ../targets/bootstrap
+    ../modules/common/options.nix
+  ];
+  expectedInstallerIsoModules = [
+    ../targets/installer-iso/default.nix
+  ];
+in {
   coreBootstrapTest = pkgs.runCommand "test-core-bootstrap" {} ''
-    echo "=== Testing Bootstrap Config ==="
+    echo "=== Testing bootstrap catalog projection ==="
     echo ""
 
-    # Test bootstrap config exists
     ${
-      if hasNixosConfig "bootstrap"
-      then ""
-      else ''echo "FAIL: bootstrap not found"; exit 1''
-    }
-    echo "  bootstrap: defined ✓"
-
-    ${
-      if builtins.pathExists ../library/machines/bootstrap.nix
-      then ''echo "  bootstrap machine module: defined ✓"''
-      else ''echo "FAIL: bootstrap machine module not found"; exit 1''
-    }
-
-    ${
-      if builtins.pathExists ../library/machines/installer-iso.nix
-      then ''echo "  installer-iso machine module: defined ✓"''
-      else ''echo "FAIL: installer-iso machine module not found"; exit 1''
+      if
+        bootstrap.kind
+        == "nixos"
+        && bootstrap.system == "x86_64-linux"
+        && bootstrap.secretProfile == "Personal"
+        && bootstrap.builder == "nixos"
+        && bootstrap.hostname == null
+        && bootstrap.modules == expectedBootstrapModules
+      then ''echo "  bootstrap catalog record and module stack: OK"''
+      else ''echo "FAIL: bootstrap catalog record or module stack changed"; exit 1''
     }
 
     ${
-      if pkgs.lib.hasInfix "./library/machines/bootstrap.nix" flakeText
-      then ""
-      else ''echo "FAIL: bootstrap machine module not imported by flake.nix"; exit 1''
+      if
+        installerIso.kind
+        == "nixos"
+        && installerIso.system == "x86_64-linux"
+        && installerIso.secretProfile == "Personal"
+        && installerIso.builder == "nixos"
+        && installerIso.hostname == null
+        && installerIso.modules == expectedInstallerIsoModules
+      then ''echo "  installer-iso catalog record and module stack: OK"''
+      else ''echo "FAIL: installer-iso catalog record or module stack changed"; exit 1''
     }
 
     ${
-      if pkgs.lib.hasInfix "./library/machines/installer-iso.nix" flakeText
-      then ""
-      else ''echo "FAIL: installer-iso machine module not imported by flake.nix"; exit 1''
+      if
+        lib.hasInfix "catalog = import ./catalog.nix" machineProjectionText
+        && lib.hasInfix "flake.nixosConfigurations = lib.mapAttrs mkNixos nixosMachines" machineProjectionText
+      then ''echo "  flake-parts projects NixOS configurations from the catalog: OK"''
+      else ''echo "FAIL: NixOS outputs are not projected from the canonical catalog"; exit 1''
     }
 
-    echo ""
-    echo "All bootstrap tests passed"
+    ${
+      if
+        builtins.hasAttr "bootstrap" self.nixosConfigurations
+        && builtins.hasAttr "installer-iso" self.nixosConfigurations
+      then ''echo "  bootstrap and installer-iso NixOS configurations: OK"''
+      else ''echo "FAIL: catalog projection did not generate bootstrap and installer-iso"; exit 1''
+    }
+
+    echo "All bootstrap catalog projection tests passed"
     touch $out
   '';
-in {
-  inherit coreBootstrapTest;
 }

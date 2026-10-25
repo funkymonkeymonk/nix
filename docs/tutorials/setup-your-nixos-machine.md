@@ -1,135 +1,134 @@
 ---
 title: "Set Up Your NixOS Machine"
-description: "Step-by-step walkthrough for booting from USB and installing NixOS with this flake"
+description: "Build the SSH-ready live image and install one named NixOS machine from a workstation"
 type: tutorial
 audience: both
-last-reviewed: 2026-06-30
+last-reviewed: 2026-10-25
 ---
 
 # Set Up Your NixOS Machine
 
-This tutorial walks through installing NixOS on a bare-metal or virtual machine. By the end, you will have a running system managed by this flake with automatic hardware detection and disk partitioning.
+This walkthrough uses the SSH-ready NixOS live USB as a remote target. The
+workstation selects and installs one named machine with devenv Machines; the
+live image does not partition or install a disk itself. Use only a disposable
+VM or disk until the access, credentials, and physical USB prerequisites below
+are approved and tested.
 
 ## Prerequisites
 
-- A machine (physical or VM) targeted for NixOS
-- A USB drive at least 4 GB
-- A workstation (Mac or Linux) with Nix installed to create the installer image
-- About 45 minutes total
+- A Linux workstation, or a macOS workstation with a configured remote Linux
+  builder, to build the x86_64-linux ISO
+- A USB drive whose whole-disk device can be positively identified
+- A reviewed SSH public-key access policy and a trusted way to verify the live
+  host-key fingerprint
+- An explicitly selected Machines catalog target and, for NixOS, a valid
+  hardware report or an intentionally configured hand-written hardware module
 
-## Step 1: Create the Installer USB
+Fresh-host installation also requires root SSH access and the approved
+`OPNIX_SERVICE_ACCOUNT_TOKEN` SecretSpec reference. Those prerequisites are not
+currently met for production: the committed profiles contain no secret values,
+and the existing headless NixOS roles deny root login. Do not weaken SSH or
+sudo policy or substitute a guessed secret to get past these guards.
 
-From a machine with Nix (macOS or Linux), build and write the custom installer image:
+## Step 1: Build the ISO and safely flash a USB
 
-```bash
-# Build the ISO (takes a few minutes the first time)
-nix build github:funkymonkeymonk/nix#packages.x86_64-linux.iso --impure
+Build the live image on Linux, or forward the build to a configured Linux
+builder from macOS:
 
-# Write to USB - replace sdX with your actual device
-sudo dd if=./result/iso-image.iso of=/dev/sdX bs=4M status=progress oflag=sync
+```sh
+nix build .#iso
+# Or, from macOS with a configured Linux builder:
+nix build .#iso --builders 'ssh://user@linux-builder x86_64-linux'
 ```
 
-You can also use the installer from NixOS Live session or macOS with Balena Etcher.
+Before writing anything, inspect the block-device inventory and verify the
+whole-disk device by size and model. The following commands are examples only;
+never copy a device name without confirming it is the USB drive:
 
-## Step 2: Boot the Installer USB
-
-1. Insert the USB drive into the target machine
-2. Boot from the USB (may require pressing F12, Esc, or Del during POST)
-3. The installer TUI starts automatically on TTY1
-4. Press Alt+F2 for a shell if you need to troubleshoot before proceeding
-
-## Step 3: Choose Your Configuration
-
-The installer TUI shows available targets and machine types.
-
-For headless servers choose `type-server` — it includes Tailscale and auto-upgrades, and requires no hardware-configuration.nix because nixos-facter detects the hardware automatically. Notice that a takeout container hostname comes from DHCP.
-
-If you added a custom target into `flake.nix` beforehand, its name appears in the installer list too.
-
-## Step 4: Select the Disk
-
-The installer scans physical disks with `lsblk` and displays them in a table. It warns that all data on the selected disk will be destroyed.
-
-Notice that auto-partitioning uses disko — you do not need to run `cfdisk` or `parted` manually.
-
-## Step 5: Confirm and Install
-
-The installer shows an installation summary before proceeding. If everything looks correct, confirm to begin installation.
-
-This step:
-1. Partitions the disk with disko (EFI + root ext4)
-2. Formats ext4 on the root partition
-3. Mounts partitions under `/mnt`
-4. Generates hardware configuration using nixos-facter
-5. Runs `nixos-install --flake github:funkymonkeymonk/nix#<target>`
-
-If the target machine has network access, the installer uses the remote flake from GitHub. Otherwise it falls back to the copy bundled on the ISO.
-
-## Step 6: Boot into Your System
-
-Remove the USB drive and reboot. The system boots into the installed NixOS configuration with systemd-boot.
-
-### Verify SSH Access
-
-```bash
-# From another machine on the same network
-ssh admin@<hostname-or-ip>
+```sh
+# Linux: inspect first, then replace /dev/sdX with the verified whole disk.
+lsblk -o NAME,SIZE,MODEL,TYPE
+sudo dd if=result/iso/*.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-The `type-server` target includes SSH key authentication only (no password) with agent forwarding for 1Password.
+On macOS, inspect with `diskutil list`, then unmount, write to the verified
+whole-disk device, and eject it. No build task or installer helper writes to a
+USB device automatically.
 
-## Step 7: Run Post-Installation Checks
+## Step 2: Boot and verify the live target
 
-SSH into the machine or use the TTY and verify:
+1. Boot from the USB using the target firmware's boot menu.
+2. After boot, local TTY1 automatically prints `installer-ready`. The same
+   usage instructions appear in the SSH login MOTD. The helper reports global
+   network addresses, sshd status, the host-key fingerprint, and a read-only
+   inventory of available disks; it does not partition, format, or install.
+3. Verify the reported SSH host-key fingerprint over a trusted channel before
+   trusting or connecting to the target. Do not accept an unexpected key.
+4. Add the verified endpoint to the ignored local `devenv.local.nix` override
+   (or use a verified SSH alias), not a committed target file:
 
-```bash
-# Check system configuration
-nixos-rebuild list-generations
+   ```nix
+   {...}: {
+     machines.zero.target.host = "192.0.2.25";
+   }
+   ```
 
-# Verify flakes are enabled
-nix flake show /etc/nixos 2>/dev/null || echo "No local flake (remote install)"
+   Substitute the actual address shown by the live target.
 
-# Test that auto-upgrade is configured
-cat /etc/nixos/configuration.nix | grep -A5 autoUpgrade
+## Step 3: Install one named machine from the workstation
+
+After confirming the selected machine and target, run the explicitly named
+workstation task:
+
+```sh
+devenv tasks run machines:install --input machine=zero
 ```
 
-On `type-server` and `type-desktop` the system checks for upgrades at 04:00 daily.
+The task warns that installation is destructive to the target disk and asks
+for explicit confirmation. Review the machine's install plan and ensure its
+storage mapping points only at the disposable VM disk before testing. There is
+no implicit fleet install.
 
-## Step 8 (Heirloom Only): Create Your Target
+Machines NixOS installation requires root SSH. The ISO preserves its current
+key-only root access policy; existing headless NixOS roles currently deny root
+login and must not be treated as deployable until their access is separately
+configured and approved. This task does not relax root SSH or sudo policy.
 
-If you installed a custom configuration rather than a takeout container, make sure you have a target directory wired into `flake.nix`:
+## Hardware facts and secrets
 
-```bash
-mkdir -p targets/my-nixos
+A build such as `devenv build machines.zero.build.nixos` requires
+`.machines/zero/facter.json` when that machine enables facter. The named
+`machines install` workflow generates this report from the target. Do not
+fabricate, copy from another host, or commit a guessed report. If a real
+hand-written `hardware-configuration.nix` is used instead, import it in the
+machine's local NixOS module and explicitly disable facter locally, for
+example:
+
+```nix
+{lib, ...}: {
+  hardware.facter.reportPath = lib.mkForce null;
+}
 ```
 
-Copy hardware config from the running system:
+SecretSpec's Homelab and Personal provider profiles are configured but
+intentionally contain no values. Secret-dependent operations may run only
+after the owner confirms a real item/field reference in that machine's default
+vault. Fresh-host installation fails closed until
+`OPNIX_SERVICE_ACCOUNT_TOKEN` is declared with an approved reference. Do not
+query 1Password or insert a guessed reference as part of this walkthrough. The
+USB workflow is not ready for production until this credential, approved
+access, Facter, and physical USB smoke prerequisites are met.
 
-```bash
-ssh admin@my-nixos "cat /etc/nixos/hardware-configuration.nix" \
-  > targets/my-nixos/hardware-configuration.nix
-```
+## Step 4: Verify the installed system
 
-Add the target to `flake.nix` under `nixosConfigurations` following the same pattern as `zero`.
+After a separately approved disposable install completes, reboot the VM from
+its virtual disk and verify its expected hostname, SSH access, and system
+configuration. Keep the USB and disposable disk available until the machine is
+confirmed healthy. Do not use production disks for this smoke test.
 
-## Decision Guide: Takeout Container vs Heirloom
+## Compatibility fallback
 
-| Factor | Takeout Container | Heirloom |
-|--------|-------------------|----------|
-| Target name in flake | Generic (`type-server`) | Named (`zero`, `my-workstation`) |
-| Hardware config | nixos-facter (auto-detected) | `hardware-configuration.nix` per target |
-| Disk layout | Pre-defined disko layout | Custom disk configuration |
-| Replacement strategy | Clone + redeploy | Repair existing machine |
-
-## What You've Done
-
-- Built an installer USB with the custom TUI image
-- Booted into the live environment
-- Selected a configuration (takeout container or heirloom)
-- Installed NixOS with automatic disk partitioning and hardware detection
-- Verified SSH access and system configuration
-
-## Next Steps
-
-- **[Add Secrets with opnix](getting-started-opnix.md)** — Configure 1Password secrets management on your NixOS machine
-- **Read [Disposable Infrastructure](../explanation/disposable-infrastructure.md)** — Understand the takeout container pattern in depth
+The standalone legacy installer (`nix run .#installer`) and the old installer
+source files remain available as compatibility fallback. They are not
+started by the SSH-ready image and must not be removed until the physical USB
+smoke test and access/credential prerequisites are satisfied.
