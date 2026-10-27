@@ -22,6 +22,16 @@
     deps = [];
   };
 
+  "consumer-decision-guides" = {
+    description = "Use when researching or writing consumer buying guides, product or service comparisons, best-of roundups, or Wirecutter-inspired recommendation articles - creates reader-first decision guides with transparent evidence, testing, tradeoffs, and clear picks.";
+    roles = ["creative" "opencode" "claude" "pi"];
+    source = {
+      type = "internal";
+      path = ./internal/consumer-decision-guides;
+    };
+    deps = [];
+  };
+
   "nix-opnix-secrets" = {
     description = "Use when managing 1Password secrets via Nix on nix-darwin. Covers mkOpnixSecretsGeneric, programs.onepassword-secrets, activation script ordering, and runtime patching of config files";
     roles = ["opencode" "claude" "pi"];
