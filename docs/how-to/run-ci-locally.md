@@ -48,6 +48,41 @@ devenv tasks run test:eval
 
 Evaluates all NixOS and Darwin configurations without building. This is the fastest way to catch option errors and missing references.
 
+## Machine Command Safety Checks
+
+The machine-operation wrapper can be tested without contacting a target or
+loading 1Password credentials:
+
+```bash
+bash tests/test-machine-ops.sh
+```
+
+It uses mock `devenv`, `secretspec`, and catalog lookup commands to verify that
+machine names are explicit, profiles are operation-scoped, deployment never
+adds `--yes`, and installation cancels unless disk erasure is affirmatively
+confirmed. The focused Nix check also exercises the pinned SecretSpec CLI with
+temporary HOME and a failing `op` stub against the empty Homelab and Personal
+profiles, without accessing 1Password. The Nix check is available as:
+
+```bash
+CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
+nix build ".#checks.${CURRENT_SYSTEM}.machines-ops" --no-link
+```
+
+For task invocation, use an explicit JSON task input, for example:
+
+```bash
+devenv tasks run machines:build --input machine=zero
+devenv tasks run machines:check --input machine=zero
+devenv tasks run machines:plan --input machine=zero
+```
+
+`machines:info` is the only operation that intentionally lists the full
+inventory. Remote operation smoke tests must use disposable VMs; do not run
+`deploy` or `install` against production machines as part of local CI checks.
+See the [Tasks Reference](../reference/tasks.md#named-machine-operations) for
+local endpoint overrides and SecretSpec profile behavior.
+
 ## Fixing Issues
 
 ### Formatting Problems

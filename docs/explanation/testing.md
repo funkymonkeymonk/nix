@@ -96,6 +96,55 @@ This matches the nix-unit recommendation that tests live near the logic they're 
 
 Following TDD principles, write the test *before* implementing the module or making changes. The test must first fail (RED), then pass after implementation (GREEN)[^3]. This ensures tests actually exercise new code rather than being green by accident.
 
+## Disposable Machines and SSH VM tests
+
+The Linux-only `vm-ssh-target` check is available as
+`nix build .#checks.x86_64-linux.vm-ssh-target`. It boots a test-only NixOS
+machine and verifies SSH key authentication and a harmless marker from a
+separate controller VM. It is an isolated SSH readiness test, not Machines
+build, plan, apply, deploy, or install coverage. It runs as part of the Linux
+flake checks and `test:build-checks`/`test:all`.
+
+The host-run x86_64-linux integration test exercises the actual pinned devenv
+Machines CLI and is run explicitly with:
+
+```sh
+devenv tasks run test:machines-e2e
+```
+
+It builds `system.build.vm` from `tests/vm/machines-e2e-target.nix`, generates a
+fresh Ed25519 keypair under `$TMPDIR`, and passes only its public key into the
+NixOS build. The public key is intentionally embedded in the disposable target's
+`authorized_keys` and is not a credential; the private half remains only in the
+runtime temporary directory and never enters Nix evaluation or the store. QEMU
+forwards SSH only to a dynamically selected loopback port. A
+temporary devenv project copies the repository's pinned `devenv.yaml` and
+`devenv.lock` (not `devenv.local.nix`) and defines one synthetic `integration`
+NixOS machine with `hardware.facter = null`, matching root authorized-key and
+SSH settings, and a harmless marker. The test pins the VM host key and requires
+`StrictHostKeyChecking=yes` for every SSH connection. It invokes the root
+flake's pinned CLI for `machines info`, `devenv build
+machines.integration.build.nixos`, `machines plan integration`, and
+`machines apply <plan-id>`. Activation can restart the guest's SSH service, so
+if the apply client loses observation the harness reconciles with
+`machines status integration`; it confirms a transaction only after the expected
+marker is present over strict SSH. Failed or unresolved target phases fail the
+test. It never runs `machines install` or partitions a disk. The private key
+and all temporary VM and project files are removed by a cleanup trap and remain
+outside the Nix store and repository.
+
+This test is intentionally a host task rather than a flake check: it needs an
+interactive host Nix daemon/store, QEMU, a host loopback SSH port, and temporary
+runtime key material. Running that lifecycle inside `nix flake check`'s build
+sandbox would not provide the workstation daemon or host networking required by
+the real Machines CLI. It uses no production machine, host address, credentials,
+secret values, or SSH policy. Production constraints remain: existing headless
+NixOS roles deny root SSH; production targets must not be treated as deployable
+until access is separately approved. Facter-enabled machines still require
+their actual `.machines/<name>/facter.json` hardware report; this synthetic
+fixture explicitly disables facter. SecretSpec profiles currently contain no
+values, and this test declares no secret keys or credentials.
+
 ## CI Wiring
 
 All checks are wired into `flake.checks` via the `tests/default.nix` combinator, which returns an attrset of derivations. Both macOS and Linux CI runners execute `devenv tasks run test:all`, which runs the platform-appropriate subset[^1]. The `test:all` aggregate declares `after = ["test:eval" "test:build-checks"]` — devenv handles the scheduling. VM tests are gated on `isLinux` because the NixOS testing framework requires QEMU[^5].

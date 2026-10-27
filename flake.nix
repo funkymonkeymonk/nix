@@ -33,7 +33,7 @@
     # It appears as `nixpkgs_2` in flake.lock because it is distinct from the
     # system's nixpkgs input; do not merge the two without checking devenv's
     # patch and compatibility requirements.
-    devenv.url = "github:cachix/devenv";
+    devenv.url = "github:cachix/devenv/v2.4.0";
 
     # NEW: Takeout container infrastructure for automated installs
     disko.url = "github:nix-community/disko";
@@ -68,12 +68,7 @@
       imports = [
         ./library/flake-module.nix
         ./library/outputs.nix
-        ./library/machines/bootstrap.nix
-        ./library/machines/cattle.nix
-        ./library/machines/installer-iso.nix
-        ./library/machines/zero.nix
-        ./library/machines/drlight.nix
-        ./library/machines/darwin.nix
+        ./library/machines/flake-parts.nix
       ];
       flake = {};
     };

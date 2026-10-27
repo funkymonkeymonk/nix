@@ -174,4 +174,78 @@ in {
 
   # Boot-test the developer role's actual environment.systemPackages.
   vm-role-developer = mkRoleVmTest "developer";
+
+  # Exercise only the disposable SSH/marker boundary. The host-run
+  # test:machines-e2e task separately exercises the devenv Machines lifecycle.
+  vm-ssh-target = pkgs.testers.nixosTest {
+    name = "vm-ssh-target";
+    nodes = {
+      target = {pkgs, ...}: {
+        system.stateVersion = "25.05";
+        users.users.vmtest = {
+          isNormalUser = true;
+          createHome = true;
+          home = "/home/vmtest";
+          group = "users";
+        };
+        services.openssh = {
+          enable = true;
+          settings = {
+            PermitRootLogin = "no";
+            PasswordAuthentication = false;
+            PubkeyAuthentication = true;
+          };
+        };
+        networking.firewall.allowedTCPPorts = [22];
+        environment.etc."vm-ssh-target-marker".text = "disposable-role-ready\n";
+        environment.systemPackages = [pkgs.openssh];
+        virtualisation.memorySize = 512;
+      };
+      controller = {pkgs, ...}: {
+        system.stateVersion = "25.05";
+        environment.systemPackages = [pkgs.openssh];
+        virtualisation.memorySize = 512;
+      };
+    };
+    testScript = ''
+      start_all()
+
+      target.wait_for_unit("sshd.service")
+      target.wait_for_open_port(22)
+      target.succeed("systemctl is-active --quiet sshd.service")
+
+      # The keypair exists only in the disposable controller VM and is
+      # generated per test run; no repository or production key is used.
+      controller.succeed("mkdir -m 700 -p /tmp/disposable-ssh")
+      controller.succeed(
+          "ssh-keygen -q -t ed25519 -N " + repr("") + " "
+          "-f /tmp/disposable-ssh/id_ed25519"
+      )
+      public_key = controller.succeed(
+          "cat /tmp/disposable-ssh/id_ed25519.pub"
+      ).strip()
+      target.succeed(
+          "install -d -m 700 -o vmtest -g users /home/vmtest/.ssh && "
+          "printf '%s\\n' " + repr(public_key) + " "
+          "> /home/vmtest/.ssh/authorized_keys && "
+          "chown vmtest:users /home/vmtest/.ssh/authorized_keys && "
+          "chmod 600 /home/vmtest/.ssh/authorized_keys"
+      )
+
+      # Pin the disposable target's generated public host key for this
+      # connection; do not disable host-key verification in the SSH client.
+      controller.succeed(
+          "ssh-keyscan -T 10 -t ed25519 target "
+          "> /tmp/disposable-ssh/known_hosts"
+      )
+      controller.succeed(
+          "ssh -i /tmp/disposable-ssh/id_ed25519 "
+          "-o IdentitiesOnly=yes -o BatchMode=yes "
+          "-o StrictHostKeyChecking=yes "
+          "-o UserKnownHostsFile=/tmp/disposable-ssh/known_hosts "
+          "vmtest@target "
+          "'test \\\"$(cat /etc/vm-ssh-target-marker)\\\" = \\\"disposable-role-ready\\\"'"
+      )
+    '';
+  };
 }

@@ -1,4 +1,8 @@
-{pkgs, ...}: let
+{
+  pkgs,
+  inputs,
+  ...
+}: let
   foundationPackages = (import ./modules/roles/foundation-packages.nix {inherit pkgs;}).common;
   developerPackages = import ./modules/roles/developer-packages.nix {inherit pkgs;};
 
@@ -34,7 +38,48 @@
       printf '%s\n' "$sudo_password" | sudo -S "$@"
     }
   '';
+  machinesTask = operation: withPlanId: {
+    description = "Run the explicitly named ${operation} machine operation";
+    input =
+      {machine = "";}
+      // (
+        if withPlanId
+        then {planId = "";}
+        else {}
+      );
+    exec = ''
+      set -euo pipefail
+      task_input=''${DEVENV_TASK_INPUT:-'{}'}
+      machine=$(jq -er '.machine | select(type == "string" and length > 0)' <<< "$task_input") || {
+        echo "Pass an explicit target with --input machine=<name>" >&2
+        exit 64
+      }
+      ${
+        if withPlanId
+        then ''
+          plan_id=$(jq -er '.planId | select(type == "string" and length > 0)' <<< "$task_input") || {
+            echo "Pass an explicit reviewed plan ID with --input planId=<id>" >&2
+            exit 64
+          }
+          exec ./scripts/machine-ops.sh ${operation} "$machine" "$plan_id"
+        ''
+        else ''
+          exec ./scripts/machine-ops.sh ${operation} "$machine"
+        ''
+      }
+    '';
+  };
 in {
+  imports =
+    [
+      (import ./library/machines/devenv.nix {inherit inputs;})
+    ]
+    ++ (
+      if builtins.pathExists ./devenv.local.nix
+      then [./devenv.local.nix]
+      else []
+    );
+
   packages =
     foundationPackages
     ++ developerPackages
@@ -330,6 +375,19 @@ in {
 
   # All tasks migrated from Taskfile.yml
   tasks = {
+    "machines:info" = {
+      description = "List declared machines and their build/deployment metadata";
+      exec = ''
+        exec ./scripts/machine-ops.sh info
+      '';
+    };
+    "machines:build" = machinesTask "build" false;
+    "machines:check" = machinesTask "check" false;
+    "machines:plan" = machinesTask "plan" false;
+    "machines:apply" = machinesTask "apply" true;
+    "machines:deploy" = machinesTask "deploy" false;
+    "machines:install" = machinesTask "install" false;
+
     # ============================================
     # DOCUMENTATION TASKS
     # ============================================
@@ -686,6 +744,11 @@ in {
         echo "=== Final Results ==="
         echo "All tests passed"
       '';
+    };
+
+    "test:machines-e2e" = {
+      description = "Run the host-based disposable NixOS QEMU and Machines integration test";
+      exec = "bash tests/test-machines-e2e.sh";
     };
 
     "test:eval" = {
