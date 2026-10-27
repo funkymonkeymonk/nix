@@ -3,6 +3,7 @@
 {
   pkgs,
   self ? null,
+  inputs ? {},
   ...
 }: let
   # Test utilities
@@ -42,8 +43,8 @@
   testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
   testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
   testZero = import ./test-zero.nix {inherit pkgs;};
-  testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self;};
-  testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self;};
+  testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
+  testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
   testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
   testLibrary =
@@ -54,6 +55,10 @@
   testFlakeModule = import ./test-flake-module.nix {inherit pkgs;};
   testNixUnitRunner = import ./test-nix-unit-runner.nix {inherit pkgs;};
   testDevBaseMigration = import ./test-dev-base-migration.nix {inherit pkgs;};
+  testMachinesFoundation = import ./test-machines-foundation.nix {inherit pkgs inputs;};
+  testMachinesInventory = import ./test-machines-inventory.nix {inherit pkgs self inputs;};
+  testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
+  testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
   testSkillsOptionOwnership = import ./test-skills-option-ownership.nix {inherit pkgs;};
   testAgentOptionOwnership = import ./test-agent-option-ownership.nix {inherit pkgs;};
@@ -63,6 +68,8 @@
     else {};
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
+  # VM checks defined by tests/vm/default.nix are Linux-only and are merged
+  # into this check set below, including vm-ssh-target.
   vmTests =
     if isLinux && self != null
     then import ./vm {inherit pkgs self;}
@@ -101,6 +108,11 @@ in
     inherit nix-unit-tests;
     nix-unit-runner = testNixUnitRunner.nixUnitRunner;
     dev-base-migration = testDevBaseMigration.devBaseMigration;
+    machines-secret-profiles = testMachinesFoundation.machinesSecretProfiles;
+    machines-inventory = testMachinesInventory.machinesInventory;
+    machines-ops = testMachineOps.machineOps;
+    machines-secretspec-empty-profiles = testMachineOps.secretspecEmptyProfiles;
+    installer-ready = testInstallerReady.installerReady;
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;

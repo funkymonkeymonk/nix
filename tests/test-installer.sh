@@ -17,11 +17,20 @@ assert() {
 
 echo "=== Installer consolidation tests ==="
 
-# Both implementations must exist (they serve different purposes)
-assert "packages/installer/default.nix exists" \
+# The SSH-ready helper is the ISO path; legacy installers remain as fallback.
+assert "packages/installer-ready/default.nix exists" \
+  "test -f '$REPO_ROOT/packages/installer-ready/default.nix'"
+
+assert "packages/installer-ready/installer-ready.sh exists" \
+  "test -f '$REPO_ROOT/packages/installer-ready/installer-ready.sh'"
+
+assert "ISO configuration includes the readiness helper" \
+  "grep -q 'installer-ready' '$REPO_ROOT/targets/installer-iso/default.nix'"
+
+assert "standalone packages/installer fallback exists" \
   "test -f '$REPO_ROOT/packages/installer/default.nix'"
 
-assert "targets/installer-iso/installer.nix exists" \
+assert "legacy ISO installer remains available as fallback source" \
   "test -f '$REPO_ROOT/targets/installer-iso/installer.nix'"
 
 # Each file must have a purpose comment explaining why it exists separately
@@ -39,12 +48,12 @@ assert "packages/installer produces nixos-flake-installer binary" \
 assert "targets/installer-iso/installer.nix produces nixos-installer-iso binary" \
   "grep -q 'writeScriptBin.*nixos-installer-iso' '$REPO_ROOT/targets/installer-iso/installer.nix'"
 
-# flake.nix references both correctly
-assert "flake.nix references packages/installer for standalone app" \
-  "grep -q 'packages/installer' '$REPO_ROOT/flake.nix'"
+# Generated per-system outputs are owned by library/outputs.nix.
+assert "library/outputs.nix exposes the standalone installer app" \
+  "grep -q 'packages/installer' '$REPO_ROOT/library/outputs.nix'"
 
-assert "flake.nix references installer-iso NixOS config" \
-  "grep -q 'installer-iso' '$REPO_ROOT/flake.nix'"
+assert "library/outputs.nix preserves the installer-iso output" \
+  "grep -q 'nixosConfigurations.installer-iso' '$REPO_ROOT/library/outputs.nix'"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
