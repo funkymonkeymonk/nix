@@ -1,5 +1,6 @@
 {
   writeShellApplication,
+  coreutils,
   iproute2,
   openssh,
   systemd,
@@ -7,6 +8,6 @@
 }:
 writeShellApplication {
   name = "installer-ready";
-  runtimeInputs = [iproute2 openssh systemd util-linux];
+  runtimeInputs = [coreutils iproute2 openssh systemd util-linux];
   text = builtins.readFile ./installer-ready.sh;
 }

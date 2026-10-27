@@ -21,7 +21,10 @@
     inherit (final) lib stdenvNoCC curl jq gnugrep gnused cacert;
   };
 
-  devenv = inputs.devenv.packages.${final.stdenv.hostPlatform.system}.devenv;
+  devenv =
+    if final.stdenv.hostPlatform.isDarwin
+    then _prev.devenv
+    else inputs.devenv.packages.${final.stdenv.hostPlatform.system}.devenv;
 
   # Use mlx-metal (prebuilt wheels with GPU support) for the remaining MLX
   # packages; the oMLX runtime itself is managed by Homebrew.

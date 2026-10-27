@@ -21,6 +21,13 @@
     && lib.hasInfix "import ./library/machines/devenv.nix {inherit inputs;}" devenvText;
   devenvSourceText = devenvText + devenvYamlText;
   pinnedDevenv = inputs.devenv.packages.${pkgs.stdenv.hostPlatform.system}.devenv;
+  devenvOverlay = import ../overlays/default.nix {inherit inputs;};
+  overlayDevenv = isDarwin: system: previousDevenv:
+    (devenvOverlay {
+      stdenv.hostPlatform = {inherit isDarwin system;};
+    } {devenv = previousDevenv;}).devenv;
+  darwinDevenv = overlayDevenv true "aarch64-darwin" "nixpkgs-darwin-devenv";
+  linuxDevenv = overlayDevenv false pkgs.stdenv.hostPlatform.system "nixpkgs-linux-devenv";
   foundationPackages = import ../modules/roles/foundation-packages.nix {inherit pkgs;};
   manifestPath = ../secretspec.toml;
   manifestExists = builtins.pathExists manifestPath;
@@ -83,9 +90,9 @@
       && builtins.isList defaults.providers
       && builtins.all builtins.isString defaults.providers)
     (builtins.attrValues profiles);
-  roleUsesPinnedDevenv =
+  roleUsesSelectedDevenv =
     builtins.any
-    (package: package.drvPath == pinnedDevenv.drvPath)
+    (package: package.drvPath == pkgs.devenv.drvPath)
     foundationPackages.common;
   outputSelectsPinnedDevenvOnAllPlatforms =
     lib.hasInfix "devenv = pkgs.devenv;" outputsText
@@ -111,7 +118,9 @@ in {
     ${assertResult "flake lock records the v2.4.0 ref" (lockExists && (rootDevenvNode.original.ref or null) == "v2.4.0")}
     ${assertResult "Devenv project nixpkgs owner, repository, and revision match the root flake lock" devenvNixpkgsMatchesRoot}
     ${assertResult "pinned devenv is selected on every supported platform" outputSelectsPinnedDevenvOnAllPlatforms}
-    ${assertResult "foundation role consumes the pinned devenv package" roleUsesPinnedDevenv}
+    ${assertResult "Darwin overlay keeps the nixpkgs devenv package" (darwinDevenv == "nixpkgs-darwin-devenv")}
+    ${assertResult "Linux overlay selects the pinned devenv package" (linuxDevenv.drvPath == pinnedDevenv.drvPath)}
+    ${assertResult "foundation role consumes the selected devenv package" roleUsesSelectedDevenv}
     ${assertResult "Machines projection receives the NixOS facter input with nixpkgs following devenv nixpkgs" machinesProjectionReceivesFacterInput}
     ${assertResult "SecretSpec has a Homelab 1Password profile route" (manifestExists && profileRoutesTo "Homelab" "Homelab")}
     ${assertResult "SecretSpec has a Personal 1Password profile route" (manifestExists && profileRoutesTo "Personal" "Personal")}

@@ -38,6 +38,14 @@
     } ''
       INSTALLER_READY_SCRIPT=${../packages/installer-ready/installer-ready.sh} \
         ${pkgs.bash}/bin/bash ${./test-installer-ready.sh}
+      ${
+        if pkgs.stdenv.hostPlatform.isLinux
+        then ''
+          ${installerReady}/bin/installer-ready > "$TMPDIR/installer-ready-package-output"
+          ${pkgs.gnugrep}/bin/grep -F 'The workstation owns machine selection' "$TMPDIR/installer-ready-package-output"
+        ''
+        else ""
+      }
       touch $out
     '';
 in {
