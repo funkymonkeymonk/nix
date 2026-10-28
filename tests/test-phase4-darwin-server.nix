@@ -70,7 +70,7 @@
           && megamanx.myConfig.pi.settings.defaultModel == "gpt-6-luna"
           && megamanx.home-manager.users.monkey.home.sessionVariables.PI_JEV_BASE_URL == "https://opencode.ai/inference/systemone"
           && megamanx.home-manager.users.monkey.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
-          && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Personal/Opencode/Service Accounts/MegamanX"
+          && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Private/Opencode/Service Accounts/MegamanX"
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.path == ".pi/agent/secrets/typesafe_api_key"
           && builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after
           && megamanx.myConfig.pi.pluginsSource != null
@@ -99,6 +99,7 @@
       in
         if
           megamanx.services.openssh.enable
+          && megamanx.myConfig.onepassword.defaultVault == "Private"
           && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
           && pkgs.lib.hasInfix "PasswordAuthentication yes" sshConfig
           && !pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig

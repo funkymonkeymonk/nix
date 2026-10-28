@@ -96,10 +96,21 @@
     builtins.all
     (uri: builtins.isString uri && builtins.match "onepassword://[A-Za-z0-9_-]+" uri != null)
     (builtins.attrValues providers);
-  profilesDeclareOnlyProviderDefaults =
-    builtins.all
-    (profile: builtins.attrNames profile == ["defaults"])
-    (builtins.attrValues profiles);
+  profilesDeclareOnlyProviderDefaults = builtins.all (name: let
+    profile = profiles.${name};
+    expected =
+      if name == "MegamanX"
+      then ["MEGAMANX_SUDO_PASSWORD" "defaults"]
+      else ["defaults"];
+  in
+    builtins.attrNames profile == expected)
+  (builtins.attrNames profiles);
+  megamanxSudoPassword = (profiles.MegamanX or {}).MEGAMANX_SUDO_PASSWORD or {};
+  megamanxSudoPasswordIsReferenceOnly =
+    (megamanxSudoPassword.ref or {}) == {item = "MegamanX Sudo Password"; field = "password";}
+    && (megamanxSudoPassword.providers or []) == ["megamanx"]
+    && (megamanxSudoPassword ? description)
+    && !(megamanxSudoPassword ? value);
   profilesHaveNoResolvedValuesOrCredentials =
     builtins.all
     (profile: let
@@ -146,6 +157,8 @@ in {
     ${assertResult "Devenv locks all inputs needed by the shared Machines package overlay" machineBuildInputsMatchRootLock}
     ${assertResult "SecretSpec has a Homelab 1Password profile route" (manifestExists && profileRoutesTo "Homelab" "Homelab")}
     ${assertResult "SecretSpec has a Personal 1Password profile route" (manifestExists && profileRoutesTo "Personal" "Personal")}
+    ${assertResult "SecretSpec has a MegamanX 1Password profile route" (manifestExists && profileRoutesTo "MegamanX" "Private")}
+    ${assertResult "MegamanX sudo password is referenced from 1Password without embedding a value" megamanxSudoPasswordIsReferenceOnly}
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
     ${assertResult "SecretSpec profiles contain routing metadata only, without values or credentials" (manifestExists && profilesDeclareOnlyProviderDefaults && profilesHaveNoResolvedValuesOrCredentials)}
     ${assertResult "manifest and devenv configuration contain no service-account token reference" (!containsServiceAccountTokenReference)}
