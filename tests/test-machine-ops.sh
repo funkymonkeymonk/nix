@@ -51,7 +51,8 @@ case "$secret_mode" in
 esac
 case "${5:-}" in
   *zero*|*drlight*|*type-nas*|*type-server*|*type-server-arm*) printf '%s\t%s\t%s\t%s' Homelab nixos "$secret_status" "$bootstrap_status" ;;
-  *wweaver*|*darwin-server*|*MegamanX*) printf '%s\t%s\t%s\t%s' Personal darwin "$secret_status" "$bootstrap_status" ;;
+  *MegamanX*) printf '%s\t%s\t%s\t%s' MegamanX darwin true false ;;
+  *wweaver*|*darwin-server*) printf '%s\t%s\t%s\t%s' Personal darwin "$secret_status" "$bootstrap_status" ;;
   *bootstrap*|*type-desktop*|*installer-iso*) printf '%s\t%s\t%s\t%s' Personal nixos "$secret_status" "$bootstrap_status" ;;
   *) exit 92 ;;
 esac
@@ -144,9 +145,13 @@ run plan type-server-arm
 expect_log 'devenv|machines plan type-server-arm'
 run deploy zero
 expect_log 'devenv|machines deploy zero'
+[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+run check MegamanX
+expect_log 'devenv|machines check MegamanX'
+expect_profile MegamanX 'machines check MegamanX'
 run deploy MegamanX --use-machines-as-builders
 expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
-[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+expect_profile MegamanX 'machines deploy --use-machines-as-builders MegamanX'
 ! grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"
 
 # Unrelated profile secrets do not satisfy the bootstrap prerequisite for install.

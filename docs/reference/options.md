@@ -456,6 +456,12 @@ or changing a `myConfig.*` option.
 | `skillsPath` | string | `".config/opencode/skills"` | Path relative to home directory where skills are installed |
 | `superpowersPath` | null or absolute path | `null` | Path to the superpowers flake input (set automatically from flake inputs) |
 
+### myConfig.ssh
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Enable SSH access for this machine. Darwin hosts are disabled unless they opt in. |
+
 ### myConfig.streaming
 
 | Option | Type | Default | Description |

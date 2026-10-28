@@ -18,10 +18,10 @@
     "installer-iso"
     "wweaver"
     "darwin-server"
-    "MegamanX"
   ];
   profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Homelab") homelabMachines;
-  assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Personal") personalMachines; true;
+  assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Personal") personalMachines;
+  assert catalog.MegamanX.secretProfile == "MegamanX"; true;
 in {
   machineOps = assert profileChecks;
     pkgs.runCommand "machine-ops-safety-tests" {

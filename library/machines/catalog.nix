@@ -184,7 +184,7 @@
 
   MegamanX = {
     kind = "darwin";
-    secretProfile = "Personal";
+    secretProfile = "MegamanX";
     builder = "mk-system";
     system = "aarch64-darwin";
     hostname = "MegamanX";

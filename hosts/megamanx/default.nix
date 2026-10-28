@@ -17,6 +17,9 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
+      onepassword.defaultVault = "Private";
+      ssh.enable = true;
+
       # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
       # continuous-batching and tiered KV-cache engine.
       omlx = {

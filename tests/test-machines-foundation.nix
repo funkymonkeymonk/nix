@@ -107,7 +107,11 @@
   (builtins.attrNames profiles);
   megamanxSudoPassword = (profiles.MegamanX or {}).MEGAMANX_SUDO_PASSWORD or {};
   megamanxSudoPasswordIsReferenceOnly =
-    (megamanxSudoPassword.ref or {}) == {item = "MegamanX Sudo Password"; field = "password";}
+    (megamanxSudoPassword.ref or {})
+    == {
+      item = "MegamanX Sudo Password";
+      field = "password";
+    }
     && (megamanxSudoPassword.providers or []) == ["megamanx"]
     && (megamanxSudoPassword ? description)
     && !(megamanxSudoPassword ? value);

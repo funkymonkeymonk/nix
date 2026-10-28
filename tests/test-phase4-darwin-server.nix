@@ -116,6 +116,23 @@
 
     ${
       let
+        darwinServer = self.darwinConfigurations.darwin-server.config;
+        wweaver = self.darwinConfigurations.wweaver.config;
+      in
+        if
+          builtins.hasAttr "ssh" darwinServer.myConfig
+          && !darwinServer.myConfig.ssh.enable
+          && !darwinServer.services.openssh.enable
+          && builtins.hasAttr "ssh" wweaver.myConfig
+          && !wweaver.myConfig.ssh.enable
+          && !wweaver.services.openssh.enable
+        then ""
+        else ''echo "FAIL: Darwin SSH must default off and only be enabled by explicit host opt-in"; exit 1''
+    }
+    echo "  Darwin SSH: disabled by default; MegamanX opts in ✓"
+
+    ${
+      let
         wweaver = self.darwinConfigurations.wweaver.config;
       in
         if

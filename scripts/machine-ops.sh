@@ -91,7 +91,7 @@ run_scoped_machine_operation() {
   }
   IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret <<< "$metadata"
   case "$profile" in
-    Homelab|Personal) ;;
+    Homelab|Personal|MegamanX) ;;
     *) printf 'ERROR: unsupported SecretSpec profile for machine %s\n' "$machine" >&2; exit 64 ;;
   esac
 

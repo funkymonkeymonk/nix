@@ -110,16 +110,16 @@ and explicitly disable facter locally (for example,
 Remote operations inspect the selected SecretSpec profile before execution. If
 that profile declares secrets, the wrapper runs only that operation through
 `secretspec run --profile <catalog-profile> -- ...`; profiles with no declared
-secrets bypass SecretSpec. The current Homelab and Personal profiles contain no
-secret declarations, so `check`, `plan`, `apply`, and `deploy` run directly. A
+secrets bypass SecretSpec. The Homelab and Personal profiles contain no secret
+declarations. MegamanX uses its own Private-vault profile for the administrator
+sudo password reference, so its remote operations are SecretSpec-scoped. A
 fresh-host `install` is rejected unless its selected profile explicitly declares
 `OPNIX_SERVICE_ACCOUNT_TOKEN` with an approved default-vault SecretSpec reference;
-an unrelated API key does not satisfy this prerequisite. The current profiles stay
-empty until the user confirms a real secret item, so installs remain fail-closed.
-`Homelab` is selected for `zero`, `drlight`, `type-nas`,
-`type-server`, and `type-server-arm`, matching the Homelab default configured by
-their headless NixOS archetype. Other catalog entries use the shared `Personal`
-default. `info` and local `build` do not load SecretSpec. SecretSpec remains
+an unrelated API key does not satisfy this prerequisite. The Homelab and Personal
+profiles stay empty, so installs remain fail-closed. `Homelab` is selected for
+`zero`, `drlight`, `type-nas`, `type-server`, and `type-server-arm`, matching the
+Homelab default configured by their headless NixOS archetype. MegamanX uses its
+own Private-vault profile; other catalog entries use the shared `Personal` default. `info` and local `build` do not load SecretSpec. SecretSpec remains
 disabled during devenv configuration/shell evaluation; no token or secret value
 is put in task input.
 
