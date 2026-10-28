@@ -38,6 +38,10 @@ cat >> "$tmp/bin/nix" <<'MOCK'
 # Only the catalog profile lookup used by the wrapper is mocked. No Nix build,
 # network operation, devenv execution, or SecretSpec provider is run here.
 [[ "${1:-}" == eval ]] || exit 91
+[[ "${2:-}" == --impure && "${3:-}" == --raw && "${4:-}" == --expr ]] || {
+  echo 'catalog metadata evaluation must allow the explicit local catalog path' >&2
+  exit 94
+}
 secret_mode=${MACHINE_OPS_TEST_SECRET_MODE:-none}
 case "$secret_mode" in
   none) secret_status=false; bootstrap_status=false ;;
@@ -45,7 +49,7 @@ case "$secret_mode" in
   bootstrap) secret_status=true; bootstrap_status=true ;;
   *) exit 92 ;;
 esac
-case "${4:-}" in
+case "${5:-}" in
   *zero*|*drlight*|*type-nas*|*type-server*|*type-server-arm*) printf '%s\t%s\t%s\t%s' Homelab nixos "$secret_status" "$bootstrap_status" ;;
   *wweaver*|*darwin-server*|*MegamanX*) printf '%s\t%s\t%s\t%s' Personal darwin "$secret_status" "$bootstrap_status" ;;
   *bootstrap*|*type-desktop*|*installer-iso*) printf '%s\t%s\t%s\t%s' Personal nixos "$secret_status" "$bootstrap_status" ;;
@@ -121,7 +125,7 @@ run build zero
 expect_log 'devenv|build machines.zero.build.nixos'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 run build wweaver
-expect_log 'devenv|build machines.wweaver.build.darwin'
+expect_log 'devenv|build machines.wweaver.build.nix-darwin'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 
 # Every remote operation forwards exactly one explicit machine name and scopes
@@ -140,6 +144,8 @@ run plan type-server-arm
 expect_log 'devenv|machines plan type-server-arm'
 run deploy zero
 expect_log 'devenv|machines deploy zero'
+run deploy MegamanX --use-machines-as-builders
+expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 ! grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"
 

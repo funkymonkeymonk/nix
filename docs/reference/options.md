@@ -109,7 +109,10 @@ or changing a `myConfig.*` option.
 | `apps.<name>.upstreamTlsSkipVerify` | boolean | `false` | Disable TLS certificate verification for this HTTPS upstream |
 | `apps.<name>.webRoot` | null or string | `null` | Path prefix for applications whose web UI is not served at the upstream root |
 | `cloudflareApiTokenPath` | null or string | `null` | Runtime path containing the Cloudflare API token used for DNS-01 certificates |
-| `enable` | boolean | `false` | Whether to enable Caddy internal reverse proxy. |
+| `dataDir` | string | `"$HOME/.local/share/caddy"` | Directory for Caddy data (certs, config) |
+| `enable` | boolean | `false` | Enable Caddy reverse proxy with .internal hostnames to local services |
+| `hosts` | attribute set of string | `{ }` | Additional hostname->upstream mappings (e.g. { "app.internal" = "localhost:9000"; }) |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `80` | Port for Caddy HTTP listener |
 
 ### myConfig.charm
 

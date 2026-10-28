@@ -46,6 +46,11 @@
         if withPlanId
         then {planId = "";}
         else {}
+      )
+      // (
+        if operation == "deploy"
+        then {useMachinesAsBuilders = false;}
+        else {}
       );
     exec = ''
       set -euo pipefail
@@ -62,6 +67,15 @@
             exit 64
           }
           exec ./scripts/machine-ops.sh ${operation} "$machine" "$plan_id"
+        ''
+        else if operation == "deploy"
+        then ''
+          use_machines_as_builders=$(jq -r '(.useMachinesAsBuilders // false) | tostring' <<< "$task_input")
+          case "$use_machines_as_builders" in
+            true) exec ./scripts/machine-ops.sh deploy "$machine" --use-machines-as-builders ;;
+            false) exec ./scripts/machine-ops.sh deploy "$machine" ;;
+            *) echo "useMachinesAsBuilders must be true or false" >&2; exit 64 ;;
+          esac
         ''
         else ''
           exec ./scripts/machine-ops.sh ${operation} "$machine"

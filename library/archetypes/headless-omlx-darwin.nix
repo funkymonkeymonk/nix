@@ -34,7 +34,6 @@
 
   security.sudo.extraConfig = ''
     Defaults timestamp_timeout=0
-    monkey ALL=(ALL) NOPASSWD: ALL
   '';
 
   environment.systemPackages = with pkgs; [

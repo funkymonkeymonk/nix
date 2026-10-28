@@ -94,6 +94,27 @@
 
     ${
       let
+        megamanx = self.darwinConfigurations.MegamanX.config;
+        sshConfig = megamanx.environment.etc."ssh/sshd_config.d/100-nix-darwin.conf".text;
+      in
+        if
+          megamanx.services.openssh.enable
+          && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
+          && pkgs.lib.hasInfix "PasswordAuthentication yes" sshConfig
+          && !pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig
+          && builtins.hasAttr "caddy" megamanx.myConfig
+          && megamanx.myConfig.caddy.enable
+          && builtins.hasAttr "resolver/internal" megamanx.environment.etc
+          && megamanx.environment.etc."resolver/internal".text == "nameserver 127.0.0.1\nport 5354\n"
+          && builtins.hasAttr "dnsmasq" megamanx.launchd.user.agents
+          && builtins.hasAttr "caddy" megamanx.launchd.user.agents
+        then ""
+        else ''echo "FAIL: MegamanX deployment must keep .internal DNS and password SSH available"; exit 1''
+    }
+    echo "  MegamanX: .internal resolver and password SSH remain enabled ✓"
+
+    ${
+      let
         wweaver = self.darwinConfigurations.wweaver.config;
       in
         if

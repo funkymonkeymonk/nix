@@ -66,6 +66,7 @@
       };
 
       searxng.enable = true;
+      caddy.enable = true;
 
       temporal = {
         enable = true;
@@ -73,6 +74,15 @@
         uiIp = "0.0.0.0";
       };
     };
+
+  # Preserve the currently working password-based SSH path until key-based
+  # access is explicitly provisioned for this host.
+  services.openssh.extraConfig = lib.mkForce ''
+    PermitRootLogin no
+    PubkeyAuthentication yes
+    PasswordAuthentication yes
+    AllowAgentForwarding yes
+  '';
 
   environment.systemPackages = with pkgs;
     [

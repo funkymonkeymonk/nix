@@ -76,7 +76,7 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `machines:check` | `machine` | Check declared remote access for one machine |
 | `machines:plan` | `machine` | Create a review plan for one explicitly named machine |
 | `machines:apply` | `machine`, `planId` | Apply a reviewed plan ID using the named machine's scoped profile |
-| `machines:deploy` | `machine` | Interactively deploy one explicitly named machine |
+| `machines:deploy` | `machine`; optional `useMachinesAsBuilders` | Interactively deploy one explicitly named machine, optionally using reachable catalog targets as Nix builders |
 | `machines:install` | `machine` | Install one named target after a destructive-disk confirmation |
 
 Supply task inputs with `--input`; none of the machine operations defaults to all
@@ -89,12 +89,15 @@ devenv tasks run machines:check --input machine=zero
 devenv tasks run machines:plan --input machine=zero
 devenv tasks run machines:apply --input machine=zero --input planId=plan-123
 devenv tasks run machines:deploy --input machine=zero
+devenv tasks run machines:deploy --input machine=MegamanX --input useMachinesAsBuilders=true
 devenv tasks run machines:install --input machine=zero
 ```
 
 The build task uses `devenv build machines.<name>.build.nixos` for NixOS and
-`.build.darwin` for nix-darwin. Builds are local; set up a compatible remote
-builder separately when the build system differs from the workstation. For a
+`.build.nix-darwin` for nix-darwin. Builds are local; set up a compatible remote
+builder separately when the build system differs from the workstation. For an
+interactive deploy on a different architecture, set `useMachinesAsBuilders=true`;
+Devenv can then use reachable catalog targets as Nix builders. For a
 NixOS machine with facter enabled, for example
 `devenv build machines.zero.build.nixos`, the build requires the actual
 `.machines/zero/facter.json` report. The named `machines install` workflow
@@ -122,7 +125,10 @@ is put in task input.
 
 Remote endpoints are not inferred from the workstation hostname and no personal
 IP is committed. Set `machines.<name>.target.host` in the ignored
-`devenv.local.nix` override, or point it at a verified SSH alias. For example,
+`devenv.local.nix` override, or point it at a verified SSH alias. A nix-darwin
+target needs an administrator account with passwordless `sudo`. Cross-platform
+builds that use a machine as a Nix builder require SSH access through the local
+SSH configuration; `target.sshOpts` do not configure builder connections. For example,
 create this ignored local override:
 
 ```nix
@@ -156,7 +162,10 @@ Fresh-host install also fails closed until `OPNIX_SERVICE_ACCOUNT_TOKEN` is
 declared in the selected profile with an owner-confirmed item/field reference
 in the machine's default vault. The committed Homelab and Personal profiles
 are intentionally empty, so this prerequisite is not currently satisfied.
-`machines:deploy` remains interactive and never adds `--yes`. The apply wrapper
+`machines:deploy` remains interactive and never adds `--yes`. The optional
+`useMachinesAsBuilders` input maps to Devenv's `--use-machines-as-builders`
+flag; use it only when the explicitly configured target is reachable and can
+build for its own architecture. The apply wrapper
 reads the saved plan JSON from `$DEVENV_DOTFILE/machine-plans/<plan-id>/plan.json`
 (or the project `.devenv/machine-plans/<plan-id>/plan.json` fallback when
 `DEVENV_DOTFILE` is unset). It accepts only a Devenv plan ID—not a file path—and

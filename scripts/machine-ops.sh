@@ -9,7 +9,7 @@ Usage:
   machine-ops.sh check <machine>
   machine-ops.sh plan <machine>
   machine-ops.sh apply <machine> <plan-id>
-  machine-ops.sh deploy <machine>
+  machine-ops.sh deploy <machine> [--use-machines-as-builders]
   machine-ops.sh install <machine>
 
 All machine operations require one explicit catalog name. Remote operations
@@ -76,7 +76,7 @@ machine_metadata() {
   # expression. Metadata is public catalog data; no SecretSpec provider is
   # loaded while resolving it.
   expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\")"
-  "$nix_bin" eval --raw --expr "$expression"
+  "$nix_bin" eval --impure --raw --expr "$expression"
 }
 
 run_scoped_machine_operation() {
@@ -135,17 +135,29 @@ case "$operation" in
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
     IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret <<< "$metadata"
     case "$kind" in
-      nixos|darwin) ;;
+      nixos) build_role=nixos ;;
+      darwin) build_role=nix-darwin ;;
       *) fail "machine $machine has an unsupported build role" ;;
     esac
     devenv_bin=$(resolve_devenv_bin) || fail 'unable to resolve the pinned devenv CLI'
-    "$devenv_bin" build "machines.${machine}.build.${kind}"
+    "$devenv_bin" build "machines.${machine}.build.${build_role}"
     ;;
-  check|plan|deploy)
+  check|plan)
     [[ $# -eq 1 ]] || fail "$operation requires exactly one machine name"
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     run_scoped_machine_operation "$operation" "$machine" "$machine"
+    ;;
+  deploy)
+    [[ $# -eq 1 || $# -eq 2 ]] || fail 'deploy requires one machine name and an optional builder flag'
+    machine=$1
+    valid_machine_name "$machine" || fail 'machine name is malformed'
+    if [[ $# -eq 2 ]]; then
+      [[ "$2" == --use-machines-as-builders ]] || fail "unsupported deploy option: $2"
+      run_scoped_machine_operation deploy "$machine" --use-machines-as-builders "$machine"
+    else
+      run_scoped_machine_operation deploy "$machine" "$machine"
+    fi
     ;;
   apply)
     [[ $# -eq 2 ]] || fail 'apply requires an explicit machine name and plan ID'

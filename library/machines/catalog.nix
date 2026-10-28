@@ -154,9 +154,7 @@
     system = "aarch64-darwin";
     hostname = "wweaver";
     modules = [
-      ../archetypes/workstation-darwin.nix
       ../../modules/services/bifrost/darwin.nix
-      (inputs.nix-darwin + "/modules/homebrew.nix")
       ../../modules/services/omlx/darwin.nix
       ../../modules/home-manager/aerospace.nix
       ../../hosts/wweaver
@@ -191,10 +189,9 @@
     system = "aarch64-darwin";
     hostname = "MegamanX";
     modules = [
-      ../archetypes/headless-omlx-darwin.nix
-      (inputs.nix-darwin + "/modules/homebrew.nix")
       ../../modules/services/bifrost/darwin.nix
       ../../modules/services/searxng/darwin.nix
+      ../../modules/services/caddy/darwin.nix
       ../../modules/services/omlx/darwin.nix
       ../../modules/services/temporal/darwin.nix
       ../../hosts/megamanx
