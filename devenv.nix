@@ -400,6 +400,7 @@ in {
     "machines:plan" = machinesTask "plan" false;
     "machines:apply" = machinesTask "apply" true;
     "machines:deploy" = machinesTask "deploy" false;
+    "machines:deploy-auto" = machinesTask "deploy-auto" false;
     "machines:install" = machinesTask "install" false;
 
     # ============================================
