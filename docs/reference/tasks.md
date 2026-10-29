@@ -113,13 +113,14 @@ commit a guessed report. If using a real hand-written
 and explicitly disable facter locally (for example,
 `hardware.facter.reportPath = lib.mkForce null;`).
 
-Remote operations inspect the selected SecretSpec profile before execution. If
-that profile declares secrets, the wrapper runs only that operation through
+Operations that consume profile values run only that operation through
 `secretspec run --profile <catalog-profile> -- ...`; profiles with no declared
-secrets bypass SecretSpec. The Homelab and Personal profiles contain no secret
-declarations. MegamanX uses its own Private-vault profile for the administrator
-sudo password reference, so its remote operations are SecretSpec-scoped. A
-fresh-host `install` is rejected unless its selected profile explicitly declares
+secrets bypass SecretSpec. Stock `machines:deploy` and `machines:deploy-auto`
+do not consume SecretSpec values, so they skip profile resolution. In
+particular, stock Devenv activation cannot use MegamanX's sudo-password secret;
+the Private-vault reference remains for a password-aware activation path. The
+Homelab and Personal profiles contain no secret declarations. A fresh-host
+`install` is rejected unless its selected profile explicitly declares
 `OPNIX_SERVICE_ACCOUNT_TOKEN` with an approved default-vault SecretSpec reference;
 an unrelated API key does not satisfy this prerequisite. The Homelab and Personal
 profiles stay empty, so installs remain fail-closed. `Homelab` is selected for

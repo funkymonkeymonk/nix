@@ -129,6 +129,13 @@ expect_profile() {
     exit 1
   }
 }
+expect_no_secret_resolution() {
+  [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]] || {
+    echo 'operation resolved a SecretSpec profile it does not consume' >&2
+    cat "$MACHINE_OPS_SECRETSPEC_LOG" >&2
+    exit 1
+  }
+}
 expect_rejected() {
   if run "$@" >"$tmp/output" 2>&1; then
     echo "expected command to be rejected: $*" >&2
@@ -182,7 +189,7 @@ expect_log 'devenv|machines check MegamanX'
 expect_profile MegamanX 'machines check MegamanX'
 run deploy MegamanX --use-machines-as-builders
 expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
-expect_profile MegamanX 'machines deploy --use-machines-as-builders MegamanX'
+expect_no_secret_resolution
 
 # Automatic deploy uses a local build when the full Nix system IDs match and
 # asks Devenv to select matching remote builders when they differ.
@@ -191,10 +198,10 @@ expect_log 'devenv|machines deploy zero'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 run_for_system x86_64-linux deploy-auto MegamanX
 expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
-expect_profile MegamanX 'machines deploy --use-machines-as-builders MegamanX'
+expect_no_secret_resolution
 run_for_system aarch64-darwin deploy-auto MegamanX
 expect_log 'devenv|machines deploy MegamanX'
-expect_profile MegamanX 'machines deploy MegamanX'
+expect_no_secret_resolution
 run_for_system x86_64-linux deploy-auto type-server-arm
 expect_log 'devenv|machines deploy --use-machines-as-builders type-server-arm'
 expect_rejected_for_system unknown-system deploy-auto MegamanX

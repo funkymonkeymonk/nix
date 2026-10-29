@@ -108,7 +108,10 @@ run_scoped_machine_operation() {
     printf "ERROR: cannot install %s: profile '%s' must declare OPNIX_SERVICE_ACCOUNT_TOKEN with an approved default-vault reference before installing\n" "$machine" "$profile" >&2
     exit 69
   fi
-  if [[ "$has_secrets" != true ]]; then
+  # Stock Devenv deploy does not consume SecretSpec values. In particular, it
+  # cannot use MegamanX's sudo-password secret for activation, so do not resolve
+  # an unused profile before starting its build/plan/apply flow.
+  if [[ "$has_secrets" != true || "$operation" == deploy ]]; then
     "$devenv_bin" machines "$operation" "$@"
     return
   fi
