@@ -779,6 +779,7 @@ in {
 
         echo "=== Configuration Evaluation ==="
         echo ""
+        bash tests/test-platform-deprecation-warnings.sh
         CURRENT_HOST=$(hostname -s)
         export CURRENT_HOST
 
