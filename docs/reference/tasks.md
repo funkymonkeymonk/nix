@@ -55,7 +55,7 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 
 | Task | Description |
 |------|-------------|
-| `ci:checks:non-vm` | Build all non-VM flake checks in one Nix invocation |
+| `ci:checks:non-vm` | Build all non-VM flake checks in one invocation with at most two concurrent jobs |
 | `ci:checks:vm` | Build the five NixOS VM checks with at most two concurrent jobs |
 
 Run `devenv tasks run ci:checks` to run both suites in parallel. Run an individual

@@ -85,6 +85,9 @@ assert "Devenv CI task group runs both check suites" \
   devenv tasks run ci:checks"
 assert "non-VM task includes ordinary checks" \
   "grep -Fq '<.#checks.x86_64-linux.foundation-options>' '$tmp/checks.log'"
+assert "non-VM task caps concurrent builds at two" \
+  "grep -F '<.#checks.x86_64-linux.foundation-options>' '$tmp/checks.log' \\
+  | grep -Fq '<--max-jobs> <2>'"
 assert "non-VM task excludes VM checks" \
   "! grep -F '<.#checks.x86_64-linux.foundation-options>' '$tmp/checks.log' \
   | grep -Fq '<.#checks.x86_64-linux.vm-users>'"

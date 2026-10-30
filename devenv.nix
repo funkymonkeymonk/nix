@@ -753,7 +753,7 @@ in {
     # ============================================
 
     "ci:checks:non-vm" = {
-      description = "Build all non-VM CI checks in one Nix invocation";
+      description = "Build all non-VM CI checks in one invocation with at most two concurrent jobs";
       exec = ''
         set -euo pipefail
 
@@ -773,7 +773,7 @@ in {
         done
 
         echo "Building ''${#checks[@]} non-VM checks in one Nix invocation"
-        "$nix_bin" build --no-link --print-build-logs "''${installables[@]}"
+        "$nix_bin" build --no-link --print-build-logs --max-jobs 2 "''${installables[@]}"
       '';
     };
 

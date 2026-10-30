@@ -53,7 +53,7 @@ devenv tasks run ci:checks:vm
 devenv tasks run ci:checks
 ```
 
-The VM suite caps Nix builds at two concurrent jobs. Run a leaf task when you
+Each suite caps Nix builds at two concurrent jobs. Run a leaf task when you
 want to avoid starting the other suite.
 
 ## Platform-Specific Validation
