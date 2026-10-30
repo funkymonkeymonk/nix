@@ -14,6 +14,12 @@ with lib; {
       description = "Whether the current system is Darwin (macOS)";
     };
 
+    ssh.enable = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Enable SSH access for this machine. Darwin hosts are disabled unless they opt in.";
+    };
+
     users = mkOption {
       type = types.listOf (types.submodule {
         options = {

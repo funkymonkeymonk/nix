@@ -9,7 +9,8 @@ Usage:
   machine-ops.sh check <machine>
   machine-ops.sh plan <machine>
   machine-ops.sh apply <machine> <plan-id>
-  machine-ops.sh deploy <machine>
+  machine-ops.sh deploy <machine> [--use-machines-as-builders]
+  machine-ops.sh deploy-auto <machine>
   machine-ops.sh install <machine>
 
 All machine operations require one explicit catalog name. Remote operations
@@ -26,6 +27,10 @@ fail() {
 
 valid_machine_name() {
   [[ "$1" =~ ^[A-Za-z][A-Za-z0-9_-]*$ ]]
+}
+
+valid_nix_system() {
+  [[ "$1" =~ ^[A-Za-z0-9_]+-(linux|darwin)$ ]]
 }
 
 verified_plan_machine() {
@@ -75,8 +80,8 @@ machine_metadata() {
   # Machine names are restricted above before being interpolated into this
   # expression. Metadata is public catalog data; no SecretSpec provider is
   # loaded while resolving it.
-  expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\")"
-  "$nix_bin" eval --raw --expr "$expression"
+  expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\") + \"\\t\" + machine.system"
+  "$nix_bin" eval --impure --raw --expr "$expression"
 }
 
 run_scoped_machine_operation() {
@@ -89,9 +94,9 @@ run_scoped_machine_operation() {
     printf 'ERROR: machine %s is not in the catalog or has no deployment metadata\n' "$machine" >&2
     exit 64
   }
-  IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret <<< "$metadata"
+  IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret _target_system <<< "$metadata"
   case "$profile" in
-    Homelab|Personal) ;;
+    Homelab|Personal|MegamanX) ;;
     *) printf 'ERROR: unsupported SecretSpec profile for machine %s\n' "$machine" >&2; exit 64 ;;
   esac
 
@@ -103,7 +108,10 @@ run_scoped_machine_operation() {
     printf "ERROR: cannot install %s: profile '%s' must declare OPNIX_SERVICE_ACCOUNT_TOKEN with an approved default-vault reference before installing\n" "$machine" "$profile" >&2
     exit 69
   fi
-  if [[ "$has_secrets" != true ]]; then
+  # Stock Devenv deploy does not consume SecretSpec values. In particular, it
+  # cannot use MegamanX's sudo-password secret for activation, so do not resolve
+  # an unused profile before starting its build/plan/apply flow.
+  if [[ "$has_secrets" != true || "$operation" == deploy ]]; then
     "$devenv_bin" machines "$operation" "$@"
     return
   fi
@@ -133,19 +141,54 @@ case "$operation" in
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
-    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret <<< "$metadata"
+    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret _target_system <<< "$metadata"
     case "$kind" in
-      nixos|darwin) ;;
+      nixos) build_role=nixos ;;
+      darwin) build_role=nix-darwin ;;
       *) fail "machine $machine has an unsupported build role" ;;
     esac
     devenv_bin=$(resolve_devenv_bin) || fail 'unable to resolve the pinned devenv CLI'
-    "$devenv_bin" build "machines.${machine}.build.${kind}"
+    "$devenv_bin" build "machines.${machine}.build.${build_role}"
     ;;
-  check|plan|deploy)
+  check|plan)
     [[ $# -eq 1 ]] || fail "$operation requires exactly one machine name"
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     run_scoped_machine_operation "$operation" "$machine" "$machine"
+    ;;
+  deploy)
+    [[ $# -eq 1 || $# -eq 2 ]] || fail 'deploy requires one machine name and an optional builder flag'
+    machine=$1
+    valid_machine_name "$machine" || fail 'machine name is malformed'
+    if [[ $# -eq 2 ]]; then
+      [[ "$2" == --use-machines-as-builders ]] || fail "unsupported deploy option: $2"
+      run_scoped_machine_operation deploy "$machine" --use-machines-as-builders "$machine"
+    else
+      run_scoped_machine_operation deploy "$machine" "$machine"
+    fi
+    ;;
+  deploy-auto)
+    [[ $# -eq 1 ]] || fail 'deploy-auto requires exactly one machine name'
+    machine=$1
+    valid_machine_name "$machine" || fail 'machine name is malformed'
+    metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
+    IFS=$'\t' read -r _profile _kind _has_secrets _has_bootstrap_secret target_system <<< "$metadata"
+    nix_bin=${NIX_BIN:-nix}
+    current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem') || {
+      printf 'ERROR: unable to determine the current Nix system\n' >&2
+      exit 69
+    }
+    if ! valid_nix_system "$current_system" || ! valid_nix_system "$target_system"; then
+      printf 'ERROR: invalid current or target Nix system identifier\n' >&2
+      exit 69
+    fi
+    if [[ "$current_system" == "$target_system" ]]; then
+      printf 'Nix system matches (%s); deploying with the local builder.\n' "$current_system"
+      run_scoped_machine_operation deploy "$machine" "$machine"
+    else
+      printf 'Nix system differs (%s -> %s); asking Devenv to use matching machine builders.\n' "$current_system" "$target_system"
+      run_scoped_machine_operation deploy "$machine" --use-machines-as-builders "$machine"
+    fi
     ;;
   apply)
     [[ $# -eq 2 ]] || fail 'apply requires an explicit machine name and plan ID'

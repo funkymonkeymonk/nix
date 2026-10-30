@@ -44,8 +44,8 @@ jobs:
             "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Run lint checks
         run: devenv tasks run check:lint
-      - name: Run module coverage regression guard
-        run: devenv tasks run check:coverage
+      - name: Test CI workflow helpers
+        run: bash tests/test-ci-workflows.sh
   # Check if Nix files changed (skip builds/tests if only docs changed)
   # Runs in parallel with lint since it only checks file paths
   changes:
@@ -471,19 +471,15 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Build VM checks
+      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
         run: |
-          set -euo pipefail
-          for check in \
-            vm-users \
-            vm-ssh \
-            vm-packages \
-            vm-role-foundation \
-            vm-role-developer; do
-            echo "--- Building $check ---"
-            nix build ".#checks.x86_64-linux.$check" \
-              --no-link --print-build-logs
-          done
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          nix profile add --accept-flake-config \
+            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
+      - name: Build VM checks
+        run: devenv tasks run ci:checks:vm
 
   # Run foundation tests and auxiliary validation in a single job.
   # Both need identical setup (Nix + Cachix + devenv) and run on the same
@@ -528,12 +524,4 @@ jobs:
       - name: Run check suite (non-VM checks only)
         run: |
           echo "Running non-VM checks (configs already validated in discover-targets job)"
-          CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-          CHECKS=$(nix eval --json ".#checks.${CURRENT_SYSTEM}" --apply 'builtins.attrNames' \
-            | jq -r '.[] | select(startswith("vm-") | not)')
-          echo "Checks to build:"
-          echo "$CHECKS"
-          for check in $CHECKS; do
-            echo "--- Building $check ---"
-            nix build ".#checks.$CURRENT_SYSTEM.$check" --no-link --print-build-logs
-          done
+          devenv tasks run ci:checks:non-vm
