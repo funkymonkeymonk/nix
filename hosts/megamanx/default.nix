@@ -17,7 +17,10 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      onepassword.defaultVault = "Private";
+      onepassword = {
+        defaultVault = "Opnix";
+        sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
+      };
       ssh.enable = true;
 
       # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its

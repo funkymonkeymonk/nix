@@ -161,8 +161,8 @@ in {
     ${assertResult "Devenv locks all inputs needed by the shared Machines package overlay" machineBuildInputsMatchRootLock}
     ${assertResult "SecretSpec has a Homelab 1Password profile route" (manifestExists && profileRoutesTo "Homelab" "Homelab")}
     ${assertResult "SecretSpec has a Personal 1Password profile route" (manifestExists && profileRoutesTo "Personal" "Personal")}
-    ${assertResult "SecretSpec has a MegamanX 1Password profile route" (manifestExists && profileRoutesTo "MegamanX" "Private")}
-    ${assertResult "MegamanX sudo password is referenced from 1Password without embedding a value" megamanxSudoPasswordIsReferenceOnly}
+    ${assertResult "SecretSpec keeps the MegamanX sudo profile routed to Private" (manifestExists && profileRoutesTo "MegamanX" "Private")}
+    ${assertResult "MegamanX sudo password is referenced from Private without embedding a value" megamanxSudoPasswordIsReferenceOnly}
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
     ${assertResult "SecretSpec profiles contain routing metadata only, without values or credentials" (manifestExists && profilesDeclareOnlyProviderDefaults && profilesHaveNoResolvedValuesOrCredentials)}
     ${assertResult "manifest and devenv configuration contain no service-account token reference" (!containsServiceAccountTokenReference)}

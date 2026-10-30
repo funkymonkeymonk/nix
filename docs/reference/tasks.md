@@ -125,8 +125,10 @@ Homelab and Personal profiles contain no secret declarations. A fresh-host
 an unrelated API key does not satisfy this prerequisite. The Homelab and Personal
 profiles stay empty, so installs remain fail-closed. `Homelab` is selected for
 `zero`, `drlight`, `type-nas`, `type-server`, and `type-server-arm`, matching the
-Homelab default configured by their headless NixOS archetype. MegamanX uses its
-own Private-vault profile; other catalog entries use the shared `Personal` default. `info` and local `build` do not load SecretSpec. SecretSpec remains
+Homelab default configured by their headless NixOS archetype. MegamanX uses the
+`Opnix` default vault for Opnix-managed application secrets; its sudo password
+uses an explicit `Private` provider route. Other catalog entries use the shared
+`Personal` default. `info` and local `build` do not load SecretSpec. SecretSpec remains
 disabled during devenv configuration/shell evaluation; no token or secret value
 is put in task input.
 
