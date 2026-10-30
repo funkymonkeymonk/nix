@@ -752,6 +752,55 @@ in {
     # TEST TASKS (eval gates build)
     # ============================================
 
+    "ci:checks:non-vm" = {
+      description = "Build all non-VM CI checks in one Nix invocation";
+      exec = ''
+        set -euo pipefail
+
+        nix_bin="''${NIX_BIN:-nix}"
+        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+        check_names=$("$nix_bin" eval --json ".#checks.''${current_system}" --apply 'builtins.attrNames' \
+          | jq -r '.[] | select(startswith("vm-") | not)')
+        mapfile -t checks <<< "$check_names"
+        ((''${#checks[@]} > 0)) || {
+          echo "No non-VM checks found for $current_system" >&2
+          exit 1
+        }
+
+        installables=()
+        for check in "''${checks[@]}"; do
+          installables+=(".#checks.''${current_system}.''${check}")
+        done
+
+        echo "Building ''${#checks[@]} non-VM checks in one Nix invocation"
+        "$nix_bin" build --no-link --print-build-logs "''${installables[@]}"
+      '';
+    };
+
+    "ci:checks:vm" = {
+      description = "Build the NixOS VM CI checks with at most two concurrent jobs";
+      exec = ''
+        set -euo pipefail
+
+        nix_bin="''${NIX_BIN:-nix}"
+        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+        checks=(
+          vm-users
+          vm-ssh
+          vm-packages
+          vm-role-foundation
+          vm-role-developer
+        )
+        installables=()
+        for check in "''${checks[@]}"; do
+          installables+=(".#checks.''${current_system}.''${check}")
+        done
+
+        echo "Building ''${#checks[@]} VM checks in one Nix invocation"
+        "$nix_bin" build --no-link --print-build-logs --max-jobs 2 "''${installables[@]}"
+      '';
+    };
+
     "test:all" = {
       description = "Run all tests (eval + module tests)";
       after = ["test:eval" "test:build-checks"];

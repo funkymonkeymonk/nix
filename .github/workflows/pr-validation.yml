@@ -471,8 +471,15 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: true
+      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          nix profile add --accept-flake-config \
+            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
       - name: Build VM checks
-        run: bash .github/scripts/build-checks.sh vm
+        run: devenv tasks run ci:checks:vm
 
   # Run foundation tests and auxiliary validation in a single job.
   # Both need identical setup (Nix + Cachix + devenv) and run on the same
@@ -517,4 +524,4 @@ jobs:
       - name: Run check suite (non-VM checks only)
         run: |
           echo "Running non-VM checks (configs already validated in discover-targets job)"
-          bash .github/scripts/build-checks.sh non-vm
+          devenv tasks run ci:checks:non-vm
