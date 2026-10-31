@@ -735,7 +735,7 @@ in {
     };
     "ci:checks:extended" = ciChecksTask {
       group = "extended";
-      description = "Build heavy package and Nix unit checks on trusted scheduled runs";
+      description = "Build deferred package, Bifrost, and Nix unit checks on trusted scheduled runs";
     };
     "ci:checks:vm-pr" = ciChecksTask {
       group = "vm-pr";

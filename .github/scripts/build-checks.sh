@@ -8,10 +8,11 @@ usage() {
 group="${1:-}"
 case "$group" in
   pr)
-    selector='.[] | select((startswith("vm-") | not) or . == "vm-role-generator") | select(startswith("overlay-") | not) | select(. != "module-coverage") | select(. != "foundation-packages") | select(. != "nix-unit-tests")'
+    # Bifrost config tests force realization of the full Go/Node service bundle.
+    selector='.[] | select((startswith("vm-") | not) or . == "vm-role-generator") | select(startswith("overlay-") | not) | select(. != "module-coverage") | select(. != "foundation-packages") | select(. != "nix-unit-tests") | select(. != "bifrost-anthropic-config") | select(. != "bifrost-retry-config")'
     ;;
   extended)
-    selector='.[] | select(startswith("overlay-") or . == "foundation-packages" or . == "nix-unit-tests")'
+    selector='.[] | select(startswith("overlay-") or . == "foundation-packages" or . == "nix-unit-tests" or . == "bifrost-anthropic-config" or . == "bifrost-retry-config")'
     ;;
   vm-pr)
     checks=(vm-users vm-ssh vm-packages)
