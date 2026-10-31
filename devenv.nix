@@ -38,6 +38,13 @@
       printf '%s\n' "$sudo_password" | sudo -S "$@"
     }
   '';
+  ciChecksTask = {
+    group,
+    description,
+  }: {
+    inherit description;
+    exec = "bash .github/scripts/build-checks.sh ${group}";
+  };
   machinesTask = operation: withPlanId: {
     description = "Run the explicitly named ${operation} machine operation";
     input =
@@ -682,37 +689,7 @@ in {
 
     "check:lint" = {
       description = "Run lint checks (formatting + static analysis)";
-      exec = ''
-        echo "Running lint checks..."
-        echo "Checking Nix formatting..."
-        find . -name '*.nix' \
-          -not -path './.devenv/*' \
-          -not -path './.direnv/*' \
-          -not -path './.worktrees/*' \
-          -not -path './.workspaces/*' \
-          -not -name '.devenv.flake.nix' \
-          | xargs alejandra --check
-        echo "Checking for dead code..."
-        find . -name '*.nix' \
-          -not -path './.devenv/*' \
-          -not -path './.direnv/*' \
-          -not -path './.worktrees/*' \
-          -not -path './.workspaces/*' \
-          -not -name '.devenv.flake.nix' \
-          | xargs deadnix --no-underscore --fail
-        echo "Running static analysis..."
-        # statix respects .gitignore by default
-        statix check . || true
-        echo "Checking YAML files..."
-        find . -type f \( -name '*.yaml' -o -name '*.yml' \) \
-          -not -path './.devenv/*' \
-          -not -path './.direnv/*' \
-          -not -path './.worktrees/*' \
-          -not -path './.workspaces/*' \
-          -not -path './~/*' \
-          -print0 | xargs -0 yamllint --strict
-        echo "Lint checks complete"
-      '';
+      exec = "bash .github/scripts/lint.sh";
     };
 
     "check:unit" = {
@@ -729,8 +706,29 @@ in {
       exec = ''
         echo "=== Running module coverage regression guard ==="
         CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-        nix build ".#checks.''${CURRENT_SYSTEM}.module-coverage" --no-link --print-build-logs
+        nix build ".#checks.''${CURRENT_SYSTEM}.module-coverage" --no-link --quiet
       '';
+    };
+
+    # ============================================
+    # CI CHECK GROUPS
+    # ============================================
+
+    "ci:checks:pr" = ciChecksTask {
+      group = "pr";
+      description = "Build core non-VM checks for pull requests";
+    };
+    "ci:checks:extended" = ciChecksTask {
+      group = "extended";
+      description = "Build optional overlay package checks on trusted scheduled runs";
+    };
+    "ci:checks:vm-pr" = ciChecksTask {
+      group = "vm-pr";
+      description = "Build core NixOS VM smoke checks for pull requests";
+    };
+    "ci:checks:vm-extended" = ciChecksTask {
+      group = "vm-extended";
+      description = "Build full role-package VM checks on trusted scheduled runs";
     };
 
     # ============================================
@@ -893,7 +891,7 @@ in {
         echo "Running nix flake check (builds checks for current system only)."
         echo ""
 
-        nix flake check --max-jobs auto --print-build-logs
+        nix flake check --max-jobs auto
 
         echo ""
         echo "✓ All check targets passed"

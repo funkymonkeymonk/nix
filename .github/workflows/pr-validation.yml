@@ -34,18 +34,29 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
-      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
+          skipPush: true
+      - name: Install lint tools (pinned to flake.lock nixpkgs)
         run: |
           NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
           NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
           NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
           nix profile add --accept-flake-config \
-            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
+            "$NIXPKGS#alejandra" \
+            "$NIXPKGS#deadnix" \
+            "$NIXPKGS#statix" \
+            "$NIXPKGS#yamllint"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run lint checks
-        run: devenv tasks run check:lint
+        run: bash .github/scripts/lint.sh
       - name: Run module coverage regression guard
-        run: devenv tasks run check:coverage
+        run: nix build .#checks.x86_64-linux.module-coverage --no-link --quiet
+      - name: Test CI workflow helpers
+        run: bash tests/test-ci-workflows.sh
+      - name: Test CI check group selection
+        run: bash tests/test-ci-check-groups.sh
+      - name: Test CI derivation cache behavior
+        run: bash tests/test-ci-config-cache.sh
   # Check if Nix files changed (skip builds/tests if only docs changed)
   # Runs in parallel with lint since it only checks file paths
   changes:
@@ -99,7 +110,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          skipPush: true
       # Restore cached derivation hashes from previous runs
       - name: Restore derivation cache
         uses: actions/cache/restore@v4
@@ -139,112 +150,14 @@ jobs:
           echo "NixOS configurations ($NIXOS_COUNT): $NIXOS_CONFIGS"
       - name: Check which configs changed
         id: check-changes
-        run: |
-          echo "Checking which configurations need rebuilds..."
-          # Create staging directory at the start
-          mkdir -p .drv-cache-staging
-          # Function to compute derivation hash for a config
-          compute_drv_hash() {
-            local config=$1
-            local type=$2
-            local drv_path
-            if [ "$type" = "darwin" ]; then
-              drv_path=$(nix-instantiate \
-                .#darwinConfigurations.${config}.system 2>/dev/null || echo "")
-            else
-              drv_path=$(nix-instantiate --impure \
-                .#nixosConfigurations.${config}.config.system.build.toplevel \
-                2>/dev/null || echo "")
-            fi
-            if [ -n "$drv_path" ]; then
-              # Get the hash of the derivation
-              nix-store -q --hash "$drv_path" 2>/dev/null || echo ""
-            else
-              echo ""
-            fi
-          }
-          # Check Darwin configs
-          DARWIN_CHANGED="[]"
-          if [ -f .drv-cache/darwin-configs ]; then
-            DARWIN_CHANGED_CONFIGS=()
-            for config in $(cat .drv-cache/darwin-configs | jq -r '.[]'); do
-              OLD_HASH=$(cat .drv-cache/darwin-${config}.hash 2>/dev/null || echo "")
-              NEW_HASH=$(compute_drv_hash "$config" "darwin")
-              if [ "$OLD_HASH" != "$NEW_HASH" ]; then
-                echo "Darwin config '$config' changed ($OLD_HASH -> $NEW_HASH)"
-                DARWIN_CHANGED_CONFIGS+=("$config")
-              else
-                echo "Darwin config '$config' unchanged"
-              fi
-              # Write new hash to a staging directory (not the cache yet)
-              echo "$NEW_HASH" > .drv-cache-staging/darwin-${config}.hash
-            done
-            if [ ${#DARWIN_CHANGED_CONFIGS[@]} -gt 0 ]; then
-              DARWIN_CHANGED=$(printf '%s\n' "${DARWIN_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
-            fi
-          else
-            # No cache exists, discover configs dynamically
-            echo "No cache found, discovering Darwin configs dynamically..."
-            DARWIN_CHANGED=$(nix eval .#darwinConfigurations \
-              --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-          fi
-          echo "darwin-changed<<EOF" >> $GITHUB_OUTPUT
-          echo "$DARWIN_CHANGED" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "Darwin configs needing rebuild: $DARWIN_CHANGED"
-          # Check NixOS configs
-          NIXOS_CHANGED="[]"
-          NIXOS_ARM_CHANGED="[]"
-          if [ -f .drv-cache/nixos-configs ]; then
-            NIXOS_CHANGED_CONFIGS=()
-            NIXOS_ARM_CHANGED_CONFIGS=()
-            for config in $(cat .drv-cache/nixos-configs | jq -r '.[]'); do
-              OLD_HASH=$(cat .drv-cache/nixos-${config}.hash 2>/dev/null || echo "")
-              NEW_HASH=$(compute_drv_hash "$config" "nixos")
-              if [ "$OLD_HASH" != "$NEW_HASH" ]; then
-                echo "NixOS config '$config' changed ($OLD_HASH -> $NEW_HASH)"
-                if echo "$config" | grep -qE -- '-arm(-|$)'; then
-                  NIXOS_ARM_CHANGED_CONFIGS+=("$config")
-                else
-                  NIXOS_CHANGED_CONFIGS+=("$config")
-                fi
-              else
-                echo "NixOS config '$config' unchanged"
-              fi
-              # Write new hash to a staging directory (not the cache yet)
-              echo "$NEW_HASH" > .drv-cache-staging/nixos-${config}.hash
-            done
-            if [ ${#NIXOS_CHANGED_CONFIGS[@]} -gt 0 ]; then
-              NIXOS_CHANGED=$(printf '%s\n' "${NIXOS_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
-            fi
-            if [ ${#NIXOS_ARM_CHANGED_CONFIGS[@]} -gt 0 ]; then
-              NIXOS_ARM_CHANGED=$(printf '%s\n' \
-                "${NIXOS_ARM_CHANGED_CONFIGS[@]}" | jq -R . | jq -s .)
-            fi
-          else
-             # No cache exists, discover configs dynamically
-            echo "No cache found, discovering NixOS configs dynamically..."
-            ALL_NIXOS=$(nix eval --impure .#nixosConfigurations \
-              --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-            # ARM configs build on ubuntu-24.04-arm, x86_64 configs on ubuntu-latest
-            NIXOS_ARM_CHANGED=$(echo "$ALL_NIXOS" | jq '[.[] | select(test("-arm(-|$)"))]')
-            NIXOS_CHANGED=$(echo "$ALL_NIXOS" | jq '[.[] | select(test("-arm(-|$)") | not)]')
-          fi
-          echo "nixos-changed<<EOF" >> $GITHUB_OUTPUT
-          echo "$NIXOS_CHANGED" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "nixos-arm-changed<<EOF" >> $GITHUB_OUTPUT
-          echo "$NIXOS_ARM_CHANGED" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "NixOS configs needing rebuild (x86_64): $NIXOS_CHANGED"
-          echo "NixOS configs needing rebuild (ARM): $NIXOS_ARM_CHANGED"
-          # Save current config lists to staging
-          echo '${{ steps.discover.outputs.darwin-configs }}' > .drv-cache-staging/darwin-configs
-          echo '${{ steps.discover.outputs.nixos-configs }}' > .drv-cache-staging/nixos-configs
+        env:
+          DARWIN_CONFIGS: ${{ steps.discover.outputs.darwin-configs }}
+          NIXOS_CONFIGS: ${{ steps.discover.outputs.nixos-configs }}
+        run: bash .github/scripts/check-config-changes.sh
       # Always save drv hashes so iterative PR commits can skip unchanged configs.
       # Uses if: always() so the cache is saved even if downstream jobs fail.
       - name: Save derivation cache
-        if: always()
+        if: always() && steps.check-changes.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: .drv-cache
@@ -273,7 +186,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          skipPush: true
       - name: Build ${{ matrix.config }}
         id: build
         run: |
@@ -311,7 +224,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          skipPush: true
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
@@ -352,7 +265,7 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          skipPush: true
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build ${{ matrix.config }}
@@ -471,23 +384,11 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Build VM checks
-        run: |
-          set -euo pipefail
-          for check in \
-            vm-users \
-            vm-ssh \
-            vm-packages \
-            vm-role-foundation \
-            vm-role-developer; do
-            echo "--- Building $check ---"
-            nix build ".#checks.x86_64-linux.$check" \
-              --no-link --print-build-logs
-          done
+      - name: Build VM smoke checks
+        run: bash .github/scripts/build-checks.sh vm-pr
 
-  # Run foundation tests and auxiliary validation in a single job.
-  # Both need identical setup (Nix + Cachix + devenv) and run on the same
-  # runner, so merging them saves ~2.5 minutes of redundant setup per PR.
+  # Run core checks and configuration validations together, without realizing
+  # the full devenv package environment in CI.
   test-and-validate:
     name: Tests & Validation
     runs-on: ubuntu-latest
@@ -511,29 +412,14 @@ jobs:
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
-          skipPush: ${{ github.ref != 'refs/heads/main' }}
-      - name: Install devenv.sh (pinned to flake.lock nixpkgs)
-        run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          nix profile add --accept-flake-config \
-            "github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}#devenv"
+          skipPush: true
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
-      - name: Validate Disko configurations
-        run: devenv tasks run validate:disko
+      - name: Validate Disko configuration
+        run: >-
+          nix build .#nixosConfigurations.zero.config.system.build.diskoScript
+          --no-link --dry-run --quiet
       - name: Validate installation script
-        run: devenv tasks run validate:install-script
-      - name: Run check suite (non-VM checks only)
-        run: |
-          echo "Running non-VM checks (configs already validated in discover-targets job)"
-          CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
-          CHECKS=$(nix eval --json ".#checks.${CURRENT_SYSTEM}" --apply 'builtins.attrNames' \
-            | jq -r '.[] | select(startswith("vm-") | not)')
-          echo "Checks to build:"
-          echo "$CHECKS"
-          for check in $CHECKS; do
-            echo "--- Building $check ---"
-            nix build ".#checks.$CURRENT_SYSTEM.$check" --no-link --print-build-logs
-          done
+        run: bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh
+      - name: Run curated non-VM checks
+        run: bash .github/scripts/build-checks.sh pr
