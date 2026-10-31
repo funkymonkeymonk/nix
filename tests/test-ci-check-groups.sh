@@ -48,7 +48,11 @@ assert_not_contains() {
 }
 run_group() {
   : > "$MOCK_NIX_CALLS"
-  "$SCRIPT" "$1"
+  if [[ -n "${2:-}" ]]; then
+    NIX_CHECK_BATCH_SIZE="$2" "$SCRIPT" "$1"
+  else
+    "$SCRIPT" "$1"
+  fi
 }
 
 if [[ ! -x "$SCRIPT" ]]; then
@@ -69,7 +73,7 @@ assert_contains '.#checks.x86_64-linux.vm-role-generator'
 assert_not_contains '.#checks.x86_64-linux.vm-packages'
 assert_not_contains '.#checks.x86_64-linux.vm-role-developer'
 
-run_group extended
+run_group extended 2
 assert_contains '.#checks.x86_64-linux.overlay-openai-evals'
 assert_contains '.#checks.x86_64-linux.overlay-rtk'
 assert_contains '.#checks.x86_64-linux.foundation-packages'
@@ -77,6 +81,12 @@ assert_contains '.#checks.x86_64-linux.nix-unit-tests'
 assert_contains '.#checks.x86_64-linux.bifrost-anthropic-config'
 assert_contains '.#checks.x86_64-linux.bifrost-retry-config'
 assert_not_contains '.#checks.x86_64-linux.core-packages'
+if [[ "$(grep -cFx 'build' "$MOCK_NIX_CALLS")" == 3 ]]; then
+  echo "  PASS: extended checks are split into bounded Nix batches"
+else
+  echo "  FAIL: expected three batches for six extended checks"
+  failures=$((failures + 1))
+fi
 
 run_group vm-pr
 assert_contains '.#checks.x86_64-linux.vm-users'

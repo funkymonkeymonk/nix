@@ -28,8 +28,13 @@ esac
 
 nix_bin="${NIX_BIN:-nix}"
 max_jobs="${NIX_MAX_JOBS:-2}"
+batch_size="${NIX_CHECK_BATCH_SIZE:-20}"
 if [[ ! "$max_jobs" =~ ^[1-9][0-9]*$ ]]; then
   echo "NIX_MAX_JOBS must be a positive integer (got '$max_jobs')" >&2
+  exit 64
+fi
+if [[ ! "$batch_size" =~ ^[1-9][0-9]*$ ]]; then
+  echo "NIX_CHECK_BATCH_SIZE must be a positive integer (got '$batch_size')" >&2
   exit 64
 fi
 
@@ -54,5 +59,11 @@ if ((${#installables[@]} == 0)); then
   exit 1
 fi
 
-echo "Building ${#installables[@]} '${group}' checks on ${current_system} (max-jobs: ${max_jobs})"
-"$nix_bin" build --no-link --max-jobs "$max_jobs" "${installables[@]}"
+batch_count=$(((${#installables[@]} + batch_size - 1) / batch_size))
+batch_number=1
+for ((start = 0; start < ${#installables[@]}; start += batch_size)); do
+  batch=("${installables[@]:start:batch_size}")
+  echo "Building '${group}' check batch ${batch_number}/${batch_count} (${#batch[@]} checks, max-jobs: ${max_jobs})"
+  "$nix_bin" build --no-link --max-jobs "$max_jobs" "${batch[@]}"
+  batch_number=$((batch_number + 1))
+done
