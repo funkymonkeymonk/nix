@@ -1,0 +1,65 @@
+---
+name: Extended CI Validation
+# yamllint disable-line rule:truthy
+on:
+  schedule:
+    # Run after the weekly flake update has settled.
+    - cron: '0 4 * * 6'
+  workflow_dispatch:
+
+env:
+  NIX_ACCESS_TOKENS: >-
+    github.com=${{ github.token }} api.github.com=${{ github.token }}
+    codeload.github.com=${{ github.token }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  extended-package-checks:
+    name: Extended Overlay Package Checks
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Populate Cachix for deployment machines
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Build extended package checks
+        run: bash .github/scripts/build-checks.sh extended
+
+  role-package-vm-checks:
+    name: Full Role Package VM Checks
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Populate Cachix for deployment machines
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Build role package VM checks
+        run: bash .github/scripts/build-checks.sh vm-extended
