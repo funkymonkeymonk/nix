@@ -8,10 +8,10 @@ usage() {
 group="${1:-}"
 case "$group" in
   pr)
-    selector='.[] | select(startswith("vm-") | not) | select(startswith("overlay-") | not) | select(. != "module-coverage")'
+    selector='.[] | select((startswith("vm-") | not) or . == "vm-role-generator") | select(startswith("overlay-") | not) | select(. != "module-coverage") | select(. != "foundation-packages")'
     ;;
   extended)
-    selector='.[] | select(startswith("overlay-"))'
+    selector='.[] | select(startswith("overlay-") or . == "foundation-packages")'
     ;;
   vm-pr)
     checks=(vm-users vm-ssh vm-packages)

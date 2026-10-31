@@ -32,6 +32,14 @@
   };
 
   vmTests = import ./vm {pkgs = linuxPkgs;};
+  smokeTestNames = ["vm-users" "vm-ssh" "vm-packages"];
+  smokeFixturesAreMinimal =
+    builtins.all (
+      name:
+        !(vmTests.${name}.nodes.machine.myConfig.roles.foundation.enable or false)
+        && !(vmTests.${name}.nodes.machine.virtualisation.docker.enable or false)
+    )
+    smokeTestNames;
 
   # Raw source for structural assertions that shouldn't require forcing a
   # full NixOS module evaluation (e.g. presence-only-check style, single
@@ -179,6 +187,13 @@
         echo "  expected the shared module list marker (${moduleListMarker}) exactly once, found ${toString moduleListOccurrences} -- mkRoleVmTest must not carry a parallel module list"
         exit 1
       ''
+    }
+    echo ""
+    echo "=== Testing smoke VM fixtures omit large package closures ==="
+    ${
+      if smokeFixturesAreMinimal
+      then ''echo "  foundation role and Docker service disabled for smoke tests: OK"''
+      else ''echo "  smoke tests must disable the foundation role and Docker service"; exit 1''
     }
     echo ""
     echo "=== Testing vm-role-foundation and vm-role-developer are exported ==="
