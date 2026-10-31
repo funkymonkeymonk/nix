@@ -52,17 +52,19 @@ jobs:
           echo "Found Darwin configurations: $CONFIGS"
       - name: Build Darwin configurations (push to Cachix)
         run: |
+          set -euo pipefail
           echo "Building Darwin configurations and pushing to Cachix..."
           CONFIGS='${{ steps.discover.outputs.configs }}'
-          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
-            echo ""
-            echo "========================================"
-            echo "Building $config configuration..."
-            echo "========================================"
-            nix build ".#darwinConfigurations.$config.system" --no-link
-            echo "$config build complete"
-          done
-          echo ""
+          installables=()
+          while IFS= read -r config; do
+            [[ -z "$config" ]] || installables+=(".#darwinConfigurations.$config.system")
+          done < <(echo "$CONFIGS" | jq -r '.[]')
+          if ((${#installables[@]} == 0)); then
+            echo "No Darwin configurations found"
+            exit 1
+          fi
+          echo "Building ${#installables[@]} Darwin configurations in one Nix invocation"
+          nix build --no-link --max-jobs auto "${installables[@]}"
           echo "All Darwin configurations built and pushed to Cachix"
   build-linux:
     name: Build Linux Configurations
@@ -93,16 +95,15 @@ jobs:
         id: discover
         run: |
           echo "Discovering NixOS configurations..."
-          # Get all configs except installer, bootstrap, and arm configs
-          # (arm configs can't build on x86_64 runners)
+          # Installer images are built by build-iso; ARM configs run natively.
           ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
             --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
           # ARM configs build on native ARM runners; x86_64 on ubuntu-latest
           ARM_CONFIGS=$(echo "$ALL_CONFIGS" | jq \
-            '[.[] | select(test("^(installer-|bootstrap)") | not)
+            '[.[] | select(test("^installer-") | not)
                   | select(test("-arm(-|$)"))]')
           CONFIGS=$(echo "$ALL_CONFIGS" | jq \
-            '[.[] | select(test("^(installer-|bootstrap)") | not)
+            '[.[] | select(test("^installer-") | not)
                   | select(test("-arm(-|$)") | not)]')
           echo "configs<<EOF" >> $GITHUB_OUTPUT
           echo "$CONFIGS" >> $GITHUB_OUTPUT
@@ -115,33 +116,23 @@ jobs:
       - name: Build Linux configurations (push to Cachix)
         id: build
         run: |
+          set -euo pipefail
           echo "Building NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ steps.discover.outputs.configs }}'
-          FAILED=0
-          BUILT=0
-          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
-            echo ""
-            echo "========================================"
-            echo "Building $config configuration..."
-            echo "========================================"
-            if nix build \
-                ".#nixosConfigurations.$config.config.system.build.toplevel" \
-                --no-link --impure 2>&1; then
-              echo "$config build complete"
-              BUILT=$((BUILT + 1))
-            else
-              echo "WARNING: $config build failed"
-              FAILED=$((FAILED + 1))
-            fi
-          done
-          echo ""
-          echo "Built: $BUILT, Failed: $FAILED"
-          echo "built=$BUILT" >> "$GITHUB_OUTPUT"
-          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
-          if [ "$FAILED" -gt 0 ]; then
-            echo "Some NixOS configurations failed to build"
+          installables=()
+          while IFS= read -r config; do
+            [[ -z "$config" ]] || installables+=(
+              ".#nixosConfigurations.$config.config.system.build.toplevel"
+            )
+          done < <(echo "$CONFIGS" | jq -r '.[]')
+          if ((${#installables[@]} == 0)); then
+            echo "No x86_64 NixOS configurations found"
             exit 1
           fi
+          echo "Building ${#installables[@]} x86_64 NixOS configurations in one Nix invocation"
+          nix build --no-link --impure --max-jobs auto "${installables[@]}"
+          echo "built=${#installables[@]}" >> "$GITHUB_OUTPUT"
+          echo "failed=0" >> "$GITHUB_OUTPUT"
           echo "All NixOS configurations built and pushed to Cachix"
   build-linux-arm:
     name: Build ARM Linux Configurations
@@ -181,33 +172,23 @@ jobs:
       - name: Build ARM Linux configurations (push to Cachix)
         id: build
         run: |
+          set -euo pipefail
           echo "Building ARM NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ steps.discover.outputs.arm-configs }}'
-          FAILED=0
-          BUILT=0
-          for config in $(echo "$CONFIGS" | jq -r '.[]'); do
-            echo ""
-            echo "========================================"
-            echo "Building $config configuration..."
-            echo "========================================"
-            if nix build \
-                ".#nixosConfigurations.$config.config.system.build.toplevel" \
-                --no-link --impure 2>&1; then
-              echo "$config build complete"
-              BUILT=$((BUILT + 1))
-            else
-              echo "WARNING: $config build failed"
-              FAILED=$((FAILED + 1))
-            fi
-          done
-          echo ""
-          echo "Built: $BUILT, Failed: $FAILED"
-          echo "built=$BUILT" >> "$GITHUB_OUTPUT"
-          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
-          if [ "$FAILED" -gt 0 ]; then
-            echo "Some ARM NixOS configurations failed to build"
+          installables=()
+          while IFS= read -r config; do
+            [[ -z "$config" ]] || installables+=(
+              ".#nixosConfigurations.$config.config.system.build.toplevel"
+            )
+          done < <(echo "$CONFIGS" | jq -r '.[]')
+          if ((${#installables[@]} == 0)); then
+            echo "No ARM NixOS configurations found"
             exit 1
           fi
+          echo "Building ${#installables[@]} ARM NixOS configurations in one Nix invocation"
+          nix build --no-link --impure --max-jobs auto "${installables[@]}"
+          echo "built=${#installables[@]}" >> "$GITHUB_OUTPUT"
+          echo "failed=0" >> "$GITHUB_OUTPUT"
           echo "All ARM NixOS configurations built and pushed to Cachix"
   cache-health:
     name: Verify Cache Population
