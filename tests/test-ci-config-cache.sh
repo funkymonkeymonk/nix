@@ -11,46 +11,33 @@ cat > "$TMP_DIR/bin/nix" <<'MOCK_NIX'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$1" == eval ]] || exit 64
-[[ "$*" == *--raw* ]] || exit 66
-installable="${@: -1}"
-case "$installable" in
-  *darwinConfigurations.*) config="${installable#*darwinConfigurations.}" ;;
-  *nixosConfigurations.*)
-    [[ "$*" == *--impure* ]] || exit 65
-    config="${installable#*nixosConfigurations.}"
-    ;;
-  *) exit 1 ;;
-esac
-config="${config%%.*}"
-printf '/nix/store/%s.drv\n' "$config"
+[[ "$*" == *--json* ]] || exit 66
+
+if [[ "$*" == *darwinConfigurations* ]]; then
+  [[ "${FAIL_HASH_FOR:-}" != new-darwin ]] || exit 1
+  if [[ "${CHANGED_HASH_FOR:-}" == existing-darwin ]]; then
+    printf '%s\n' '{"existing-darwin":"/nix/store/changed-existing-darwin.drv","new-darwin":"/nix/store/new-darwin.drv"}'
+  else
+    printf '%s\n' '{"existing-darwin":"/nix/store/existing-darwin.drv","new-darwin":"/nix/store/new-darwin.drv"}'
+  fi
+elif [[ "$*" == *nixosConfigurations* ]]; then
+  [[ "$*" == *--impure* ]] || exit 65
+  printf '%s\n' '{"existing-linux":"/nix/store/existing-linux.drv","new-linux":"/nix/store/new-linux.drv","new-arm":null}'
+else
+  echo "unexpected nix evaluation: $*" >&2
+  exit 64
+fi
 MOCK_NIX
-cat > "$TMP_DIR/bin/nix-store" <<'MOCK_STORE'
-#!/usr/bin/env bash
-set -euo pipefail
-drv="${@: -1}"
-name="$(basename "$drv" .drv)"
-if [[ "${FAIL_HASH_FOR:-}" == "$name" ]]; then
-  exit 1
-fi
-if [[ "${CHANGED_HASH_FOR:-}" == "$name" ]]; then
-  printf 'changed-hash\n'
-  exit 0
-fi
-case "$name" in
-  existing-darwin|existing-linux) printf 'old-hash\n' ;;
-  *) printf 'hash-%s\n' "$name" ;;
-esac
-MOCK_STORE
-chmod +x "$TMP_DIR/bin/nix" "$TMP_DIR/bin/nix-store"
+chmod +x "$TMP_DIR/bin/nix"
 
 cat > "$TMP_DIR/cache/darwin-configs" <<'DARWIN_CACHE'
 ["existing-darwin"]
 DARWIN_CACHE
-printf 'old-hash\n' > "$TMP_DIR/cache/darwin-existing-darwin.hash"
+printf '/nix/store/existing-darwin.drv\n' > "$TMP_DIR/cache/darwin-existing-darwin.hash"
 cat > "$TMP_DIR/cache/nixos-configs" <<'NIXOS_CACHE'
 ["existing-linux"]
 NIXOS_CACHE
-printf 'old-hash\n' > "$TMP_DIR/cache/nixos-existing-linux.hash"
+printf '/nix/store/existing-linux.drv\n' > "$TMP_DIR/cache/nixos-existing-linux.hash"
 
 export PATH="$TMP_DIR/bin:$PATH"
 export DRV_CACHE_DIR="$TMP_DIR/cache"
@@ -87,11 +74,17 @@ if [[ "$(cat "$DRV_CACHE_DIR/darwin-configs")" != "$DARWIN_CONFIGS" || \
 else
   echo "  PASS: current configuration lists are persisted"
 fi
-if [[ "$(cat "$DRV_CACHE_DIR/darwin-new-darwin.hash")" != 'hash-new-darwin' ]]; then
-  echo "FAIL: new Darwin derivation hash was not persisted"
+if [[ "$(cat "$DRV_CACHE_DIR/darwin-new-darwin.hash")" != '/nix/store/new-darwin.drv' ]]; then
+  echo "FAIL: new Darwin derivation path was not persisted"
   failures=$((failures + 1))
 else
-  echo "  PASS: new Darwin derivation hash is persisted"
+  echo "  PASS: new Darwin derivation path is persisted"
+fi
+if [[ -e "$DRV_CACHE_DIR/nixos-new-arm.hash" ]]; then
+  echo "FAIL: ARM derivation was evaluated on the x86_64 cache runner"
+  failures=$((failures + 1))
+else
+  echo "  PASS: ARM derivation is left to its native runner"
 fi
 if [[ -e "$DRV_CACHE_STAGING" ]]; then
   echo "FAIL: staging directory remains after successful cache update"
@@ -108,10 +101,10 @@ echo "  PASS: a changed existing configuration is detected"
 previous_configs="$(cat "$DRV_CACHE_DIR/darwin-configs")"
 previous_hash="$(cat "$DRV_CACHE_DIR/darwin-new-darwin.hash")"
 if FAIL_HASH_FOR=new-darwin "$SCRIPT" >/dev/null 2>&1; then
-  echo "FAIL: derivation hash errors should fail cache discovery"
+  echo "FAIL: derivation evaluation errors should fail cache discovery"
   failures=$((failures + 1))
 else
-  echo "  PASS: derivation hash errors fail cache discovery"
+  echo "  PASS: derivation evaluation errors fail cache discovery"
 fi
 if [[ "$(cat "$DRV_CACHE_DIR/darwin-configs")" != "$previous_configs" || \
       "$(cat "$DRV_CACHE_DIR/darwin-new-darwin.hash")" != "$previous_hash" ]]; then

@@ -19,24 +19,19 @@ validate_config_list() {
 validate_config_list Darwin "$darwin_configs"
 validate_config_list NixOS "$nixos_configs"
 
-compute_drv_hash() {
-  local config="$1" type="$2" drv_path drv_hash
-  if [[ "$type" == darwin ]]; then
-    drv_path=$(nix eval --raw ".#darwinConfigurations.${config}.system.drvPath")
-  else
-    drv_path=$(nix eval --impure --raw \
-      ".#nixosConfigurations.${config}.config.system.build.toplevel.drvPath")
-  fi
-  if [[ -z "$drv_path" ]]; then
+darwin_drv_paths=$(nix eval --json .#darwinConfigurations \
+  --apply 'x: builtins.mapAttrs (_: config: config.system.drvPath) x')
+nixos_drv_paths=$(nix eval --impure --json .#nixosConfigurations \
+  --apply 'x: builtins.mapAttrs (name: config: if builtins.match ".*-arm(-|$)" name != null then null else config.config.system.build.toplevel.drvPath) x')
+
+derivation_path() {
+  local config="$1" paths="$2" type="$3" drv_path
+  drv_path=$(jq -er --arg config "$config" \
+    '.[$config] | select(type == "string" and length > 0)' <<< "$paths") || {
     echo "Could not evaluate ${type} configuration '${config}'" >&2
     return 1
-  fi
-  drv_hash=$(nix-store -q --hash "$drv_path")
-  if [[ -z "$drv_hash" ]]; then
-    echo "Could not compute derivation hash for ${type} configuration '${config}'" >&2
-    return 1
-  fi
-  printf '%s\n' "$drv_hash"
+  }
+  printf '%s\n' "$drv_path"
 }
 
 json_array() {
@@ -59,7 +54,7 @@ while IFS= read -r config; do
   if [[ -f "$cache_dir/darwin-${config}.hash" ]]; then
     old_hash=$(<"$cache_dir/darwin-${config}.hash")
   fi
-  new_hash=$(compute_drv_hash "$config" darwin)
+  new_hash=$(derivation_path "$config" "$darwin_drv_paths" darwin)
   if [[ "$old_hash" != "$new_hash" ]]; then
     echo "Darwin config '${config}' changed"
     darwin_changed+=("$config")
@@ -74,14 +69,15 @@ while IFS= read -r config; do
   if [[ -f "$cache_dir/nixos-${config}.hash" ]]; then
     old_hash=$(<"$cache_dir/nixos-${config}.hash")
   fi
-  new_hash=$(compute_drv_hash "$config" nixos)
+  if [[ "$config" =~ -arm(-|$) ]]; then
+    echo "NixOS ARM config '${config}' will be evaluated by its native build runner"
+    nixos_arm_changed+=("$config")
+    continue
+  fi
+  new_hash=$(derivation_path "$config" "$nixos_drv_paths" nixos)
   if [[ "$old_hash" != "$new_hash" ]]; then
     echo "NixOS config '${config}' changed"
-    if [[ "$config" =~ -arm(-|$) ]]; then
-      nixos_arm_changed+=("$config")
-    else
-      nixos_changed+=("$config")
-    fi
+    nixos_changed+=("$config")
   else
     echo "NixOS config '${config}' unchanged"
   fi
