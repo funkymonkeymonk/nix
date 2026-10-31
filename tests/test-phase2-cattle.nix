@@ -7,6 +7,37 @@
   hasTargetModule = name: builtins.pathExists (../targets + "/${name}/default.nix");
   flakeText = builtins.readFile ../flake.nix;
 
+  headlessServerUsers = ["type-server" "type-nas" "type-server-arm" "drlight"];
+  sshKeyHosts = ["type-server" "type-nas" "type-server-arm"];
+  monkeySshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX";
+
+  headlessServerUsersTest = pkgs.runCommand "test-headless-server-users" {} ''
+    echo "=== Testing headless server user accounts ==="
+    ${builtins.concatStringsSep "\n" (map (
+        hostname: let
+          users = self.nixosConfigurations.${hostname}.config.users.users;
+          hasMonkey = builtins.hasAttr "monkey" users;
+          hasAdmin = builtins.hasAttr "admin" users;
+        in
+          if hasMonkey && !hasAdmin
+          then ''echo "  ${hostname}: monkey exists and admin is absent: OK"''
+          else ''echo "  FAIL: ${hostname} must have monkey and no admin account"; exit 1''
+      )
+      headlessServerUsers)}
+    ${builtins.concatStringsSep "\n" (map (
+        hostname: let
+          users = self.nixosConfigurations.${hostname}.config.users.users;
+          hasMonkey = builtins.hasAttr "monkey" users;
+          hasKey = hasMonkey && builtins.elem monkeySshKey (users.monkey.openssh.authorizedKeys.keys or []);
+        in
+          if hasKey
+          then ''echo "  ${hostname}: SSH key is authorized for monkey: OK"''
+          else ''echo "  FAIL: ${hostname} must authorize the existing SSH key for monkey"; exit 1''
+      )
+      sshKeyHosts)}
+    touch $out
+  '';
+
   phase2CattleTest = pkgs.runCommand "test-phase2-cattle" {} ''
     echo "=== Testing Cattle NixOS Configs ==="
     echo ""
@@ -78,5 +109,5 @@
     touch $out
   '';
 in {
-  inherit phase2CattleTest;
+  inherit headlessServerUsersTest phase2CattleTest;
 }

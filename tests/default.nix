@@ -372,6 +372,7 @@ in
 
     # Phase 2: Cattle NixOS v2 configs
     phase2-cattle = testPhase2Cattle.phase2CattleTest;
+    headless-server-users = testPhase2Cattle.headlessServerUsersTest;
 
     # mkRoleVmTest generator: structural + binary-resolution tests
     vm-role-generator =
