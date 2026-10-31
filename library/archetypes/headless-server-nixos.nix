@@ -24,6 +24,8 @@
     };
   };
 
+  users.mutableUsers = false;
+
   users.users.root.openssh.authorizedKeys.keys = [];
   users.users.monkey = {
     isNormalUser = true;

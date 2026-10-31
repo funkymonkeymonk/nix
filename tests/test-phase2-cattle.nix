@@ -8,7 +8,7 @@
   flakeText = builtins.readFile ../flake.nix;
 
   headlessServerUsers = ["type-server" "type-nas" "type-server-arm" "drlight"];
-  sshKeyHosts = ["type-server" "type-nas" "type-server-arm"];
+  sshKeyHosts = ["type-server" "type-nas" "type-server-arm" "drlight"];
   monkeySshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX";
 
   headlessServerUsersTest = pkgs.runCommand "test-headless-server-users" {} ''
@@ -26,13 +26,26 @@
       headlessServerUsers)}
     ${builtins.concatStringsSep "\n" (map (
         hostname: let
-          users = self.nixosConfigurations.${hostname}.config.users.users;
+          cfg = self.nixosConfigurations.${hostname}.config;
+          hasWheel = builtins.elem "wheel" cfg.users.users.monkey.extraGroups;
+          hasPasswordlessSudo = !cfg.security.sudo.wheelNeedsPassword;
+        in
+          if !cfg.users.mutableUsers && hasWheel && hasPasswordlessSudo
+          then ''echo "  ${hostname}: immutable users and passwordless monkey sudo: OK"''
+          else ''echo "  FAIL: ${hostname} must disable mutable users and grant monkey passwordless sudo via wheel"; exit 1''
+      )
+      headlessServerUsers)}
+    ${builtins.concatStringsSep "\n" (map (
+        hostname: let
+          cfg = self.nixosConfigurations.${hostname}.config;
+          users = cfg.users.users;
           hasMonkey = builtins.hasAttr "monkey" users;
           hasKey = hasMonkey && builtins.elem monkeySshKey (users.monkey.openssh.authorizedKeys.keys or []);
+          keyAuthenticationOnly = cfg.services.openssh.enable && cfg.services.openssh.settings.PubkeyAuthentication && !cfg.services.openssh.settings.PasswordAuthentication;
         in
-          if hasKey
-          then ''echo "  ${hostname}: SSH key is authorized for monkey: OK"''
-          else ''echo "  FAIL: ${hostname} must authorize the existing SSH key for monkey"; exit 1''
+          if hasKey && keyAuthenticationOnly
+          then ''echo "  ${hostname}: monkey SSH key authentication is enabled: OK"''
+          else ''echo "  FAIL: ${hostname} must authorize the SSH key for monkey and require key authentication"; exit 1''
       )
       sshKeyHosts)}
     touch $out
