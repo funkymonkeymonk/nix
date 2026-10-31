@@ -14,7 +14,7 @@ if [[ "$1" == eval ]]; then
   if [[ "$*" == *builtins.currentSystem* ]]; then
     printf '%s\n' "${MOCK_NIX_SYSTEM:-x86_64-linux}"
   else
-    printf '%s\n' '["core-packages","foundation-packages","module-coverage","overlay-openai-evals","overlay-rtk","ste-linter-package","vm-packages","vm-role-developer","vm-role-foundation","vm-role-generator","vm-ssh","vm-users"]'
+    printf '%s\n' '["core-packages","foundation-packages","module-coverage","nix-unit-tests","overlay-openai-evals","overlay-rtk","ste-linter-package","vm-packages","vm-role-developer","vm-role-foundation","vm-role-generator","vm-ssh","vm-users"]'
   fi
 elif [[ "$1" == build ]]; then
   printf '%s\n' "$@" >> "$MOCK_NIX_CALLS"
@@ -61,6 +61,7 @@ run_group pr
 assert_contains '.#checks.x86_64-linux.core-packages'
 assert_not_contains '.#checks.x86_64-linux.overlay-openai-evals'
 assert_not_contains '.#checks.x86_64-linux.foundation-packages'
+assert_not_contains '.#checks.x86_64-linux.nix-unit-tests'
 assert_not_contains '.#checks.x86_64-linux.module-coverage'
 assert_contains '.#checks.x86_64-linux.vm-role-generator'
 assert_not_contains '.#checks.x86_64-linux.vm-packages'
@@ -70,6 +71,7 @@ run_group extended
 assert_contains '.#checks.x86_64-linux.overlay-openai-evals'
 assert_contains '.#checks.x86_64-linux.overlay-rtk'
 assert_contains '.#checks.x86_64-linux.foundation-packages'
+assert_contains '.#checks.x86_64-linux.nix-unit-tests'
 assert_not_contains '.#checks.x86_64-linux.core-packages'
 
 run_group vm-pr
