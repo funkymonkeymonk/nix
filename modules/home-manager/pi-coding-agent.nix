@@ -15,7 +15,7 @@ with lib; let
   modelsWithSecrets = lib.filterAttrs (_name: model: model.onePasswordItem != "") cfg.models;
 
   # Build opnix secrets configuration
-  opnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
+  opnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
     lib.mapAttrs (name: model: {
       inherit (model) onePasswordItem;
       secretPath = ".pi/agent/secrets/${name}-apikey";
@@ -24,7 +24,7 @@ with lib; let
   );
 
   opencodeGoSecretPath = ".pi/agent/secrets/opencode-go-apikey";
-  opencodeGoOpnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
+  opencodeGoOpnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
     lib.optionalAttrs (cfg.opencodeGoOnePasswordItem != "") {
       "opencode-go" = {
         onePasswordItem = cfg.opencodeGoOnePasswordItem;
@@ -32,7 +32,7 @@ with lib; let
       };
     }
   );
-  jevOpnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault (
+  jevOpnixSecrets = hmLib.mkOpnixSecrets "pi" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
     lib.optionalAttrs (cfg.jevOnePasswordItem != "") {
       jev = {
         onePasswordItem = cfg.jevOnePasswordItem;

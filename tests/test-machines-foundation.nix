@@ -19,6 +19,26 @@
     && lib.hasInfix "github:nix-community/nixos-facter-modules" devenvYamlText
     && lib.hasInfix "follows: nixpkgs" devenvYamlText
     && lib.hasInfix "import ./library/machines/devenv.nix {inherit inputs;}" devenvText;
+  machineBuildInputs = [
+    "bifrost"
+    "devenv"
+    "himalaya-tui"
+    "nix-homebrew"
+    "nixpkgs-stable"
+    "pi-plugins"
+    "superpowers"
+    "zellij-pane-tracker"
+  ];
+  machineBuildInputsMatchRootLock = builtins.all (name: let
+    projectRootInputs = projectLock.nodes.root.inputs or {};
+    projectInput = (projectLock.nodes or {}).${name} or {};
+    rootInput = (lock.nodes or {}).${name} or {};
+  in
+    lib.hasInfix "${name}:" devenvYamlText
+    && (projectRootInputs.${name} or null) == name
+    && (projectInput.locked.rev or null) == (rootInput.locked.rev or null)
+    && (rootInput.locked.rev or null) != null)
+  machineBuildInputs;
   devenvSourceText = devenvText + devenvYamlText;
   pinnedDevenv = inputs.devenv.packages.${pkgs.stdenv.hostPlatform.system}.devenv;
   devenvOverlay = import ../overlays/default.nix {inherit inputs;};
@@ -54,7 +74,8 @@
     then builtins.fromJSON (builtins.readFile devenvLockPath)
     else {};
   rootDevenvNode = lock.nodes.devenv or {};
-  devenvInputNixpkgs = projectLock.nodes.nixpkgs or {};
+  devenvRootInputs = projectLock.nodes.root.inputs or {};
+  devenvInputNixpkgs = (projectLock.nodes or {}).${devenvRootInputs.nixpkgs or "nixpkgs"} or {};
   rootNixpkgs = lock.nodes.nixpkgs or {};
   devenvNixpkgsMatchesRoot =
     lockExists
@@ -75,10 +96,25 @@
     builtins.all
     (uri: builtins.isString uri && builtins.match "onepassword://[A-Za-z0-9_-]+" uri != null)
     (builtins.attrValues providers);
-  profilesDeclareOnlyProviderDefaults =
-    builtins.all
-    (profile: builtins.attrNames profile == ["defaults"])
-    (builtins.attrValues profiles);
+  profilesDeclareOnlyProviderDefaults = builtins.all (name: let
+    profile = profiles.${name};
+    expected =
+      if name == "MegamanX"
+      then ["MEGAMANX_SUDO_PASSWORD" "defaults"]
+      else ["defaults"];
+  in
+    builtins.attrNames profile == expected)
+  (builtins.attrNames profiles);
+  megamanxSudoPassword = (profiles.MegamanX or {}).MEGAMANX_SUDO_PASSWORD or {};
+  megamanxSudoPasswordIsReferenceOnly =
+    (megamanxSudoPassword.ref or {})
+    == {
+      item = "MegamanX Sudo Password";
+      field = "password";
+    }
+    && (megamanxSudoPassword.providers or []) == ["megamanx"]
+    && (megamanxSudoPassword ? description)
+    && !(megamanxSudoPassword ? value);
   profilesHaveNoResolvedValuesOrCredentials =
     builtins.all
     (profile: let
@@ -122,8 +158,11 @@ in {
     ${assertResult "Linux overlay selects the pinned devenv package" (linuxDevenv.drvPath == pinnedDevenv.drvPath)}
     ${assertResult "foundation role consumes the selected devenv package" roleUsesSelectedDevenv}
     ${assertResult "Machines projection receives the NixOS facter input with nixpkgs following devenv nixpkgs" machinesProjectionReceivesFacterInput}
+    ${assertResult "Devenv locks all inputs needed by the shared Machines package overlay" machineBuildInputsMatchRootLock}
     ${assertResult "SecretSpec has a Homelab 1Password profile route" (manifestExists && profileRoutesTo "Homelab" "Homelab")}
     ${assertResult "SecretSpec has a Personal 1Password profile route" (manifestExists && profileRoutesTo "Personal" "Personal")}
+    ${assertResult "SecretSpec keeps the MegamanX sudo profile routed to Private" (manifestExists && profileRoutesTo "MegamanX" "Private")}
+    ${assertResult "MegamanX sudo password is referenced from Private without embedding a value" megamanxSudoPasswordIsReferenceOnly}
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
     ${assertResult "SecretSpec profiles contain routing metadata only, without values or credentials" (manifestExists && profilesDeclareOnlyProviderDefaults && profilesHaveNoResolvedValuesOrCredentials)}
     ${assertResult "manifest and devenv configuration contain no service-account token reference" (!containsServiceAccountTokenReference)}

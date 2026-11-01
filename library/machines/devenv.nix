@@ -5,9 +5,8 @@
   nixpkgsConfig = import ../lib/nixpkgs-config.nix;
   withSpecialArgs = import ./with-special-args.nix {inherit lib;};
   nixosBaseModules = machine: [
-    ({self, ...}: {
+    ({...}: {
       networking.hostName = machine.hostname;
-      system.configurationRevision = self.rev or self.dirtyRev or null;
       nixpkgs.hostPlatform = machine.system;
     })
     (nixpkgsConfig {inherit inputs;})
@@ -53,13 +52,13 @@
     };
   darwinModule = machine: let
     moduleArgs = darwinModuleArgs machine;
+    # Darwin catalog stacks import the shared modules through their archetypes.
+    # Importing them here as well duplicates option declarations in C-Nix eval.
     baseModules = [
-      ({self, ...}: {
+      ({...}: {
         networking.hostName = machine.hostname;
-        system.configurationRevision = self.rev or self.dirtyRev or null;
       })
       (nixpkgsConfig {inherit inputs;})
-      (import ../../modules)
     ];
   in {
     imports = map (withSpecialArgs moduleArgs) (baseModules ++ machine.modules);

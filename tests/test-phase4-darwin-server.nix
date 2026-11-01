@@ -70,7 +70,7 @@
           && megamanx.myConfig.pi.settings.defaultModel == "gpt-6-luna"
           && megamanx.home-manager.users.monkey.home.sessionVariables.PI_JEV_BASE_URL == "https://opencode.ai/inference/systemone"
           && megamanx.home-manager.users.monkey.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
-          && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Personal/Opencode/Service Accounts/MegamanX"
+          && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/Opencode/Service Accounts/MegamanX"
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.path == ".pi/agent/secrets/typesafe_api_key"
           && builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after
           && megamanx.myConfig.pi.pluginsSource != null
@@ -91,6 +91,46 @@
         else ''echo "FAIL: MegamanX should be a minimal remotely accessible headless server"; exit 1''
     }
     echo "  MegamanX: minimal headless LLM server with remote Temporal ✓"
+
+    ${
+      let
+        megamanx = self.darwinConfigurations.MegamanX.config;
+        sshConfig = megamanx.environment.etc."ssh/sshd_config.d/100-nix-darwin.conf".text;
+      in
+        if
+          megamanx.services.openssh.enable
+          && megamanx.myConfig.onepassword.defaultVault == "Opnix"
+          && megamanx.myConfig.onepassword.sudoPasswordRef == "op://Private/MegamanX Sudo Password/password"
+          && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
+          && pkgs.lib.hasInfix "PasswordAuthentication yes" sshConfig
+          && !pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig
+          && builtins.hasAttr "caddy" megamanx.myConfig
+          && megamanx.myConfig.caddy.enable
+          && builtins.hasAttr "resolver/internal" megamanx.environment.etc
+          && megamanx.environment.etc."resolver/internal".text == "nameserver 127.0.0.1\nport 5354\n"
+          && builtins.hasAttr "dnsmasq" megamanx.launchd.user.agents
+          && builtins.hasAttr "caddy" megamanx.launchd.user.agents
+        then ""
+        else ''echo "FAIL: MegamanX deployment must keep .internal DNS and password SSH available"; exit 1''
+    }
+    echo "  MegamanX: .internal resolver and password SSH remain enabled ✓"
+
+    ${
+      let
+        darwinServer = self.darwinConfigurations.darwin-server.config;
+        wweaver = self.darwinConfigurations.wweaver.config;
+      in
+        if
+          builtins.hasAttr "ssh" darwinServer.myConfig
+          && !darwinServer.myConfig.ssh.enable
+          && !darwinServer.services.openssh.enable
+          && builtins.hasAttr "ssh" wweaver.myConfig
+          && !wweaver.myConfig.ssh.enable
+          && !wweaver.services.openssh.enable
+        then ""
+        else ''echo "FAIL: Darwin SSH must default off and only be enabled by explicit host opt-in"; exit 1''
+    }
+    echo "  Darwin SSH: disabled by default; MegamanX opts in ✓"
 
     ${
       let
