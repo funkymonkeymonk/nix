@@ -10,6 +10,7 @@ env:
     github.com=${{ github.token }} api.github.com=${{ github.token }}
     codeload.github.com=${{ github.token }}
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 concurrency:
@@ -45,8 +46,8 @@ jobs:
             "$NIXPKGS#alejandra" \
             "$NIXPKGS#deadnix" \
             "$NIXPKGS#statix" \
-            "$NIXPKGS#yamllint" \
-            "$NIXPKGS#devenv"
+            "$NIXPKGS#yamllint"
+          nix profile add --accept-flake-config .#devenv
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run lint checks
         run: bash .github/scripts/lint.sh
@@ -384,20 +385,14 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+      - name: Install devenv CLI from the locked project flake
         run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
-          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          nix profile add --accept-flake-config .#devenv
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
@@ -431,20 +426,18 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Hestia Nix Cache
+        uses: Mic92/hestia/action@v3.1.0
+        with:
+          upstream-cache-filter: true
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+      - name: Install devenv CLI from the locked project flake
         run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
-          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          nix profile add --accept-flake-config .#devenv
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run VM smoke checks
         run: devenv tasks run ci:checks:vm-pr
@@ -476,20 +469,18 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Hestia Nix Cache
+        uses: Mic92/hestia/action@v3.1.0
+        with:
+          upstream-cache-filter: true
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+      - name: Install devenv CLI from the locked project flake
         run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
-          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          nix profile add --accept-flake-config .#devenv
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh

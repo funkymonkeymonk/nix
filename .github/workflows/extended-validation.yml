@@ -34,13 +34,9 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+      - name: Install devenv CLI from the locked project flake
         run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
-          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          nix profile add --accept-flake-config .#devenv
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15
@@ -64,13 +60,9 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+      - name: Install devenv CLI from the locked project flake
         run: |
-          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
-          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
-          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
-          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
-          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          nix profile add --accept-flake-config .#devenv
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15

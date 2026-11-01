@@ -82,6 +82,13 @@ assert "PR Cachix access is read-only" \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
     && grep -q 'skipPush: true' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR build jobs use the rate-limit-resistant Hestia cache" \
+  "grep -q 'Mic92/hestia/action@v3.1.0' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
+    && grep -q 'upstream-cache-filter: true' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
+    && ! grep -q 'magic-nix-cache-action' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow runs CI workflow regression tests" \
   "grep -q 'bash tests/test-ci-workflows.sh' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
@@ -94,7 +101,7 @@ assert "PR workflow runs derivation cache regression tests" \
 assert "PR lint remains an independent fast check" \
   "grep -q 'run: bash .github/scripts/lint.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
-    && grep -q '\$NIXPKGS#devenv' \\
+    && grep -q 'nix profile add --accept-flake-config .#devenv' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 
 # Test: expensive package and role checks remain covered on a trusted schedule.
