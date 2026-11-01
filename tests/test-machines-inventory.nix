@@ -60,6 +60,12 @@
   projectedBootstrap = machinesProjection.machines.bootstrap.nixos;
   projectedInstallerIso = machinesProjection.machines.installer-iso.nixos;
   projectedWweaver = machinesProjection.machines.wweaver."nix-darwin";
+  projectedMegamanX = machinesProjection.machines.MegamanX."nix-darwin";
+  devenvMegamanX = inputs.nix-darwin.lib.darwinSystem {
+    system = machinesProjection.machines.MegamanX.system;
+    specialArgs = {inherit inputs self;};
+    modules = [projectedMegamanX];
+  };
   machinesZero = inputs.nixpkgs.lib.nixosSystem {
     inherit (representativeNixos) system;
     specialArgs = {inherit inputs self;};
@@ -122,10 +128,11 @@
     ${assertEqual "installer ISO projection wraps module paths" true (builtins.isFunction (builtins.head projectedInstallerIso.imports))}
     ${assertEqual "wweaver system" "aarch64-darwin" representativeDarwin.system}
     ${assertEqual "wweaver hostname" "wweaver" representativeDarwin.hostname}
-    ${assertEqual "wweaver module count" 6 (builtins.length representativeDarwin.modules)}
+    ${assertEqual "wweaver module count" 4 (builtins.length representativeDarwin.modules)}
     ${assertEqual "wweaver extra special args" ["mkUser"] (builtins.attrNames representativeDarwin.extraSpecialArgs)}
     ${assertEqual "Machines wweaver system" "aarch64-darwin" machinesProjection.machines.wweaver.system}
     ${assertEqual "Machines wweaver nix-darwin role" true (builtins.hasAttr "nix-darwin" machinesProjection.machines.wweaver)}
+    ${assertEqual "MegamanX Machines evaluates a nix-darwin build derivation" true (builtins.isString devenvMegamanX.config.system.build.toplevel.drvPath)}
     ${assertEqual "wweaver projection retains Darwin constructor arguments" (builtins.attrNames darwinConstructorArgs) (builtins.attrNames (projectedWweaver.config._module.args or {}))}
     ${assertEqual "wweaver projection supplies inputs set" inputs.nixpkgs.outPath projectedWweaver.config._module.args.inputs.nixpkgs.outPath}
     ${assertEqual "wweaver projection supplies mkUser" true (builtins.isFunction projectedWweaver.config._module.args.mkUser)}

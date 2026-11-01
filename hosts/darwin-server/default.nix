@@ -15,9 +15,4 @@
       skills.superpowersPath = inputs.superpowers;
       opencode.enable = true;
     };
-
-  # Add MegamanX SSH key for passwordless login.
-  users.users.monkey.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-  ];
 }

@@ -51,6 +51,16 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `test:sketchybar` | Sketchybar module tests | ~30s |
 | `test:onepassword` | 1Password module tests | ~30s |
 
+### CI Check Suites
+
+| Task | Description |
+|------|-------------|
+| `ci:checks:non-vm` | Build all non-VM flake checks in one invocation with at most two concurrent jobs |
+| `ci:checks:vm` | Build the five NixOS VM checks with at most two concurrent jobs |
+
+Run `devenv tasks run ci:checks` to run both suites in parallel. Run an individual
+leaf task when you need only one suite.
+
 ### Documentation
 
 | Task | Description |
@@ -76,7 +86,8 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `machines:check` | `machine` | Check declared remote access for one machine |
 | `machines:plan` | `machine` | Create a review plan for one explicitly named machine |
 | `machines:apply` | `machine`, `planId` | Apply a reviewed plan ID using the named machine's scoped profile |
-| `machines:deploy` | `machine` | Interactively deploy one explicitly named machine |
+| `machines:deploy` | `machine`; optional `useMachinesAsBuilders` | Interactively deploy one explicitly named machine, optionally using reachable catalog targets as Nix builders |
+| `machines:deploy-auto` | `machine` | Compare the current and target Nix systems; select local or remote builders, then interactively deploy |
 | `machines:install` | `machine` | Install one named target after a destructive-disk confirmation |
 
 Supply task inputs with `--input`; none of the machine operations defaults to all
@@ -89,13 +100,21 @@ devenv tasks run machines:check --input machine=zero
 devenv tasks run machines:plan --input machine=zero
 devenv tasks run machines:apply --input machine=zero --input planId=plan-123
 devenv tasks run machines:deploy --input machine=zero
+devenv tasks run machines:deploy --input machine=MegamanX --input useMachinesAsBuilders=true
+devenv tasks run machines:deploy-auto --input machine=MegamanX
 devenv tasks run machines:install --input machine=zero
 ```
 
 The build task uses `devenv build machines.<name>.build.nixos` for NixOS and
-`.build.darwin` for nix-darwin. Builds are local; set up a compatible remote
-builder separately when the build system differs from the workstation. For a
-NixOS machine with facter enabled, for example
+`.build.nix-darwin` for nix-darwin. Builds are local; set up a compatible remote
+builder separately when the build system differs from the workstation. The
+`machines:deploy-auto` task compares the full Nix system identifiers (including
+OS), not only CPU architecture. Equal identifiers use the normal local build;
+different identifiers select Devenv's `--use-machines-as-builders` mode, which
+can use reachable catalog targets as Nix builders. This still runs Devenv's
+interactive plan-and-apply deploy flow and never adds `--yes`. The Nix daemon
+must have SSH access to the selected builder; an interactive user's SSH agent
+alone may not be sufficient. For a NixOS machine with facter enabled, for example
 `devenv build machines.zero.build.nixos`, the build requires the actual
 `.machines/zero/facter.json` report. The named `machines install` workflow
 generates it from the target. Never fabricate, copy from another host, or
@@ -104,25 +123,31 @@ commit a guessed report. If using a real hand-written
 and explicitly disable facter locally (for example,
 `hardware.facter.reportPath = lib.mkForce null;`).
 
-Remote operations inspect the selected SecretSpec profile before execution. If
-that profile declares secrets, the wrapper runs only that operation through
+Operations that consume profile values run only that operation through
 `secretspec run --profile <catalog-profile> -- ...`; profiles with no declared
-secrets bypass SecretSpec. The current Homelab and Personal profiles contain no
-secret declarations, so `check`, `plan`, `apply`, and `deploy` run directly. A
-fresh-host `install` is rejected unless its selected profile explicitly declares
+secrets bypass SecretSpec. Stock `machines:deploy` and `machines:deploy-auto`
+do not consume SecretSpec values, so they skip profile resolution. In
+particular, stock Devenv activation cannot use MegamanX's sudo-password secret;
+the Private-vault reference remains for a password-aware activation path. The
+Homelab and Personal profiles contain no secret declarations. A fresh-host
+`install` is rejected unless its selected profile explicitly declares
 `OPNIX_SERVICE_ACCOUNT_TOKEN` with an approved default-vault SecretSpec reference;
-an unrelated API key does not satisfy this prerequisite. The current profiles stay
-empty until the user confirms a real secret item, so installs remain fail-closed.
-`Homelab` is selected for `zero`, `drlight`, `type-nas`,
-`type-server`, and `type-server-arm`, matching the Homelab default configured by
-their headless NixOS archetype. Other catalog entries use the shared `Personal`
-default. `info` and local `build` do not load SecretSpec. SecretSpec remains
+an unrelated API key does not satisfy this prerequisite. The Homelab and Personal
+profiles stay empty, so installs remain fail-closed. `Homelab` is selected for
+`zero`, `drlight`, `type-nas`, `type-server`, and `type-server-arm`, matching the
+Homelab default configured by their headless NixOS archetype. MegamanX uses the
+`Opnix` default vault for Opnix-managed application secrets; its sudo password
+uses an explicit `Private` provider route. Other catalog entries use the shared
+`Personal` default. `info` and local `build` do not load SecretSpec. SecretSpec remains
 disabled during devenv configuration/shell evaluation; no token or secret value
 is put in task input.
 
 Remote endpoints are not inferred from the workstation hostname and no personal
 IP is committed. Set `machines.<name>.target.host` in the ignored
-`devenv.local.nix` override, or point it at a verified SSH alias. For example,
+`devenv.local.nix` override, or point it at a verified SSH alias. A nix-darwin
+target needs an administrator account with passwordless `sudo`. Cross-platform
+builds that use a machine as a Nix builder require SSH access through the local
+SSH configuration; `target.sshOpts` do not configure builder connections. For example,
 create this ignored local override:
 
 ```nix
@@ -156,7 +181,12 @@ Fresh-host install also fails closed until `OPNIX_SERVICE_ACCOUNT_TOKEN` is
 declared in the selected profile with an owner-confirmed item/field reference
 in the machine's default vault. The committed Homelab and Personal profiles
 are intentionally empty, so this prerequisite is not currently satisfied.
-`machines:deploy` remains interactive and never adds `--yes`. The apply wrapper
+`machines:deploy` and `machines:deploy-auto` remain interactive and never add
+`--yes`. The optional `useMachinesAsBuilders` input on `machines:deploy` maps to
+Devenv's `--use-machines-as-builders` flag; `machines:deploy-auto` selects that
+flag when the full system identifiers differ. Both tasks use Devenv's stock
+activation path; builder selection does not supply a sudo password or change
+the target's sudo policy. The apply wrapper
 reads the saved plan JSON from `$DEVENV_DOTFILE/machine-plans/<plan-id>/plan.json`
 (or the project `.devenv/machine-plans/<plan-id>/plan.json` fallback when
 `DEVENV_DOTFILE` is unset). It accepts only a Devenv plan ID—not a file path—and

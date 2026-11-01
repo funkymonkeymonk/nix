@@ -38,6 +38,24 @@ This includes:
 - nix-unit eval tests (`check:unit`)
 - Configuration evaluation (`test:eval`)
 
+### CI Check Suites
+
+To run the flake check suites used by PR CI:
+
+```bash
+# Non-VM checks only
+devenv tasks run ci:checks:non-vm
+
+# NixOS VM checks only (requires x86_64-linux and KVM)
+devenv tasks run ci:checks:vm
+
+# Both suites in parallel
+devenv tasks run ci:checks
+```
+
+Each suite caps Nix builds at two concurrent jobs. Run a leaf task when you
+want to avoid starting the other suite.
+
 ## Platform-Specific Validation
 
 ### Configuration Evaluation
