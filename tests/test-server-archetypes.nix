@@ -61,7 +61,7 @@
         ${checkEqual "type-server-arm node_exporter remains in scrape inventory" true (builtins.elem "type-server-arm" actualInventoryNames)}
         ${checkEqual "type-server-arm exporter port is not globally exposed" false (builtins.elem armExporterPort (serverArm.networking.firewall.allowedTCPPorts or []))}
         ${checkEqual "type-server-arm exporter port is not exposed on any interface" false (builtins.elem armExporterPort armFirewallInterfacePorts)}
-        ${checkEqual "type-server target retains admin SSH access" true (server.users.users.admin.openssh.authorizedKeys.keys != [])}
+        ${checkEqual "type-server target retains monkey SSH access" true (server.users.users.monkey.openssh.authorizedKeys.keys != [])}
         ${checkEqual "type-server-arm target disables Intel microcode" false serverArm.hardware.cpu.intel.updateMicrocode}
         ${checkEqual "type-server retains single-disk layout" true (server.disko.devices.disk ? main)}
         ${checkEqual "type-server-arm retains single-disk layout" true (serverArm.disko.devices.disk ? main)}
