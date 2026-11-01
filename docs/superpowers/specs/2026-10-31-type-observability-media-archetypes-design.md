@@ -96,6 +96,8 @@ Bind Grafana to loopback because Caddy is the intended ingress. Add a drlight-sp
 
 Provision the configured Grafana username and password from opnix-managed runtime secret files. Use the unqualified references `Grafana - Home/username` and `Grafana - Home/password`; do not put secret values in Nix expressions or the Nix store. Do not use Grafana's default admin credential as the production configuration.
 
+The pinned NixOS Grafana module also requires a non-null `security.secret_key`. Generate a random key at service startup only when its persistent runtime file is absent, keep it under Grafana's writable data directory with restrictive permissions, and pass Grafana a `$__file{...}` reference. Do not add an unconfirmed 1Password item or put key material in the Nix store.
+
 ### Drlight-specific configuration
 
 Drlight composes `type-media-center`, `type-observability`, and its machine target. Keep these settings in the machine target/catalog:

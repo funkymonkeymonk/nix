@@ -188,6 +188,12 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Whether to enable gaming support. |
 
+### myConfig.grafana
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable Grafana dashboard and visualization server. |
+
 ### myConfig.homepage
 
 | Option | Type | Default | Description |
@@ -390,7 +396,7 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Whether to enable Prometheus metrics collector. |
-| `openFirewallTailscale` | boolean | `false` | Open Prometheus's port on the tailscale0 interface only, so it can be queried remotely over Tailscale (e.g. by another host's Grafana instance federating this Prometheus as a second datasource). Does not open the port on any other interface. |
+| `openFirewallTailscale` | boolean | `false` | Open Prometheus's port on the tailscale0 interface only, so trusted tailnet clients can query it. Does not open the port on any other interface. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9090` | Port for Prometheus HTTP server. |
 | `retention` | string | `"15d"` | TSDB retention time (e.g. 15d, 30d). |
 

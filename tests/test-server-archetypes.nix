@@ -94,7 +94,7 @@
         ${checkEqual "Darwin server has no Prometheus backend" false (darwinServer.services.prometheus.enable or false)}
         ${checkEqual "Darwin server has no Alertmanager backend" false (darwinServer.services.prometheus.alertmanager.enable or false)}
         ${checkEqual "Darwin server has no Loki backend" false (darwinServer.services.loki.enable or false)}
-        ${checkEqual "Darwin server has no Grafana backend" false (darwinServer.myConfig.grafana.enable or false)}
+        ${checkEqual "Darwin server has no Grafana launchd service" false (darwinServer.launchd.daemons ? grafana)}
         ${checkEqual "Darwin server retains Vector collector" true darwinServer.myConfig.vector.enable}
         ${checkEqual "Darwin server Vector routes to drlight" "drlight" darwinServer.myConfig.collector.destinationHostname}
 
