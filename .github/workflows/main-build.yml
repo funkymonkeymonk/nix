@@ -263,15 +263,18 @@ jobs:
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
-      - name: Run the complete non-VM and VM test suites
+      - name: Run the complete test suite
         run: |
           set +e
+          devenv tasks run test:all
+          test_all_status=$?
           devenv tasks run ci:checks:non-vm
           non_vm_status=$?
           devenv tasks run ci:checks:vm
           vm_status=$?
           set -e
-          if ((non_vm_status != 0 || vm_status != 0)); then
-            echo "Full suite failed (non-VM: $non_vm_status, VM: $vm_status)"
+          if ((test_all_status != 0 || non_vm_status != 0 || vm_status != 0)); then
+            printf 'Full suite failed (test:all: %s, non-VM: %s, VM: %s)\n' \
+              "$test_all_status" "$non_vm_status" "$vm_status"
             exit 1
           fi

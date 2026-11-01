@@ -181,6 +181,9 @@ assert "cache save is skipped when derivation discovery failed" \
 assert "main workflow cancels superseded runs" \
   "grep -q 'cancel-in-progress: true' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
+assert "main workflow runs the canonical test:all task" \
+  "grep -q 'devenv tasks run test:all' \
+    '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "main workflow runs all non-VM check groups" \
   "grep -q 'devenv tasks run ci:checks:non-vm' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
