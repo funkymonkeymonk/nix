@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   extended-package-checks:
-    name: Extended Overlay Package Checks
+    name: Extended Package Checks
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

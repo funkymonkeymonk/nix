@@ -17,6 +17,12 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
+      onepassword = {
+        defaultVault = "Opnix";
+        sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
+      };
+      ssh.enable = true;
+
       # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
       # continuous-batching and tiered KV-cache engine.
       omlx = {
@@ -66,6 +72,7 @@
       };
 
       searxng.enable = true;
+      caddy.enable = true;
 
       temporal = {
         enable = true;
@@ -73,6 +80,15 @@
         uiIp = "0.0.0.0";
       };
     };
+
+  # Preserve the currently working password-based SSH path until key-based
+  # access is explicitly provisioned for this host.
+  services.openssh.extraConfig = lib.mkForce ''
+    PermitRootLogin no
+    PubkeyAuthentication yes
+    PasswordAuthentication yes
+    AllowAgentForwarding yes
+  '';
 
   environment.systemPackages = with pkgs;
     [

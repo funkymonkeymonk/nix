@@ -18,7 +18,8 @@
 
   mkServiceRegistry = commonLib.mkServiceRegistry;
 
-  dnsPort = 5353;
+  # macOS mDNSResponder owns 5353 on all interfaces; use a separate port for scoped DNS.
+  dnsPort = 5354;
 
   serviceRoutes =
     []

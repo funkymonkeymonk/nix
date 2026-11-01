@@ -9,7 +9,7 @@
     name,
     testScript,
     extraModules ? [],
-    roles ? {},
+    roles ? {foundation.enable = false;},
   }:
     pkgs.testers.nixosTest {
       inherit name;
@@ -58,6 +58,7 @@
 
           # Minimal VM config
           networking.networkmanager.enable = true;
+          virtualisation.docker.enable = lib.mkForce false;
           system.stateVersion = "25.05";
           virtualisation.memorySize = 1024;
         };
