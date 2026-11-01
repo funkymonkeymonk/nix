@@ -60,7 +60,6 @@
         networking.hostName = machine.hostname;
       })
       (nixpkgsConfig {inherit inputs;})
-      (import ../../modules)
       (observabilityInventory.machineModule machine)
     ];
   in {
