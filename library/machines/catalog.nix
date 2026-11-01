@@ -133,14 +133,9 @@
     hostname = "drlight";
     nodeExporter.enable = true;
     modules = [
-      ../archetypes/headless-server-nixos.nix
+      ../archetypes/type-media-center.nix
       ../archetypes/type-observability.nix
       ../../modules/nixos/media-storage.nix
-      ../../modules/nixos/media-config.nix
-      ../../modules/nixos/backup.nix
-      ../../modules/nixos/onepacerr.nix
-      ../../modules/services/caddy/nixos.nix
-      ../../modules/nixos/homepage.nix
       ../../modules/nixos/ghostty-terminfo.nix
       ../../targets/drlight
     ];

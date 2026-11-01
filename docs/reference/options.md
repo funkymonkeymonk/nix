@@ -62,14 +62,6 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. |
 
-### myConfig.backup
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Whether to enable system backups. |
-| `paths` | list of string | `[ ]` | — |
-| `repository` | string | *required* | — |
-
 ### myConfig.bifrost
 
 | Option | Type | Default | Description |
@@ -289,12 +281,6 @@ or changing a `myConfig.*` option.
 | `server.host` | string | `"0.0.0.0"` | Bind address for oMLX |
 | `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Port for oMLX's OpenAI-compatible API |
 
-### myConfig.onePacerr
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Whether to enable OnePacerr. |
-
 ### myConfig.onepassword
 
 | Option | Type | Default | Description |
@@ -500,11 +486,11 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `dataDir` | string | `"/Users/monkey/Library/Application Support/Vector"` | Directory for Vector's file-tailing checkpoint state |
-| `defaultService` | string | `"type-server"` | Fallback value for the Loki "service" label when a journal entry has neither SYSLOG_IDENTIFIER nor _SYSTEMD_UNIT set. |
+| `defaultService` | string | `"drlight"` | Fallback value for the Loki "service" label when a journal entry has neither SYSLOG_IDENTIFIER nor _SYSTEMD_UNIT set. |
 | `enable` | boolean | `false` | Enable Vector log shipper (tails local service logs, ships to Loki) |
 | `hostLabel` | string | `"darwin-server"` | Value for the 'host' label attached to all shipped log lines |
 | `logGlobs` | list of string | `[ "/tmp/*.log" ]` | Glob patterns for log files to tail. Matches this repo's launchd StandardOutPath/StandardErrorPath convention (/tmp/<service>.log, /tmp/<service>.error.log). |
-| `lokiEndpoint` | string | `"http://drlight:3100"` | Base URL of the Loki instance Vector ships logs to. |
+| `lokiEndpoint` | string | `"http://localhost:3100"` | Base URL of the Loki instance Vector ships logs to. |
 | `lokiPort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port used for the configured collector destination hostname. |
 
 ### myConfig.zellij

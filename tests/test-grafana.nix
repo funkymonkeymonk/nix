@@ -210,10 +210,16 @@ in {
         echo "FAIL: system metrics queries must select the central job=\"node\" label"; exit 1
       fi
 
-      if jq -e '[.. | objects | select(.datasource.type? == "loki") | .expr? // empty] | any(contains("host") and contains("service") and contains("severity"))' "$DASHBOARD" > /dev/null; then
-        echo "Loki dashboard query uses the central host/service/severity labels: OK"
+      if jq -e '[.. | objects | select(.datasource.type? == "loki") | .expr? // empty] | any(. == "{host=~\".+\"}")' "$DASHBOARD" > /dev/null; then
+        echo 'Loki dashboard query uses the shared host selector {host=~".+"}: OK'
       else
-        echo "FAIL: log query must match Vector's host, service, and severity labels"; exit 1
+        echo 'FAIL: log query must use the shared Loki selector {host=~".+"}'; exit 1
+      fi
+
+      if jq -e '[.. | objects | select(.datasource.type? == "loki") | .expr? // empty] | all(.[]; (contains("service") | not) and (contains("severity") | not))' "$DASHBOARD" > /dev/null; then
+        echo "Loki dashboard query does not require platform-specific service/severity labels: OK"
+      else
+        echo "FAIL: log query must not require service or severity labels"; exit 1
       fi
 
       echo "System-overview dashboard tests passed"
