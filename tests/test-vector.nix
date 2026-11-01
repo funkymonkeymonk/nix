@@ -45,7 +45,7 @@
         ];
     }).config;
 
-  vectorRemoteScript = vectorRemoteDestination.launchd.daemons.vector.command;
+  vectorRemoteConfig = vectorRemoteDestination.myConfig.vector.generatedConfig;
 in {
   vectorOptionsTest = pkgs.runCommand "test-vector-options" {} ''
     echo "=== Testing Vector Option Defaults ==="
@@ -84,8 +84,7 @@ in {
   vectorRemoteDestinationTest = pkgs.runCommand "test-vector-remote-destination" {} ''
     echo "=== Testing Darwin Vector Remote Destination ==="
 
-    SCRIPT=${vectorRemoteScript}
-    CONFIG=$(grep -o -- '--config /nix/store/[^ ]*' "$SCRIPT" | head -1 | cut -d' ' -f2)
+    CONFIG=${vectorRemoteConfig}
 
     if grep -q '"endpoint":"http://drlight:3101"' "$CONFIG"; then
       echo "  configured collector hostname routes logs to drlight:3101: OK"
