@@ -17,6 +17,15 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+  bifrost:
+    url: github:maximhq/bifrost/e01c39a7dd2fc43dba687c5692a84c7c3722a3e7
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
+  devenv:
+    url: github:cachix/devenv/v2.4.0
+  himalaya-tui:
+    url: github:pimalaya/himalaya-tui/1303e56f17788f2a0b41ac3b384c9580a201338e
   nix-darwin:
     url: github:nix-darwin/nix-darwin/master
     inputs:
@@ -27,6 +36,20 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+  nix-homebrew:
+    url: github:zhaofengli/nix-homebrew/09a921d0181146cf6163ec2cc1db7b6fd539a885
+  nixpkgs-stable:
+    url: github:nixos/nixpkgs/ac62194c3917d5f474c1a844b6fd6da2db95077d
+  pi-plugins:
+    url: github:funkymonkeymonk/pi-plugins/d7b58a7dfe4637702a25cb491d76133fdd4889fe
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
+  superpowers:
+    url: github:obra/superpowers/b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+    flake: false
+  zellij-pane-tracker:
+    url: github:funkymonkeymonk/zellij-pane-tracker/7c8df56c94ad2a9f80d5a3fbfb0e8bfe5f3e2f89
   opnix:
     url: github:brizzbuzz/opnix
     inputs:

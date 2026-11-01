@@ -38,6 +38,14 @@ cat >> "$tmp/bin/nix" <<'MOCK'
 # Only the catalog profile lookup used by the wrapper is mocked. No Nix build,
 # network operation, devenv execution, or SecretSpec provider is run here.
 [[ "${1:-}" == eval ]] || exit 91
+[[ "${2:-}" == --impure && "${3:-}" == --raw && "${4:-}" == --expr ]] || {
+  echo 'catalog metadata evaluation must allow the explicit local catalog path' >&2
+  exit 94
+}
+if [[ "${5:-}" == 'builtins.currentSystem' ]]; then
+  printf '%s' "${MACHINE_OPS_TEST_CURRENT_SYSTEM:-x86_64-linux}"
+  exit
+fi
 secret_mode=${MACHINE_OPS_TEST_SECRET_MODE:-none}
 case "$secret_mode" in
   none) secret_status=false; bootstrap_status=false ;;
@@ -45,10 +53,15 @@ case "$secret_mode" in
   bootstrap) secret_status=true; bootstrap_status=true ;;
   *) exit 92 ;;
 esac
-case "${4:-}" in
-  *zero*|*drlight*|*type-nas*|*type-server*|*type-server-arm*) printf '%s\t%s\t%s\t%s' Homelab nixos "$secret_status" "$bootstrap_status" ;;
-  *wweaver*|*darwin-server*|*MegamanX*) printf '%s\t%s\t%s\t%s' Personal darwin "$secret_status" "$bootstrap_status" ;;
-  *bootstrap*|*type-desktop*|*installer-iso*) printf '%s\t%s\t%s\t%s' Personal nixos "$secret_status" "$bootstrap_status" ;;
+emit_metadata() {
+  printf '%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "${MACHINE_OPS_TEST_TARGET_SYSTEM_OVERRIDE:-$5}"
+}
+case "${5:-}" in
+  *type-server-arm*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" aarch64-linux ;;
+  *zero*|*drlight*|*type-nas*|*type-server*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
+  *MegamanX*) emit_metadata MegamanX darwin true false aarch64-darwin ;;
+  *wweaver*|*darwin-server*) emit_metadata Personal darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
+  *bootstrap*|*type-desktop*|*installer-iso*) emit_metadata Personal nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
   *) exit 92 ;;
 esac
 MOCK
@@ -76,6 +89,29 @@ run_with_unrelated_secret() {
 run_with_bootstrap_secret() {
   MACHINE_OPS_TEST_SECRET_MODE=bootstrap run "$@"
 }
+run_for_system() {
+  local system=$1
+  shift
+  MACHINE_OPS_TEST_CURRENT_SYSTEM=$system run "$@"
+}
+expect_rejected_for_system() {
+  local system=$1
+  shift
+  if MACHINE_OPS_TEST_CURRENT_SYSTEM=$system run "$@" >"$tmp/invalid-system-output" 2>&1; then
+    echo "expected invalid Nix system to be rejected: $system" >&2
+    exit 1
+  fi
+  [[ ! -s "$MACHINE_OPS_TEST_LOG" ]] || {
+    echo "invalid Nix system still invoked devenv: $system" >&2
+    cat "$MACHINE_OPS_TEST_LOG" >&2
+    exit 1
+  }
+  [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]] || {
+    echo "invalid Nix system still invoked SecretSpec: $system" >&2
+    cat "$MACHINE_OPS_SECRETSPEC_LOG" >&2
+    exit 1
+  }
+}
 expect_log() {
   local expected=$1
   local actual
@@ -89,6 +125,13 @@ expect_profile() {
   local expected=$1
   grep -Fx "secretspec|run --profile $expected -- devenv ${2}" "$MACHINE_OPS_SECRETSPEC_LOG" >/dev/null || {
     printf 'expected scoped SecretSpec call for profile %s and devenv %s; got:\n' "$expected" "$2" >&2
+    cat "$MACHINE_OPS_SECRETSPEC_LOG" >&2
+    exit 1
+  }
+}
+expect_no_secret_resolution() {
+  [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]] || {
+    echo 'operation resolved a SecretSpec profile it does not consume' >&2
     cat "$MACHINE_OPS_SECRETSPEC_LOG" >&2
     exit 1
   }
@@ -121,7 +164,7 @@ run build zero
 expect_log 'devenv|build machines.zero.build.nixos'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 run build wweaver
-expect_log 'devenv|build machines.wweaver.build.darwin'
+expect_log 'devenv|build machines.wweaver.build.nix-darwin'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 
 # Every remote operation forwards exactly one explicit machine name and scopes
@@ -141,7 +184,32 @@ expect_log 'devenv|machines plan type-server-arm'
 run deploy zero
 expect_log 'devenv|machines deploy zero'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
-! grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"
+run check MegamanX
+expect_log 'devenv|machines check MegamanX'
+expect_profile MegamanX 'machines check MegamanX'
+run deploy MegamanX --use-machines-as-builders
+expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
+expect_no_secret_resolution
+
+# Automatic deploy uses a local build when the full Nix system IDs match and
+# asks Devenv to select matching remote builders when they differ.
+run_for_system x86_64-linux deploy-auto zero
+expect_log 'devenv|machines deploy zero'
+[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+run_for_system x86_64-linux deploy-auto MegamanX
+expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
+expect_no_secret_resolution
+run_for_system aarch64-darwin deploy-auto MegamanX
+expect_log 'devenv|machines deploy MegamanX'
+expect_no_secret_resolution
+run_for_system x86_64-linux deploy-auto type-server-arm
+expect_log 'devenv|machines deploy --use-machines-as-builders type-server-arm'
+expect_rejected_for_system unknown-system deploy-auto MegamanX
+MACHINE_OPS_TEST_TARGET_SYSTEM_OVERRIDE=unknown-system expect_rejected_for_system x86_64-linux deploy-auto MegamanX
+if grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"; then
+  echo 'automatic deploy unexpectedly bypassed interactive confirmation' >&2
+  exit 1
+fi
 
 # Unrelated profile secrets do not satisfy the bootstrap prerequisite for install.
 printf 'yes\n' | run_with_unrelated_secret install zero >"$tmp/install-unrelated-secret" 2>&1 && {
@@ -159,7 +227,10 @@ printf 'yes\n' | run_with_bootstrap_secret install zero >"$tmp/install-bootstrap
 expect_profile Homelab 'machines install zero'
 expect_log 'devenv|machines install zero'
 [[ $(wc -l < "$MACHINE_OPS_SECRETSPEC_LOG") -eq 1 ]]
-! grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"
+if grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"; then
+  echo 'install unexpectedly bypassed interactive confirmation' >&2
+  exit 1
+fi
 
 # A saved single-machine plan is accepted from DEVENV_DOTFILE and the plan's
 # verified machine supplies the profile used for the scoped apply.
@@ -204,6 +275,7 @@ expect_rejected build ''
 expect_rejected check
 expect_rejected plan
 expect_rejected deploy
+expect_rejected deploy-auto
 expect_rejected install ''
 expect_rejected check unknown-machine
 expect_rejected apply zero

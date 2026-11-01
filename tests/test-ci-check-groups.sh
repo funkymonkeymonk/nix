@@ -14,7 +14,7 @@ if [[ "$1" == eval ]]; then
   if [[ "$*" == *builtins.currentSystem* ]]; then
     printf '%s\n' "${MOCK_NIX_SYSTEM:-x86_64-linux}"
   else
-    printf '%s\n' '["core-packages","module-coverage","overlay-openai-evals","overlay-rtk","vm-packages","vm-role-developer","vm-role-foundation","vm-ssh","vm-users"]'
+    printf '%s\n' '["bifrost-anthropic-config","bifrost-retry-config","core-packages","foundation-packages","module-coverage","nix-unit-tests","overlay-openai-evals","overlay-rtk","ste-linter-package","vm-packages","vm-role-developer","vm-role-foundation","vm-role-generator","vm-ssh","vm-users"]'
   fi
 elif [[ "$1" == build ]]; then
   printf '%s\n' "$@" >> "$MOCK_NIX_CALLS"
@@ -48,7 +48,11 @@ assert_not_contains() {
 }
 run_group() {
   : > "$MOCK_NIX_CALLS"
-  "$SCRIPT" "$1"
+  if [[ -n "${2:-}" ]]; then
+    NIX_CHECK_BATCH_SIZE="$2" "$SCRIPT" "$1"
+  else
+    "$SCRIPT" "$1"
+  fi
 }
 
 if [[ ! -x "$SCRIPT" ]]; then
@@ -60,14 +64,29 @@ echo "=== CI Check Group Tests ==="
 run_group pr
 assert_contains '.#checks.x86_64-linux.core-packages'
 assert_not_contains '.#checks.x86_64-linux.overlay-openai-evals'
+assert_not_contains '.#checks.x86_64-linux.foundation-packages'
+assert_not_contains '.#checks.x86_64-linux.nix-unit-tests'
+assert_not_contains '.#checks.x86_64-linux.bifrost-anthropic-config'
+assert_not_contains '.#checks.x86_64-linux.bifrost-retry-config'
 assert_not_contains '.#checks.x86_64-linux.module-coverage'
+assert_contains '.#checks.x86_64-linux.vm-role-generator'
 assert_not_contains '.#checks.x86_64-linux.vm-packages'
 assert_not_contains '.#checks.x86_64-linux.vm-role-developer'
 
-run_group extended
+run_group extended 2
 assert_contains '.#checks.x86_64-linux.overlay-openai-evals'
 assert_contains '.#checks.x86_64-linux.overlay-rtk'
+assert_contains '.#checks.x86_64-linux.foundation-packages'
+assert_contains '.#checks.x86_64-linux.nix-unit-tests'
+assert_contains '.#checks.x86_64-linux.bifrost-anthropic-config'
+assert_contains '.#checks.x86_64-linux.bifrost-retry-config'
 assert_not_contains '.#checks.x86_64-linux.core-packages'
+if [[ "$(grep -cFx 'build' "$MOCK_NIX_CALLS")" == 3 ]]; then
+  echo "  PASS: extended checks are split into bounded Nix batches"
+else
+  echo "  FAIL: expected three batches for six extended checks"
+  failures=$((failures + 1))
+fi
 
 run_group vm-pr
 assert_contains '.#checks.x86_64-linux.vm-users'

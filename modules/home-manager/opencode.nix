@@ -44,7 +44,7 @@ with lib; let
   providersWithBaseURLSecrets = lib.filterAttrs (_name: provider: provider.baseURLOpnixItem != "") cfg.providers;
 
   # Build opnix secrets configuration using shared helper (API keys)
-  opnixSecrets = hmLib.mkOpnixSecrets "opencode" osConfig.myConfig.onepassword.defaultVault (
+  opnixSecrets = hmLib.mkOpnixSecrets "opencode" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
     lib.mapAttrs (name: provider: {
       inherit (provider) onePasswordItem;
       secretPath = ".config/opencode/secrets/${name}-apikey";
@@ -53,7 +53,7 @@ with lib; let
   );
 
   # Build opnix secrets for base URLs (providers with baseURLOpnixItem)
-  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" osConfig.myConfig.onepassword.defaultVault (
+  opnixBaseURLSecrets = hmLib.mkOpnixSecretsGeneric "opencode" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
     lib.mapAttrs (name: provider: {
       reference = provider.baseURLOpnixItem;
       path = ".config/opencode/secrets/${name}-baseurl";

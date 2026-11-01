@@ -25,11 +25,15 @@ with lib; rec {
   # prefix: string prefix for secret names (e.g., "opencode", "claudeCode")
   # defaultVault: default 1Password vault name
   # items: attrset of name -> { onePasswordItem, secretPath }
-  mkOpnixSecrets = prefix: defaultVault: items:
+  mkOpnixSecrets = prefix: defaultVault: isDarwin: items:
     lib.mapAttrs' (name: item:
       lib.nameValuePair "${prefix}${toCamelCase name}ApiKey" {
         reference = mkOpnixRef defaultVault item.onePasswordItem;
         path = item.secretPath;
+        group =
+          if isDarwin
+          then "staff"
+          else "users";
         mode = "0600";
       })
     (lib.filterAttrs (_: item: item.onePasswordItem != "") items);
@@ -38,11 +42,15 @@ with lib; rec {
   # prefix: string prefix for secret names (e.g., "opencode")
   # defaultVault: default 1Password vault name
   # items: attrset of secretName -> { reference, path, mode? }
-  mkOpnixSecretsGeneric = prefix: defaultVault: items:
+  mkOpnixSecretsGeneric = prefix: defaultVault: isDarwin: items:
     lib.mapAttrs' (name: item:
       lib.nameValuePair "${prefix}${toCamelCase name}" {
         reference = mkOpnixRef defaultVault item.reference;
         inherit (item) path;
+        group =
+          if isDarwin
+          then "staff"
+          else "users";
         mode = item.mode or "0600";
       })
     (lib.filterAttrs (_: item: item.reference != "") items);
