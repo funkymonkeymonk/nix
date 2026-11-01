@@ -1,32 +1,34 @@
 # jj-hooks - Run pre-commit/prek/lefthook/hk hooks against jj bookmark pushes
-# https://github.com/mattwilkinsonn/zireael/tree/main/tools/jj-hooks
+# https://github.com/mattwilkinsonn/jj-hooks
 #
 # Ships two identical binaries: jj-hooks (canonical) and jj-hp (shorter alias).
 # `jj-hp push` is a drop-in replacement for `jj git push` that runs the
 # configured hook runner in an ephemeral git worktree before pushing.
 #
-# Packaged from prebuilt release tarballs (Rust project originally lived at
-# mattwilkinsonn/jj-hooks, now developed in the mattwilkinsonn/zireael
-# monorepo). Update the version + hashes together when bumping.
+# Packaged from prebuilt release tarballs. Update the version + hashes together
+# when bumping; the project was re-anchored from the zireael monorepo to this
+# standalone repository in v0.3.12.
 {
   lib,
   stdenvNoCC,
+  autoPatchelfHook,
+  stdenv,
   fetchurl,
 }: let
-  version = "0.3.7";
+  version = "0.6.0";
 
   sources = {
     x86_64-linux = {
       platform = "linux-x64";
-      hash = "sha256-UxGgtvfYmmIzyxwSWgAdqcKdSSwg5ld+lC1qvRxoJpQ=";
+      hash = "sha256-PL9xtMrRjyMtmyg68eyMOrbHP4ZXF7/oJFNtrwBsYhQ=";
     };
     aarch64-linux = {
       platform = "linux-arm64";
-      hash = "sha256-LOSBpcLgDik9x5QrVkjI+bl5DSOIwOHukuYET98OihY=";
+      hash = "sha256-dcHEXW7E9kY5nMQVFOrgWwwAGqajxenslYzbnMX4sJI=";
     };
     aarch64-darwin = {
       platform = "darwin-arm64";
-      hash = "sha256-Wq8QMc76Ubt5UeR1nujAnXePs/+g3NWR20t6Awlj5oU=";
+      hash = "sha256-NXBXBOnhYYB8lffzO/4YbbLxqVf1tYDfCxEdwMNzyDk=";
     };
   };
 
@@ -40,13 +42,16 @@ in
     inherit version;
 
     src = fetchurl {
-      url = "https://github.com/mattwilkinsonn/zireael/releases/download/v${version}/jj-hooks-v${version}-${source.platform}.tar.gz";
+      url = "https://github.com/mattwilkinsonn/jj-hooks/releases/download/v${version}/jj-hooks-v${version}-${source.platform}.tar.gz";
       hash = source.hash;
     };
 
     sourceRoot = "jj-hooks-v${version}-${source.platform}";
 
     dontBuild = true;
+
+    nativeBuildInputs = lib.optionals stdenvNoCC.hostPlatform.isLinux [autoPatchelfHook];
+    buildInputs = lib.optionals stdenvNoCC.hostPlatform.isLinux [stdenv.cc.cc.lib];
 
     installPhase = ''
       runHook preInstall
@@ -59,7 +64,7 @@ in
 
     meta = with lib; {
       description = "Run pre-commit/prek/lefthook/hk hooks against jj bookmark pushes";
-      homepage = "https://github.com/mattwilkinsonn/zireael/tree/main/tools/jj-hooks";
+      homepage = "https://github.com/mattwilkinsonn/jj-hooks";
       license = licenses.asl20;
       maintainers = [];
       mainProgram = "jj-hp";

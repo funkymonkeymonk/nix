@@ -818,6 +818,11 @@ in {
       exec = "bash .github/scripts/lint.sh";
     };
 
+    "check:overlay-upstreams" = {
+      description = "Check reachability of repo-managed overlay source URLs without building packages";
+      exec = "bash scripts/check-overlay-upstream-urls.sh";
+    };
+
     "check:unit" = {
       description = "Run nix-unit eval tests (fast, no derivation builds)";
       after = ["test:eval"];

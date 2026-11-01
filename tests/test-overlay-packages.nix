@@ -51,6 +51,24 @@
       touch $out
     '';
 
+  # Test that jj-hooks is fetched from its current standalone release and
+  # provides the jj-hp / jj-hooks binaries used by the Home Manager config.
+  jjHooksPackageTest = let
+    package = pkgs.jj-hooks;
+    sourceUrl = builtins.head package.src.drvAttrs.urls;
+  in
+    assert package.version == "0.6.0";
+    assert pkgs.lib.hasPrefix "https://github.com/mattwilkinsonn/jj-hooks/releases/download/v0.6.0/" sourceUrl;
+      pkgs.runCommand "test-jj-hooks-package"
+      {
+        nativeBuildInputs = [package];
+      }
+      ''
+        jj-hp --help >/dev/null
+        jj-hooks --help >/dev/null
+        touch $out
+      '';
+
   # Test that yaks (yx CLI, distributed TODO list) builds and its binary works
   yaksPackageTest =
     pkgs.runCommand "test-yaks-package"
