@@ -3,6 +3,11 @@
   mkUser,
   ...
 }: {
+  # Initial monkey SSH access
+  users.users.monkey.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
+  ];
+
   nixpkgs.hostPlatform = "x86_64-linux";
   networking.hostId = "f2ec5664";
 

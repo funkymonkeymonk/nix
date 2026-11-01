@@ -7,6 +7,50 @@
   hasTargetModule = name: builtins.pathExists (../targets + "/${name}/default.nix");
   flakeText = builtins.readFile ../flake.nix;
 
+  headlessServerUsers = ["type-server" "type-nas" "type-server-arm" "drlight"];
+  sshKeyHosts = ["type-server" "type-nas" "type-server-arm" "drlight"];
+  monkeySshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX";
+
+  headlessServerUsersTest = pkgs.runCommand "test-headless-server-users" {} ''
+    echo "=== Testing headless server user accounts ==="
+    ${builtins.concatStringsSep "\n" (map (
+        hostname: let
+          users = self.nixosConfigurations.${hostname}.config.users.users;
+          hasMonkey = builtins.hasAttr "monkey" users;
+          hasAdmin = builtins.hasAttr "admin" users;
+        in
+          if hasMonkey && !hasAdmin
+          then ''echo "  ${hostname}: monkey exists and admin is absent: OK"''
+          else ''echo "  FAIL: ${hostname} must have monkey and no admin account"; exit 1''
+      )
+      headlessServerUsers)}
+    ${builtins.concatStringsSep "\n" (map (
+        hostname: let
+          cfg = self.nixosConfigurations.${hostname}.config;
+          hasWheel = builtins.elem "wheel" cfg.users.users.monkey.extraGroups;
+          hasPasswordlessSudo = !cfg.security.sudo.wheelNeedsPassword;
+        in
+          if !cfg.users.mutableUsers && hasWheel && hasPasswordlessSudo
+          then ''echo "  ${hostname}: immutable users and passwordless monkey sudo: OK"''
+          else ''echo "  FAIL: ${hostname} must disable mutable users and grant monkey passwordless sudo via wheel"; exit 1''
+      )
+      headlessServerUsers)}
+    ${builtins.concatStringsSep "\n" (map (
+        hostname: let
+          cfg = self.nixosConfigurations.${hostname}.config;
+          users = cfg.users.users;
+          hasMonkey = builtins.hasAttr "monkey" users;
+          hasKey = hasMonkey && builtins.elem monkeySshKey (users.monkey.openssh.authorizedKeys.keys or []);
+          keyAuthenticationOnly = cfg.services.openssh.enable && cfg.services.openssh.settings.PubkeyAuthentication && !cfg.services.openssh.settings.PasswordAuthentication;
+        in
+          if hasKey && keyAuthenticationOnly
+          then ''echo "  ${hostname}: monkey SSH key authentication is enabled: OK"''
+          else ''echo "  FAIL: ${hostname} must authorize the SSH key for monkey and require key authentication"; exit 1''
+      )
+      sshKeyHosts)}
+    touch $out
+  '';
+
   phase2CattleTest = pkgs.runCommand "test-phase2-cattle" {} ''
     echo "=== Testing Cattle NixOS Configs ==="
     echo ""
@@ -78,5 +122,5 @@
     touch $out
   '';
 in {
-  inherit phase2CattleTest;
+  inherit headlessServerUsersTest phase2CattleTest;
 }

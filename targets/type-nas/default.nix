@@ -5,11 +5,10 @@
   lib,
   ...
 }: {
+  # Initial monkey SSH access
+  users.users.monkey.openssh.authorizedKeys.keys = [
   # The central scraper will collect metrics from this host.
   myConfig.nodeExporter.enable = true;
-
-  # Initial admin SSH access
-  users.users.admin.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
   ];
 

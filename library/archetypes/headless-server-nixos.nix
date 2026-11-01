@@ -22,8 +22,10 @@
     };
   };
 
+  users.mutableUsers = false;
+
   users.users.root.openssh.authorizedKeys.keys = [];
-  users.users.admin = {
+  users.users.monkey = {
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
