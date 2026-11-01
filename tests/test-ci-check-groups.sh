@@ -14,7 +14,7 @@ if [[ "$1" == eval ]]; then
   if [[ "$*" == *builtins.currentSystem* ]]; then
     printf '%s\n' 'x86_64-linux'
   elif [[ "$*" == *'.#checks.x86_64-linux'* ]]; then
-    printf '%s\n' '["core-packages","foundation-options","module-coverage","onepassword-guard","overlay-openai-evals","overlay-rtk","vm-packages","vm-role-developer","vm-role-foundation","vm-ssh","vm-users"]'
+    printf '%s\n' '["core-packages","foundation-options","module-coverage","nixos-vector-enabled","onepassword-guard","overlay-openai-evals","overlay-rtk","vector-options","vm-packages","vm-role-developer","vm-role-foundation","vm-role-generator","vm-ssh","vm-ssh-target","vm-users"]'
   else
     echo "unexpected nix evaluation: $*" >&2
     exit 64
@@ -64,7 +64,43 @@ assert_not_build_argument() {
 
 printf '%s\n' '=== CI check task tests ==='
 devenv tasks run ci:checks:pr-plan --input batchSize=2
-assert_output matrix '{"include":[{"checks":["core-packages","foundation-options"]},{"checks":["onepassword-guard"]}]}'
+assert_output matrix '{"include":[{"checks":["core-packages","foundation-options"]},{"checks":["nixos-vector-enabled","onepassword-guard"]},{"checks":["vector-options","vm-role-generator"]}]}'
+
+: > "$GITHUB_OUTPUT"
+: > "$MOCK_NIX_CALLS"
+devenv tasks run ci:checks:changed-plan \
+  --input-json '{"batchSize":2,"checkPrefixes":["vector-","nixos-vector-"]}'
+assert_output matrix '{"include":[{"checks":["nixos-vector-enabled","vector-options"]}]}'
+
+: > "$GITHUB_OUTPUT"
+devenv tasks run ci:checks:changed-plan \
+  --input-json '{"batchSize":20,"checkPrefixes":["no-such-check-prefix"]}'
+assert_output matrix '{"include":[{"checks":["core-packages","foundation-options","module-coverage","nixos-vector-enabled","onepassword-guard","overlay-openai-evals","overlay-rtk","vector-options","vm-role-generator"]}]}'
+
+: > "$MOCK_NIX_CALLS"
+devenv tasks run ci:checks:changed-shard \
+  --input-json '{"checks":["vector-options","nixos-vector-enabled"],"maxJobs":2}'
+assert_build_argument '.#checks.x86_64-linux.vector-options'
+assert_build_argument '.#checks.x86_64-linux.nixos-vector-enabled'
+assert_not_build_argument '.#checks.x86_64-linux.core-packages'
+assert_not_build_argument '.#checks.x86_64-linux.vm-users'
+
+: > "$MOCK_NIX_CALLS"
+devenv tasks run ci:checks:non-vm
+assert_build_argument '.#checks.x86_64-linux.overlay-rtk'
+assert_build_argument '.#checks.x86_64-linux.module-coverage'
+assert_not_build_argument '.#checks.x86_64-linux.vm-users'
+assert_build_argument '.#checks.x86_64-linux.vm-role-generator'
+assert_not_build_argument '.#checks.x86_64-linux.vm-ssh-target'
+
+: > "$MOCK_NIX_CALLS"
+: > "$GITHUB_OUTPUT"
+devenv tasks run ci:checks:vm
+assert_build_argument '.#checks.x86_64-linux.vm-users'
+assert_build_argument '.#checks.x86_64-linux.vm-role-developer'
+assert_build_argument '.#checks.x86_64-linux.vm-ssh-target'
+assert_not_build_argument '.#checks.x86_64-linux.vm-role-generator'
+assert_not_build_argument '.#checks.x86_64-linux.vector-options'
 
 : > "$MOCK_NIX_CALLS"
 devenv tasks run ci:checks:pr-shard --input-json '{"checks":["core-packages","foundation-options"],"maxJobs":2}'

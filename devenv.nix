@@ -41,16 +41,66 @@
   ciCheckFilters = {
     pr = ''
       [.[]
-        | select(startswith("vm-") | not)
+        | select(. == "vm-role-generator" or (startswith("vm-") | not))
         | select(startswith("overlay-") | not)
         | select(. != "module-coverage")]
     '';
     extended = ''[.[] | select(startswith("overlay-"))]'';
-    "non-vm" = ''[.[] | select(startswith("vm-") | not)]'';
+    "non-vm" = ''[.[] | select(. == "vm-role-generator" or (startswith("vm-") | not))]'';
     "vm-pr" = ''["vm-users", "vm-ssh", "vm-packages"]'';
     "vm-extended" = ''["vm-role-foundation", "vm-role-developer"]'';
-    vm = ''["vm-users", "vm-ssh", "vm-packages", "vm-role-foundation", "vm-role-developer"]'';
+    vm = ''[.[] | select(startswith("vm-") and . != "vm-role-generator")]'';
   };
+  ciCheckPlanExec = {
+    group,
+    selectCheckPrefixes ? false,
+  }: ''
+    set -euo pipefail
+
+    nix_bin="''${NIX_BIN:-nix}"
+    task_input=''${DEVENV_TASK_INPUT:-'{}'}
+    batch_size=$(jq -er '.batchSize | numbers' <<< "$task_input")
+    if [[ ! "$batch_size" =~ ^[1-9][0-9]*$ ]]; then
+      echo "batchSize must be a positive integer (got '$batch_size')" >&2
+      exit 64
+    fi
+
+    current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+    all_checks=$("$nix_bin" eval --json ".#checks.''${current_system}" \
+      --apply 'builtins.attrNames' | jq -c '${ciCheckFilters.${group}}')
+    ${
+      if selectCheckPrefixes
+      then ''
+        check_prefixes=$(jq -ce '.checkPrefixes | select(type == "array" and all(.[]; type == "string" and (. == "*" or test("^[A-Za-z0-9_-]+$"))))' <<< "$task_input") || {
+          echo "Task input must contain a valid checkPrefixes array" >&2
+          exit 64
+        }
+        checks=$(jq -cn --argjson available "$all_checks" --argjson prefixes "$check_prefixes" '
+          [$available[]
+            | . as $check
+            | select(any($prefixes[]; . as $prefix
+              | ($prefix == "*" or ($check | startswith($prefix)))))]')
+        if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
+          echo "No checks matched the selected prefixes; falling back to the full '${group}' group" >&2
+          checks="$all_checks"
+        fi
+      ''
+      else ''checks="$all_checks"''
+    }
+    if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
+      echo "No checks selected for group '${group}' on $current_system" >&2
+      exit 1
+    fi
+
+    matrix=$(jq -cn --argjson checks "$checks" --argjson size "$batch_size" \
+      '{include: [range(0; ($checks | length); $size) as $start
+        | {checks: $checks[$start:($start + $size)]}]}')
+    printf '{"matrix":%s}\n' "$matrix" > "$DEVENV_TASK_OUTPUT_FILE"
+    printf 'Selected ${group} check matrix: %s\n' "$matrix"
+    if [[ -n "''${GITHUB_OUTPUT:-}" ]]; then
+      printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+    fi
+  '';
   ciCheckBuildExec = {
     group,
     useInputChecks ? false,
@@ -791,35 +841,20 @@ in {
     # ============================================
 
     "ci:checks:pr-plan" = {
-      description = "Create a four-check matrix for parallel pull request validation";
+      description = "Create a four-check matrix for the legacy pull request check group";
       input = {batchSize = 4;};
-      exec = ''
-        set -euo pipefail
-
-        nix_bin="''${NIX_BIN:-nix}"
-        batch_size=$(jq -er '.batchSize | numbers' <<< "$DEVENV_TASK_INPUT")
-        if [[ ! "$batch_size" =~ ^[1-9][0-9]*$ ]]; then
-          echo "batchSize must be a positive integer (got '$batch_size')" >&2
-          exit 64
-        fi
-
-        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
-        checks=$("$nix_bin" eval --json ".#checks.''${current_system}" \
-          --apply 'builtins.attrNames' | jq -c '${ciCheckFilters.pr}')
-        if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
-          echo "No PR checks selected for $current_system" >&2
-          exit 1
-        fi
-
-        matrix=$(jq -cn --argjson checks "$checks" --argjson size "$batch_size" \
-          '{include: [range(0; ($checks | length); $size) as $start
-            | {checks: $checks[$start:($start + $size)]}]}')
-        printf '{"matrix":%s}\n' "$matrix" > "$DEVENV_TASK_OUTPUT_FILE"
-        printf 'PR check matrix: %s\n' "$matrix"
-        if [[ -n "''${GITHUB_OUTPUT:-}" ]]; then
-          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
-        fi
-      '';
+      exec = ciCheckPlanExec {group = "pr";};
+    };
+    "ci:checks:changed-plan" = {
+      description = "Create a matrix for non-VM checks affected by changed files";
+      input = {
+        batchSize = 4;
+        checkPrefixes = ["*"];
+      };
+      exec = ciCheckPlanExec {
+        group = "non-vm";
+        selectCheckPrefixes = true;
+      };
     };
     "ci:checks:pr-shard" = {
       description = "Build one pull request check shard with conservative runner parallelism";
@@ -829,6 +864,17 @@ in {
       };
       exec = ciCheckBuildExec {
         group = "pr";
+        useInputChecks = true;
+      };
+    };
+    "ci:checks:changed-shard" = {
+      description = "Build one changed non-VM pull request check shard";
+      input = {
+        checks = [];
+        maxJobs = 2;
+      };
+      exec = ciCheckBuildExec {
+        group = "non-vm";
         useInputChecks = true;
       };
     };
