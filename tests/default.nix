@@ -62,6 +62,7 @@
   testObservabilityInventory = import ./test-observability-inventory.nix {inherit pkgs inputs;};
   testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
+  testSshAuthorizedKeys = import ./test-ssh-authorized-keys.nix {inherit pkgs self;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
   testSkillsOptionOwnership = import ./test-skills-option-ownership.nix {inherit pkgs;};
   testAgentOptionOwnership = import ./test-agent-option-ownership.nix {inherit pkgs;};
@@ -117,6 +118,7 @@ in
     machines-ops = testMachineOps.machineOps;
     machines-secretspec-empty-profiles = testMachineOps.secretspecEmptyProfiles;
     installer-ready = testInstallerReady.installerReady;
+    ssh-authorized-keys = testSshAuthorizedKeys;
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;

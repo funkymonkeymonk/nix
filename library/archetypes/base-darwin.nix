@@ -13,7 +13,9 @@
   inputs,
   lib,
   ...
-}: {
+}: let
+  sshPublicKey = import ../ssh-public-key.nix;
+in {
   imports = [
     ../../modules
     ../../os/darwin.nix
@@ -21,6 +23,12 @@
   ];
 
   home-manager.sharedModules = [inputs.opnix.homeManagerModules.default];
+
+  users.users = lib.listToAttrs (map (user: {
+      name = user.name;
+      value.openssh.authorizedKeys.keys = [sshPublicKey];
+    })
+    config.myConfig.users);
 
   services.openssh.enable = lib.mkDefault config.myConfig.ssh.enable;
 }

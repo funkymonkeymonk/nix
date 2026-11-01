@@ -7,7 +7,9 @@
   lib,
   modulesPath,
   ...
-}: {
+}: let
+  sshPublicKey = import ../../library/ssh-public-key.nix;
+in {
   imports = [
     # Use hardware stub for evaluation during install
     # Real hardware config will be generated during install
@@ -102,7 +104,7 @@
       shell = pkgs.bash;
       # Password must be set during install or via SSH keys
       hashedPassword = "$y$j9T$FmbM9Y1yQ2pXqR3sT4uV5w$xYzAbCdEfGhIjKlMnOpQrStUvWxYz0123456789AB";
-      openssh.authorizedKeys.keys = [];
+      openssh.authorizedKeys.keys = [sshPublicKey];
     };
 
     # Root access - use same credentials as bootstrap
