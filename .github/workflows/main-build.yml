@@ -237,3 +237,41 @@ jobs:
             echo "Cache is up-to-date for all configurations." \
               >> "$GITHUB_STEP_SUMMARY"
           fi
+  full-test-suite:
+    name: Full Test Suite
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Install devenv CLI from the locked project flake
+        run: |
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+      - name: Create stub facter.json
+        run: bash .github/scripts/create-facter-stub.sh
+      - name: Run the complete non-VM and VM test suites
+        run: |
+          set +e
+          devenv tasks run ci:checks:non-vm
+          non_vm_status=$?
+          devenv tasks run ci:checks:vm
+          vm_status=$?
+          set -e
+          if ((non_vm_status != 0 || vm_status != 0)); then
+            echo "Full suite failed (non-VM: $non_vm_status, VM: $vm_status)"
+            exit 1
+          fi

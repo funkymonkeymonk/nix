@@ -20,6 +20,7 @@ jobs:
   # Quick validation runs first - blocks builds if it fails
   lint:
     name: Quick Validation & Code Quality
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -52,14 +53,13 @@ jobs:
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run lint checks
         run: bash .github/scripts/lint.sh
-      - name: Run module coverage regression guard
-        run: nix build .#checks.x86_64-linux.module-coverage --no-link --quiet
       - name: Test CI workflow helpers
-        run: bash tests/test-ci-workflows.sh
-      - name: Test CI check group selection
-        run: bash tests/test-ci-check-groups.sh
-      - name: Test CI derivation cache behavior
-        run: bash tests/test-ci-config-cache.sh
+        if: needs.changes.outputs.ci-helper-files == 'true'
+        run: |
+          bash tests/test-ci-workflows.sh
+          bash tests/test-ci-check-groups.sh
+          bash tests/test-ci-change-selection.sh
+          bash tests/test-ci-config-cache.sh
   # Check if Nix files changed (skip builds/tests if only docs changed)
   # Runs in parallel with lint since it only checks file paths
   changes:
@@ -68,9 +68,13 @@ jobs:
     outputs:
       nix-files: ${{ steps.filter.outputs.nix-files }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      check-prefixes: ${{ steps.changed-checks.outputs.check-prefixes }}
+      ci-helper-files: ${{ steps.filter.outputs.ci-helper-files }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Check for Nix file changes
         uses: dorny/paths-filter@v3
         id: filter
@@ -79,8 +83,27 @@ jobs:
             nix-files:
               - '**/*.nix'
               - 'flake.lock'
+              - 'secretspec.toml'
             workflows:
               - '.github/workflows/**'
+            ci-helper-files:
+              - 'devenv.nix'
+              - '.github/scripts/**'
+              - '.github/workflows/**'
+              - 'tests/test-ci-*.sh'
+      - name: Select non-VM checks affected by changed files
+        id: changed-checks
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+              | bash .github/scripts/select-pr-checks.sh > check-prefixes.json
+          else
+            printf '["*"]\n' > check-prefixes.json
+          fi
+          printf 'check-prefixes=%s\n' "$(<check-prefixes.json)" >> "$GITHUB_OUTPUT"
   # Discover what configurations exist and check if they need rebuilds
   discover-targets:
     name: Discover Build Targets
@@ -369,11 +392,7 @@ jobs:
     name: Discover PR Check Matrix
     runs-on: ubuntu-latest
     needs: [lint, changes]
-    if: >
-      ${{
-        needs.changes.outputs.nix-files == 'true' ||
-        needs.changes.outputs.workflows == 'true'
-      }}
+    if: ${{ needs.changes.outputs.check-prefixes != '[]' }}
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
@@ -404,9 +423,14 @@ jobs:
           --no-link --dry-run --quiet
       - name: Validate installation script
         run: bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh
-      - name: Plan PR checks
+      - name: Plan changed PR checks
         id: plan
-        run: devenv tasks run ci:checks:pr-plan --input batchSize=4
+        env:
+          CHECK_PREFIXES: ${{ needs.changes.outputs.check-prefixes }}
+        run: |
+          input=$(jq -cn --argjson prefixes "$CHECK_PREFIXES" \
+            '{batchSize:4,checkPrefixes:$prefixes}')
+          devenv tasks run ci:checks:changed-plan --input-json "$input"
 
   # VM checks require KVM and remain independent of the non-VM matrix.
   vm-tests:
@@ -454,8 +478,7 @@ jobs:
     needs: [lint, changes, discover-checks]
     if: >
       ${{
-        (needs.changes.outputs.nix-files == 'true' ||
-         needs.changes.outputs.workflows == 'true') &&
+        needs.changes.outputs.check-prefixes != '[]' &&
         needs.discover-checks.outputs.matrix != ''
       }}
     strategy:
@@ -488,5 +511,5 @@ jobs:
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
-      - name: Build check shard
-        run: devenv tasks run ci:checks:pr-shard --input-json '${{ toJSON(matrix) }}'
+      - name: Build changed check shard
+        run: devenv tasks run ci:checks:changed-shard --input-json '${{ toJSON(matrix) }}'

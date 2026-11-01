@@ -2,9 +2,6 @@
 name: Extended CI Validation
 # yamllint disable-line rule:truthy
 on:
-  schedule:
-    # Run after the weekly flake update has settled.
-    - cron: '0 4 * * 6'
   workflow_dispatch:
 
 env:
@@ -17,7 +14,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   extended-package-checks:
