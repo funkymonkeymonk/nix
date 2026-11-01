@@ -271,9 +271,9 @@ in {
         }
 
         ${
-          if typeServerConfig.myConfig.loki.enable
-          then ''echo "  myConfig.loki.enable = true on type-server: OK"''
-          else ''echo "  FAIL: type-server should enable myConfig.loki"; exit 1''
+          if !(typeServerConfig.myConfig.loki.enable or false)
+          then ''echo "  myConfig.loki.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not enable myConfig.loki"; exit 1''
         }
 
         ${
@@ -283,9 +283,9 @@ in {
         }
 
         ${
-          if typeServerConfig.services.loki.enable
-          then ''echo "  services.loki.enable = true on type-server: OK"''
-          else ''echo "  FAIL: type-server should have services.loki.enable = true"; exit 1''
+          if !(typeServerConfig.services.loki.enable or false)
+          then ''echo "  services.loki.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not enable services.loki"; exit 1''
         }
 
         echo "All type-server log aggregator wiring tests passed"

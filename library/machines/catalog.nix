@@ -38,12 +38,8 @@
     system = "x86_64-linux";
     hostname = "type-server";
     modules = [
-      ../archetypes/headless-server-nixos.nix
+      ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
-      ../../modules/nixos/vector.nix
-      ../../modules/nixos/loki.nix
-      ../../modules/nixos/prometheus.nix
-      ../../modules/nixos/alertmanager.nix
       ../../targets/hardware-facter.nix
       ../../targets/type-server
     ];
@@ -58,7 +54,7 @@
     system = "aarch64-linux";
     hostname = "type-server-arm";
     modules = [
-      ../archetypes/headless-server-nixos.nix
+      ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
       ../../targets/hardware-facter.nix
       ../../targets/type-server-arm
