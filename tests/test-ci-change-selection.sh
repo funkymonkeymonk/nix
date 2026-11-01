@@ -37,6 +37,10 @@ assert_selection \
   '["headless-server-users","phase2-cattle"]' \
   "tests/test-phase2-cattle.nix"
 assert_selection \
+  "Nix unit runner source selects its focused check" \
+  '["nix-unit-runner"]' \
+  "tests/test-nix-unit-runner.nix"
+assert_selection \
   "VM role generator source selects its pure generator test" \
   '["vm-role-generator"]' \
   "tests/test-vm-role-generator.nix"

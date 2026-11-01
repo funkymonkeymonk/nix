@@ -128,6 +128,9 @@ select_for_path() {
     tests/test-mk-user.nix)
       add mk-user
       ;;
+    tests/test-nix-unit-runner.nix)
+      add nix-unit-runner
+      ;;
     tests/test-nixos-modules.nix)
       add typed-attrs-options
       ;;
