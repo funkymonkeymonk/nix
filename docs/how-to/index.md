@@ -45,3 +45,4 @@ Procedural guides that solve a concrete task. Choose the guide that matches what
 | Guide | What It Does |
 |-------|-------------|
 | [Configure the LLM Stack](configure-llm-stack.md) | Wire oMLX and Bifrost together |
+| [Enroll MegamanX in Tailscale](enroll-megamanx-in-tailscale.md) | Enroll the inference host and verify tailnet telemetry |

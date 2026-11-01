@@ -68,9 +68,11 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `appDir` | string | `"$HOME/.config/bifrost"` | Directory for Bifrost data (config.json, SQLite DB, request logs) |
 | `enable` | boolean | `false` | Enable Bifrost AI gateway for unified LLM access across all local inference servers |
+| `exposeViaTailscaleServe` | boolean | `false` | Publish a loopback-bound Bifrost API to the tailnet with Tailscale Serve. |
 | `host` | string | `"0.0.0.0"` | Host to bind Bifrost to |
 | `logLevel` | one of "debug", "info", "warn", "error" | `"info"` | Bifrost log level |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8081` | Port for Bifrost HTTP gateway |
+| `tailscaleServePort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8081` | Tailnet-only HTTP port used by Tailscale Serve for Bifrost. |
 | `upstreams` | attribute set of (submodule) | `{ }` | Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b') |
 | `upstreams.<name>.allowPrivateNetwork` | boolean | `true` | Allow connecting to private network IPs (localhost, 192.168.x.x, 10.x.x.x) |
 | `upstreams.<name>.apiKey` | string | `"dummy"` | API key for the upstream (dummy for local servers) |
@@ -258,7 +260,8 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Enable Prometheus node_exporter for system metrics |
-| `listenAddress` | string | `"127.0.0.1:9100"` | Bind address for node_exporter HTTP server. Darwin keeps this loopback-only by default because nix-darwin does not provide interface-specific inbound firewall rules; set an explicit local address when remote access is intended. |
+| `listenAddress` | string | `"127.0.0.1:9100"` | Bind address for node_exporter when listenOnTailscale is false. The default is loopback-only because nix-darwin does not provide interface-specific inbound firewall rules. |
+| `listenOnTailscale` | boolean | `false` | Resolve the current Tailscale IPv4 address at service startup and bind only to that address. The service waits for Tailscale to become available, which keeps the metrics endpoint off the machine's LAN interfaces. |
 | `openFirewallInterfaces` | list of string | `[ "tailscale0" ]` | Network interfaces allowed to reach node_exporter. The default exposes metrics over Tailscale only; add a non-Tailscale interface explicitly when access from that network is intended. Set to [] for local-only access. The exporter listens on IPv4 interfaces, while this firewall list controls its network reachability. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9100` | Port for node_exporter HTTP server |
 
@@ -279,10 +282,11 @@ or changing a `myConfig.*` option.
 | `enable` | boolean | `false` | Whether to enable oMLX inference server. |
 | `hotCacheMaxSize` | string | `"20GB"` | In-memory oMLX hot cache size |
 | `logLevel` | one of "trace", "debug", "info", "warning", "error" | `"info"` | oMLX log level |
-| `maxConcurrentRequests` | positive integer, meaning >0 | `8` | Maximum concurrent oMLX requests |
+| `maxConcurrentRequests` | positive integer, meaning >0 | `4` | Maximum concurrent oMLX requests; increase only after measuring queueing and memory pressure. |
 | `memoryGuardGb` | positive integer, meaning >0 | `96` | Maximum oMLX process memory in GB |
-| `server.host` | string | `"0.0.0.0"` | Bind address for oMLX |
+| `server.host` | string | `"127.0.0.1"` | Bind address for oMLX; keep it on loopback behind Bifrost. |
 | `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Port for oMLX's OpenAI-compatible API |
+| `startupTimeoutSeconds` | positive integer, meaning >0 | `600` | Maximum time to wait for oMLX's health endpoint after launch before launchd restarts it. |
 
 ### myConfig.onepassword
 

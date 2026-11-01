@@ -20,8 +20,8 @@
   omlxPython = "${homebrewPrefix}/opt/omlx/libexec/bin/python3.11";
   omlxScript = "${homebrewPrefix}/opt/omlx/libexec/bin/omlx";
   omlxArguments = lib.concatStringsSep " " [
-    omlxPython
-    omlxScript
+    (lib.escapeShellArg omlxPython)
+    (lib.escapeShellArg omlxScript)
     "serve"
     "--model-dir ${lib.escapeShellArg modelDir}"
     "--host ${lib.escapeShellArg cfg.server.host}"
@@ -30,11 +30,52 @@
     "--memory-guard-gb ${toString cfg.memoryGuardGb}"
     "--max-concurrent-requests ${toString cfg.maxConcurrentRequests}"
     "--paged-ssd-cache-dir ${lib.escapeShellArg cacheDir}"
-    "--hot-cache-max-size ${cfg.hotCacheMaxSize}"
+    "--hot-cache-max-size ${lib.escapeShellArg cfg.hotCacheMaxSize}"
   ];
-  # Keep the signed system shell as the launchd child. Homebrew's Python
-  # executable is ad-hoc signed and macOS 26 rejects it as a direct agent.
-  omlxCommand = "/bin/sh -c ${lib.escapeShellArg omlxArguments}";
+  # Keep Python as a child of a Nix-generated shell script. The shell also
+  # supervises readiness because launchd KeepAlive cannot recover a process
+  # that remains alive but never binds its API socket.
+  readinessProbe = "http://${cfg.server.host}:${toString cfg.server.port}/health";
+  readinessAttempts = toString (
+    if cfg.startupTimeoutSeconds < 5
+    then 1
+    else builtins.div cfg.startupTimeoutSeconds 5
+  );
+  omlxCommand = pkgs.writeShellScript "omlx-launchd-service" ''
+    set -euo pipefail
+    export HOME=${lib.escapeShellArg darwinHomeDir}
+    cd ${lib.escapeShellArg darwinHomeDir}
+
+    ${omlxArguments} &
+    server_pid=$!
+    ready=0
+
+    for attempt in $(/usr/bin/seq 1 ${readinessAttempts}); do
+      if ! kill -0 "$server_pid" 2>/dev/null; then
+        if wait "$server_pid"; then
+          echo "oMLX exited before startup readiness" >&2
+          exit 1
+        else
+          exit $?
+        fi
+      fi
+      if ${pkgs.curl}/bin/curl --silent --fail --connect-timeout 2 --max-time 5 \
+          ${lib.escapeShellArg readinessProbe} >/dev/null; then
+        ready=1
+        break
+      fi
+      /bin/sleep 5
+    done
+
+    if [ "$ready" -ne 1 ]; then
+      echo "oMLX startup readiness timed out after ${toString cfg.startupTimeoutSeconds} seconds" >&2
+      kill -TERM "$server_pid" 2>/dev/null || true
+      wait "$server_pid" 2>/dev/null || true
+      exit 1
+    fi
+
+    wait "$server_pid"
+  '';
   metalToolchainMountPoint = "/Volumes/MetalToolchainCryptex";
   metalToolchainMountScript = ''
     set -eu
@@ -64,11 +105,16 @@
 in {
   options.myConfig.omlx = {
     enable = lib.mkEnableOption "oMLX inference server";
+    startupTimeoutSeconds = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 600;
+      description = "Maximum time to wait for oMLX's health endpoint after launch before launchd restarts it.";
+    };
     server = {
       host = lib.mkOption {
         type = lib.types.str;
-        default = "0.0.0.0";
-        description = "Bind address for oMLX";
+        default = "127.0.0.1";
+        description = "Bind address for oMLX; keep it on loopback behind Bifrost.";
       };
       port = lib.mkOption {
         type = lib.types.port;
@@ -88,8 +134,8 @@ in {
     };
     maxConcurrentRequests = lib.mkOption {
       type = lib.types.ints.positive;
-      default = 8;
-      description = "Maximum concurrent oMLX requests";
+      default = 4;
+      description = "Maximum concurrent oMLX requests; increase only after measuring queueing and memory pressure.";
     };
     hotCacheMaxSize = lib.mkOption {
       type = lib.types.str;
@@ -101,10 +147,16 @@ in {
   config = lib.mkIf cfg.enable {
     homebrew.enable = true;
     homebrew.prefix = homebrewPrefix;
+    # No compatible oMLX package or upstream flake exists in this Nix input;
+    # retain the upstream Homebrew formula but do not update it implicitly.
+    homebrew.onActivation.autoUpdate = false;
+    homebrew.onActivation.upgrade = false;
+    homebrew.global.autoUpdate = false;
     homebrew.taps = [
       {
         name = "jundot/omlx";
         clone_target = "https://github.com/jundot/omlx";
+        force_auto_update = false;
       }
     ];
     homebrew.brews = [
@@ -114,29 +166,32 @@ in {
       }
     ];
 
-    launchd.user.agents.metal-toolchain-mount = {
+    launchd.daemons.metal-toolchain-mount = {
       script = metalToolchainMountScript;
       serviceConfig = {
+        Label = "org.omlx.metal-toolchain-mount";
         RunAtLoad = true;
         StartInterval = 300;
         WatchPaths = ["/Volumes"];
-        StandardOutPath = "${darwinHomeDir}/Library/Logs/omlx/metal-toolchain-mount.log";
-        StandardErrorPath = "${darwinHomeDir}/Library/Logs/omlx/metal-toolchain-mount.error.log";
+        StandardOutPath = "/tmp/omlx-metal-toolchain-mount.log";
+        StandardErrorPath = "/tmp/omlx-metal-toolchain-mount.error.log";
       };
     };
 
-    launchd.user.agents.omlx = {
+    launchd.daemons.omlx = {
       command = omlxCommand;
       serviceConfig = {
         Label = "org.omlx.server";
         RunAtLoad = true;
         KeepAlive = true;
+        UserName = primaryUser;
         WorkingDirectory = darwinHomeDir;
         StandardOutPath = "${darwinHomeDir}/Library/Logs/omlx/server.log";
         StandardErrorPath = "${darwinHomeDir}/Library/Logs/omlx/server.error.log";
         EnvironmentVariables = {
           HOME = darwinHomeDir;
           PATH = "/opt/homebrew/bin:/usr/bin:/bin";
+          PYTHONUNBUFFERED = "1";
         };
       };
     };

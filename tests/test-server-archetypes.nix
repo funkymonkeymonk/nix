@@ -106,7 +106,8 @@
         ${checkEqual "oMLX Darwin retains catalog node_exporter" true omlxServer.myConfig.nodeExporter.enable}
         ${checkEqual "oMLX Darwin exporter remains loopback-only" "127.0.0.1:9100" omlxServer.myConfig.nodeExporter.listenAddress}
         ${checkEqual "oMLX Darwin exporter remains in scrape inventory" true (builtins.elem "MegamanX" actualInventoryNames)}
-        ${checkEqual "oMLX Darwin does not gain Vector" false (omlxServer.myConfig.vector.enable or false)}
+        ${checkEqual "oMLX Darwin ships logs through Vector" true (omlxServer.myConfig.vector.enable or false)}
+        ${checkEqual "oMLX Darwin Vector targets drlight" "drlight" omlxServer.myConfig.collector.destinationHostname}
 
         echo "All type-server archetype configuration tests passed"
         touch $out

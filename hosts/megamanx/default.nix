@@ -22,18 +22,30 @@
         sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
       };
       ssh.enable = true;
+      tailscale.enable = true;
+      collector.destinationHostname = "drlight";
+      vector = {
+        enable = true;
+        hostLabel = "MegamanX";
+        logGlobs = [
+          "/tmp/*.log"
+          "/Users/monkey/Library/Logs/omlx/*.log"
+          "/Users/monkey/.omlx/logs/*.log"
+        ];
+      };
+      nodeExporter.listenOnTailscale = true;
 
       # oMLX serves the Nix-provided 4-bit Qwen checkpoint through its
       # continuous-batching and tiered KV-cache engine.
       omlx = {
         enable = true;
         server = {
-          host = "0.0.0.0";
+          host = "127.0.0.1";
           port = 8300;
         };
         logLevel = "info";
         memoryGuardGb = 96;
-        maxConcurrentRequests = 8;
+        maxConcurrentRequests = 4;
         hotCacheMaxSize = "20GB";
       };
 
@@ -53,6 +65,8 @@
 
       bifrost = {
         enable = true;
+        host = "127.0.0.1";
+        exposeViaTailscaleServe = true;
         # UI for request tracing, logs, token analytics:
         #   http://localhost:8081/
         # Prometheus metrics: http://localhost:8081/metrics
@@ -80,6 +94,10 @@
         uiIp = "0.0.0.0";
       };
     };
+
+  # Start the Nix-darwin-managed Tailscale daemon at boot and recover it if it exits.
+  services.tailscale.enable = true;
+  launchd.daemons.tailscaled.serviceConfig.KeepAlive = true;
 
   # Preserve the currently working password-based SSH path until key-based
   # access is explicitly provisioned for this host.

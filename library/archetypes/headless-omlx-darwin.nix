@@ -10,6 +10,7 @@
     inputs.nix-homebrew.darwinModules.nix-homebrew
     ../../modules/nixos/ghostty-terminfo.nix
     ../../modules/services/node-exporter/darwin.nix
+    ../../modules/services/vector/darwin.nix
   ];
 
   myConfig = {
