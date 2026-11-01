@@ -42,6 +42,7 @@
   testGrafana = import ./test-grafana.nix {inherit pkgs;};
   testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
   testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
+  testServerArchetypes = import ./test-server-archetypes.nix {inherit pkgs self inputs;};
   testZero = import ./test-zero.nix {inherit pkgs;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
@@ -367,6 +368,7 @@ in
     nixos-alertmanager-options = testNixosObservability.alertmanagerOptionsTest;
     nixos-alertmanager-null-receiver = testNixosObservability.alertmanagerNullReceiverTest;
     type-server-observability = testNixosObservability.typeServerObservabilityTest;
+    type-server-archetypes = testServerArchetypes.typeServerArchetypeTest;
 
     # LLM stack integration test
 
