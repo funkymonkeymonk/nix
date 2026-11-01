@@ -57,7 +57,7 @@
       modules = stubs.base ++ stubs.darwinService ++ [../modules/services/node-exporter/darwin.nix];
     }).config.myConfig.nodeExporter;
 
-  nodeExporterCustom =
+  nodeExporterCustomConfig =
     (lib.evalModules {
       modules =
         stubs.base
@@ -72,7 +72,27 @@
             };
           }
         ];
-    }).config.myConfig.nodeExporter;
+    }).config;
+
+  nodeExporterCustom = nodeExporterCustomConfig.myConfig.nodeExporter;
+
+  nodeExporterExplicitListener =
+    (lib.evalModules {
+      modules =
+        stubs.base
+        ++ stubs.darwinService
+        ++ [
+          ../modules/services/node-exporter/darwin.nix
+          {
+            config.myConfig.users = [{name = "monkey";}];
+            config.myConfig.nodeExporter = {
+              enable = true;
+              port = 9102;
+              listenAddress = "192.0.2.18:9102";
+            };
+          }
+        ];
+    }).config;
 
   prometheusDefaults =
     (lib.evalModules {
@@ -142,7 +162,41 @@ in {
       else ''echo "  port should be 9101!"; exit 1''
     }
 
+    ${
+      if nodeExporterCustom.listenAddress == "127.0.0.1:9101"
+      then ''echo "  custom port keeps the loopback listener on the matching port: OK"''
+      else ''echo "  FAIL: custom port should update the default loopback listen address"; exit 1''
+    }
+
+    ${
+      if nodeExporterExplicitListener.myConfig.nodeExporter.listenAddress == "192.0.2.18:9102"
+      then ''echo "  explicit listener address retained for deliberate network access: OK"''
+      else ''echo "  FAIL: explicit listener address should be preserved"; exit 1''
+    }
+
     echo "All node_exporter custom options verified"
+    touch $out
+  '';
+
+  nodeExporterListenTest = pkgs.runCommand "test-node-exporter-listen" {} ''
+    echo "=== Testing node_exporter Darwin Listener Safety ==="
+
+    SCRIPT=${nodeExporterCustomConfig.launchd.daemons.node-exporter.command}
+
+    if grep -q -- "--web.listen-address=127.0.0.1:9101" "$SCRIPT"; then
+      echo "  generated service binds to configured loopback address and port: OK"
+    else
+      echo "  FAIL: generated service should bind to 127.0.0.1:9101"; exit 1
+    fi
+
+    EXPLICIT_SCRIPT=${nodeExporterExplicitListener.launchd.daemons.node-exporter.command}
+    if grep -q -- "--web.listen-address=192.0.2.18:9102" "$EXPLICIT_SCRIPT"; then
+      echo "  generated service binds to explicitly configured address: OK"
+    else
+      echo "  FAIL: explicit bind address should be passed to node_exporter"; exit 1
+    fi
+
+    echo "All Darwin node_exporter listener tests passed"
     touch $out
   '';
 

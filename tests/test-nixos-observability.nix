@@ -13,6 +13,7 @@
 {
   pkgs,
   self ? null,
+  inputs ? {},
   ...
 }: let
   inherit (pkgs) lib;
@@ -20,19 +21,34 @@
 
   prometheusStubs = stubs.base ++ stubs.nixosService ++ [../modules/nixos/prometheus.nix];
   alertmanagerStubs = stubs.base ++ stubs.nixosService ++ [../modules/nixos/alertmanager.nix];
+  observabilityBackendStubs = stubs.base ++ stubs.nixosService ++ [../library/archetypes/type-observability.nix];
+  evalPrometheus = {
+    modules,
+    nodeExporterInventory ? [],
+  }:
+    lib.evalModules {
+      specialArgs = {inherit nodeExporterInventory;};
+      inherit modules;
+    };
 
   prometheusDefaults =
-    (lib.evalModules {
+    (evalPrometheus {
       modules = prometheusStubs;
     }).config.myConfig.prometheus;
 
   nodeExporterDefaults =
-    (lib.evalModules {
+    (evalPrometheus {
       modules = prometheusStubs;
     }).config.myConfig.nodeExporter;
 
   prometheusEnabled =
-    (lib.evalModules {
+    (evalPrometheus {
+      nodeExporterInventory = [
+        {
+          name = "test-node";
+          target = "test-node.example:9100";
+        }
+      ];
       modules =
         prometheusStubs
         ++ [
@@ -44,7 +60,7 @@
     }).config;
 
   prometheusEnabledNoNodeExporter =
-    (lib.evalModules {
+    (evalPrometheus {
       modules =
         prometheusStubs
         ++ [
@@ -53,7 +69,7 @@
     }).config;
 
   prometheusWithFirewall =
-    (lib.evalModules {
+    (evalPrometheus {
       modules =
         prometheusStubs
         ++ [
@@ -62,6 +78,21 @@
               enable = true;
               port = 9091;
               openFirewallTailscale = true;
+            };
+          }
+        ];
+    }).config;
+
+  nodeExporterWithCustomFirewall =
+    (evalPrometheus {
+      modules =
+        prometheusStubs
+        ++ [
+          {
+            config.myConfig.nodeExporter = {
+              enable = true;
+              port = 9101;
+              openFirewallInterfaces = ["enp3s0"];
             };
           }
         ];
@@ -84,7 +115,7 @@
   };
 
   prometheusWithAlertmanager =
-    (lib.evalModules {
+    (evalPrometheus {
       modules =
         prometheusStubs
         ++ [
@@ -132,6 +163,154 @@
     if self != null
     then self.nixosConfigurations.type-server.config
     else null;
+
+  observabilityBackend =
+    (lib.evalModules {
+      specialArgs.nodeExporterInventory = [];
+      modules = observabilityBackendStubs;
+    }).config;
+
+  centralObservabilityTest =
+    if self == null
+    then
+      pkgs.runCommand "test-central-observability-skipped" {} ''
+        echo "Skipped: self not provided"
+        touch $out
+      ''
+    else let
+      catalog = import ../library/machines/catalog.nix {inherit inputs;};
+      inventory = import ../library/machines/observability-inventory.nix {inherit catalog;};
+      drlight = self.nixosConfigurations.drlight.config;
+      typeServer = self.nixosConfigurations.type-server.config;
+      typeServerArm = self.nixosConfigurations.type-server-arm.config;
+      typeNas = self.nixosConfigurations.type-nas.config;
+      darwinServer = self.darwinConfigurations.darwin-server.config;
+      megamanX = self.darwinConfigurations.MegamanX.config;
+      scrapeConfig = drlight.services.prometheus.scrapeConfigs;
+      nodeScrape = builtins.head (builtins.filter (scrape: scrape.job_name == "node") scrapeConfig);
+      selfScrape = builtins.head (builtins.filter (scrape: scrape.job_name == "prometheus") scrapeConfig);
+    in
+      pkgs.runCommand "test-central-observability" {} ''
+        echo "=== Testing central type-observability backend and catalog inventory ==="
+
+        ${
+          if observabilityBackend.myConfig.prometheus.enable && observabilityBackend.services.prometheus.enable
+          then ''echo "type-observability enables Prometheus: OK"''
+          else ''echo "FAIL: type-observability must enable Prometheus"; exit 1''
+        }
+        ${
+          if observabilityBackend.myConfig.loki.enable && observabilityBackend.services.loki.enable
+          then ''echo "type-observability enables Loki: OK"''
+          else ''echo "FAIL: type-observability must enable Loki"; exit 1''
+        }
+        ${
+          if observabilityBackend.myConfig.loki.openFirewallTailscale
+          then ''echo "type-observability enables Loki ingress on tailscale0: OK"''
+          else ''echo "FAIL: type-observability must allow remote Vector traffic on tailscale0"; exit 1''
+        }
+        ${
+          if
+            builtins.elem observabilityBackend.myConfig.loki.port observabilityBackend.networking.firewall.interfaces.tailscale0.allowedTCPPorts
+            && !(builtins.elem observabilityBackend.myConfig.loki.port (observabilityBackend.networking.firewall.allowedTCPPorts or []))
+            && !(observabilityBackend.myConfig.loki.openFirewall or false)
+          then ''echo "type-observability allows Loki only on tailscale0: OK"''
+          else ''echo "FAIL: Loki ingress must be restricted to tailscale0"; exit 1''
+        }
+        ${
+          if observabilityBackend.myConfig.alertmanager.enable && observabilityBackend.services.prometheus.alertmanager.enable
+          then ''echo "type-observability enables Alertmanager: OK"''
+          else ''echo "FAIL: type-observability must enable Alertmanager"; exit 1''
+        }
+        ${
+          if !(observabilityBackend.myConfig.grafana.enable or false) && !(observabilityBackend.services.grafana.enable or false)
+          then ''echo "type-observability does not add Grafana in this change: OK"''
+          else ''echo "FAIL: Grafana is out of scope for this backend archetype change"; exit 1''
+        }
+
+        ${
+          if lib.any (module: lib.hasSuffix "/archetypes/type-observability.nix" (builtins.toString module)) catalog.drlight.modules
+          then ''echo "drlight selects type-observability: OK"''
+          else ''echo "FAIL: drlight must include type-observability"; exit 1''
+        }
+        ${
+          if drlight.myConfig.prometheus.enable && drlight.myConfig.loki.enable && drlight.myConfig.alertmanager.enable
+          then ''echo "drlight backend options are enabled: OK"''
+          else ''echo "FAIL: drlight must enable Prometheus, Loki, and Alertmanager"; exit 1''
+        }
+        ${
+          if drlight.services.prometheus.enable && drlight.services.loki.enable && drlight.services.prometheus.alertmanager.enable
+          then ''echo "drlight backend services are active: OK"''
+          else ''echo "FAIL: drlight must run Prometheus, Loki, and Alertmanager"; exit 1''
+        }
+        ${
+          if
+            builtins.elem drlight.myConfig.loki.port drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts
+            && !(builtins.elem drlight.myConfig.loki.port (drlight.networking.firewall.allowedTCPPorts or []))
+            && !(drlight.myConfig.loki.openFirewall or false)
+          then ''echo "drlight Loki ingress is Tailscale-only, not global: OK"''
+          else ''echo "FAIL: drlight Loki ingress must be restricted to tailscale0"; exit 1''
+        }
+        ${
+          if drlight.myConfig.collector.destinationHostname == "localhost" && drlight.services.loki.enable
+          then ''echo "drlight has local Loki receiver for Vector: OK"''
+          else ''echo "FAIL: drlight Vector output must have local Loki receiver"; exit 1''
+        }
+
+        ${
+          if (builtins.head nodeScrape.static_configs).targets == map (target: target.target) inventory.targets
+          then ''echo "Prometheus node job uses the full catalog-derived inventory: OK"''
+          else ''echo "FAIL: Prometheus node job must use the catalog-derived inventory"; exit 1''
+        }
+        ${
+          if builtins.elem "drlight:9100" (builtins.head nodeScrape.static_configs).targets
+          then ''echo "drlight exporter remains in central scrape targets: OK"''
+          else ''echo "FAIL: central inventory must include drlight's exporter"; exit 1''
+        }
+        ${
+          if (builtins.head selfScrape.static_configs).targets == ["localhost:9090"]
+          then ''echo "Prometheus self-scrape remains configured: OK"''
+          else ''echo "FAIL: Prometheus self-scrape must remain configured"; exit 1''
+        }
+        ${
+          if builtins.length drlight.services.prometheus.rules > 0
+          then ''echo "central Prometheus alert rules remain configured: OK"''
+          else ''echo "FAIL: central Prometheus alert rules must remain configured"; exit 1''
+        }
+
+        ${
+          if
+            typeServer.services.prometheus.enable
+            == false
+            && typeServer.services.loki.enable == false
+            && typeServer.services.prometheus.alertmanager.enable == false
+            && !(builtins.elem 3100 (typeServer.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))
+          then ''echo "type-server remains collector-only without Loki ingress: OK"''
+          else ''echo "FAIL: type-server must remain collector-only without Loki ingress"; exit 1''
+        }
+        ${
+          if typeServerArm.services.prometheus.enable == false && typeServerArm.services.loki.enable == false && typeServerArm.services.prometheus.alertmanager.enable == false
+          then ''echo "type-server-arm remains collector-only: OK"''
+          else ''echo "FAIL: type-server-arm must remain collector-only"; exit 1''
+        }
+        ${
+          if typeNas.services.prometheus.enable == false && typeNas.services.loki.enable == false && typeNas.services.prometheus.alertmanager.enable == false
+          then ''echo "type-nas remains collector-only: OK"''
+          else ''echo "FAIL: type-nas must not run local backends"; exit 1''
+        }
+        ${
+          if (darwinServer.myConfig.prometheus.enable or false) == false && (darwinServer.myConfig.loki.enable or false) == false && (darwinServer.myConfig.alertmanager.enable or false) == false
+          then ''echo "darwin-server remains collector-only: OK"''
+          else ''echo "FAIL: darwin-server must not run local backends"; exit 1''
+        }
+        ${
+          if (megamanX.myConfig.prometheus.enable or false) == false && (megamanX.myConfig.loki.enable or false) == false && (megamanX.myConfig.alertmanager.enable or false) == false
+          then ''echo "MegamanX remains collector-only: OK"''
+          else ''echo "FAIL: MegamanX must not run local backends"; exit 1''
+        }
+
+        echo "All central observability tests passed"
+        touch $out
+      '';
 in {
   prometheusOptionsTest = pkgs.runCommand "test-nixos-prometheus-options" {} ''
     echo "=== Testing NixOS Prometheus Option Defaults ==="
@@ -179,6 +358,12 @@ in {
       else ''echo "  FAIL: port should default to 9100"; exit 1''
     }
 
+    ${
+      if nodeExporterDefaults.openFirewallInterfaces == ["tailscale0"]
+      then ''echo "  exporter firewall defaults to tailscale0 only: OK"''
+      else ''echo "  FAIL: exporter firewall should default to tailscale0 only"; exit 1''
+    }
+
     echo "All NixOS node_exporter option default tests passed"
     touch $out
   '';
@@ -208,6 +393,15 @@ in {
       if lib.any (sc: sc.job_name == "prometheus") prometheusEnabled.services.prometheus.scrapeConfigs
       then ''echo "  scrapeConfigs includes self-scrape 'prometheus' job: OK"''
       else ''echo "  FAIL: scrapeConfigs should include a self-scrape 'prometheus' job"; exit 1''
+    }
+
+    ${
+      let
+        nodeJob = builtins.head (builtins.filter (sc: sc.job_name == "node") prometheusEnabled.services.prometheus.scrapeConfigs);
+      in
+        if (builtins.head nodeJob.static_configs).targets == ["test-node.example:9100"]
+        then ''echo "  node scrape job uses projected inventory: OK"''
+        else ''echo "  FAIL: node scrape job should use the projected inventory"; exit 1''
     }
 
     ${
@@ -281,8 +475,35 @@ in {
 
     ${
       if builtins.elem 9091 prometheusWithFirewall.networking.firewall.interfaces.tailscale0.allowedTCPPorts
-      then ''echo "  tailscale0 firewall opened on configured port when openFirewallTailscale = true: OK"''
-      else ''echo "  FAIL: firewall should open the configured port on tailscale0 when openFirewallTailscale = true"; exit 1''
+      then ''echo "  tailscale0 firewall opened on configured Prometheus port: OK"''
+      else ''echo "  FAIL: Prometheus firewall should open its configured port on tailscale0"; exit 1''
+    }
+
+    ${
+      if prometheusEnabled.services.prometheus.exporters.node.listenAddress == "0.0.0.0"
+      then ''echo "  node_exporter listens on IPv4 interfaces behind interface firewall: OK"''
+      else ''echo "  FAIL: node_exporter should listen on IPv4 interfaces behind the restrictive firewall"; exit 1''
+    }
+
+    ${
+      if builtins.elem 9100 prometheusEnabled.networking.firewall.interfaces.tailscale0.allowedTCPPorts
+      then ''echo "  node_exporter default port allowed on tailscale0: OK"''
+      else ''echo "  FAIL: node_exporter should be allowed on tailscale0 by default"; exit 1''
+    }
+
+    ${
+      if !(builtins.elem 9100 (prometheusEnabled.networking.firewall.allowedTCPPorts or []))
+      then ''echo "  node_exporter not opened globally: OK"''
+      else ''echo "  FAIL: node_exporter port must not be opened globally"; exit 1''
+    }
+
+    ${
+      if
+        builtins.elem 9101 nodeExporterWithCustomFirewall.networking.firewall.interfaces.enp3s0.allowedTCPPorts
+        && !(builtins.elem 9101 (nodeExporterWithCustomFirewall.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))
+        && !(builtins.elem 9101 (nodeExporterWithCustomFirewall.networking.firewall.allowedTCPPorts or []))
+      then ''echo "  explicitly configured non-Tailscale interface is the only exporter access path: OK"''
+      else ''echo "  FAIL: custom exporter access must be restricted to the configured interface"; exit 1''
     }
 
     echo "All NixOS Prometheus firewall tests passed"
@@ -347,6 +568,25 @@ in {
 
   # Real target wiring: only runs when `self` is available (skipped for
   # `nix-unit`/isolated invocations that don't pass a flake `self`).
+  typeObservabilityArchetypeTest = pkgs.runCommand "test-type-observability-archetype" {} ''
+    echo "=== Testing selected type-observability archetype ==="
+
+    ${
+      if observabilityBackend.myConfig.prometheus.enable && observabilityBackend.myConfig.loki.enable && observabilityBackend.myConfig.alertmanager.enable
+      then ''echo "all backend options enabled by archetype: OK"''
+      else ''echo "FAIL: archetype must enable all backend options"; exit 1''
+    }
+    ${
+      if observabilityBackend.services.prometheus.enable && observabilityBackend.services.loki.enable && observabilityBackend.services.prometheus.alertmanager.enable
+      then ''echo "all backend services enabled by archetype: OK"''
+      else ''echo "FAIL: archetype must enable all backend services"; exit 1''
+    }
+
+    touch $out
+  '';
+
+  inherit centralObservabilityTest;
+
   typeServerObservabilityTest =
     if typeServerConfig == null
     then

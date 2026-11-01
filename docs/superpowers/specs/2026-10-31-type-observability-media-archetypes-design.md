@@ -83,7 +83,8 @@ Extend the machine catalog with declarative node-exporter metadata that is the s
 - Port: use that machine's configured node_exporter port, defaulting to the existing `9100` value.
 - Keep drlight's own exporter in the generated inventory using its normal machine address; do not special-case runtime discovery.
 - The target set is configuration-derived, not a live inventory of online machines. Offline/unreachable configured nodes remain targets and appear unavailable in Prometheus.
-- Ensure configured exporters listen on an address reachable from drlight and permit scrape traffic only on the intended network path. Tailscale is the normal path; non-Tailscale/LAN endpoints require explicit per-machine address/access configuration. Do not expose exporter ports broadly by default.
+- For hosts with remote scrape access configured, ensure exporters listen on an address reachable from drlight and permit traffic only on the intended network path. Tailscale is the normal path; non-Tailscale/LAN endpoints require explicit per-machine address/access configuration. Do not expose exporter ports broadly by default.
+- Until explicit network access is configured, keep the `type-server-arm` (Tailscale disabled) and Darwin exporters inaccessible remotely while retaining their catalog targets; Prometheus will show those targets as unavailable. Do not guess addresses/interfaces or open exporter ports broadly to make them reachable.
 
 Vector's Loki destination host is a separate collector-group setting. Its default remains `localhost`; type-server, type-server-arm, type-nas if Vector is later enabled, and collector-only Darwin machines set the destination to drlight as appropriate. Drlight keeps the default because it hosts Loki locally.
 

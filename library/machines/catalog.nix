@@ -21,6 +21,7 @@
     builder = "mk-system";
     system = "x86_64-linux";
     hostname = "type-nas";
+    nodeExporter.enable = true;
     modules = [
       ../archetypes/headless-server-nixos.nix
       ../../disk-configs/zfs-nas.nix
@@ -37,6 +38,7 @@
     builder = "mk-system";
     system = "x86_64-linux";
     hostname = "type-server";
+    nodeExporter.enable = true;
     modules = [
       ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
@@ -53,6 +55,7 @@
     builder = "mk-system";
     system = "aarch64-linux";
     hostname = "type-server-arm";
+    nodeExporter.enable = true;
     modules = [
       ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
@@ -128,8 +131,10 @@
     builder = "mk-system";
     system = "x86_64-linux";
     hostname = "drlight";
+    nodeExporter.enable = true;
     modules = [
       ../archetypes/headless-server-nixos.nix
+      ../archetypes/type-observability.nix
       ../../modules/nixos/media-storage.nix
       ../../modules/nixos/media-config.nix
       ../../modules/nixos/backup.nix
@@ -165,6 +170,7 @@
     builder = "mk-system";
     system = "aarch64-darwin";
     hostname = "darwin-server";
+    nodeExporter.enable = true;
     modules = [
       ../archetypes/headless-server-darwin.nix
       {
@@ -184,6 +190,7 @@
     builder = "mk-system";
     system = "aarch64-darwin";
     hostname = "MegamanX";
+    nodeExporter.enable = true;
     modules = [
       ../../modules/services/bifrost/darwin.nix
       ../../modules/services/searxng/darwin.nix

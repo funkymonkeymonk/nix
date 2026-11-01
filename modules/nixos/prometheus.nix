@@ -1,4 +1,4 @@
-# Prometheus metrics collector for NixOS (type-server).
+# Prometheus metrics backend for the NixOS type-observability archetype.
 #
 # Wraps the native NixOS `services.prometheus` + `services.prometheus.exporters.node`
 # modules with this repo's myConfig.* option convention (matching
@@ -21,6 +21,7 @@
   config,
   lib,
   options,
+  nodeExporterInventory ? [],
   ...
 }:
 with lib; let
@@ -114,6 +115,18 @@ in {
       default = 9100;
       description = "Port for node_exporter HTTP server.";
     };
+
+    openFirewallInterfaces = mkOption {
+      type = types.listOf types.str;
+      default = ["tailscale0"];
+      description = ''
+        Network interfaces allowed to reach node_exporter. The default exposes
+        metrics over Tailscale only; add a non-Tailscale interface explicitly
+        when access from that network is intended. Set to [] for local-only
+        access. The exporter listens on IPv4 interfaces, while this firewall
+        list controls its network reachability.
+      '';
+    };
   };
 
   config = mkMerge [
@@ -135,9 +148,9 @@ in {
               static_configs = [{targets = ["localhost:${toString cfg.port}"];}];
             }
           ]
-          ++ optional nodeExporterCfg.enable {
+          ++ optional (nodeExporterInventory != []) {
             job_name = "node";
-            static_configs = [{targets = ["localhost:${toString nodeExporterCfg.port}"];}];
+            static_configs = [{targets = map (target: target.target) nodeExporterInventory;}];
           };
       };
 
@@ -148,7 +161,14 @@ in {
       services.prometheus.exporters.node = {
         enable = true;
         port = nodeExporterCfg.port;
+        # The interface-specific firewall below restricts the wildcard socket
+        # without relying on Tailscale's dynamic interface address.
+        listenAddress = "0.0.0.0";
       };
+
+      networking.firewall.interfaces = genAttrs nodeExporterCfg.openFirewallInterfaces (_: {
+        allowedTCPPorts = [nodeExporterCfg.port];
+      });
     })
   ];
 }
