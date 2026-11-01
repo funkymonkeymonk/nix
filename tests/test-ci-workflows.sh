@@ -20,7 +20,7 @@ assert() {
 echo "=== CI Workflow Tests ==="
 
 # Test: all CI workflows have permissions blocks
-for wf in build-iso.yml cache-maintenance.yml extended-validation.yml main-build.yml pr-validation.yml; do
+for wf in build-iso.yml cache-maintenance.yml extended-validation.yml main-build.yml overlay-upstream-sources.yml pr-validation.yml; do
   assert "$wf has permissions block" \
     "grep -q '^permissions:' '$REPO_ROOT/.github/workflows/$wf'"
 done
@@ -82,6 +82,11 @@ assert "CI helper tests run only when CI tooling changes" \
   "grep -q 'ci-helper-files:' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \
     && grep -q \"if: needs.changes.outputs.ci-helper-files == 'true'\" \
+      '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "overlay source checker changes trigger its CI regression test" \
+  "grep -q 'scripts/check-overlay-upstream-urls.sh' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+    && grep -q 'scripts/overlay-source-urls.nix' \
       '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow keeps VM smoke checks independent" \
   "grep -q 'devenv tasks run ci:checks:vm-pr' \
@@ -204,6 +209,16 @@ assert "main build warms the bootstrap deployment closure" \
 assert "deploy machines use the shared Cachix substituter" \
   "grep -q 'https://funkymonkeymonk.cachix.org' \\
     '$REPO_ROOT/modules/common/cachix.nix'"
+assert "overlay source check is weekly and manually dispatchable" \
+  "grep -q '^  workflow_dispatch:' '$REPO_ROOT/.github/workflows/overlay-upstream-sources.yml' \\
+    && grep -q '^  schedule:' '$REPO_ROOT/.github/workflows/overlay-upstream-sources.yml'"
+assert "overlay source workflow runs the uncached URL checker" \
+  "grep -q 'bash scripts/check-overlay-upstream-urls.sh' \\
+    '$REPO_ROOT/.github/workflows/overlay-upstream-sources.yml' \\
+    && ! grep -q 'cachix-action' \\
+      '$REPO_ROOT/.github/workflows/overlay-upstream-sources.yml'"
+assert "overlay source URL checks are available as a local task" \
+  "grep -q 'check:overlay-upstreams' '$REPO_ROOT/devenv.nix'"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

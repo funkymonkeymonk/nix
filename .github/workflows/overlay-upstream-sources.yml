@@ -1,0 +1,38 @@
+---
+name: Overlay Upstream Source Checks
+# yamllint disable-line rule:truthy
+on:
+  workflow_dispatch:
+  schedule:
+    # Check pinned upstream sources weekly without rebuilding cached packages.
+    - cron: '0 5 * * 1'
+
+env:
+  NIX_ACCESS_TOKENS: >-
+    github.com=${{ github.token }} api.github.com=${{ github.token }}
+    codeload.github.com=${{ github.token }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overlay-upstream-sources
+  cancel-in-progress: true
+
+jobs:
+  check-overlay-sources:
+    name: Check Overlay Source URLs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Check pinned overlay source URLs
+        run: bash scripts/check-overlay-upstream-urls.sh

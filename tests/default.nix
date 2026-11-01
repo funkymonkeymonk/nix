@@ -129,6 +129,7 @@ in
     # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
     overlay-qwen38-mxfp4 = testOverlayPackages.qwen38Mxfp4PackageTest;
     overlay-rtk = testOverlayPackages.rtkPackageTest;
+    overlay-jj-hooks = testOverlayPackages.jjHooksPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
     overlay-bigcodebench = testOverlayPackages.bigcodebenchPackageTest;

@@ -57,6 +57,7 @@ jobs:
         if: needs.changes.outputs.ci-helper-files == 'true'
         run: |
           bash tests/test-ci-workflows.sh
+          bash tests/test-ci-overlay-upstream-check.sh
           bash tests/test-ci-check-groups.sh
           bash tests/test-ci-change-selection.sh
           bash tests/test-ci-config-cache.sh
@@ -88,6 +89,8 @@ jobs:
               - '.github/workflows/**'
             ci-helper-files:
               - 'devenv.nix'
+              - 'scripts/check-overlay-upstream-urls.sh'
+              - 'scripts/overlay-source-urls.nix'
               - '.github/scripts/**'
               - '.github/workflows/**'
               - 'tests/test-ci-*.sh'
