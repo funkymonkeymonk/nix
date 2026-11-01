@@ -177,6 +177,7 @@ Before writing the module, add tests that fail while it is absent. Cover:
 
 - Grafana is disabled unless selected by `type-observability`.
 - The NixOS service binds to loopback for Caddy proxying and uses the expected port.
+- The native Grafana secret key is generated/persisted outside the Nix store and is configured through a runtime file provider.
 - Prometheus and Loki datasources point to local backend URLs using configured ports.
 - The existing system-overview dashboard is provisioned and its queries match the central metric/log labels.
 - Username/password references use `Grafana - Home/username` and `Grafana - Home/password`, with secret values consumed at runtime rather than embedded in derivation text.
@@ -186,7 +187,7 @@ Run the focused check and verify RED before implementation.
 
 ### Task 7: Implement native NixOS Grafana and remove Darwin Grafana
 
-Use NixOS's native Grafana service and its provisioning options rather than recreating the Darwin launchd script. Preserve the dashboard with corrected Loki selectors as required by the Vector labels. Use opnix-managed secret files for the initial admin username/password, honoring the Homelab default vault without a qualified vault exception.
+Use NixOS's native Grafana service and its provisioning options rather than recreating the Darwin launchd script. Preserve the dashboard with corrected Loki selectors as required by the Vector labels. Use opnix-managed secret files for the initial admin username/password, honoring the Homelab default vault without a qualified vault exception. The pinned NixOS module requires `services.grafana.settings.security.secret_key`; generate it once at service startup with a cryptographically secure random source, persist it under Grafana's writable data directory with restrictive ownership/mode, and pass Grafana a `$__file{...}` reference. Do not create an unconfirmed 1Password item or put key material in the Nix store.
 
 Remove `modules/services/grafana/darwin.nix`, its import and enablement from the Darwin server archetype, its federation option, and obsolete Darwin-specific test/stub/coverage references. Update Darwin evaluation tests to assert Grafana is not enabled or configured there.
 

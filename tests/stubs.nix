@@ -179,6 +179,143 @@
     };
   };
 
+  grafanaSettingsStub = lib.types.submodule {
+    freeformType = lib.types.attrsOf lib.types.anything;
+    options = {
+      server = lib.mkOption {
+        type = lib.types.submodule {
+          freeformType = lib.types.attrsOf lib.types.anything;
+          options = {
+            http_addr = lib.mkOption {
+              type = lib.types.str;
+              default = "127.0.0.1";
+            };
+            http_port = lib.mkOption {
+              type = lib.types.port;
+              default = 3000;
+            };
+          };
+        };
+        default = {};
+      };
+      security = lib.mkOption {
+        type = lib.types.submodule {
+          freeformType = lib.types.attrsOf lib.types.anything;
+          options = {
+            admin_user = lib.mkOption {
+              type = lib.types.str;
+              default = "admin";
+            };
+            admin_password = lib.mkOption {
+              type = lib.types.str;
+              default = "admin";
+            };
+            secret_key = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+            };
+          };
+        };
+        default = {};
+      };
+    };
+  };
+
+  grafanaProvisionStub = lib.types.submodule {
+    options = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+      };
+      datasources = lib.mkOption {
+        type = lib.types.submodule {
+          options.settings = lib.mkOption {
+            type = lib.types.nullOr (lib.types.submodule {
+              freeformType = lib.types.attrsOf lib.types.anything;
+              options.datasources = lib.mkOption {
+                type = lib.types.listOf (lib.types.attrsOf lib.types.anything);
+                default = [];
+              };
+            });
+            default = null;
+          };
+        };
+        default = {};
+      };
+      dashboards = lib.mkOption {
+        type = lib.types.submodule {
+          options.settings = lib.mkOption {
+            type = lib.types.nullOr (lib.types.submodule {
+              freeformType = lib.types.attrsOf lib.types.anything;
+              options.providers = lib.mkOption {
+                type = lib.types.listOf (lib.types.submodule {
+                  freeformType = lib.types.attrsOf lib.types.anything;
+                  options = {
+                    name = lib.mkOption {
+                      type = lib.types.str;
+                      default = "default";
+                    };
+                    options.path = lib.mkOption {
+                      type = lib.types.path;
+                    };
+                  };
+                });
+                default = [];
+              };
+            });
+            default = null;
+          };
+        };
+        default = {};
+      };
+    };
+  };
+
+  grafanaServiceStub = lib.types.submodule {
+    options = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+      };
+      settings = lib.mkOption {
+        type = grafanaSettingsStub;
+        default = {};
+      };
+      provision = lib.mkOption {
+        type = grafanaProvisionStub;
+        default = {};
+      };
+    };
+  };
+
+  # Grafana's pinned NixOS option tree uses services.grafana.settings and
+  # services.grafana.provision. Keep those native attribute paths available
+  # in isolated module tests while leaving unrelated services free-form.
+  nixosGrafanaServiceStub = {
+    options.networking = lib.mkOption {
+      type = lib.types.anything;
+      default = {};
+    };
+    options.systemd.services = lib.mkOption {
+      type = lib.types.attrsOf lib.types.anything;
+      default = {};
+    };
+    options.system.stateVersion = lib.mkOption {
+      type = lib.types.anything;
+      default = null;
+    };
+    options.services = lib.mkOption {
+      type = lib.types.submodule {
+        freeformType = lib.types.attrsOf lib.types.anything;
+        options.grafana = lib.mkOption {
+          type = grafanaServiceStub;
+          default = {};
+        };
+      };
+      default = {};
+    };
+  };
+
   # Bare `services` option stub — required when a module reads/writes
   # services.* but doesn't need full NixOS networking (e.g. aerospace).
   servicesStub = {
@@ -253,13 +390,16 @@ in rec {
   loki = base ++ darwinService ++ [../modules/services/loki/darwin.nix];
   vector = base ++ darwinService ++ [../modules/services/loki/darwin.nix ../modules/services/vector/darwin.nix];
   alertmanager = base ++ darwinService ++ [../modules/services/alertmanager/darwin.nix];
-  grafana =
+  # NixOS Grafana tests use the native services.grafana settings/provision
+  # interface from the pinned NixOS API.
+  nixosGrafanaService = [nixosGrafanaServiceStub];
+  nixosGrafana =
     base
-    ++ darwinService
+    ++ onepassword
+    ++ nixosGrafanaService
     ++ [
-      ../modules/services/prometheus/darwin.nix
-      ../modules/services/node-exporter/darwin.nix
-      ../modules/services/loki/darwin.nix
-      ../modules/services/grafana/darwin.nix
+      ../modules/nixos/prometheus.nix
+      ../modules/nixos/loki.nix
+      ../modules/nixos/grafana.nix
     ];
 }

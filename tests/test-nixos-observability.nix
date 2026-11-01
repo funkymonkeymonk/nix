@@ -3,13 +3,13 @@
 # Verifies:
 #   - modules/nixos/prometheus.nix option defaults and enabled-state wiring
 #     (services.prometheus.enable, node-exporter scrape target, basic alert
-#     rules for disk/memory/service-down, alertmanagers wiring, tailscale-only
-#     firewall opt-in for federation)
+#     rules for disk/memory/service-down, alertmanagers wiring, restricted
+#     Tailscale-only firewall opt-in)
 #   - modules/nixos/alertmanager.nix option defaults and enabled-state wiring
 #     (services.prometheus.alertmanager.enable, documented null-receiver
 #     placeholder, optional webhook receiver)
 #   - type-server keeps node_exporter enabled but does not run local backend
-#     services (Prometheus or Alertmanager), and does NOT run Grafana.
+#     services (Prometheus, Alertmanager, or Grafana).
 {
   pkgs,
   self ? null,
@@ -21,7 +21,11 @@
 
   prometheusStubs = stubs.base ++ stubs.nixosService ++ [../modules/nixos/prometheus.nix];
   alertmanagerStubs = stubs.base ++ stubs.nixosService ++ [../modules/nixos/alertmanager.nix];
-  observabilityBackendStubs = stubs.base ++ stubs.nixosService ++ [../library/archetypes/type-observability.nix];
+  observabilityBackendStubs =
+    stubs.base
+    ++ stubs.onepassword
+    ++ stubs.nixosGrafanaService
+    ++ [../library/archetypes/type-observability.nix];
   evalPrometheus = {
     modules,
     nodeExporterInventory ? [],
@@ -222,9 +226,9 @@
           else ''echo "FAIL: type-observability must enable Alertmanager"; exit 1''
         }
         ${
-          if !(observabilityBackend.myConfig.grafana.enable or false) && !(observabilityBackend.services.grafana.enable or false)
-          then ''echo "type-observability does not add Grafana in this change: OK"''
-          else ''echo "FAIL: Grafana is out of scope for this backend archetype change"; exit 1''
+          if observabilityBackend.myConfig.grafana.enable && observabilityBackend.services.grafana.enable
+          then ''echo "type-observability enables native Grafana: OK"''
+          else ''echo "FAIL: type-observability must enable native Grafana"; exit 1''
         }
 
         ${
@@ -238,9 +242,9 @@
           else ''echo "FAIL: drlight must enable Prometheus, Loki, and Alertmanager"; exit 1''
         }
         ${
-          if drlight.services.prometheus.enable && drlight.services.loki.enable && drlight.services.prometheus.alertmanager.enable
-          then ''echo "drlight backend services are active: OK"''
-          else ''echo "FAIL: drlight must run Prometheus, Loki, and Alertmanager"; exit 1''
+          if drlight.services.prometheus.enable && drlight.services.loki.enable && drlight.services.prometheus.alertmanager.enable && drlight.services.grafana.enable
+          then ''echo "drlight backend services, including Grafana, are active: OK"''
+          else ''echo "FAIL: drlight must run Prometheus, Loki, Alertmanager, and Grafana"; exit 1''
         }
         ${
           if
@@ -635,10 +639,10 @@ in {
         }
 
         # type-server runs no Grafana or local metrics backend. The central
-        # observability configuration will be managed independently.
+        # observability configuration is selected separately by drlight.
         ${
-          if !(typeServerConfig.myConfig.grafana.enable or false)
-          then ''echo "  myConfig.grafana.enable is false on type-server: OK"''
+          if !(typeServerConfig.services.grafana.enable or false)
+          then ''echo "  native Grafana service is disabled on type-server: OK"''
           else ''echo "  FAIL: type-server should not run Grafana"; exit 1''
         }
 

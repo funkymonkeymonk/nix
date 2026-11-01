@@ -49,9 +49,9 @@
       else ''echo "FAIL: darwin-server must not enable Loki"; exit 1''
     }
     ${
-      if !(self.darwinConfigurations.darwin-server.config.myConfig.grafana.enable or false)
+      if !(self.darwinConfigurations.darwin-server.config.launchd.daemons ? grafana)
       then ""
-      else ''echo "FAIL: darwin-server must not enable Grafana"; exit 1''
+      else ''echo "FAIL: darwin-server must not configure a Grafana launchd service"; exit 1''
     }
     ${
       if self.darwinConfigurations.darwin-server.config.myConfig.vector.enable

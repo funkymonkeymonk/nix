@@ -115,9 +115,9 @@
     # Tested via test-alertmanager.nix (option defaults, custom values,
     # null-receiver placeholder assertions)
     "services/alertmanager/darwin.nix"
-    # Tested via test-grafana.nix (option defaults, custom values,
-    # datasource/dashboard provisioning assertions)
-    "services/grafana/darwin.nix"
+    # Tested via test-grafana.nix (native service, secret, datasource,
+    # dashboard, and drlight archetype assertions)
+    "nixos/grafana.nix"
     # Tested via test-temporal.nix (option defaults and launchd script).
     "services/temporal/darwin.nix"
     # Tested via test-home-manager.nix (opencode, shell aliases)
