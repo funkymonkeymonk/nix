@@ -45,7 +45,6 @@
         ];
     }).config;
 
-  vectorEnabledScript = vectorCustom.launchd.daemons.vector.command;
   vectorRemoteScript = vectorRemoteDestination.launchd.daemons.vector.command;
 in {
   vectorOptionsTest = pkgs.runCommand "test-vector-options" {} ''
