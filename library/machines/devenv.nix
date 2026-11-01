@@ -1,6 +1,7 @@
 {inputs, ...}: let
   lib = inputs.nixpkgs.lib;
   catalog = import ./catalog.nix {inherit inputs;};
+  observabilityInventory = import ./observability-inventory.nix {inherit catalog;};
   projectMachineModules = import ./modules.nix {inherit inputs;};
   nixpkgsConfig = import ../lib/nixpkgs-config.nix;
   withSpecialArgs = import ./with-special-args.nix {inherit lib;};
@@ -60,6 +61,7 @@
       })
       (nixpkgsConfig {inherit inputs;})
       (import ../../modules)
+      (observabilityInventory.machineModule machine)
     ];
   in {
     imports = map (withSpecialArgs moduleArgs) (baseModules ++ machine.modules);

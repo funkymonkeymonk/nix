@@ -17,7 +17,7 @@
 - Catalog exporter metadata is the single source for both node-exporter enablement and Prometheus target generation. Do not derive one machine's Nix configuration by evaluating another machine's `self.*Configurations` output.
 - Default scrape address is the catalog hostname. An optional address field overrides it with a hostname or IP. Default node-exporter port is 9100; use a machine's configured port if overridden.
 - Runtime targets include every configured exporter across NixOS and Darwin, even when offline. Prometheus reports availability; no runtime Tailscale API query or target scanner is added.
-- Restrict exporter reachability to configured interfaces. Tailscale is the normal route; other routed networks require an explicit per-host address/access setting. Never open node_exporter broadly by default.
+- Restrict exporter reachability to configured interfaces. Tailscale is the normal route; other routed networks require an explicit per-host address/access setting. Never open node_exporter broadly by default. Until access is configured, type-server-arm (Tailscale disabled) and Darwin exporters remain inaccessible remotely but stay in Prometheus inventory as unavailable targets.
 - Vector's destination host defaults to `localhost`. Collector-only hosts use drlight's configured reachable hostname/address; drlight uses the default.
 - Drlight remains the only host in this scope with Prometheus, Loki, Alertmanager, and Grafana. `type-nas` retains node_exporter but loses local Prometheus. Darwin targets retain configured collectors but lose local Prometheus/Loki/Alertmanager/Grafana.
 - Grafana credentials use opnix references `Grafana - Home/username` and `Grafana - Home/password` under drlight's existing Homelab default vault. Do not hard-code the `op://Homelab/` prefix, resolve secret values, or place values in the Nix store.
@@ -128,6 +128,7 @@ Write failing tests for the Vector destination default (`localhost`), remote hos
 - Set collector-only type-server, type-server-arm, and Darwin configurations to point at drlight; drlight retains localhost.
 - Keep node_exporter enabled where catalog metadata says it is enabled, including type-nas and configured Darwin targets.
 - Configure exporter network access safely: allow scraping over Tailscale by default where applicable; use explicit address/access settings for other networks. Test firewall/listen behavior instead of opening ports globally.
+- Leave type-server-arm (Tailscale disabled) and Darwin remote exporter access disabled until explicit per-host addresses/interfaces are available. Keep these exporters in inventory; Prometheus reports them unavailable rather than opening broad access or guessing network details.
 - Remove Prometheus/Loki/Alertmanager backend imports and enablement from both Darwin headless archetypes. Retain only their currently configured collectors; do not add Vector to an archetype that does not already use it unless required by the approved design.
 
 ### Task 5: Add the `type-observability` backend archetype and wire central Prometheus

@@ -13,12 +13,8 @@
   imports = [
     ./base-darwin.nix
     ../../modules/services/lume/darwin.nix
-    ../../modules/services/prometheus/darwin.nix
     ../../modules/services/node-exporter/darwin.nix
-    ../../modules/services/alertmanager/darwin.nix
-    ../../modules/services/loki/darwin.nix
     ../../modules/services/vector/darwin.nix
-    ../../modules/services/grafana/darwin.nix
   ];
 
   myConfig = {
@@ -43,13 +39,9 @@
       prePullImages = ["macos-tahoe-vanilla:latest"];
     };
 
-    # Native observability stack for headless Darwin servers.
-    prometheus.enable = true;
-    nodeExporter.enable = true;
-    alertmanager.enable = true;
-    loki.enable = true;
+    # Collect logs locally and send them to the central Loki host.
+    collector.destinationHostname = "drlight";
     vector.enable = true;
-    grafana.enable = true;
   };
 
   # SSH hardening (Darwin uses extraConfig, not settings.)

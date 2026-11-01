@@ -1,4 +1,4 @@
-# Prometheus Alertmanager for NixOS (type-server).
+# Prometheus Alertmanager for the NixOS type-observability backend.
 #
 # OPEN ITEM: the real notification receiver (Matrix or Discord webhook) is
 # genuinely TBD — no credentials are available. This module wires up

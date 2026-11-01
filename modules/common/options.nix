@@ -5,6 +5,12 @@
 }:
 with lib; {
   options.myConfig = {
+    collector.destinationHostname = mkOption {
+      type = types.str;
+      default = "localhost";
+      description = "Hostname used by log collectors when sending data to the central Loki service.";
+    };
+
     # Computed helper for platform detection (read-only)
     # Uses _module.args.pkgs which is always available during module evaluation
     isDarwin = mkOption {

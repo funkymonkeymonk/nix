@@ -58,6 +58,7 @@
   testDevBaseMigration = import ./test-dev-base-migration.nix {inherit pkgs;};
   testMachinesFoundation = import ./test-machines-foundation.nix {inherit pkgs inputs;};
   testMachinesInventory = import ./test-machines-inventory.nix {inherit pkgs self inputs;};
+  testObservabilityInventory = import ./test-observability-inventory.nix {inherit pkgs inputs;};
   testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
@@ -111,6 +112,7 @@ in
     dev-base-migration = testDevBaseMigration.devBaseMigration;
     machines-secret-profiles = testMachinesFoundation.machinesSecretProfiles;
     machines-inventory = testMachinesInventory.machinesInventory;
+    observability-inventory = testObservabilityInventory.observabilityInventory;
     machines-ops = testMachineOps.machineOps;
     machines-secretspec-empty-profiles = testMachineOps.secretspecEmptyProfiles;
     installer-ready = testInstallerReady.installerReady;
@@ -319,6 +321,7 @@ in
     # Observability module tests
     node-exporter-options = testObservability.nodeExporterOptionsTest;
     node-exporter-custom-options = testObservability.nodeExporterCustomOptionsTest;
+    node-exporter-listen = testObservability.nodeExporterListenTest;
     prometheus-options = testObservability.prometheusOptionsTest;
     prometheus-custom-options = testObservability.prometheusCustomOptionsTest;
     prometheus-generated-script = testObservability.prometheusGeneratedScriptTest;
@@ -334,6 +337,7 @@ in
     vector-options = testVector.vectorOptionsTest;
     vector-custom-options = testVector.vectorCustomOptionsTest;
     vector-generated-config = testVector.vectorGeneratedConfigTest;
+    vector-remote-destination = testVector.vectorRemoteDestinationTest;
 
     # Alertmanager module tests
     alertmanager-options = testAlertmanager.alertmanagerOptionsTest;
@@ -368,6 +372,8 @@ in
     nixos-alertmanager-options = testNixosObservability.alertmanagerOptionsTest;
     nixos-alertmanager-null-receiver = testNixosObservability.alertmanagerNullReceiverTest;
     type-server-observability = testNixosObservability.typeServerObservabilityTest;
+    type-observability-archetype = testNixosObservability.typeObservabilityArchetypeTest;
+    central-observability = testNixosObservability.centralObservabilityTest;
     type-server-archetypes = testServerArchetypes.typeServerArchetypeTest;
 
     # LLM stack integration test

@@ -6,7 +6,7 @@
 #     on the Loki sink)
 #   - modules/nixos/loki.nix option defaults and enabled-state wiring
 #     (services.loki.enable, configured HTTP port, firewall behavior)
-#   - type-server actually enables both modules (via the real flake config)
+#   - type-server enables Vector as a collector, routes it to drlight, and does not run Loki locally
 {
   pkgs,
   self ? null,
@@ -50,6 +50,19 @@
         ];
     }).config;
 
+  vectorRemoteDestination =
+    (lib.evalModules {
+      modules =
+        vectorStubs
+        ++ [
+          {
+            config.networking.hostName = "type-server";
+            config.myConfig.vector.enable = true;
+            config.myConfig.collector.destinationHostname = "drlight";
+          }
+        ];
+    }).config;
+
   lokiDefaults =
     (lib.evalModules {
       modules = lokiStubs;
@@ -79,6 +92,21 @@
         ];
     }).config;
 
+  lokiEnabledWithTailscaleFirewall =
+    (lib.evalModules {
+      modules =
+        lokiStubs
+        ++ [
+          {
+            config.myConfig.loki = {
+              enable = true;
+              openFirewallTailscale = true;
+              port = 3102;
+            };
+          }
+        ];
+    }).config;
+
   vectorSettings = vectorEnabled.services.vector.settings;
   lokiLabels = vectorSettings.sinks.loki.labels;
 
@@ -101,6 +129,12 @@ in {
       if vectorDefaults.lokiEndpoint == "http://localhost:3100"
       then ''echo "  lokiEndpoint default = http://localhost:3100: OK"''
       else ''echo "  FAIL: lokiEndpoint should default to http://localhost:3100"; exit 1''
+    }
+
+    ${
+      if (lib.evalModules {modules = vectorStubs;}).config.myConfig.collector.destinationHostname == "localhost"
+      then ''echo "  collector destination hostname defaults to localhost: OK"''
+      else ''echo "  FAIL: collector destination hostname should default to localhost"; exit 1''
     }
 
     echo "All Vector option default tests passed"
@@ -172,6 +206,12 @@ in {
       else ''echo "  FAIL: custom lokiEndpoint should be wired to sinks.loki.endpoint"; exit 1''
     }
 
+    ${
+      if vectorRemoteDestination.services.vector.settings.sinks.loki.endpoint == "http://drlight:3100"
+      then ''echo "  collector hostname override routes Vector to drlight: OK"''
+      else ''echo "  FAIL: collector hostname override should route Vector to http://drlight:3100"; exit 1''
+    }
+
     echo "All Vector custom endpoint tests passed"
     touch $out
   '';
@@ -195,6 +235,12 @@ in {
       if !lokiDefaults.openFirewall
       then ''echo "  openFirewall default = false: OK"''
       else ''echo "  FAIL: openFirewall should default to false"; exit 1''
+    }
+
+    ${
+      if !lokiDefaults.openFirewallTailscale
+      then ''echo "  openFirewallTailscale default = false: OK"''
+      else ''echo "  FAIL: openFirewallTailscale should default to false"; exit 1''
     }
 
     echo "All Loki option default tests passed"
@@ -247,6 +293,15 @@ in {
       else ''echo "  FAIL: firewall should be opened on the configured port"; exit 1''
     }
 
+    ${
+      if
+        builtins.elem 3102 lokiEnabledWithTailscaleFirewall.networking.firewall.interfaces.tailscale0.allowedTCPPorts
+        && !(builtins.elem 3102 (lokiEnabledWithTailscaleFirewall.networking.firewall.allowedTCPPorts or []))
+        && !(lokiEnabledWithTailscaleFirewall.myConfig.loki.openFirewall or false)
+      then ''echo "  Tailscale-only listener leaves global firewall closed: OK"''
+      else ''echo "  FAIL: Tailscale-only listener must not open global firewall"; exit 1''
+    }
+
     echo "All Loki firewall tests passed"
     touch $out
   '';
@@ -268,6 +323,15 @@ in {
           if typeServerConfig.myConfig.vector.enable
           then ''echo "  myConfig.vector.enable = true on type-server: OK"''
           else ''echo "  FAIL: type-server should enable myConfig.vector"; exit 1''
+        }
+
+        ${
+          if
+            typeServerConfig.myConfig.collector.destinationHostname
+            == "drlight"
+            && typeServerConfig.services.vector.settings.sinks.loki.endpoint == "http://drlight:3100"
+          then ''echo "  Vector destination routes to drlight: OK"''
+          else ''echo "  FAIL: type-server Vector should route to http://drlight:3100"; exit 1''
         }
 
         ${

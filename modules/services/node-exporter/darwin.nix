@@ -46,8 +46,12 @@ in {
 
     listenAddress = lib.mkOption {
       type = lib.types.str;
-      default = "127.0.0.1:9100";
-      description = "Bind address for node_exporter HTTP server";
+      default = "127.0.0.1:${toString cfg.port}";
+      description = ''
+        Bind address for node_exporter HTTP server. Darwin keeps this loopback-only
+        by default because nix-darwin does not provide interface-specific inbound
+        firewall rules; set an explicit local address when remote access is intended.
+      '';
     };
   };
 

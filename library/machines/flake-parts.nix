@@ -4,6 +4,7 @@
   ...
 }: let
   catalog = import ./catalog.nix {inherit inputs;};
+  observabilityInventory = import ./observability-inventory.nix {inherit catalog;};
   projectMachineModules = import ./modules.nix {inherit inputs;};
   lib = inputs.nixpkgs.lib;
   nixosMachines = lib.filterAttrs (_: machine: machine.kind == "nixos") catalog;
@@ -31,7 +32,8 @@
   mkDarwin = _: machine:
     libraryLib.mkDarwinSystem {
       inherit inputs;
-      inherit (machine) hostname system modules overrides extraSpecialArgs;
+      inherit (machine) hostname system overrides extraSpecialArgs;
+      modules = [(observabilityInventory.machineModule machine)] ++ machine.modules;
     };
 in {
   flake.nixosConfigurations = lib.mapAttrs mkNixos nixosMachines;

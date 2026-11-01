@@ -21,6 +21,7 @@
       skills.superpowersPath = inputs.superpowers;
       roles.developer.enable = true;
       tailscale.enable = true;
+      collector.destinationHostname = "localhost";
       homepage.enable = true;
       mediaConfig.enable = true;
       backup = {

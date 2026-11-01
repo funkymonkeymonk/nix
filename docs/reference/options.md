@@ -52,10 +52,8 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `bindAddress` | string | `"127.0.0.1"` | Bind address for Alertmanager HTTP server. Defaults to loopback-only since Prometheus queries it on the same host. |
-| `dataDir` | string | `"/Users/monkey/Library/Application Support/Alertmanager"` | Directory for Alertmanager silence/notification-log storage |
-| `enable` | boolean | `false` | Enable Prometheus Alertmanager for alert routing/deduplication |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9093` | Port for Alertmanager HTTP server |
+| `enable` | boolean | `false` | Whether to enable Prometheus Alertmanager for alert routing/deduplication. |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9093` | Port for Alertmanager HTTP server. |
 | `receiverWebhookUrl` | null or string | `null` | Webhook URL for the real alert receiver (e.g. a Matrix or Discord incoming webhook). Genuinely TBD as of this module's introduction — no credentials are available. Leave null to route all alerts to a null receiver (silently dropped, no external calls) until a real endpoint is provisioned. |
 
 ### myConfig.autoUpgrade
@@ -143,6 +141,12 @@ or changing a `myConfig.*` option.
 | `mcpServers.<name>.type` | one of "local", "remote" | *required* | Type of MCP server |
 | `mcpServers.<name>.url` | string | `""` | URL for remote MCP servers |
 
+### myConfig.collector
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `destinationHostname` | string | `"localhost"` | Hostname used by log collectors when sending data to the central Loki service. |
+
 ### myConfig.desktop
 
 | Option | Type | Default | Description |
@@ -181,17 +185,6 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Whether to enable gaming support. |
 
-### myConfig.grafana
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `bindAddress` | string | `"0.0.0.0"` | Bind address for Grafana HTTP server. Defaults to all interfaces — protoman is a headless server reachable only via Tailscale, which is treated as the network access boundary here rather than a specific bind IP. |
-| `dataDir` | string | `"/Users/monkey/Library/Application Support/Grafana"` | Directory for Grafana's sqlite database, logs, and plugins |
-| `domain` | string | `"localhost"` | Domain name used for building absolute URLs (e.g. in alert links). Set to protoman's Tailscale hostname/MagicDNS name once known. |
-| `enable` | boolean | `false` | Enable Grafana dashboard/visualization server with Prometheus + Loki datasources |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3000` | Port for Grafana HTTP server |
-| `typeServerPrometheusUrl` | null or string | `null` | URL of type-server's Prometheus instance (see modules/nixos/prometheus.nix), reachable over Tailscale. When set, adds a second "Prometheus (type-server)" datasource here instead of running a duplicate Grafana on type-server. Genuinely TBD as of this option's introduction — type-server's real Tailscale MagicDNS name isn't known at eval time. Example: "http://type-server.<tailnet>.ts.net:9090". |
-
 ### myConfig.homepage
 
 | Option | Type | Default | Description |
@@ -225,11 +218,11 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `bindAddress` | string | `"127.0.0.1"` | Bind address for Loki HTTP server. Defaults to loopback-only since Grafana/Vector run on the same host; set to protoman's LAN IP for cross-host 192.168.83.0/24 access. |
-| `dataDir` | string | `"/Users/monkey/Library/Application Support/Loki"` | Directory for Loki chunks, index, and compactor working data |
-| `enable` | boolean | `false` | Enable Grafana Loki log aggregation server |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | Port for Loki HTTP server (log push + query API) |
-| `retention` | string | `"168h"` | Log retention period (e.g. 168h = 7 days, 720h = 30 days) |
+| `dataDir` | absolute path | `"/var/lib/loki"` | Directory Loki uses to store chunks, indexes, and the WAL. |
+| `enable` | boolean | `false` | Whether to enable Loki log storage backend. |
+| `openFirewall` | boolean | `false` | Whether to open the firewall for Loki's HTTP port on all interfaces. Keep disabled unless broad access is explicitly intended. |
+| `openFirewallTailscale` | boolean | `false` | Whether to allow Loki's HTTP port on the tailscale0 interface only. Does not open the port globally or on other interfaces. |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port Loki listens on for log pushes and queries. |
 
 ### myConfig.lume
 
@@ -264,7 +257,8 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Enable Prometheus node_exporter for system metrics |
-| `listenAddress` | string | `"127.0.0.1:9100"` | Bind address for node_exporter HTTP server |
+| `listenAddress` | string | `"127.0.0.1:9100"` | Bind address for node_exporter HTTP server. Darwin keeps this loopback-only by default because nix-darwin does not provide interface-specific inbound firewall rules; set an explicit local address when remote access is intended. |
+| `openFirewallInterfaces` | list of string | `[ "tailscale0" ]` | Network interfaces allowed to reach node_exporter. The default exposes metrics over Tailscale only; add a non-Tailscale interface explicitly when access from that network is intended. Set to [] for local-only access. The exporter listens on IPv4 interfaces, while this firewall list controls its network reachability. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9100` | Port for node_exporter HTTP server |
 
 ### myConfig.obsidian
@@ -392,12 +386,10 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `bindAddress` | string | `"127.0.0.1"` | Bind address for Prometheus HTTP server. Defaults to loopback-only since Grafana queries it on the same host; set to protoman's LAN IP for cross-host 192.168.83.0/24 access. |
-| `dataDir` | string | `"/Users/monkey/Library/Application Support/Prometheus"` | Directory for Prometheus TSDB storage |
-| `enable` | boolean | `false` | Enable Prometheus metrics collector for local LLM stack observability |
+| `enable` | boolean | `false` | Whether to enable Prometheus metrics collector. |
 | `openFirewallTailscale` | boolean | `false` | Open Prometheus's port on the tailscale0 interface only, so it can be queried remotely over Tailscale (e.g. by another host's Grafana instance federating this Prometheus as a second datasource). Does not open the port on any other interface. |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9090` | Port for Prometheus HTTP server |
-| `retention` | string | `"7d"` | TSDB retention time (e.g. 7d, 24h, 30d) |
+| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9090` | Port for Prometheus HTTP server. |
+| `retention` | string | `"15d"` | TSDB retention time (e.g. 15d, 30d). |
 
 ### myConfig.roles
 
@@ -506,7 +498,8 @@ or changing a `myConfig.*` option.
 | `enable` | boolean | `false` | Enable Vector log shipper (tails local service logs, ships to Loki) |
 | `hostLabel` | string | `"darwin-server"` | Value for the 'host' label attached to all shipped log lines |
 | `logGlobs` | list of string | `[ "/tmp/*.log" ]` | Glob patterns for log files to tail. Matches this repo's launchd StandardOutPath/StandardErrorPath convention (/tmp/<service>.log, /tmp/<service>.error.log). |
-| `lokiEndpoint` | string | `"http://localhost:3100"` | Base URL of the Loki instance Vector ships logs to. |
+| `lokiEndpoint` | string | `"http://drlight:3100"` | Base URL of the Loki instance Vector ships logs to. |
+| `lokiPort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port used for the configured collector destination hostname. |
 
 ### myConfig.zellij
 

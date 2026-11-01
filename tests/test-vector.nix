@@ -19,18 +19,32 @@
         ++ [
           {
             config.myConfig.users = [{name = "monkey";}];
-            config.myConfig.loki = {
-              enable = true;
-              port = 3101;
-            };
             config.myConfig.vector = {
               enable = true;
+              lokiPort = 3101;
             };
           }
         ];
     }).config;
 
+  vectorRemoteDestination =
+    (lib.evalModules {
+      modules =
+        stubs.vector
+        ++ [
+          {
+            config.myConfig.users = [{name = "monkey";}];
+            config.myConfig.vector = {
+              enable = true;
+              lokiPort = 3101;
+            };
+            config.myConfig.collector.destinationHostname = "drlight";
+          }
+        ];
+    }).config;
+
   vectorEnabledScript = vectorCustom.launchd.daemons.vector.command;
+  vectorRemoteScript = vectorRemoteDestination.launchd.daemons.vector.command;
 in {
   vectorOptionsTest = pkgs.runCommand "test-vector-options" {} ''
     echo "=== Testing Vector Option Defaults ==="
@@ -65,17 +79,33 @@ in {
   '';
 
   # Verify the generated Vector config ships logs to the configured Loki
-  # endpoint (host + port derived from myConfig.loki, not hardcoded).
+  # endpoint (collector hostname + configured Vector port).
+  vectorRemoteDestinationTest = pkgs.runCommand "test-vector-remote-destination" {} ''
+    echo "=== Testing Darwin Vector Remote Destination ==="
+
+    SCRIPT=${vectorRemoteScript}
+    CONFIG=$(grep -o -- '--config /nix/store/[^ ]*' "$SCRIPT" | head -1 | cut -d' ' -f2)
+
+    if grep -q '"endpoint":"http://drlight:3101"' "$CONFIG"; then
+      echo "  configured collector hostname routes logs to drlight:3101: OK"
+    else
+      echo "  FAIL: remote sink should target http://drlight:3101"; exit 1
+    fi
+
+    echo "All Vector remote destination tests passed"
+    touch $out
+  '';
+
   vectorGeneratedConfigTest = pkgs.runCommand "test-vector-generated-config" {} ''
     echo "=== Testing Vector Generated Config ==="
 
     SCRIPT=${vectorEnabledScript}
     CONFIG=$(grep -o -- '--config /nix/store/[^ ]*' "$SCRIPT" | head -1 | cut -d' ' -f2)
 
-    if grep -q '"endpoint":"http://127.0.0.1:3101"' "$CONFIG"; then
-      echo "  loki sink endpoint derived from myConfig.loki.port (3101): OK"
+    if grep -q '"endpoint":"http://localhost:3101"' "$CONFIG"; then
+      echo "  loki sink endpoint uses localhost and the configured port (3101): OK"
     else
-      echo "  FAIL: loki sink endpoint should be http://127.0.0.1:3101"; exit 1
+      echo "  FAIL: loki sink endpoint should be http://localhost:3101"; exit 1
     fi
 
     if grep -q '"include":\["/tmp/\*.log"\]' "$CONFIG"; then
