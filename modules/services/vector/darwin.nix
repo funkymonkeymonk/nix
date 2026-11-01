@@ -16,7 +16,7 @@
   darwinHomeDir = commonLib.darwinHomeDir config;
   dataDir = cfg.dataDir;
 
-  lokiEndpoint = "http://${config.myConfig.loki.bindAddress}:${toString config.myConfig.loki.port}";
+  lokiEndpoint = "http://${config.myConfig.collector.destinationHostname}:${toString cfg.lokiPort}";
 
   vectorConfig = {
     data_dir = dataDir;
@@ -70,6 +70,12 @@ in {
       type = lib.types.listOf lib.types.str;
       default = ["/tmp/*.log"];
       description = "Glob patterns for log files to tail. Matches this repo's launchd StandardOutPath/StandardErrorPath convention (/tmp/<service>.log, /tmp/<service>.error.log).";
+    };
+
+    lokiPort = lib.mkOption {
+      type = lib.types.port;
+      default = 3100;
+      description = "HTTP port used for the configured collector destination hostname.";
     };
 
     hostLabel = lib.mkOption {

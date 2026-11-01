@@ -32,23 +32,38 @@
     }
     echo "  type-darwin-server: removed ✓"
 
-    # The server archetype owns the local observability stack.
+    # Darwin server archetypes retain collectors but not local backends.
     ${
-      if self.darwinConfigurations.darwin-server.config.myConfig.loki.enable
+      if !(self.darwinConfigurations.darwin-server.config.myConfig.prometheus.enable or false)
       then ""
-      else ''echo "FAIL: darwin-server should enable Loki"; exit 1''
+      else ''echo "FAIL: darwin-server must not enable Prometheus"; exit 1''
+    }
+    ${
+      if !(self.darwinConfigurations.darwin-server.config.myConfig.alertmanager.enable or false)
+      then ""
+      else ''echo "FAIL: darwin-server must not enable Alertmanager"; exit 1''
+    }
+    ${
+      if !(self.darwinConfigurations.darwin-server.config.myConfig.loki.enable or false)
+      then ""
+      else ''echo "FAIL: darwin-server must not enable Loki"; exit 1''
+    }
+    ${
+      if !(self.darwinConfigurations.darwin-server.config.myConfig.grafana.enable or false)
+      then ""
+      else ''echo "FAIL: darwin-server must not enable Grafana"; exit 1''
     }
     ${
       if self.darwinConfigurations.darwin-server.config.myConfig.vector.enable
       then ""
-      else ''echo "FAIL: darwin-server should enable Vector"; exit 1''
+      else ''echo "FAIL: darwin-server should retain Vector"; exit 1''
     }
     ${
-      if self.darwinConfigurations.darwin-server.config.myConfig.grafana.enable
+      if self.darwinConfigurations.darwin-server.config.myConfig.collector.destinationHostname == "drlight"
       then ""
-      else ''echo "FAIL: darwin-server should enable Grafana"; exit 1''
+      else ''echo "FAIL: Darwin Vector should ship to drlight"; exit 1''
     }
-    echo "  observability stack enabled: ✓"
+    echo "  collector-only observability configuration: ✓"
 
     ${
       let
@@ -80,7 +95,8 @@
           && megamanx.myConfig.omlx.server.host == "0.0.0.0"
           && megamanx.myConfig.bifrost.enable
           && megamanx.myConfig.bifrost.host == "0.0.0.0"
-          && megamanx.myConfig.prometheus.enable
+          && !(megamanx.myConfig.prometheus.enable or false)
+          && !(megamanx.launchd.daemons ? prometheus)
           && megamanx.myConfig.nodeExporter.enable
           && megamanx.myConfig.searxng.enable
           && megamanx.myConfig.temporal.enable

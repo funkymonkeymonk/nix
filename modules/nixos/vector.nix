@@ -17,7 +17,7 @@ in {
 
     lokiEndpoint = mkOption {
       type = types.str;
-      default = "http://localhost:3100";
+      default = "http://${config.myConfig.collector.destinationHostname}:3100";
       description = "Base URL of the Loki instance Vector ships logs to.";
     };
 

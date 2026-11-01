@@ -32,9 +32,17 @@ in {
       type = types.bool;
       default = false;
       description = ''
-        Whether to open the firewall for Loki's HTTP port. Keep disabled
-        (the default) when only local log shippers (e.g. Vector on the
-        same host) push to Loki over localhost.
+        Whether to open the firewall for Loki's HTTP port on all interfaces.
+        Keep disabled unless broad access is explicitly intended.
+      '';
+    };
+
+    openFirewallTailscale = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Whether to allow Loki's HTTP port on the tailscale0 interface only.
+        Does not open the port globally or on other interfaces.
       '';
     };
   };
@@ -80,5 +88,8 @@ in {
     };
 
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [cfg.port];
+
+    networking.firewall.interfaces."tailscale0".allowedTCPPorts =
+      mkIf cfg.openFirewallTailscale [cfg.port];
   };
 }
