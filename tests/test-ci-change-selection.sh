@@ -55,6 +55,15 @@ assert_selection \
   "flake.lock" \
   "modules/nixos/vector.nix"
 assert_selection \
+  "Test registry changes with a focused media test stay scoped" \
+  '["drlight-media-","media-center-archetype","type-server-archetypes"]' \
+  "tests/default.nix" \
+  "tests/test-media-center-archetype.nix"
+assert_selection \
+  "Standalone test registry changes select all checks" \
+  '["*"]' \
+  "tests/default.nix"
+assert_selection \
   "Secret manifest changes select all non-VM checks" \
   '["*"]' \
   "secretspec.toml"

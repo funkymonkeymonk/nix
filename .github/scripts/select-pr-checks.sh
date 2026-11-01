@@ -3,6 +3,7 @@ set -euo pipefail
 
 patterns=()
 select_all=false
+test_registry_changed=false
 
 add() {
   patterns+=("$@")
@@ -12,8 +13,13 @@ select_for_path() {
   local path="$1"
 
   case "$path" in
-    flake.nix|flake.lock|devenv.nix|devenv.lock|devenv.yaml|tests/default.nix|tests/stubs.nix|tests/nix-unit-tests.nix|modules/common/options.nix|.github/workflows/*|.github/scripts/*)
+    flake.nix|flake.lock|devenv.nix|devenv.lock|devenv.yaml|tests/stubs.nix|tests/nix-unit-tests.nix|modules/common/options.nix|.github/workflows/*|.github/scripts/*)
       select_all=true
+      ;;
+    tests/default.nix)
+      # Registry-only edits still need validation; companion test/source paths
+      # select focused checks instead of forcing the full suite.
+      test_registry_changed=true
       ;;
     docs/*|README.md|README|*.md)
       ;;
@@ -232,7 +238,7 @@ while IFS= read -r path; do
   select_for_path "$path"
 done
 
-if [[ "$select_all" == true ]]; then
+if [[ "$select_all" == true ]] || { [[ "$test_registry_changed" == true ]] && ((${#patterns[@]} == 0)); }; then
   printf '["*"]\n'
 elif ((${#patterns[@]} == 0)); then
   printf '[]\n'
