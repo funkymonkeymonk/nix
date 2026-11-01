@@ -45,7 +45,8 @@ jobs:
             "$NIXPKGS#alejandra" \
             "$NIXPKGS#deadnix" \
             "$NIXPKGS#statix" \
-            "$NIXPKGS#yamllint"
+            "$NIXPKGS#yamllint" \
+            "$NIXPKGS#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run lint checks
         run: bash .github/scripts/lint.sh
@@ -290,6 +291,7 @@ jobs:
       - build-nixos
       - build-nixos-arm
       - discover-targets
+      - discover-checks
       - test-and-validate
     if: always()
     steps:
@@ -359,7 +361,57 @@ jobs:
           else
             exit 1
           fi
-  # VM checks require KVM and are kept separate from the non-VM check loop.
+  # Discover the check list once. The devenv task emits the matrix consumed by
+  # the bounded-concurrency check jobs below.
+  discover-checks:
+    name: Discover PR Check Matrix
+    runs-on: ubuntu-latest
+    needs: [lint, changes]
+    if: >
+      ${{
+        needs.changes.outputs.nix-files == 'true' ||
+        needs.changes.outputs.workflows == 'true'
+      }}
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
+      - name: Cachix (read-only)
+        uses: cachix/cachix-action@v15
+        with:
+          name: funkymonkeymonk
+          skipPush: true
+      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
+          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+      - name: Create stub facter.json
+        run: bash .github/scripts/create-facter-stub.sh
+      - name: Validate Disko configuration
+        run: >-
+          nix build .#nixosConfigurations.zero.config.system.build.diskoScript
+          --no-link --dry-run --quiet
+      - name: Validate installation script
+        run: bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh
+      - name: Plan PR checks
+        id: plan
+        run: devenv tasks run ci:checks:pr-plan --input batchSize=4
+
+  # VM checks require KVM and remain independent of the non-VM matrix.
   vm-tests:
     name: NixOS VM Checks
     runs-on: ubuntu-latest
@@ -379,25 +431,41 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Build VM smoke checks
-        run: bash .github/scripts/build-checks.sh vm-pr
+      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
+          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+      - name: Run VM smoke checks
+        run: devenv tasks run ci:checks:vm-pr
 
-  # Run core checks and configuration validations together, without realizing
-  # the full devenv package environment in CI.
+  # Each matrix runner builds four checks with max-jobs=2; only the workflow
+  # fans out aggressively, avoiding extra build pressure on individual runners.
   test-and-validate:
-    name: Tests & Validation
+    name: Tests & Validation (${{ join(matrix.checks, ', ') }})
     runs-on: ubuntu-latest
-    needs: [lint, changes]
+    timeout-minutes: 20
+    needs: [lint, changes, discover-checks]
     if: >
       ${{
-        needs.changes.outputs.nix-files == 'true' ||
-        needs.changes.outputs.workflows == 'true'
+        (needs.changes.outputs.nix-files == 'true' ||
+         needs.changes.outputs.workflows == 'true') &&
+        needs.discover-checks.outputs.matrix != ''
       }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJson(needs.discover-checks.outputs.matrix) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -408,18 +476,22 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           skipPush: true
+      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
+          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
-      - name: Validate Disko configuration
-        run: >-
-          nix build .#nixosConfigurations.zero.config.system.build.diskoScript
-          --no-link --dry-run --quiet
-      - name: Validate installation script
-        run: bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh
-      - name: Run curated non-VM checks
-        run: bash .github/scripts/build-checks.sh pr
+      - name: Build check shard
+        run: devenv tasks run ci:checks:pr-shard --input-json '${{ toJSON(matrix) }}'

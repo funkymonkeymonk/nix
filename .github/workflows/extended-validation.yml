@@ -34,13 +34,21 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
+          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - name: Build extended package checks
-        run: bash .github/scripts/build-checks.sh extended
+        run: devenv tasks run ci:checks:extended
 
   role-package-vm-checks:
     name: Full Role Package VM Checks
@@ -56,10 +64,18 @@ jobs:
             experimental-features = nix-command flakes
             sandbox = false
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Install devenv CLI (pinned to flake.lock nixpkgs)
+        run: |
+          NIXPKGS_OWNER=$(jq -r '.nodes.nixpkgs.locked.owner' flake.lock)
+          NIXPKGS_REPO=$(jq -r '.nodes.nixpkgs.locked.repo' flake.lock)
+          NIXPKGS_REV=$(jq -r '.nodes.nixpkgs.locked.rev' flake.lock)
+          NIXPKGS="github:${NIXPKGS_OWNER}/${NIXPKGS_REPO}/${NIXPKGS_REV}"
+          nix profile add --accept-flake-config "$NIXPKGS#devenv"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - name: Build role package VM checks
-        run: bash .github/scripts/build-checks.sh vm-extended
+        run: devenv tasks run ci:checks:vm-extended

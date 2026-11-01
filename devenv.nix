@@ -38,12 +38,73 @@
       printf '%s\n' "$sudo_password" | sudo -S "$@"
     }
   '';
+  ciCheckFilters = {
+    pr = ''
+      [.[]
+        | select(startswith("vm-") | not)
+        | select(startswith("overlay-") | not)
+        | select(. != "module-coverage")]
+    '';
+    extended = ''[.[] | select(startswith("overlay-"))]'';
+    "non-vm" = ''[.[] | select(startswith("vm-") | not)]'';
+    "vm-pr" = ''["vm-users", "vm-ssh", "vm-packages"]'';
+    "vm-extended" = ''["vm-role-foundation", "vm-role-developer"]'';
+    vm = ''["vm-users", "vm-ssh", "vm-packages", "vm-role-foundation", "vm-role-developer"]'';
+  };
+  ciCheckBuildExec = {
+    group,
+    useInputChecks ? false,
+  }: ''
+    set -euo pipefail
+
+    nix_bin="''${NIX_BIN:-nix}"
+    task_input=''${DEVENV_TASK_INPUT:-'{}'}
+    max_jobs="''${NIX_MAX_JOBS:-$(jq -r '.maxJobs // 2' <<< "$task_input")}"
+    if [[ ! "$max_jobs" =~ ^[1-9][0-9]*$ ]]; then
+      echo "maxJobs must be a positive integer (got '$max_jobs')" >&2
+      exit 64
+    fi
+
+    current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+    all_checks=$("$nix_bin" eval --json ".#checks.''${current_system}" \
+      --apply 'builtins.attrNames' | jq -c '${ciCheckFilters.${group}}')
+    ${
+      if useInputChecks
+      then ''
+        checks=$(jq -ce '.checks | select(type == "array" and length > 0 and all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' <<< "$task_input") || {
+          echo "Task input must contain a non-empty checks array" >&2
+          exit 64
+        }
+        while IFS= read -r check; do
+          if ! jq -e --arg check "$check" 'index($check) != null' <<< "$all_checks" >/dev/null; then
+            echo "Check '$check' is not selected for the '${group}' group" >&2
+            exit 64
+          fi
+        done < <(jq -r '.[]' <<< "$checks")
+      ''
+      else ''checks="$all_checks"''
+    }
+    if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
+      echo "No checks selected for group '${group}' on $current_system" >&2
+      exit 1
+    fi
+
+    mapfile -t check_names < <(jq -r '.[]' <<< "$checks")
+    installables=()
+    for check in "''${check_names[@]}"; do
+      installables+=(".#checks.''${current_system}.''${check}")
+    done
+
+    echo "Building ''${#installables[@]} '${group}' checks on $current_system (max-jobs: $max_jobs)"
+    "$nix_bin" build --no-link --max-jobs "$max_jobs" "''${installables[@]}"
+  '';
   ciChecksTask = {
     group,
     description,
   }: {
     inherit description;
-    exec = "bash .github/scripts/build-checks.sh ${group}";
+    input = {maxJobs = 2;};
+    exec = ciCheckBuildExec {inherit group;};
   };
   machinesTask = operation: withPlanId: {
     description = "Run the explicitly named ${operation} machine operation";
@@ -729,6 +790,48 @@ in {
     # CI CHECK GROUPS
     # ============================================
 
+    "ci:checks:pr-plan" = {
+      description = "Create a four-check matrix for parallel pull request validation";
+      input = {batchSize = 4;};
+      exec = ''
+        set -euo pipefail
+
+        nix_bin="''${NIX_BIN:-nix}"
+        batch_size=$(jq -er '.batchSize | numbers' <<< "$DEVENV_TASK_INPUT")
+        if [[ ! "$batch_size" =~ ^[1-9][0-9]*$ ]]; then
+          echo "batchSize must be a positive integer (got '$batch_size')" >&2
+          exit 64
+        fi
+
+        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+        checks=$("$nix_bin" eval --json ".#checks.''${current_system}" \
+          --apply 'builtins.attrNames' | jq -c '${ciCheckFilters.pr}')
+        if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
+          echo "No PR checks selected for $current_system" >&2
+          exit 1
+        fi
+
+        matrix=$(jq -cn --argjson checks "$checks" --argjson size "$batch_size" \
+          '{include: [range(0; ($checks | length); $size) as $start
+            | {checks: $checks[$start:($start + $size)]}]}')
+        printf '{"matrix":%s}\n' "$matrix" > "$DEVENV_TASK_OUTPUT_FILE"
+        printf 'PR check matrix: %s\n' "$matrix"
+        if [[ -n "''${GITHUB_OUTPUT:-}" ]]; then
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+        fi
+      '';
+    };
+    "ci:checks:pr-shard" = {
+      description = "Build one pull request check shard with conservative runner parallelism";
+      input = {
+        checks = [];
+        maxJobs = 2;
+      };
+      exec = ciCheckBuildExec {
+        group = "pr";
+        useInputChecks = true;
+      };
+    };
     "ci:checks:pr" = ciChecksTask {
       group = "pr";
       description = "Build core non-VM checks for pull requests";
@@ -750,53 +853,14 @@ in {
     # TEST TASKS (eval gates build)
     # ============================================
 
-    "ci:checks:non-vm" = {
+    "ci:checks:non-vm" = ciChecksTask {
+      group = "non-vm";
       description = "Build all non-VM CI checks in one invocation with at most two concurrent jobs";
-      exec = ''
-        set -euo pipefail
-
-        nix_bin="''${NIX_BIN:-nix}"
-        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
-        check_names=$("$nix_bin" eval --json ".#checks.''${current_system}" --apply 'builtins.attrNames' \
-          | jq -r '.[] | select(startswith("vm-") | not)')
-        mapfile -t checks <<< "$check_names"
-        ((''${#checks[@]} > 0)) || {
-          echo "No non-VM checks found for $current_system" >&2
-          exit 1
-        }
-
-        installables=()
-        for check in "''${checks[@]}"; do
-          installables+=(".#checks.''${current_system}.''${check}")
-        done
-
-        echo "Building ''${#checks[@]} non-VM checks in one Nix invocation"
-        "$nix_bin" build --no-link --print-build-logs --max-jobs 2 "''${installables[@]}"
-      '';
     };
 
-    "ci:checks:vm" = {
+    "ci:checks:vm" = ciChecksTask {
+      group = "vm";
       description = "Build the NixOS VM CI checks with at most two concurrent jobs";
-      exec = ''
-        set -euo pipefail
-
-        nix_bin="''${NIX_BIN:-nix}"
-        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
-        checks=(
-          vm-users
-          vm-ssh
-          vm-packages
-          vm-role-foundation
-          vm-role-developer
-        )
-        installables=()
-        for check in "''${checks[@]}"; do
-          installables+=(".#checks.''${current_system}.''${check}")
-        done
-
-        echo "Building ''${#checks[@]} VM checks in one Nix invocation"
-        "$nix_bin" build --no-link --print-build-logs --max-jobs 2 "''${installables[@]}"
-      '';
     };
 
     "test:all" = {

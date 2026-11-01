@@ -30,7 +30,7 @@
         ];
     }).config;
 
-  vectorEnabledScript = vectorCustom.launchd.daemons.vector.command;
+  vectorGeneratedConfig = vectorCustom.myConfig.vector.generatedConfig;
 in {
   vectorOptionsTest = pkgs.runCommand "test-vector-options" {} ''
     echo "=== Testing Vector Option Defaults ==="
@@ -69,8 +69,7 @@ in {
   vectorGeneratedConfigTest = pkgs.runCommand "test-vector-generated-config" {} ''
     echo "=== Testing Vector Generated Config ==="
 
-    SCRIPT=${vectorEnabledScript}
-    CONFIG=$(grep -o -- '--config /nix/store/[^ ]*' "$SCRIPT" | head -1 | cut -d' ' -f2)
+    CONFIG=${vectorGeneratedConfig}
 
     if grep -q '"endpoint":"http://127.0.0.1:3101"' "$CONFIG"; then
       echo "  loki sink endpoint derived from myConfig.loki.port (3101): OK"

@@ -51,7 +51,7 @@
         ${checkEqual "type-server retains auto-upgrade URL" "github:funkymonkeymonk/nix#type-server" server.myConfig.autoUpgrade.flakeUrl}
         ${checkEqual "type-server-arm retains auto-upgrade URL" "github:funkymonkeymonk/nix#type-server-arm" serverArm.myConfig.autoUpgrade.flakeUrl}
         ${checkEqual "type-server-arm retains Tailscale override" false serverArm.myConfig.tailscale.enable}
-        ${checkEqual "type-server target retains admin SSH access" true (server.users.users.admin.openssh.authorizedKeys.keys != [])}
+        ${checkEqual "type-server target retains monkey SSH access" true (server.users.users.monkey.openssh.authorizedKeys.keys != [])}
         ${checkEqual "type-server-arm target disables Intel microcode" false serverArm.hardware.cpu.intel.updateMicrocode}
         ${checkEqual "type-server retains single-disk layout" true (server.disko.devices.disk ? main)}
         ${checkEqual "type-server-arm retains single-disk layout" true (serverArm.disko.devices.disk ? main)}

@@ -2,19 +2,22 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPT="$REPO_ROOT/.github/scripts/build-checks.sh"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-cat > "$TMP_DIR/nix" <<'MOCK_NIX'
+mkdir -p "$TMP_DIR/bin"
+cat > "$TMP_DIR/bin/nix" <<'MOCK_NIX'
 #!/usr/bin/env bash
 set -euo pipefail
 
 if [[ "$1" == eval ]]; then
   if [[ "$*" == *builtins.currentSystem* ]]; then
-    printf '%s\n' "${MOCK_NIX_SYSTEM:-x86_64-linux}"
+    printf '%s\n' 'x86_64-linux'
+  elif [[ "$*" == *'.#checks.x86_64-linux'* ]]; then
+    printf '%s\n' '["core-packages","foundation-options","module-coverage","onepassword-guard","overlay-openai-evals","overlay-rtk","vm-packages","vm-role-developer","vm-role-foundation","vm-ssh","vm-users"]'
   else
-    printf '%s\n' '["bifrost-anthropic-config","bifrost-retry-config","core-packages","foundation-packages","module-coverage","nix-unit-tests","overlay-openai-evals","overlay-rtk","ste-linter-package","vm-packages","vm-role-developer","vm-role-foundation","vm-role-generator","vm-ssh","vm-users"]'
+    echo "unexpected nix evaluation: $*" >&2
+    exit 64
   fi
 elif [[ "$1" == build ]]; then
   printf '%s\n' "$@" >> "$MOCK_NIX_CALLS"
@@ -23,12 +26,24 @@ else
   exit 64
 fi
 MOCK_NIX
-chmod +x "$TMP_DIR/nix"
+chmod +x "$TMP_DIR/bin/nix"
+export NIX_BIN="$TMP_DIR/bin/nix"
 export MOCK_NIX_CALLS="$TMP_DIR/nix-calls"
-export NIX_BIN="$TMP_DIR/nix"
+export GITHUB_OUTPUT="$TMP_DIR/github-output"
+: > "$MOCK_NIX_CALLS"
+: > "$GITHUB_OUTPUT"
 
 failures=0
-assert_contains() {
+assert_output() {
+  local name="$1" expected="$2"
+  if grep -Fxq -- "$name=$expected" "$GITHUB_OUTPUT"; then
+    echo "  PASS: $name matches expected output"
+  else
+    echo "  FAIL: $name did not match expected output"
+    failures=$((failures + 1))
+  fi
+}
+assert_build_argument() {
   local expected="$1"
   if grep -Fxq -- "$expected" "$MOCK_NIX_CALLS"; then
     echo "  PASS: build includes $expected"
@@ -37,7 +52,7 @@ assert_contains() {
     failures=$((failures + 1))
   fi
 }
-assert_not_contains() {
+assert_not_build_argument() {
   local unexpected="$1"
   if grep -Fxq -- "$unexpected" "$MOCK_NIX_CALLS"; then
     echo "  FAIL: build unexpectedly includes $unexpected"
@@ -46,73 +61,55 @@ assert_not_contains() {
     echo "  PASS: build excludes $unexpected"
   fi
 }
-run_group() {
-  : > "$MOCK_NIX_CALLS"
-  if [[ -n "${2:-}" ]]; then
-    NIX_CHECK_BATCH_SIZE="$2" "$SCRIPT" "$1"
-  else
-    "$SCRIPT" "$1"
-  fi
-}
 
-if [[ ! -x "$SCRIPT" ]]; then
-  echo "FAIL: executable CI check selector does not exist: $SCRIPT"
-  exit 1
-fi
-
-echo "=== CI Check Group Tests ==="
-run_group pr
-assert_contains '.#checks.x86_64-linux.core-packages'
-assert_not_contains '.#checks.x86_64-linux.overlay-openai-evals'
-assert_not_contains '.#checks.x86_64-linux.foundation-packages'
-assert_not_contains '.#checks.x86_64-linux.nix-unit-tests'
-assert_not_contains '.#checks.x86_64-linux.bifrost-anthropic-config'
-assert_not_contains '.#checks.x86_64-linux.bifrost-retry-config'
-assert_not_contains '.#checks.x86_64-linux.module-coverage'
-assert_contains '.#checks.x86_64-linux.vm-role-generator'
-assert_not_contains '.#checks.x86_64-linux.vm-packages'
-assert_not_contains '.#checks.x86_64-linux.vm-role-developer'
-
-run_group extended 2
-assert_contains '.#checks.x86_64-linux.overlay-openai-evals'
-assert_contains '.#checks.x86_64-linux.overlay-rtk'
-assert_contains '.#checks.x86_64-linux.foundation-packages'
-assert_contains '.#checks.x86_64-linux.nix-unit-tests'
-assert_contains '.#checks.x86_64-linux.bifrost-anthropic-config'
-assert_contains '.#checks.x86_64-linux.bifrost-retry-config'
-assert_not_contains '.#checks.x86_64-linux.core-packages'
-if [[ "$(grep -cFx 'build' "$MOCK_NIX_CALLS")" == 3 ]]; then
-  echo "  PASS: extended checks are split into bounded Nix batches"
-else
-  echo "  FAIL: expected three batches for six extended checks"
-  failures=$((failures + 1))
-fi
-
-run_group vm-pr
-assert_contains '.#checks.x86_64-linux.vm-users'
-assert_contains '.#checks.x86_64-linux.vm-packages'
-assert_not_contains '.#checks.x86_64-linux.vm-role-foundation'
-assert_not_contains '.#checks.x86_64-linux.vm-role-developer'
-
-run_group vm-extended
-assert_contains '.#checks.x86_64-linux.vm-role-foundation'
-assert_contains '.#checks.x86_64-linux.vm-role-developer'
-assert_not_contains '.#checks.x86_64-linux.vm-users'
+printf '%s\n' '=== CI check task tests ==='
+devenv tasks run ci:checks:pr-plan --input batchSize=2
+assert_output matrix '{"include":[{"checks":["core-packages","foundation-options"]},{"checks":["onepassword-guard"]}]}'
 
 : > "$MOCK_NIX_CALLS"
-if "$SCRIPT" invalid >/dev/null 2>&1; then
-  echo "FAIL: unsupported check group was accepted"
+devenv tasks run ci:checks:pr-shard --input-json '{"checks":["core-packages","foundation-options"],"maxJobs":2}'
+assert_build_argument '--max-jobs'
+assert_build_argument '2'
+assert_build_argument '.#checks.x86_64-linux.core-packages'
+assert_build_argument '.#checks.x86_64-linux.foundation-options'
+assert_not_build_argument '.#checks.x86_64-linux.module-coverage'
+
+: > "$MOCK_NIX_CALLS"
+: > "$GITHUB_OUTPUT"
+devenv tasks run ci:checks:extended
+assert_build_argument '.#checks.x86_64-linux.overlay-openai-evals'
+assert_build_argument '.#checks.x86_64-linux.overlay-rtk'
+assert_not_build_argument '.#checks.x86_64-linux.core-packages'
+
+: > "$MOCK_NIX_CALLS"
+devenv tasks run ci:checks:vm-pr
+assert_build_argument '.#checks.x86_64-linux.vm-users'
+assert_build_argument '.#checks.x86_64-linux.vm-ssh'
+assert_build_argument '.#checks.x86_64-linux.vm-packages'
+assert_not_build_argument '.#checks.x86_64-linux.vm-role-developer'
+
+: > "$MOCK_NIX_CALLS"
+devenv tasks run ci:checks:vm-extended
+assert_build_argument '.#checks.x86_64-linux.vm-role-foundation'
+assert_build_argument '.#checks.x86_64-linux.vm-role-developer'
+assert_not_build_argument '.#checks.x86_64-linux.vm-users'
+
+: > "$MOCK_NIX_CALLS"
+if devenv tasks run ci:checks:pr-shard --input-json '{"checks":["../untrusted"],"maxJobs":2}' >/dev/null 2>&1; then
+  echo '  FAIL: invalid check names should be rejected'
   failures=$((failures + 1))
 else
-  echo "  PASS: unsupported check group is rejected"
+  echo '  PASS: invalid check names are rejected'
 fi
 if [[ -s "$MOCK_NIX_CALLS" ]]; then
-  echo "FAIL: unsupported group invoked nix build"
+  echo '  FAIL: invalid check name reached nix build'
   failures=$((failures + 1))
+else
+  echo '  PASS: invalid check name does not invoke nix build'
 fi
 
 if ((failures > 0)); then
-  echo "Results: $failures failure(s)"
+  printf 'Results: %s failure(s)\n' "$failures"
   exit 1
 fi
-echo "Results: all CI check group tests passed"
+printf '%s\n' 'Results: all CI check task tests passed'
