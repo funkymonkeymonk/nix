@@ -30,12 +30,17 @@
     ++ lib.optional (bifrostCfg.enable && bifrostCfg.port != cfg.port) {
       host = "bifrost.internal";
       upstream = "localhost:${toString bifrostCfg.port}";
+      localOnly = true;
     };
 
   allRoutes = serviceRoutes ++ (lib.mapAttrsToList (host: upstream: {inherit host upstream;}) cfg.hosts);
 
   routeBlock = route: ''
     http://${route.host} {
+      ${lib.optionalString (route.localOnly or false) ''
+      @nonLocal not remote_ip 127.0.0.1 ::1
+      respond @nonLocal 403
+    ''}
       reverse_proxy ${route.upstream}
     }
   '';

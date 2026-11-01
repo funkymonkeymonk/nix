@@ -29,6 +29,19 @@
         ];
     }).config.myConfig.caddy;
 
+  caddyBifrostRoute =
+    (lib.evalModules {
+      modules =
+        stubs.caddy
+        ++ [
+          {
+            config.myConfig.users = [{name = "monkey";}];
+            config.myConfig.bifrost.enable = true;
+            config.myConfig.caddy.enable = true;
+          }
+        ];
+    }).config;
+
   caddyInternalDnsConfig =
     (lib.evalModules {
       modules =
@@ -93,6 +106,19 @@ in {
       exit 1
     fi
     echo "  dnsmasq listens on port 5354: OK"
+    touch $out
+  '';
+
+  caddyBifrostLocalOnlyTest = pkgs.runCommand "test-caddy-bifrost-local-only" {} ''
+    echo "=== Testing Bifrost Caddy route is local-only ==="
+    SCRIPT=${caddyBifrostRoute.launchd.user.agents.caddy.command}
+    CONFIG=$(awk -F '"' '/--config/ {print $2}' "$SCRIPT")
+    if grep -Fq 'remote_ip 127.0.0.1 ::1' "$CONFIG" && grep -Fq 'respond @nonLocal 403' "$CONFIG"; then
+      echo "Caddy blocks non-local bypasses to Bifrost: OK"
+    else
+      echo "FAIL: Bifrost's internal Caddy route must reject non-local clients"; exit 1
+    fi
+    ${pkgs.caddy}/bin/caddy validate --config "$CONFIG" --adapter caddyfile
     touch $out
   '';
 

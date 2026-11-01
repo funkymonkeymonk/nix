@@ -115,6 +115,24 @@ with lib; let
     inherit providers;
   };
 
+  bifrostTailscaleServeScript = pkgs.writeShellScript "bifrost-tailscale-serve" ''
+    set -euo pipefail
+
+    # Tailscale and Bifrost start independently at boot. Do not publish the
+    # endpoint until both the tailnet address and the local API are ready.
+    while true; do
+      TAILSCALE_IP=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null || true)
+      if [ -n "$TAILSCALE_IP" ] && ${pkgs.curl}/bin/curl \
+          --silent --fail --connect-timeout 2 --max-time 5 \
+          "http://127.0.0.1:${toString cfg.port}/v1/models" >/dev/null 2>&1; then
+        exec ${pkgs.tailscale}/bin/tailscale serve --bg \
+          --http=${toString cfg.tailscaleServePort} \
+          "http://127.0.0.1:${toString cfg.port}"
+      fi
+      /bin/sleep 5
+    done
+  '';
+
   bifrostScript = pkgs.writeShellScript "bifrost-launchd-service" ''
     set -euo pipefail
     export HOME="${darwinHomeDir}"
@@ -160,6 +178,18 @@ in {
       type = types.str;
       default = "0.0.0.0";
       description = "Host to bind Bifrost to";
+    };
+
+    exposeViaTailscaleServe = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Publish a loopback-bound Bifrost API to the tailnet with Tailscale Serve.";
+    };
+
+    tailscaleServePort = mkOption {
+      type = types.port;
+      default = 8081;
+      description = "Tailnet-only HTTP port used by Tailscale Serve for Bifrost.";
     };
 
     logLevel = mkOption {
@@ -240,22 +270,39 @@ in {
   };
 
   config = mkIf cfg.enable {
-    launchd.daemons.bifrost = {
-      command = bifrostScript;
-      serviceConfig = {
-        Label = "com.bifrost.service";
-        RunAtLoad = true;
-        KeepAlive = true;
-        UserName = primaryUser;
-        StandardOutPath = "/tmp/bifrost.log";
-        StandardErrorPath = "/tmp/bifrost.error.log";
-        WorkingDirectory = darwinHomeDir;
-        EnvironmentVariables = {
-          HOME = darwinHomeDir;
-          USER = primaryUser;
+    launchd.daemons =
+      {
+        bifrost = {
+          command = bifrostScript;
+          serviceConfig = {
+            Label = "com.bifrost.service";
+            RunAtLoad = true;
+            KeepAlive = true;
+            UserName = primaryUser;
+            StandardOutPath = "/tmp/bifrost.log";
+            StandardErrorPath = "/tmp/bifrost.error.log";
+            WorkingDirectory = darwinHomeDir;
+            EnvironmentVariables = {
+              HOME = darwinHomeDir;
+              USER = primaryUser;
+            };
+          };
+        };
+      }
+      // optionalAttrs cfg.exposeViaTailscaleServe {
+        bifrost-tailscale-serve = {
+          command = bifrostTailscaleServeScript;
+          serviceConfig = {
+            Label = "com.bifrost.tailscale-serve";
+            RunAtLoad = true;
+            # Retry only after failure. A successful `tailscale serve --bg`
+            # persists its configuration in tailscaled's state.
+            KeepAlive = {SuccessfulExit = false;};
+            StandardOutPath = "/tmp/bifrost-tailscale-serve.log";
+            StandardErrorPath = "/tmp/bifrost-tailscale-serve.error.log";
+          };
         };
       };
-    };
 
     system.activationScripts.postActivation.text = mkAfter ''
       mkdir -p "${appDir}"

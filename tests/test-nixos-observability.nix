@@ -237,9 +237,9 @@
           else ''echo "FAIL: drlight must include type-observability"; exit 1''
         }
         ${
-          if drlight.myConfig.prometheus.enable && drlight.myConfig.loki.enable && drlight.myConfig.alertmanager.enable
-          then ''echo "drlight backend options are enabled: OK"''
-          else ''echo "FAIL: drlight must enable Prometheus, Loki, and Alertmanager"; exit 1''
+          if drlight.myConfig.prometheus.enable && drlight.myConfig.loki.enable && drlight.myConfig.alertmanager.enable && drlight.services.tailscale.enable
+          then ''echo "drlight observability backend and Tailscale are enabled: OK"''
+          else ''echo "FAIL: drlight must enable Prometheus, Loki, Alertmanager, and Tailscale"; exit 1''
         }
         ${
           if drlight.services.prometheus.enable && drlight.services.loki.enable && drlight.services.prometheus.alertmanager.enable && drlight.services.grafana.enable
@@ -269,6 +269,11 @@
           if builtins.elem "drlight:9100" (builtins.head nodeScrape.static_configs).targets
           then ''echo "drlight exporter remains in central scrape targets: OK"''
           else ''echo "FAIL: central inventory must include drlight's exporter"; exit 1''
+        }
+        ${
+          if builtins.elem "MegamanX:9100" (builtins.head nodeScrape.static_configs).targets
+          then ''echo "central Prometheus scrapes MegamanX over the Tailscale hostname: OK"''
+          else ''echo "FAIL: central inventory must include MegamanX's node exporter"; exit 1''
         }
         ${
           if (builtins.head selfScrape.static_configs).targets == ["localhost:9090"]

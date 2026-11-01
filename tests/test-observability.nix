@@ -94,6 +94,23 @@
         ];
     }).config;
 
+  nodeExporterTailscaleConfig =
+    (lib.evalModules {
+      modules =
+        stubs.base
+        ++ stubs.darwinService
+        ++ [
+          ../modules/services/node-exporter/darwin.nix
+          {
+            config.myConfig.users = [{name = "monkey";}];
+            config.myConfig.nodeExporter = {
+              enable = true;
+              listenOnTailscale = true;
+            };
+          }
+        ];
+    }).config;
+
   prometheusDefaults =
     (lib.evalModules {
       modules = stubs.base ++ stubs.darwinService ++ [../modules/services/prometheus/darwin.nix];
@@ -143,6 +160,12 @@ in {
       else ''echo "  listenAddress should default to loopback!"; exit 1''
     }
 
+    ${
+      if !nodeExporterDefaults.listenOnTailscale
+      then ''echo "  Tailscale binding remains opt-in: OK"''
+      else ''echo "  FAIL: Tailscale binding must be opt-in by default"; exit 1''
+    }
+
     echo "All node_exporter option defaults verified"
     touch $out
   '';
@@ -182,21 +205,39 @@ in {
     echo "=== Testing node_exporter Darwin Listener Safety ==="
 
     SCRIPT=${nodeExporterCustomConfig.launchd.daemons.node-exporter.command}
+    ${pkgs.bash}/bin/bash -n "$SCRIPT"
 
-    if grep -q -- "--web.listen-address=127.0.0.1:9101" "$SCRIPT"; then
+    if grep -q '127.0.0.1:9101' "$SCRIPT" && grep -q -- '--web.listen-address="$LISTEN_ADDRESS"' "$SCRIPT"; then
       echo "  generated service binds to configured loopback address and port: OK"
     else
       echo "  FAIL: generated service should bind to 127.0.0.1:9101"; exit 1
     fi
 
     EXPLICIT_SCRIPT=${nodeExporterExplicitListener.launchd.daemons.node-exporter.command}
-    if grep -q -- "--web.listen-address=192.0.2.18:9102" "$EXPLICIT_SCRIPT"; then
+    if grep -q '192.0.2.18:9102' "$EXPLICIT_SCRIPT" && grep -q -- '--web.listen-address="$LISTEN_ADDRESS"' "$EXPLICIT_SCRIPT"; then
       echo "  generated service binds to explicitly configured address: OK"
     else
       echo "  FAIL: explicit bind address should be passed to node_exporter"; exit 1
     fi
 
     echo "All Darwin node_exporter listener tests passed"
+    touch $out
+  '';
+
+  nodeExporterTailscaleBindTest = pkgs.runCommand "test-node-exporter-tailscale-bind" {} ''
+    echo "=== Testing Tailscale-only Darwin node_exporter binding ==="
+    SCRIPT=${nodeExporterTailscaleConfig.launchd.daemons.node-exporter.command}
+    ${pkgs.bash}/bin/bash -n "$SCRIPT"
+    if grep -q 'tailscale.*ip -4' "$SCRIPT" && grep -q 'LISTEN_ADDRESS="$TAILSCALE_IP:9100"' "$SCRIPT" && grep -q -- '--web.listen-address="$LISTEN_ADDRESS"' "$SCRIPT"; then
+      echo "node_exporter resolves and binds the active Tailscale address: OK"
+    else
+      echo "FAIL: node_exporter must bind its socket to the Tailscale address"; exit 1
+    fi
+    if grep -q 'until.*TAILSCALE_IP' "$SCRIPT"; then
+      echo "node_exporter waits for Tailscale before starting: OK"
+    else
+      echo "FAIL: node_exporter must wait for Tailscale at boot"; exit 1
+    fi
     touch $out
   '';
 

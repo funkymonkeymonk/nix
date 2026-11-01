@@ -92,9 +92,22 @@
           && megamanx.myConfig.zellij.enable
           && megamanx.myConfig.llmClient.serverPort == "8081"
           && megamanx.myConfig.omlx.enable
-          && megamanx.myConfig.omlx.server.host == "0.0.0.0"
+          && megamanx.myConfig.omlx.server.host == "127.0.0.1"
+          && megamanx.myConfig.omlx.maxConcurrentRequests == 4
+          && megamanx.launchd.daemons ? omlx
+          && !(megamanx.launchd.user.agents ? omlx)
+          && megamanx.services.tailscale.enable
+          && megamanx.launchd.daemons ? tailscaled
+          && megamanx.launchd.daemons.tailscaled.serviceConfig.KeepAlive
+          && (megamanx.myConfig.nodeExporter.listenOnTailscale or false)
+          && (megamanx.myConfig.vector.enable or false)
+          && megamanx.myConfig.collector.destinationHostname == "drlight"
+          && (megamanx.myConfig.vector.hostLabel or "") == "MegamanX"
+          && builtins.elem "/Users/monkey/Library/Logs/omlx/*.log" (megamanx.myConfig.vector.logGlobs or [])
           && megamanx.myConfig.bifrost.enable
-          && megamanx.myConfig.bifrost.host == "0.0.0.0"
+          && megamanx.myConfig.bifrost.host == "127.0.0.1"
+          && (megamanx.myConfig.bifrost.exposeViaTailscaleServe or false)
+          && megamanx.launchd.daemons ? bifrost-tailscale-serve
           && !(megamanx.myConfig.prometheus.enable or false)
           && !(megamanx.launchd.daemons ? prometheus)
           && megamanx.myConfig.nodeExporter.enable

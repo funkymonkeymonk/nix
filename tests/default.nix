@@ -239,9 +239,11 @@ in
     obsidian-options = testObsidian.obsidianOptionsTest;
     obsidian-custom-options = testObsidian.obsidianCustomOptionsTest;
 
-    # oMLX Darwin Homebrew and Metal toolchain integration tests
+    # oMLX Darwin boot service and deliberately managed Homebrew fallback
     omlx-custom-kernel-homebrew = testOmlx.omlxCustomKernelHomebrewTest;
-    omlx-metal-toolchain-mount-agent = testOmlx.metalToolchainMountAgentTest;
+    omlx-boot-daemon = testOmlx.omlxBootDaemonTest;
+    omlx-metal-toolchain-mount-boot-daemon = testOmlx.metalToolchainMountDaemonTest;
+    omlx-homebrew-update-policy = testOmlx.omlxHomebrewUpdatePolicyTest;
 
     # NixOS module option tests
     typed-attrs-options = testNixosModules.typedAttrsOptionsTest;
@@ -313,10 +315,12 @@ in
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
     bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
+    bifrost-tailscale-serve = testBifrost.bifrostTailscaleServeTest;
 
     # Caddy reverse proxy module tests
     caddy-options = testCaddy.caddyOptionsTest;
     caddy-internal-dns = testCaddy.caddyInternalDnsTest;
+    caddy-bifrost-local-only = testCaddy.caddyBifrostLocalOnlyTest;
     caddy-custom-options = testCaddy.caddyCustomOptionsTest;
 
     # SearXNG module tests
@@ -331,6 +335,7 @@ in
     node-exporter-options = testObservability.nodeExporterOptionsTest;
     node-exporter-custom-options = testObservability.nodeExporterCustomOptionsTest;
     node-exporter-listen = testObservability.nodeExporterListenTest;
+    node-exporter-tailscale-bind = testObservability.nodeExporterTailscaleBindTest;
     prometheus-options = testObservability.prometheusOptionsTest;
     prometheus-custom-options = testObservability.prometheusCustomOptionsTest;
     prometheus-generated-script = testObservability.prometheusGeneratedScriptTest;
