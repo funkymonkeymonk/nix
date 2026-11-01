@@ -36,7 +36,8 @@ jobs:
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Install devenv CLI from the locked project flake
         run: |
-          nix profile add --accept-flake-config .#devenv
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15
@@ -62,7 +63,8 @@ jobs:
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Install devenv CLI from the locked project flake
         run: |
-          nix profile add --accept-flake-config .#devenv
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15

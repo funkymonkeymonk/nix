@@ -98,10 +98,12 @@ assert "PR workflow runs CI check selector tests" \
 assert "PR workflow runs derivation cache regression tests" \
   "grep -q 'bash tests/test-ci-config-cache.sh' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR lint remains an independent fast check" \
+assert "PR lint remains fast and installs the locked devenv CLI" \
   "grep -q 'run: bash .github/scripts/lint.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
-    && grep -q 'nix profile add --accept-flake-config .#devenv' \\
+    && grep -q '.nodes.devenv.locked.rev' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
+    && grep -q 'github:cachix/devenv/.*#devenv' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 
 # Test: expensive package and role checks remain covered on a trusted schedule.

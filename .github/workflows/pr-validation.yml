@@ -47,7 +47,8 @@ jobs:
             "$NIXPKGS#deadnix" \
             "$NIXPKGS#statix" \
             "$NIXPKGS#yamllint"
-          nix profile add --accept-flake-config .#devenv
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run lint checks
         run: bash .github/scripts/lint.sh
@@ -392,7 +393,8 @@ jobs:
           skipPush: true
       - name: Install devenv CLI from the locked project flake
         run: |
-          nix profile add --accept-flake-config .#devenv
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
@@ -437,7 +439,8 @@ jobs:
           skipPush: true
       - name: Install devenv CLI from the locked project flake
         run: |
-          nix profile add --accept-flake-config .#devenv
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run VM smoke checks
         run: devenv tasks run ci:checks:vm-pr
@@ -480,7 +483,8 @@ jobs:
           skipPush: true
       - name: Install devenv CLI from the locked project flake
         run: |
-          nix profile add --accept-flake-config .#devenv
+          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
+          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
