@@ -13,9 +13,8 @@
 # Prometheus evaluates rules; modules/nixos/alertmanager.nix routes/dedupes
 # them (with a documented null-receiver placeholder — see that module).
 #
-# Federation: set `openFirewallTailscale = true` to allow this host's
-# Prometheus to be queried remotely over Tailscale only (e.g. by another
-# host's Grafana instance adding this Prometheus as a second datasource).
+# Set `openFirewallTailscale = true` to allow trusted tailnet clients to
+# query this host's Prometheus without exposing it on other interfaces.
 # See tests/test-nixos-observability.nix for coverage.
 {
   config,
@@ -99,10 +98,9 @@ in {
       type = types.bool;
       default = false;
       description = ''
-        Open Prometheus's port on the tailscale0 interface only, so it can
-        be queried remotely over Tailscale (e.g. by another host's Grafana
-        instance federating this Prometheus as a second datasource). Does
-        not open the port on any other interface.
+        Open Prometheus's port on the tailscale0 interface only, so trusted
+        tailnet clients can query it. Does not open the port on any other
+        interface.
       '';
     };
   };

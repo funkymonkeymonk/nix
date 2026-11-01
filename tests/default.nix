@@ -39,7 +39,7 @@
   testLoki = import ./test-loki.nix {inherit pkgs;};
   testVector = import ./test-vector.nix {inherit pkgs;};
   testAlertmanager = import ./test-alertmanager.nix {inherit pkgs;};
-  testGrafana = import ./test-grafana.nix {inherit pkgs;};
+  testGrafana = import ./test-grafana.nix {inherit pkgs self;};
   testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
   testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
   testServerArchetypes = import ./test-server-archetypes.nix {inherit pkgs self inputs;};
@@ -344,11 +344,13 @@ in
     alertmanager-custom-options = testAlertmanager.alertmanagerCustomOptionsTest;
     alertmanager-null-receiver = testAlertmanager.alertmanagerNullReceiverTest;
 
-    # Grafana module tests
-    grafana-options = testGrafana.grafanaOptionsTest;
-    grafana-custom-options = testGrafana.grafanaCustomOptionsTest;
-    grafana-datasources = testGrafana.grafanaDatasourcesTest;
-    grafana-federated-datasource = testGrafana.grafanaFederatedDatasourceTest;
+    # Native NixOS Grafana module tests
+    nixos-grafana-options = testGrafana.nixosGrafanaOptionsTest;
+    nixos-grafana-service = testGrafana.nixosGrafanaServiceTest;
+    nixos-grafana-datasources = testGrafana.nixosGrafanaDatasourcesTest;
+    nixos-grafana-dashboard = testGrafana.nixosGrafanaDashboardTest;
+    nixos-grafana-secrets = testGrafana.nixosGrafanaSecretsTest;
+    nixos-grafana-archetype = testGrafana.nixosGrafanaArchetypeTest;
 
     # Log aggregator (Vector + Loki) module tests for NixOS
     # (renamed with a nixos- prefix to avoid colliding with the Darwin

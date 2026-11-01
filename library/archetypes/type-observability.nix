@@ -5,6 +5,7 @@
     ../../modules/nixos/prometheus.nix
     ../../modules/nixos/loki.nix
     ../../modules/nixos/alertmanager.nix
+    ../../modules/nixos/grafana.nix
   ];
 
   myConfig = {
@@ -14,5 +15,6 @@
       openFirewallTailscale = true;
     };
     alertmanager.enable = true;
+    grafana.enable = true;
   };
 }

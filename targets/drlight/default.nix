@@ -36,6 +36,10 @@
           host = "jellyfin.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8096";
         };
+        apps.grafana = {
+          host = "grafana.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:3000";
+        };
         apps.seerr = {
           host = "seerr.home.buildingbananas.com";
           upstream = "http://127.0.0.1:5055";
