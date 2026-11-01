@@ -52,6 +52,14 @@
   '';
 in {
   options.myConfig.vector = {
+    generatedConfig = lib.mkOption {
+      type = lib.types.path;
+      default = configFile;
+      readOnly = true;
+      internal = true;
+      description = "Generated Vector configuration file path";
+    };
+
     enable = lib.mkOption {
       type = lib.types.bool;
       default = false;

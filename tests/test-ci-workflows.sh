@@ -57,23 +57,37 @@ assert "main-build calls facter stub script (not inline)" \
   "grep -q 'bash .github/scripts/create-facter-stub.sh' \
   '$REPO_ROOT/.github/workflows/main-build.yml'"
 
-# Test: PR builds only the curated, log-quiet check groups.
-assert "PR workflow runs curated non-VM checks" \
-  "grep -q 'bash .github/scripts/build-checks.sh pr' \
+# Test: PR checks are sharded by devenv tasks and parallelized across runners.
+assert "PR workflow generates its check matrix through devenv" \
+  "grep -q 'devenv tasks run ci:checks:pr-plan' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR workflow runs smoke VM checks" \
-  "grep -q 'bash .github/scripts/build-checks.sh vm-pr' \
+assert "PR workflow builds each shard through devenv" \
+  "grep -q 'devenv tasks run ci:checks:pr-shard' \
+  '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR check matrix is capped at eight concurrent runners" \
+  "grep -q 'max-parallel: 8' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "each PR check shard has a twenty-minute budget" \
+  "grep -q 'timeout-minutes: 20' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR workflow runs smoke VM checks through devenv" \
+  "grep -q 'devenv tasks run ci:checks:vm-pr' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow omits full role-package VM tests" \
   "! grep -Eq 'vm-role-(foundation|developer)' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR workflow does not stream every derivation log" \
-  "! grep -q -- '--print-build-logs' \
-  '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR workflows do not invoke the external build-checks script" \
+  "! grep -R -q 'build-checks.sh' \\
+    '$REPO_ROOT/.github/workflows' '$REPO_ROOT/devenv.nix'"
 assert "PR Cachix access is read-only" \
   "! grep -q 'CACHIX_AUTH_TOKEN' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
     && grep -q 'skipPush: true' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR build jobs use the rate-limit-resistant Hestia cache" \
+  "grep -q 'Mic92/hestia/action@v3.1.0' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
+    && grep -q 'upstream-cache-filter: true' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
+    && ! grep -q 'magic-nix-cache-action' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow runs CI workflow regression tests" \
   "grep -q 'bash tests/test-ci-workflows.sh' \
@@ -84,21 +98,28 @@ assert "PR workflow runs CI check selector tests" \
 assert "PR workflow runs derivation cache regression tests" \
   "grep -q 'bash tests/test-ci-config-cache.sh' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR lint bypasses full devenv environment" \
-  "grep -q 'bash .github/scripts/lint.sh' \
+assert "PR lint remains fast and installs the locked devenv CLI" \
+  "grep -q 'run: bash .github/scripts/lint.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
-    && ! grep -q 'devenv tasks run' \\
+    && grep -q '.nodes.devenv.locked.rev' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
+    && grep -q 'github:cachix/devenv/.*#devenv' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 
 # Test: expensive package and role checks remain covered on a trusted schedule.
+assert "extended package workflow uses its devenv task" \
+  "grep -q 'devenv tasks run ci:checks:extended' \\
+    '$REPO_ROOT/.github/workflows/extended-validation.yml'"
+assert "extended VM workflow uses its devenv task" \
+  "grep -q 'devenv tasks run ci:checks:vm-extended' \\
+    '$REPO_ROOT/.github/workflows/extended-validation.yml'"
 assert "extended package task selects the extended check group" \
   "grep -q '\"ci:checks:extended\" = ciChecksTask' '$REPO_ROOT/devenv.nix' \\
     && grep -q 'group = \"extended\";' '$REPO_ROOT/devenv.nix'"
 assert "extended VM task selects full role-package checks" \
   "grep -q '\"ci:checks:vm-extended\" = ciChecksTask' '$REPO_ROOT/devenv.nix' \\
     && grep -q 'group = \"vm-extended\";' '$REPO_ROOT/devenv.nix' \\
-    && grep -q 'checks=(vm-role-foundation vm-role-developer)' \\
-    '$REPO_ROOT/.github/scripts/build-checks.sh'"
+    && grep -q 'vm-role-foundation.*vm-role-developer' '$REPO_ROOT/devenv.nix'"
 assert "extended validation is scheduled and manually dispatchable" \
   "grep -q '^  schedule:' '$REPO_ROOT/.github/workflows/extended-validation.yml' \\
     && grep -q '^  workflow_dispatch:' '$REPO_ROOT/.github/workflows/extended-validation.yml'"
