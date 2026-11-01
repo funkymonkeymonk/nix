@@ -40,9 +40,6 @@
     modules = [
       ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
-      ../../modules/nixos/loki.nix
-      ../../modules/nixos/prometheus.nix
-      ../../modules/nixos/alertmanager.nix
       ../../targets/hardware-facter.nix
       ../../targets/type-server
     ];

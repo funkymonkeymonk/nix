@@ -228,7 +228,6 @@ or changing a `myConfig.*` option.
 | `bindAddress` | string | `"127.0.0.1"` | Bind address for Loki HTTP server. Defaults to loopback-only since Grafana/Vector run on the same host; set to protoman's LAN IP for cross-host 192.168.83.0/24 access. |
 | `dataDir` | string | `"/Users/monkey/Library/Application Support/Loki"` | Directory for Loki chunks, index, and compactor working data |
 | `enable` | boolean | `false` | Enable Grafana Loki log aggregation server |
-| `openFirewall` | boolean | `false` | Whether to open the firewall for Loki's HTTP port. Keep disabled (the default) when only local log shippers (e.g. Vector on the same host) push to Loki over localhost. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | Port for Loki HTTP server (log push + query API) |
 | `retention` | string | `"168h"` | Log retention period (e.g. 168h = 7 days, 720h = 30 days) |
 

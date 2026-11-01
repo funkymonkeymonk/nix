@@ -8,9 +8,8 @@
 #   - modules/nixos/alertmanager.nix option defaults and enabled-state wiring
 #     (services.prometheus.alertmanager.enable, documented null-receiver
 #     placeholder, optional webhook receiver)
-#   - type-server actually enables Prometheus, node_exporter, and
-#     Alertmanager (via the real flake config) — and does NOT run Grafana,
-#     per the federation decision documented in the PR description.
+#   - type-server keeps node_exporter enabled but does not run local backend
+#     services (Prometheus or Alertmanager), and does NOT run Grafana.
 {
   pkgs,
   self ? null,
@@ -360,9 +359,9 @@ in {
         echo "=== Testing type-server Observability Stack Wiring ==="
 
         ${
-          if typeServerConfig.myConfig.prometheus.enable
-          then ''echo "  myConfig.prometheus.enable = true on type-server: OK"''
-          else ''echo "  FAIL: type-server should enable myConfig.prometheus"; exit 1''
+          if !(typeServerConfig.myConfig.prometheus.enable or false)
+          then ''echo "  myConfig.prometheus.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not enable myConfig.prometheus"; exit 1''
         }
 
         ${
@@ -372,15 +371,15 @@ in {
         }
 
         ${
-          if typeServerConfig.myConfig.alertmanager.enable
-          then ''echo "  myConfig.alertmanager.enable = true on type-server: OK"''
-          else ''echo "  FAIL: type-server should enable myConfig.alertmanager"; exit 1''
+          if !(typeServerConfig.myConfig.alertmanager.enable or false)
+          then ''echo "  myConfig.alertmanager.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not enable myConfig.alertmanager"; exit 1''
         }
 
         ${
-          if typeServerConfig.services.prometheus.enable
-          then ''echo "  services.prometheus.enable = true on type-server: OK"''
-          else ''echo "  FAIL: type-server should have services.prometheus.enable = true"; exit 1''
+          if !(typeServerConfig.services.prometheus.enable or false)
+          then ''echo "  services.prometheus.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not enable services.prometheus"; exit 1''
         }
 
         ${
@@ -390,24 +389,23 @@ in {
         }
 
         ${
-          if typeServerConfig.services.prometheus.alertmanager.enable
-          then ''echo "  services.prometheus.alertmanager.enable = true on type-server: OK"''
-          else ''echo "  FAIL: type-server should have services.prometheus.alertmanager.enable = true"; exit 1''
+          if !(typeServerConfig.services.prometheus.alertmanager.enable or false)
+          then ''echo "  services.prometheus.alertmanager.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not enable services.prometheus.alertmanager"; exit 1''
         }
 
-        # Federation decision: type-server runs NO Grafana of its own (see PR
-        # description). Its Prometheus is intended to be federated as a second
-        # datasource by darwin-server's Grafana (PR #432) over Tailscale.
+        # type-server runs no Grafana or local metrics backend. The central
+        # observability configuration will be managed independently.
         ${
           if !(typeServerConfig.myConfig.grafana.enable or false)
-          then ''echo "  myConfig.grafana.enable is NOT set on type-server (federation, no duplicate Grafana): OK"''
-          else ''echo "  FAIL: type-server should not run its own Grafana per the federation decision"; exit 1''
+          then ''echo "  myConfig.grafana.enable is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not run Grafana"; exit 1''
         }
 
         ${
-          if typeServerConfig.myConfig.prometheus.openFirewallTailscale
-          then ''echo "  myConfig.prometheus.openFirewallTailscale = true on type-server (federation-ready): OK"''
-          else ''echo "  FAIL: type-server should open Prometheus on tailscale0 for federation"; exit 1''
+          if !(typeServerConfig.myConfig.prometheus.openFirewallTailscale or false)
+          then ''echo "  Prometheus Tailscale firewall opt-in is false on type-server: OK"''
+          else ''echo "  FAIL: type-server should not configure a local Prometheus firewall"; exit 1''
         }
 
         echo "All type-server observability wiring tests passed"

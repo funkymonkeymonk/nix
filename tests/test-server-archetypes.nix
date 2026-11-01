@@ -28,6 +28,8 @@
     else let
       server = self.nixosConfigurations.type-server.config;
       serverArm = self.nixosConfigurations.type-server-arm.config;
+      nas = self.nixosConfigurations.type-nas.config;
+      mediaServer = self.nixosConfigurations.drlight.config;
     in
       pkgs.runCommand "test-type-server-archetypes" {} ''
         echo "=== Testing evaluated type-server archetype configurations ==="
@@ -53,6 +55,22 @@
         ${checkEqual "type-server-arm target disables Intel microcode" false serverArm.hardware.cpu.intel.updateMicrocode}
         ${checkEqual "type-server retains single-disk layout" true (server.disko.devices.disk ? main)}
         ${checkEqual "type-server-arm retains single-disk layout" true (serverArm.disko.devices.disk ? main)}
+
+        ${checkEqual "generic headless type-nas does not enable Prometheus" false (nas.services.prometheus.enable or false)}
+        ${checkEqual "generic headless type-nas does not enable Loki" false (nas.services.loki.enable or false)}
+        ${checkEqual "generic headless type-nas does not enable Alertmanager" false (nas.services.prometheus.alertmanager.enable or false)}
+        ${checkEqual "generic headless type-nas enables node_exporter explicitly" true (nas.services.prometheus.exporters.node.enable or false)}
+        ${checkEqual "generic headless type-nas does not enable Vector" false (nas.services.vector.enable or false)}
+        ${checkEqual "generic headless drlight does not enable Prometheus" false (mediaServer.services.prometheus.enable or false)}
+        ${checkEqual "generic headless drlight does not enable Loki" false (mediaServer.services.loki.enable or false)}
+        ${checkEqual "generic headless drlight does not enable Alertmanager" false (mediaServer.services.prometheus.alertmanager.enable or false)}
+
+        ${checkEqual "type-server does not enable Prometheus" false (server.services.prometheus.enable or false)}
+        ${checkEqual "type-server does not enable Loki" false (server.services.loki.enable or false)}
+        ${checkEqual "type-server does not enable Alertmanager" false (server.services.prometheus.alertmanager.enable or false)}
+        ${checkEqual "type-server-arm does not enable Prometheus" false (serverArm.services.prometheus.enable or false)}
+        ${checkEqual "type-server-arm does not enable Loki" false (serverArm.services.loki.enable or false)}
+        ${checkEqual "type-server-arm does not enable Alertmanager" false (serverArm.services.prometheus.alertmanager.enable or false)}
 
         ${checkEqual "type-server enables Vector" true (server.services.vector.enable or false)}
         ${checkEqual "type-server-arm enables Vector" true (serverArm.services.vector.enable or false)}
