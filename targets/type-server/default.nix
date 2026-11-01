@@ -1,6 +1,6 @@
-{
+let
+  sshPublicKey = import ../../library/ssh-public-key.nix;
+in {
   # Initial monkey SSH access
-  users.users.monkey.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-  ];
+  users.users.monkey.openssh.authorizedKeys.keys = [sshPublicKey];
 }

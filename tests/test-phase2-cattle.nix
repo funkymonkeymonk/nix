@@ -9,7 +9,7 @@
 
   headlessServerUsers = ["type-server" "type-nas" "type-server-arm" "drlight"];
   sshKeyHosts = ["type-server" "type-nas" "type-server-arm" "drlight"];
-  monkeySshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX";
+  monkeySshKey = import ../library/ssh-public-key.nix;
 
   headlessServerUsersTest = pkgs.runCommand "test-headless-server-users" {} ''
     echo "=== Testing headless server user accounts ==="

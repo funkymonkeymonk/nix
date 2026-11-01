@@ -122,7 +122,7 @@ if [[ "$REMOTE_MODE" == true ]]; then
   # Download SSH keys
   mkdir -p keys
   # GitHub doesn't allow directory listing, so we download known keys
-  curl -fsSL "$GITHUB_RAW_URL/keys/monkey@MegamanX.pub" -o keys/monkey@MegamanX.pub 2>/dev/null || true
+  curl -fsSL "$GITHUB_RAW_URL/keys/monkey-ssh.pub" -o keys/monkey-ssh.pub 2>/dev/null || true
 
   SCRIPT_DIR="$TEMP_DIR"
   REPO_DIR="$TEMP_DIR"
@@ -192,7 +192,7 @@ select_ssh_keys() {
 
   if [[ ${#keys[@]} -eq 0 ]]; then
     log_error "No SSH keys found in $KEYS_DIR"
-    log_info "Please add your public keys following the naming convention: username@hostname.pub"
+    log_info "Ensure keys/monkey-ssh.pub is available in the installer source"
     exit 1
   fi
 
