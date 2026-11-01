@@ -21,18 +21,19 @@ in {
       listenPort = 8082;
       allowedHosts = "dashboard.home.buildingbananas.com";
       openFirewall = false;
-      services = [
-        {
-          Media = [
-            (serviceLink "Jellyfin" "jellyfin.home.buildingbananas.com" "Media server")
-          ];
-        }
-        {
+      services =
+        [
+          {
+            Media = [
+              (serviceLink "Jellyfin" "jellyfin.home.buildingbananas.com" "Media server")
+            ];
+          }
+        ]
+        ++ optional (config.services.grafana.enable or false) {
           Monitoring = [
             (serviceLink "Grafana" "grafana.home.buildingbananas.com" "System monitoring")
           ];
-        }
-      ];
+        };
       widgets = [
         {
           resources = {

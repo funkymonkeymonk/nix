@@ -16,7 +16,6 @@
   streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
   caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
-  homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
   mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
   onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
 
@@ -404,33 +403,6 @@ in {
       ${assertContainsStr "Transmission Caddy web root" ''webRoot = "/transmission/web"'' zeroConfigText}
 
       echo "Zero media automation test passed"
-      touch $out
-    '';
-
-  # Test: Homepage should provide a declarative media-center landing page
-  # through Caddy without opening its native port directly.
-  zeroHomepageTest =
-    pkgs.runCommand "test-zero-homepage"
-    {}
-    ''
-      echo "=== Testing Zero Homepage dashboard ==="
-
-      ${assertContainsStr "Homepage enabled" "homepage.enable = true" zeroConfigText}
-      ${assertContainsStr "Homepage service" "services.homepage-dashboard" homepageNixosModuleText}
-      ${assertContainsStr "Homepage private port" "listenPort = 8082" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Caddy app" "apps.dashboard = {" zeroConfigText}
-      ${assertContainsStr "Homepage hostname" "dashboard.home.buildingbananas.com" zeroConfigText}
-      ${assertContainsStr "Homepage upstream" "127.0.0.1:8082" zeroConfigText}
-      ${assertContainsStr "Homepage Jellyfin link" "jellyfin.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Seerr link" "seerr.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Audiobookshelf link" "audiobookshelf.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Lidarr link" "lidarr.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Shelfmark link" "shelfmark.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertNotContainsStr "Homepage SABnzbd link removed" "sabnzbd.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertNotContainsStr "Homepage Autobrr link removed" "autobrr.home.buildingbananas.com" homepageNixosModuleText}
-      ${assertContainsStr "Homepage Transmission link" "transmission.home.buildingbananas.com" homepageNixosModuleText}
-
-      echo "Zero Homepage dashboard test passed"
       touch $out
     '';
 

@@ -49,7 +49,7 @@
             drlightMachine.modules;
         }).config;
       homepageServices = drlight.services.homepage-dashboard.services or [];
-      homepageHrefs =
+      homepageHrefs = services:
         lib.concatMap
         (
           section:
@@ -60,8 +60,11 @@
             )
             (builtins.attrValues section)
         )
-        homepageServices;
-      sortedHomepageHrefs = builtins.sort builtins.lessThan homepageHrefs;
+        services;
+      sortedHomepageHrefs = builtins.sort builtins.lessThan (homepageHrefs homepageServices);
+      mediaCenterOnlyHomepageHrefs =
+        builtins.sort builtins.lessThan
+        (homepageHrefs (drlightWithoutObservability.services.homepage-dashboard.services or []));
       caddyRoutes = builtins.attrNames (drlight.services.caddy.virtualHosts or {});
       caddyApps = builtins.attrNames (drlight.myConfig.caddy.apps or {});
       resticJobs = drlight.services.restic.backups or {};
@@ -75,6 +78,7 @@
         "https://grafana.home.buildingbananas.com"
         "https://jellyfin.home.buildingbananas.com"
       ];
+      expectedMediaCenterOnlyHomepageHrefs = ["https://jellyfin.home.buildingbananas.com"];
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
         "dashboard.home.buildingbananas.com"
         "grafana.home.buildingbananas.com"
@@ -114,6 +118,7 @@
         ${checkTrue "media-center without direct backend still runs node_exporter" (drlightWithoutObservability.services.prometheus.exporters.node.enable or false)}
         ${checkTrue "media-center without direct backend still enables Jellyfin" (drlightWithoutObservability.services.jellyfin.enable or false)}
         ${checkTrue "media-center without direct backend still enables Homepage" (drlightWithoutObservability.services.homepage-dashboard.enable or false)}
+        ${checkEqual "media-center-only Homepage links only to local Jellyfin" expectedMediaCenterOnlyHomepageHrefs mediaCenterOnlyHomepageHrefs}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All type-media-center composition tests passed"
