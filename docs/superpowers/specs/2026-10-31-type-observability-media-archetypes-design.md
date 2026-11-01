@@ -90,7 +90,7 @@ Vector's Loki destination host is a separate collector-group setting. Its defaul
 
 ### Grafana on NixOS behind Caddy
 
-Add a NixOS Grafana module using the native NixOS Grafana service. Enable it only through `type-observability`. Provision Prometheus and Loki datasources against local backend addresses and carry forward the existing system-overview dashboard, adapting its queries to the centralized target/label model.
+Add a NixOS Grafana module using the native NixOS Grafana service. Enable it only through `type-observability`. Provision Prometheus and Loki datasources against local backend addresses and carry forward the existing system-overview dashboard, adapting its queries to the centralized target/label model. The central Service Logs panel uses the shared Loki selector `{host=~".+"}` because both NixOS and Darwin Vector sinks emit `host`; it must not require platform-specific `service` or `severity` labels.
 
 Bind Grafana to loopback because Caddy is the intended ingress. Add a drlight-specific Caddy route at `grafana.home.buildingbananas.com` with upstream `http://127.0.0.1:3000`, preserving Caddy's existing private-network restrictions and Cloudflare secret handling.
 

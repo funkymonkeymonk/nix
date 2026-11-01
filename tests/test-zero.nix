@@ -4,7 +4,11 @@
 #
 # Uses builtins.readFile + Nix string operations to check file content
 # without requiring derivation builds or shell grep commands.
-{pkgs, ...}: let
+{
+  pkgs,
+  self ? null,
+  ...
+}: let
   inherit (pkgs) lib;
 
   # Read zero config as a string for pattern checking (pure Nix, no derivation needed)
@@ -15,8 +19,6 @@
   homepageNixosModuleText = builtins.readFile ../modules/nixos/homepage.nix;
   mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
   onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
-  drlightTargetText = builtins.readFile ../targets/drlight/default.nix;
-  drlightStorageText = builtins.readFile ../modules/nixos/media-storage.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -37,24 +39,26 @@
     then ''echo "  ${name}: OK"''
     else throw "${name}: '${needle}' should occur at least ${toString count} times in zero config";
 in {
-  # Test: the existing media pool moves to drlight without provisioning disks.
-  zeroMediaMirrorStorageTest =
-    pkgs.runCommand "test-zero-media-mirror-storage"
-    {}
-    ''
-      echo "=== Testing Zero external media mirror storage ==="
-
-       ${assertContainsStr "existing media pool import" ''extraPools = ["media"]'' drlightStorageText}
-       ${assertContainsStr "primary media mount" ''"/srv/media"'' drlightStorageText}
-       ${assertContainsStr "compatibility media mount" ''"/media"'' drlightStorageText}
-       ${assertNotContainsStr "no disk provisioning" "disko.devices" drlightStorageText}
-       ${assertContainsStr "drlight media config" "mediaConfig.enable = true" drlightTargetText}
-      ${assertContainsStr "Jellyfin waits for media mount" "RequiresMountsFor" mediaConfigModuleText}
-       ${assertNotContainsStr "Zero no longer owns media config" "mediaConfig.enable" zeroConfigText}
-
-      echo "Zero external media mirror storage test passed"
-      touch $out
-    '';
+  # Zero does not own the media-center configuration; drlight selects that behavior.
+  zeroNoMediaConfigTest =
+    if self == null
+    then
+      pkgs.runCommand "test-zero-media-config-skipped" {} ''
+        echo "Skipped: self not provided"
+        touch $out
+      ''
+    else let
+      zero = self.nixosConfigurations.zero.config;
+    in
+      pkgs.runCommand "test-zero-media-config" {} ''
+        echo "=== Evaluating Zero media configuration ownership ==="
+        ${
+          if !(zero.myConfig.mediaConfig.enable or false)
+          then ''echo "Zero does not enable drlight media configuration: OK"''
+          else ''echo "FAIL: Zero must not enable drlight media configuration"; exit 1''
+        }
+        touch $out
+      '';
 
   # Test: zero config should set defaultVault and override authKeyOpnixItem
   zeroTailscaleSecretConfigTest =

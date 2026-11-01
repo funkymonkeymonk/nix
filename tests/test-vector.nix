@@ -113,6 +113,12 @@ in {
       echo "  FAIL: file source should glob /tmp/*.log"; exit 1
     fi
 
+    if grep -q '"host":"darwin-server"' "$CONFIG"; then
+      echo "  Loki sink emits the shared host label on Darwin: OK"
+    else
+      echo "  FAIL: Darwin Loki sink must emit a host label"; exit 1
+    fi
+
     echo "All Vector generated config tests passed"
     touch $out
   '';

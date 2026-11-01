@@ -43,7 +43,8 @@
   testLogAggregator = import ./test-log-aggregator.nix {inherit pkgs self;};
   testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
   testServerArchetypes = import ./test-server-archetypes.nix {inherit pkgs self inputs;};
-  testZero = import ./test-zero.nix {inherit pkgs;};
+  testMediaCenterArchetype = import ./test-media-center-archetype.nix {inherit pkgs self inputs;};
+  testZero = import ./test-zero.nix {inherit pkgs self;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
   testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
@@ -250,12 +251,16 @@ in
     zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
     zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
+    zero-media-config-not-enabled = testZero.zeroNoMediaConfigTest;
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
     zero-pi-provider-package = testZero.zeroPiProviderPackageTest;
     zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
     zero-sunshine-lan-pairing = testZero.zeroSunshineLanPairingTest;
     zero-sunshine-user-restart = testZero.zeroSunshineUserRestartTest;
-    drlight-media-storage = testZero.zeroMediaMirrorStorageTest;
+    media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
+    drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
+    drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;
+    drlight-no-nixarr-backup = testMediaCenterArchetype.drlightNoNixarrBackupTest;
 
     # Core and bootstrap configs
     core-bootstrap = testCoreBootstrap.coreBootstrapTest;

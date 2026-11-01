@@ -27,13 +27,6 @@
       roles.developer.enable = true;
       tailscale.enable = true;
       collector.destinationHostname = "localhost";
-      homepage.enable = true;
-      mediaConfig.enable = true;
-      backup = {
-        enable = true;
-        repository = "s3:https://fa5cd9ae588234f20b8889e7619ad6ad.r2.cloudflarestorage.com/personal-backups/drlight";
-        paths = ["/var/lib/nixarr"];
-      };
       caddy = {
         enable = true;
         cloudflareApiTokenPath = "/run/secrets/cloudflare-api-token";
@@ -45,43 +38,7 @@
           host = "grafana.home.buildingbananas.com";
           upstream = "http://127.0.0.1:3000";
         };
-        apps.seerr = {
-          host = "seerr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:5055";
-        };
-        apps.sonarr = {
-          host = "sonarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8989";
-        };
-        apps.radarr = {
-          host = "radarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:7878";
-        };
-        apps.prowlarr = {
-          host = "prowlarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:9696";
-        };
-        apps.bazarr = {
-          host = "bazarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:6767";
-        };
-        apps.audiobookshelf = {
-          host = "audiobookshelf.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:9292";
-        };
-        apps.lidarr = {
-          host = "lidarr.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8686";
-        };
-        apps.shelfmark = {
-          host = "shelfmark.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:8084";
-        };
-        apps.transmission = {
-          host = "transmission.home.buildingbananas.com";
-          upstream = "http://127.0.0.1:9091";
-          webRoot = "/transmission/web";
-        };
+        # TODO: Add remote seed-box routes when that integration is ready.
         apps.dashboard = {
           host = "dashboard.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8082";
@@ -103,12 +60,6 @@
           owner = "root";
           group = "root";
           services = ["caddy-cloudflare-env" "caddy"];
-        };
-        secrets.drlightResticPassword = {
-          reference = "zero-restic/password";
-          path = "/run/secrets/drlight-restic-password";
-          mode = "0400";
-          services = ["restic-backup-env" "restic-backups-drlight"];
         };
       };
     };
