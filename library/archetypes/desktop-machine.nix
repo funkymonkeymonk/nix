@@ -4,7 +4,9 @@
   inputs,
   lib,
   ...
-}: {
+}: let
+  sshPublicKey = import ../ssh-public-key.nix;
+in {
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = lib.mkDefault "github:funkymonkeymonk/nix#type-desktop";
@@ -50,9 +52,7 @@
     };
   };
 
-  users.users.root.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-  ];
+  users.users.root.openssh.authorizedKeys.keys = [sshPublicKey];
 
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";

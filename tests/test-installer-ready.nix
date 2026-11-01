@@ -6,7 +6,7 @@
   lib = pkgs.lib;
   config = self.nixosConfigurations.installer-iso.config;
   installerReady = self.packages.x86_64-linux.installer-ready;
-  publicAuthorizedKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX";
+  publicAuthorizedKey = import ../library/ssh-public-key.nix;
   packageNames = map (package: package.name or "") config.environment.systemPackages;
   sshSettings = config.services.openssh.settings;
   loginShellInit = config.programs.bash.loginShellInit;

@@ -1,8 +1,8 @@
-{lib, ...}: {
+{lib, ...}: let
+  sshPublicKey = import ../../library/ssh-public-key.nix;
+in {
   # Initial monkey SSH access
-  users.users.monkey.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-  ];
+  users.users.monkey.openssh.authorizedKeys.keys = [sshPublicKey];
 
   # This target is ARM64, so neither x86 microcode package applies.
   hardware.cpu.intel.updateMicrocode = lib.mkForce false;

@@ -4,7 +4,9 @@
   lib,
   inputs,
   ...
-}: {
+}: let
+  sshPublicKey = import ../ssh-public-key.nix;
+in {
   myConfig = {
     skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
@@ -23,9 +25,7 @@
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIIxGvpCUmx1UV3K22/+sWLdRknZmlTmQgckoAUCApF8 monkey@MegamanX"
-    ];
+    openssh.authorizedKeys.keys = [sshPublicKey];
   };
 
   security.sudo.wheelNeedsPassword = false;
