@@ -25,28 +25,11 @@ in {
         {
           Media = [
             (serviceLink "Jellyfin" "jellyfin.home.buildingbananas.com" "Media server")
-            (serviceLink "Seerr" "seerr.home.buildingbananas.com" "Media requests")
-            (serviceLink "Audiobookshelf" "audiobookshelf.home.buildingbananas.com" "Audiobooks and podcasts")
-            (serviceLink "Shelfmark" "shelfmark.home.buildingbananas.com" "Book requests")
           ];
         }
         {
-          Automation = [
-            (serviceLink "Sonarr" "sonarr.home.buildingbananas.com" "TV automation")
-            (serviceLink "Radarr" "radarr.home.buildingbananas.com" "Movie automation")
-            (serviceLink "Prowlarr" "prowlarr.home.buildingbananas.com" "Indexer management")
-            (serviceLink "Bazarr" "bazarr.home.buildingbananas.com" "Subtitle management")
-            (serviceLink "Lidarr" "lidarr.home.buildingbananas.com" "Music automation")
-          ];
-        }
-        {
-          Downloads = [
-            (serviceLink "Transmission" "transmission.home.buildingbananas.com" "Torrent downloads")
-          ];
-        }
-        {
-          Streaming = [
-            (serviceLink "Sunshine" "sunshine.home.buildingbananas.com" "Moonlight game streaming")
+          Monitoring = [
+            (serviceLink "Grafana" "grafana.home.buildingbananas.com" "System monitoring")
           ];
         }
       ];
@@ -65,7 +48,5 @@ in {
         }
       ];
     };
-
-    myConfig.backup.paths = ["/var/lib/homepage-dashboard"];
   };
 }

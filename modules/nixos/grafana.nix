@@ -76,7 +76,7 @@
         targets = [
           {
             datasource.type = "loki";
-            expr = ''{host=~".+",service=~".+",severity=~".+"}'';
+            expr = ''{host=~".+"}'';
           }
         ];
       }
