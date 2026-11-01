@@ -20,21 +20,18 @@
     nodeExporter.enable = true;
   };
 
-  services.openssh = {
-    enable = true;
-    extraConfig = ''
-      PermitRootLogin no
-      PubkeyAuthentication yes
-      PasswordAuthentication no
-      AllowAgentForwarding yes
-    '';
-  };
+  # SSH policy is active only when the host opts in through myConfig.ssh.enable.
+  services.openssh.extraConfig = ''
+    PermitRootLogin no
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    AllowAgentForwarding yes
+  '';
 
   users.users.root.openssh.authorizedKeys.keys = [];
 
   security.sudo.extraConfig = ''
     Defaults timestamp_timeout=0
-    monkey ALL=(ALL) NOPASSWD: ALL
   '';
 
   environment.systemPackages = with pkgs; [
