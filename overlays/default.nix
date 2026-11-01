@@ -103,7 +103,7 @@
 // (
   if inputs ? bifrost
   then {
-    bifrost-ui = (inputs.bifrost.packages.${final.system}.bifrost-ui).overrideAttrs (oldAttrs: {
+    bifrost-ui = (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-ui).overrideAttrs (oldAttrs: {
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
@@ -128,7 +128,7 @@
     });
 
     bifrost-http =
-      (inputs.bifrost.packages.${final.system}.bifrost-http.override {
+      (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (prev: {
         # The latest upstream revision ships vendor/modules.txt from an older

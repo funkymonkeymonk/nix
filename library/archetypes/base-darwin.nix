@@ -8,7 +8,12 @@
 # This does NOT include the nixpkgs configuration/overlays from flake.nix's
 # `configuration` let-binding — that stays in flake.nix because it references
 # `self` (the flake itself) which is not available via module specialArgs.
-{inputs, ...}: {
+{
+  config,
+  inputs,
+  lib,
+  ...
+}: {
   imports = [
     ../../modules
     ../../os/darwin.nix
@@ -16,4 +21,6 @@
   ];
 
   home-manager.sharedModules = [inputs.opnix.homeManagerModules.default];
+
+  services.openssh.enable = lib.mkDefault config.myConfig.ssh.enable;
 }

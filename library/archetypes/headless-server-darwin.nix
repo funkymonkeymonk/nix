@@ -52,16 +52,13 @@
     grafana.enable = true;
   };
 
-  # SSH hardening (Darwin uses extraConfig, not settings.)
-  services.openssh = {
-    enable = true;
-    extraConfig = ''
-      PermitRootLogin no
-      PubkeyAuthentication yes
-      PasswordAuthentication no
-      AllowAgentForwarding yes
-    '';
-  };
+  # SSH policy for hosts that opt in through myConfig.ssh.enable.
+  services.openssh.extraConfig = ''
+    PermitRootLogin no
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    AllowAgentForwarding yes
+  '';
 
   users.users.root.openssh.authorizedKeys.keys = [];
 

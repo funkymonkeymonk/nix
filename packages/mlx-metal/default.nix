@@ -66,7 +66,7 @@ in
       cp -r "$metal_libdir/lib" "$out/lib/python${pyVersion}/site-packages/mlx/"
     '';
 
-    postFixup = lib.optionalString stdenv.isDarwin ''
+    postFixup = lib.optionalString stdenv.hostPlatform.isDarwin ''
       libdir="$out/lib/python${pyVersion}/site-packages/mlx"
 
       if [ -f "$libdir/lib/libmlx.dylib" ]; then
@@ -94,6 +94,6 @@ in
       homepage = "https://github.com/ml-explore/mlx";
       license = lib.licenses.mit;
       platforms = lib.platforms.darwin;
-      broken = !stdenv.isDarwin || !stdenv.isAarch64;
+      broken = !stdenv.hostPlatform.isDarwin || !stdenv.hostPlatform.isAarch64;
     };
   }

@@ -53,6 +53,11 @@
         if withPlanId
         then {planId = "";}
         else {}
+      )
+      // (
+        if operation == "deploy"
+        then {useMachinesAsBuilders = false;}
+        else {}
       );
     exec = ''
       set -euo pipefail
@@ -69,6 +74,15 @@
             exit 64
           }
           exec ./scripts/machine-ops.sh ${operation} "$machine" "$plan_id"
+        ''
+        else if operation == "deploy"
+        then ''
+          use_machines_as_builders=$(jq -r '(.useMachinesAsBuilders // false) | tostring' <<< "$task_input")
+          case "$use_machines_as_builders" in
+            true) exec ./scripts/machine-ops.sh deploy "$machine" --use-machines-as-builders ;;
+            false) exec ./scripts/machine-ops.sh deploy "$machine" ;;
+            *) echo "useMachinesAsBuilders must be true or false" >&2; exit 64 ;;
+          esac
         ''
         else ''
           exec ./scripts/machine-ops.sh ${operation} "$machine"
@@ -393,6 +407,7 @@ in {
     "machines:plan" = machinesTask "plan" false;
     "machines:apply" = machinesTask "apply" true;
     "machines:deploy" = machinesTask "deploy" false;
+    "machines:deploy-auto" = machinesTask "deploy-auto" false;
     "machines:install" = machinesTask "install" false;
 
     # ============================================
@@ -720,7 +735,7 @@ in {
     };
     "ci:checks:extended" = ciChecksTask {
       group = "extended";
-      description = "Build optional overlay package checks on trusted scheduled runs";
+      description = "Build deferred package, Bifrost, and Nix unit checks on trusted scheduled runs";
     };
     "ci:checks:vm-pr" = ciChecksTask {
       group = "vm-pr";
@@ -734,6 +749,55 @@ in {
     # ============================================
     # TEST TASKS (eval gates build)
     # ============================================
+
+    "ci:checks:non-vm" = {
+      description = "Build all non-VM CI checks in one invocation with at most two concurrent jobs";
+      exec = ''
+        set -euo pipefail
+
+        nix_bin="''${NIX_BIN:-nix}"
+        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+        check_names=$("$nix_bin" eval --json ".#checks.''${current_system}" --apply 'builtins.attrNames' \
+          | jq -r '.[] | select(startswith("vm-") | not)')
+        mapfile -t checks <<< "$check_names"
+        ((''${#checks[@]} > 0)) || {
+          echo "No non-VM checks found for $current_system" >&2
+          exit 1
+        }
+
+        installables=()
+        for check in "''${checks[@]}"; do
+          installables+=(".#checks.''${current_system}.''${check}")
+        done
+
+        echo "Building ''${#checks[@]} non-VM checks in one Nix invocation"
+        "$nix_bin" build --no-link --print-build-logs --max-jobs 2 "''${installables[@]}"
+      '';
+    };
+
+    "ci:checks:vm" = {
+      description = "Build the NixOS VM CI checks with at most two concurrent jobs";
+      exec = ''
+        set -euo pipefail
+
+        nix_bin="''${NIX_BIN:-nix}"
+        current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
+        checks=(
+          vm-users
+          vm-ssh
+          vm-packages
+          vm-role-foundation
+          vm-role-developer
+        )
+        installables=()
+        for check in "''${checks[@]}"; do
+          installables+=(".#checks.''${current_system}.''${check}")
+        done
+
+        echo "Building ''${#checks[@]} VM checks in one Nix invocation"
+        "$nix_bin" build --no-link --print-build-logs --max-jobs 2 "''${installables[@]}"
+      '';
+    };
 
     "test:all" = {
       description = "Run all tests (eval + module tests)";
@@ -762,6 +826,7 @@ in {
 
         echo "=== Configuration Evaluation ==="
         echo ""
+        bash tests/test-platform-deprecation-warnings.sh
         CURRENT_HOST=$(hostname -s)
         export CURRENT_HOST
 

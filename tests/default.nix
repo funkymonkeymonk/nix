@@ -305,6 +305,7 @@ in
 
     # Caddy reverse proxy module tests
     caddy-options = testCaddy.caddyOptionsTest;
+    caddy-internal-dns = testCaddy.caddyInternalDnsTest;
     caddy-custom-options = testCaddy.caddyCustomOptionsTest;
 
     # SearXNG module tests
