@@ -6,12 +6,17 @@
 }: let
   lib = pkgs.lib;
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
+  flakeLock = builtins.fromJSON (builtins.readFile ../flake.lock);
+  devenvLock = builtins.fromJSON (builtins.readFile ../devenv.lock);
+  flakeNixpkgsRev = flakeLock.nodes.${flakeLock.nodes.root.inputs.nixpkgs}.locked.rev;
+  devenvNixpkgsRev = devenvLock.nodes.${devenvLock.nodes.root.inputs.nixpkgs}.locked.rev;
   projectMachineModules = import ../library/machines/modules.nix {inherit inputs;};
   catalogNixos = lib.filterAttrs (_: machine: machine.kind == "nixos") catalog;
   catalogDarwin = lib.filterAttrs (_: machine: machine.kind == "darwin") catalog;
   catalogNames = builtins.attrNames catalog;
   catalogNixosNames = builtins.attrNames catalogNixos;
   catalogDarwinNames = builtins.attrNames catalogDarwin;
+  headlessServerNixosSource = builtins.readFile ../library/archetypes/headless-server-nixos.nix;
   nativeNixosNames = builtins.attrNames self.nixosConfigurations;
   nativeDarwinNames = builtins.attrNames self.darwinConfigurations;
   rootDevenv = import ../devenv.nix {inherit pkgs inputs;};
@@ -96,6 +101,10 @@
     ${assertEqual "Darwin catalog/native names" catalogDarwinNames nativeDarwinNames}
     ${assertEqual "root devenv imports one Machines projection" 1 (builtins.length machineModules)}
     ${assertEqual "Catalog/Machines names" catalogNames machinesNames}
+    ${assertEqual "Devenv and flake use the same Nixpkgs revision" flakeNixpkgsRev devenvNixpkgsRev}
+    ${assertEqual "type-server declares its Disko layout for native projection" true (catalog.type-server.disko or false)}
+    ${assertEqual "type-server-arm declares its Disko layout for native projection" true (catalog.type-server-arm.disko or false)}
+    ${assertEqual "headless server archetype leaves Disko injection to machine projections" false (lib.hasInfix "inputs.disko.nixosModules.disko" headlessServerNixosSource)}
     ${assertEqual "zero system" "x86_64-linux" representativeNixos.system}
     ${assertEqual "zero hostname" "zero" representativeNixos.hostname}
     ${assertEqual "zero module count" 11 (builtins.length representativeNixos.modules)}

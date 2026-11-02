@@ -35,6 +35,7 @@
   type-server = {
     kind = "nixos";
     secretProfile = "Homelab";
+    disko = true;
     builder = "mk-system";
     system = "x86_64-linux";
     hostname = "type-server";
@@ -52,6 +53,7 @@
   type-server-arm = {
     kind = "nixos";
     secretProfile = "Homelab";
+    disko = true;
     builder = "mk-system";
     system = "aarch64-linux";
     hostname = "type-server-arm";
@@ -128,6 +130,7 @@
   drlight = {
     kind = "nixos";
     secretProfile = "Homelab";
+    disko = true;
     builder = "mk-system";
     system = "x86_64-linux";
     hostname = "drlight";
@@ -135,12 +138,17 @@
     modules = [
       ../archetypes/type-media-center.nix
       ../archetypes/type-observability.nix
+      ../../disk-configs/drlight.nix
       ../../modules/nixos/media-storage.nix
       ../../modules/nixos/ghostty-terminfo.nix
       ../../targets/drlight
     ];
     extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
-    overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#drlight";
+    overrides = {
+      autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#drlight";
+      tailscale.authKeyMode = "devenv-oauth";
+      tailscale.authKeyTags = ["tag:home-lab" "tag:media-center"];
+    };
   };
 
   wweaver = {

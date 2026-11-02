@@ -1,5 +1,6 @@
 {
   inputs,
+  lib,
   mkUser,
   ...
 }: let
@@ -8,17 +9,20 @@ in {
   # Initial monkey SSH access
   users.users.monkey.openssh.authorizedKeys.keys = [sshPublicKey];
 
-  nixpkgs.hostPlatform = "x86_64-linux";
-  networking.hostId = "f2ec5664";
+  # Machines requires root SSH for transactional installation/deployment. Keep
+  # it key-only and limited to the same approved public key.
+  users.users.root.openssh.authorizedKeys.keys = [sshPublicKey];
+  services.openssh.settings.PermitRootLogin = lib.mkForce "prohibit-password";
+  services.openssh.settings.PasswordAuthentication = false;
 
-  fileSystems."/" = {
-    device = "/dev/disk/by-label/drlight-root";
-    fsType = "ext4";
-  };
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-label/drlight-boot";
-    fsType = "vfat";
-  };
+  nixpkgs.hostPlatform = "x86_64-linux";
+  # Preserve the ZFS pool owner's host ID while drlight takes over from zero.
+  networking.hostId = "0badc0de";
+  boot.zfs.forceImportRoot = false;
+  boot.zfs.forceImportAll = false;
+
+  # disk-configs/drlight.nix provisions only the Patriot OS disk. The media
+  # mirror on /dev/sdc and /dev/sdd is not part of the Disko layout.
 
   myConfig =
     mkUser "monkey" "me@willweaver.dev"

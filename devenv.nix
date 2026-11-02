@@ -167,7 +167,10 @@
       )
       // (
         if operation == "deploy"
-        then {useMachinesAsBuilders = false;}
+        then {
+          useMachinesAsBuilders = false;
+          yes = false;
+        }
         else {}
       );
     exec = ''
@@ -189,10 +192,13 @@
         else if operation == "deploy"
         then ''
           use_machines_as_builders=$(jq -r '(.useMachinesAsBuilders // false) | tostring' <<< "$task_input")
-          case "$use_machines_as_builders" in
-            true) exec ./scripts/machine-ops.sh deploy "$machine" --use-machines-as-builders ;;
-            false) exec ./scripts/machine-ops.sh deploy "$machine" ;;
-            *) echo "useMachinesAsBuilders must be true or false" >&2; exit 64 ;;
+          yes=$(jq -r '(.yes // false) | tostring' <<< "$task_input")
+          case "$use_machines_as_builders:$yes" in
+            true:true) exec ./scripts/machine-ops.sh deploy "$machine" --use-machines-as-builders --yes ;;
+            true:false) exec ./scripts/machine-ops.sh deploy "$machine" --use-machines-as-builders ;;
+            false:true) exec ./scripts/machine-ops.sh deploy "$machine" --yes ;;
+            false:false) exec ./scripts/machine-ops.sh deploy "$machine" ;;
+            *) echo "useMachinesAsBuilders and yes must be true or false" >&2; exit 64 ;;
           esac
         ''
         else ''

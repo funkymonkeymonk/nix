@@ -80,21 +80,51 @@ machine_metadata() {
   # Machine names are restricted above before being interpolated into this
   # expression. Metadata is public catalog data; no SecretSpec provider is
   # loaded while resolving it.
-  expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\") + \"\\t\" + machine.system"
+  expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; tailscale = (machine.overrides or {}).tailscale or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; hasTailscaleOAuth = builtins.hasAttr \"TAILSCALE_OAUTH_CLIENT_ID\" profile && builtins.hasAttr \"TAILSCALE_OAUTH_CLIENT_SECRET\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\") + \"\\t\" + machine.system + \"\\t\" + (tailscale.authKeyMode or \"opnix\") + \"\\t\" + (if hasTailscaleOAuth then \"true\" else \"false\") + \"\\t\" + builtins.toJSON (tailscale.authKeyTags or [])"
   "$nix_bin" eval --impure --raw --expr "$expression"
+}
+
+machine_target_host() {
+  local machine=$1
+  local devenv_bin=$2
+  local info target_host
+
+  info=$(NO_COLOR=1 "$devenv_bin" machines info "$machine") || {
+    printf 'ERROR: unable to resolve the deployment target for %s\n' "$machine" >&2
+    return 69
+  }
+  target_host=$(printf '%s\n' "$info" \
+    | sed -E $'s/\\x1B\\[[0-9;]*[[:alpha:]]//g' \
+    | awk -F'|' -v expected="$machine" '
+      function trim(value) {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        return value
+      }
+      NF >= 4 && trim($2) == expected { print trim($4); found = 1; exit }
+      END { if (!found) exit 1 }
+    ') || {
+    printf 'ERROR: machine info did not provide a target host for %s\n' "$machine" >&2
+    return 69
+  }
+  [[ -n "$target_host" ]] || {
+    printf 'ERROR: machine info returned an empty target host for %s\n' "$machine" >&2
+    return 69
+  }
+  printf '%s' "$target_host"
 }
 
 run_scoped_machine_operation() {
   local operation=$1
   local machine=$2
   shift 2
-  local metadata profile kind has_secrets has_bootstrap_secret devenv_bin secretspec_bin devenv_store_path
+  local metadata profile kind has_secrets has_bootstrap_secret target_system tailscale_auth_mode has_tailscale_oauth tailscale_auth_tags
+  local devenv_bin secretspec_bin devenv_store_path
 
   metadata=$(machine_metadata "$machine") || {
     printf 'ERROR: machine %s is not in the catalog or has no deployment metadata\n' "$machine" >&2
     exit 64
   }
-  IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret _target_system <<< "$metadata"
+  IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret target_system tailscale_auth_mode has_tailscale_oauth tailscale_auth_tags <<< "$metadata"
   case "$profile" in
     Homelab|Personal|MegamanX) ;;
     *) printf 'ERROR: unsupported SecretSpec profile for machine %s\n' "$machine" >&2; exit 64 ;;
@@ -108,9 +138,79 @@ run_scoped_machine_operation() {
     printf "ERROR: cannot install %s: profile '%s' must declare OPNIX_SERVICE_ACCOUNT_TOKEN with an approved default-vault reference before installing\n" "$machine" "$profile" >&2
     exit 69
   fi
-  # Stock Devenv deploy does not consume SecretSpec values. In particular, it
-  # cannot use MegamanX's sudo-password secret for activation, so do not resolve
-  # an unused profile before starting its build/plan/apply flow.
+  if [[ "$operation" == deploy && "$tailscale_auth_mode" == "devenv-oauth" ]]; then
+    [[ "$kind" == nixos ]] || {
+      printf 'ERROR: OAuth-generated Tailscale keys are only supported for NixOS machines\n' >&2
+      exit 69
+    }
+    local target_host ssh_bin jq_bin remote_status backend_state tailscale_auth_key authkey_script key_staged=false deploy_status
+    local tailscale_auth_tags_array
+    target_host=$(machine_target_host "$machine" "$devenv_bin") || exit $?
+    ssh_bin=${SSH_BIN:-ssh}
+    jq_bin=${JQ_BIN:-jq}
+    remote_status=$(
+      "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
+        '/run/current-system/sw/bin/tailscale status --json 2>/dev/null || true'
+    ) || {
+      printf 'ERROR: unable to inspect Tailscale state on %s\n' "$machine" >&2
+      exit 69
+    }
+    backend_state=$(printf '%s' "$remote_status" | "$jq_bin" -r '.BackendState // empty' 2>/dev/null || true)
+
+    if [[ "$backend_state" != Running ]]; then
+      [[ "$has_tailscale_oauth" == true ]] || {
+        printf 'ERROR: %s uses OAuth-generated Tailscale keys but its SecretSpec profile lacks the OAuth client ID and secret\n' "$machine" >&2
+        exit 69
+      }
+      devenv_store_path=${devenv_bin%/bin/devenv}
+      secretspec_bin=${SECRETSPEC_BIN:-$devenv_store_path/bin/secretspec}
+      [[ -x "$secretspec_bin" ]] || {
+        printf 'ERROR: SecretSpec CLI not found; refusing to generate a Tailscale auth key without its scoped profile\n' >&2
+        exit 69
+      }
+      authkey_script=${TAILSCALE_AUTHKEY_SCRIPT:-"$repo_root/scripts/tailscale-oauth-authkey.sh"}
+      [[ -x "$authkey_script" ]] || {
+        printf 'ERROR: Tailscale OAuth auth-key helper is not executable: %s\n' "$authkey_script" >&2
+        exit 69
+      }
+      tailscale_auth_tags_array=$(printf '%s' "$tailscale_auth_tags" | "$jq_bin" -e 'type == "array" and length > 0' >/dev/null && printf '%s' "$tailscale_auth_tags") || {
+        printf 'ERROR: %s has no configured Tailscale OAuth tags\n' "$machine" >&2
+        exit 69
+      }
+      tailscale_auth_key=$("$secretspec_bin" run --profile "$profile" -- "$authkey_script" "$machine" "$tailscale_auth_tags_array") || {
+        printf 'ERROR: could not generate a one-time Tailscale auth key for %s\n' "$machine" >&2
+        exit 69
+      }
+      [[ -n "$tailscale_auth_key" ]] || {
+        printf 'ERROR: Tailscale OAuth helper returned an empty auth key for %s\n' "$machine" >&2
+        exit 69
+      }
+      if ! printf '%s' "$tailscale_auth_key" | "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
+        'umask 077; mkdir -p /run/devenv; chmod 0700 /run/devenv; cat > /run/devenv/tailscale-auth-key; chmod 0600 /run/devenv/tailscale-auth-key'; then
+        unset tailscale_auth_key
+        printf 'ERROR: failed to stage the one-time Tailscale auth key on %s\n' "$machine" >&2
+        exit 69
+      fi
+      unset tailscale_auth_key
+      key_staged=true
+    fi
+
+    if "$devenv_bin" machines "$operation" "$@"; then
+      deploy_status=0
+    else
+      deploy_status=$?
+    fi
+    if [[ "$key_staged" == true ]]; then
+      "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
+        'rm -f -- /run/devenv/tailscale-auth-key' >/dev/null 2>&1 || {
+        printf 'WARNING: unable to remove the temporary Tailscale auth-key file from %s\n' "$machine" >&2
+      }
+    fi
+    return "$deploy_status"
+  fi
+
+  # Stock Devenv deploy does not consume SecretSpec values for ordinary
+  # machines, so do not resolve an unused profile before its build/plan/apply.
   if [[ "$has_secrets" != true || "$operation" == deploy ]]; then
     "$devenv_bin" machines "$operation" "$@"
     return
@@ -141,7 +241,7 @@ case "$operation" in
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
-    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret _target_system <<< "$metadata"
+    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret _target_system _tailscale_auth_mode _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
     case "$kind" in
       nixos) build_role=nixos ;;
       darwin) build_role=nix-darwin ;;
@@ -157,22 +257,26 @@ case "$operation" in
     run_scoped_machine_operation "$operation" "$machine" "$machine"
     ;;
   deploy)
-    [[ $# -eq 1 || $# -eq 2 ]] || fail 'deploy requires one machine name and an optional builder flag'
+    [[ $# -ge 1 ]] || fail 'deploy requires one machine name'
     machine=$1
+    shift
     valid_machine_name "$machine" || fail 'machine name is malformed'
-    if [[ $# -eq 2 ]]; then
-      [[ "$2" == --use-machines-as-builders ]] || fail "unsupported deploy option: $2"
-      run_scoped_machine_operation deploy "$machine" --use-machines-as-builders "$machine"
-    else
-      run_scoped_machine_operation deploy "$machine" "$machine"
-    fi
+    deploy_options=()
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --use-machines-as-builders|--yes) deploy_options+=("$1") ;;
+        *) fail "unsupported deploy option: $1" ;;
+      esac
+      shift
+    done
+    run_scoped_machine_operation deploy "$machine" "${deploy_options[@]}" "$machine"
     ;;
   deploy-auto)
     [[ $# -eq 1 ]] || fail 'deploy-auto requires exactly one machine name'
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
-    IFS=$'\t' read -r _profile _kind _has_secrets _has_bootstrap_secret target_system <<< "$metadata"
+    IFS=$'\t' read -r _profile _kind _has_secrets _has_bootstrap_secret target_system _tailscale_auth_mode _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
     nix_bin=${NIX_BIN:-nix}
     current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem') || {
       printf 'ERROR: unable to determine the current Nix system\n' >&2

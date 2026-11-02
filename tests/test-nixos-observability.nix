@@ -25,7 +25,10 @@
     stubs.base
     ++ stubs.onepassword
     ++ stubs.nixosGrafanaService
-    ++ [../library/archetypes/type-observability.nix];
+    ++ [
+      ../modules/nixos/prometheus.nix
+      ../library/archetypes/type-observability.nix
+    ];
   evalPrometheus = {
     modules,
     nodeExporterInventory ? [],
