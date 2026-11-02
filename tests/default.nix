@@ -216,6 +216,7 @@ in
     opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
+    onepassword-ssh-agent-config = testHomeManager.onepasswordSshAgentConfigTest;
 
     # Workspace-aware switch shell function tests
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;

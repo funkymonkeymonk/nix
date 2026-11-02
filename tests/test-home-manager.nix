@@ -135,6 +135,48 @@
       ];
   };
   inherit (aliasesEval.config.home) shellAliases;
+
+  # Evaluate the shared user module with 1Password SSH agent enabled.
+  sshAgentEval =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          ../modules/roles/agent-skills.nix
+          ../modules/common/onepassword.nix
+          {
+            options.assertions = lib.mkOption {
+              type = lib.types.listOf lib.types.anything;
+              default = [];
+            };
+            options.home-manager.users = lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
+              default = {};
+            };
+          }
+          ../modules/common/users.nix
+          {
+            config.myConfig = {
+              onepassword.enableSSHAgent = true;
+              users = [
+                {
+                  name = "ssh-test";
+                  email = "ssh-test@example.invalid";
+                }
+              ];
+            };
+          }
+        ];
+    }).config;
+  sshAgentUser = sshAgentEval.home-manager.users.ssh-test;
+  expectedSshAgentSocket =
+    if sshAgentEval.myConfig.isDarwin
+    then "/Users/ssh-test/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    else "/home/ssh-test/.1password/agent.sock";
+  expectedSshIdentityAgent =
+    if sshAgentEval.myConfig.isDarwin
+    then ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"''
+    else expectedSshAgentSocket;
 in {
   # Test opencode option defaults
   opencodeOptionsTest =
@@ -477,6 +519,27 @@ in {
 
   # Verify the jj workspace access plugin is installed in OpenCode's global
   # plugin directory when OpenCode is enabled.
+  onepasswordSshAgentConfigTest =
+    pkgs.runCommand "test-onepassword-ssh-agent-config"
+    {}
+    ''
+      echo "=== Testing 1Password SSH Agent Configuration ==="
+
+      ${
+        if sshAgentUser.home.sessionVariables.SSH_AUTH_SOCK == expectedSshAgentSocket
+        then ''echo "  SSH_AUTH_SOCK points to the platform agent socket: OK"''
+        else ''echo "  SSH_AUTH_SOCK does not point to the platform agent socket!"; exit 1''
+      }
+
+      ${
+        if sshAgentUser.programs.ssh.settings."*".IdentityAgent == expectedSshIdentityAgent
+        then ''echo "  OpenSSH uses the platform agent socket: OK"''
+        else ''echo "  OpenSSH does not use the platform agent socket!"; exit 1''
+      }
+
+      touch $out
+    '';
+
   opencodeWorkspaceAccessInstallTest =
     pkgs.runCommand "test-opencode-jj-workspace-access-install"
     {}
