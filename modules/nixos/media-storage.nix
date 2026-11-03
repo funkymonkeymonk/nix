@@ -3,14 +3,13 @@
   boot.zfs.extraPools = ["media"];
 
   fileSystems."/srv/media" = {
-    device = "media/library";
-    fsType = "zfs";
-    options = ["noatime"];
-  };
-
-  fileSystems."/media" = {
-    device = "media/library";
-    fsType = "zfs";
-    options = ["noatime"];
+    device = "/media";
+    fsType = "none";
+    options = [
+      "bind"
+      "nofail"
+      "x-systemd.after=zfs-mount.service"
+      "x-systemd.requires=zfs-mount.service"
+    ];
   };
 }

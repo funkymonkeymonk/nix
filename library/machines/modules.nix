@@ -9,4 +9,9 @@
     then [inputs.disko.nixosModules.disko]
     else [];
 in
-  diskoModules ++ [(observabilityInventory.machineModule machine)] ++ machine.modules
+  diskoModules
+  ++ [
+    ../../modules/nixos/ssh-host-key-fingerprint.nix
+    (observabilityInventory.machineModule machine)
+  ]
+  ++ machine.modules

@@ -76,16 +76,18 @@
   rootDevenvNode = lock.nodes.devenv or {};
   devenvRootInputs = projectLock.nodes.root.inputs or {};
   devenvInputNixpkgs = (projectLock.nodes or {}).${devenvRootInputs.nixpkgs or "nixpkgs"} or {};
-  rootNixpkgs = lock.nodes.nixpkgs or {};
+  rootNixpkgsInput = (lock.nodes.root.inputs or {}).nixpkgs or "nixpkgs";
+  rootNixpkgs = (lock.nodes or {}).${rootNixpkgsInput} or {};
+  rootNixpkgsRevision = rootNixpkgs.locked.rev or "";
   devenvNixpkgsMatchesRoot =
     lockExists
     && devenvLockExists
-    && (devenvInputNixpkgs.locked.owner or null) == (rootNixpkgs.locked.owner or null)
+    && lib.toLower (devenvInputNixpkgs.locked.owner or "") == lib.toLower (rootNixpkgs.locked.owner or "")
     && (devenvInputNixpkgs.locked.repo or null) == (rootNixpkgs.locked.repo or null)
     && (devenvInputNixpkgs.locked.rev or null) == (rootNixpkgs.locked.rev or null)
     && (devenvInputNixpkgs.original.owner or null) == "NixOS"
     && (devenvInputNixpkgs.original.repo or null) == "nixpkgs"
-    && lib.hasInfix "url: github:NixOS/nixpkgs/a0f7233e070eb72d7f415eda943a1aa2290427c5" devenvYamlText;
+    && lib.hasInfix "url: github:NixOS/nixpkgs/${rootNixpkgsRevision}" devenvYamlText;
   profileRoutesTo = profileName: expectedVault: let
     profile = profiles.${profileName} or {};
     providerNames = (profile.defaults or {}).providers or [];
@@ -96,15 +98,27 @@
     builtins.all
     (uri: builtins.isString uri && builtins.match "onepassword://[A-Za-z0-9_-]+" uri != null)
     (builtins.attrValues providers);
-  profilesDeclareOnlyProviderDefaults = builtins.all (name: let
+  profilesDeclareExpectedFields = builtins.all (name: let
     profile = profiles.${name};
     expected =
-      if name == "MegamanX"
+      if name == "Homelab"
+      then ["OPNIX_SERVICE_ACCOUNT_TOKEN" "TAILSCALE_OAUTH_CLIENT_ID" "TAILSCALE_OAUTH_CLIENT_SECRET" "defaults"]
+      else if name == "MegamanX"
       then ["MEGAMANX_SUDO_PASSWORD" "defaults"]
       else ["defaults"];
   in
     builtins.attrNames profile == expected)
   (builtins.attrNames profiles);
+  homelabOpnixToken = (profiles.Homelab or {}).OPNIX_SERVICE_ACCOUNT_TOKEN or {};
+  homelabOpnixTokenIsReferenceOnly =
+    (homelabOpnixToken.ref or {})
+    == {
+      item = "1Password Service Account - Opnix";
+      field = "credential";
+    }
+    && (homelabOpnixToken.providers or []) == ["homelab"]
+    && (homelabOpnixToken ? description)
+    && !(homelabOpnixToken ? value);
   megamanxSudoPassword = (profiles.MegamanX or {}).MEGAMANX_SUDO_PASSWORD or {};
   megamanxSudoPasswordIsReferenceOnly =
     (megamanxSudoPassword.ref or {})
@@ -133,11 +147,6 @@
   outputSelectsPinnedDevenvOnAllPlatforms =
     lib.hasInfix "devenv = pkgs.devenv;" outputsText
     && !(lib.hasInfix "if isDarwin then pkgs.devenv" outputsText);
-  containsServiceAccountTokenReference =
-    lib.hasInfix "OP_SERVICE_ACCOUNT_TOKEN" manifestText
-    || lib.hasInfix "service_account_token" manifestText
-    || lib.hasInfix "OP_SERVICE_ACCOUNT_TOKEN" devenvSourceText
-    || lib.hasInfix "service_account_token" devenvSourceText;
   devenvDoesNotLoadSecretsGlobally =
     !(lib.hasInfix "secretspec" (lib.toLower devenvSourceText))
     && !(lib.hasInfix "SECRETSPEC_" devenvSourceText)
@@ -160,12 +169,12 @@ in {
     ${assertResult "Machines projection receives the NixOS facter input with nixpkgs following devenv nixpkgs" machinesProjectionReceivesFacterInput}
     ${assertResult "Devenv locks all inputs needed by the shared Machines package overlay" machineBuildInputsMatchRootLock}
     ${assertResult "SecretSpec has a Homelab 1Password profile route" (manifestExists && profileRoutesTo "Homelab" "Homelab")}
-    ${assertResult "SecretSpec has a Personal 1Password profile route" (manifestExists && profileRoutesTo "Personal" "Personal")}
+    ${assertResult "SecretSpec omits the unused Personal profile" (manifestExists && !(profiles ? Personal))}
     ${assertResult "SecretSpec keeps the MegamanX sudo profile routed to Private" (manifestExists && profileRoutesTo "MegamanX" "Private")}
     ${assertResult "MegamanX sudo password is referenced from Private without embedding a value" megamanxSudoPasswordIsReferenceOnly}
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
-    ${assertResult "SecretSpec profiles contain routing metadata only, without values or credentials" (manifestExists && profilesDeclareOnlyProviderDefaults && profilesHaveNoResolvedValuesOrCredentials)}
-    ${assertResult "manifest and devenv configuration contain no service-account token reference" (!containsServiceAccountTokenReference)}
+    ${assertResult "SecretSpec profiles declare the expected Homelab and MegamanX fields" (manifestExists && profilesDeclareExpectedFields && profilesHaveNoResolvedValuesOrCredentials)}
+    ${assertResult "Homelab opnix service-account token is a reference-only field" homelabOpnixTokenIsReferenceOnly}
     ${assertResult "devenv does not configure global SecretSpec loading" devenvDoesNotLoadSecretsGlobally}
     touch $out
   '';

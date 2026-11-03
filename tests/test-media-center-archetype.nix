@@ -9,7 +9,9 @@
   inherit (pkgs) lib;
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
   observabilityInventory = import ../library/machines/observability-inventory.nix {inherit catalog;};
+  typeObservabilitySource = builtins.readFile ../library/archetypes/type-observability.nix;
   drlightMachine = catalog.drlight;
+  sshPublicKey = import ../library/ssh-public-key.nix;
 
   hasModule = suffix: machine:
     lib.any (module: lib.hasSuffix suffix (builtins.toString module)) machine.modules;
@@ -43,7 +45,10 @@
           inputs = inputsWithSelf;
           inherit (drlightMachine) hostname system extraSpecialArgs overrides;
           modules =
-            [(observabilityInventory.machineModule drlightMachine)]
+            [
+              inputs.disko.nixosModules.disko
+              (observabilityInventory.machineModule drlightMachine)
+            ]
             ++ lib.filter
             (module: !(lib.hasSuffix "/archetypes/type-observability.nix" (builtins.toString module)))
             drlightMachine.modules;
@@ -73,6 +78,10 @@
       secretValues = builtins.attrValues onePasswordSecrets;
       mediaMount = drlight.fileSystems."/srv/media" or {};
       compatibilityMediaMount = drlight.fileSystems."/media" or {};
+      diskoDevices = (drlight.disko or {}).devices or {};
+      diskoDisks = diskoDevices.disk or {};
+      diskoDisk = diskoDisks.main or {};
+      diskoPartitions = (diskoDisk.content or {}).partitions or {};
       jellyfinMountRequirements = drlight.systemd.services.jellyfin.serviceConfig.RequiresMountsFor or [];
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan [
         "https://grafana.home.buildingbananas.com"
@@ -98,6 +107,7 @@
 
         ${checkTrue "drlight selects type-media-center" (hasModule "/archetypes/type-media-center.nix" drlightMachine)}
         ${checkTrue "drlight selects type-observability separately" (hasModule "/archetypes/type-observability.nix" drlightMachine)}
+        ${checkFalse "type-observability does not duplicate the server Prometheus module" (lib.hasInfix "../../modules/nixos/prometheus.nix" typeObservabilitySource)}
         ${checkTrue "media-center retains Vector collector" (drlight.myConfig.vector.enable or false)}
         ${checkTrue "media-center runs Vector" (drlight.services.vector.enable or false)}
         ${checkTrue "media-center retains node_exporter" (drlight.services.prometheus.exporters.node.enable or false)}
@@ -129,6 +139,7 @@
         failures=0
         echo "=== Evaluating drlight Homepage links and Caddy routes ==="
 
+        ${checkEqual "Homepage allows its Tailscale Serve hostname" "dashboard.home.buildingbananas.com,drlight.uaru-daggertooth.ts.net:8443" (drlight.services.homepage-dashboard.allowedHosts or null)}
         ${checkEqual "Homepage exposes only local Jellyfin and Grafana" expectedLocalHomepageHrefs sortedHomepageHrefs}
         ${checkEqual "Caddy routes only dashboard and local Jellyfin/Grafana" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
         ${checkEqual "Caddy app configuration only includes dashboard and local Jellyfin/Grafana" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
@@ -139,15 +150,52 @@
         touch $out
       '';
 
+      drlightRootSshTest = pkgs.runCommand "test-drlight-root-ssh" {} ''
+        failures=0
+        echo "=== Evaluating drlight root SSH access policy ==="
+
+        ${checkEqual "root SSH uses the approved public key" [sshPublicKey] (drlight.users.users.root.openssh.authorizedKeys.keys or [])}
+        ${checkEqual "root SSH is key-only" "prohibit-password" (drlight.services.openssh.settings.PermitRootLogin or null)}
+        ${checkFalse "root password authentication remains disabled" (drlight.services.openssh.settings.PasswordAuthentication or false)}
+
+        if [ "$failures" -ne 0 ]; then exit 1; fi
+        echo "All drlight root SSH tests passed"
+        touch $out
+      '';
+
       drlightMediaStorageTest = pkgs.runCommand "test-drlight-media-storage" {} ''
         failures=0
         echo "=== Evaluating drlight ZFS media storage and Jellyfin mount dependency ==="
 
         ${checkTrue "existing media pool is imported" (builtins.elem "media" (drlight.boot.zfs.extraPools or []))}
-        ${checkEqual "primary media mount device" "media/library" (mediaMount.device or null)}
-        ${checkEqual "primary media mount filesystem" "zfs" (mediaMount.fsType or null)}
-        ${checkEqual "compatibility media mount device" "media/library" (compatibilityMediaMount.device or null)}
-        ${checkEqual "compatibility media mount filesystem" "zfs" (compatibilityMediaMount.fsType or null)}
+        ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
+        ${checkEqual "scheduled upgrades run through the sentinel guard" "nixos-upgrade-scheduled.service" (drlight.systemd.timers.nixos-upgrade.timerConfig.Unit or null)}
+        ${checkEqual "disable sentinel skips scheduled upgrades at runtime" "!/var/lib/nixos-upgrade.disabled" (drlight.systemd.services.nixos-upgrade-scheduled.unitConfig.ConditionPathExists or null)}
+        ${checkFalse "manual upgrades are not gated by the scheduled sentinel" (drlight.systemd.services.nixos-upgrade.unitConfig ? ConditionPathExists)}
+        ${checkEqual "drlight mints Tailscale auth keys through the deployment task" "devenv-oauth" (drlight.myConfig.tailscale.authKeyMode or null)}
+        ${checkEqual "drlight uses the approved homelab and media-center tags" ["tag:home-lab" "tag:media-center"] (drlight.myConfig.tailscale.authKeyTags or [])}
+        ${checkFalse "drlight does not store a static Tailscale auth key in OpNix" (drlight.myConfig.onepassword.secrets ? tailscaleAuthKey)}
+        ${checkTrue "drlight Tailscale service consumes a transient deployment key file" (lib.hasInfix "/run/devenv/tailscale-auth-key" (drlight.systemd.services.tailscale-autoconnect.script or ""))}
+        ${checkEqual "drlight keeps the former zero pool owner host ID" "0badc0de" drlight.networking.hostId}
+        ${checkFalse "drlight does not force-import the root pool" drlight.boot.zfs.forceImportRoot}
+        ${checkFalse "drlight does not force-import all pools" drlight.boot.zfs.forceImportAll}
+        ${checkTrue "drlight uses its dedicated Disko layout" (drlightMachine.disko or false)}
+        ${checkTrue "drlight selects the dedicated safe disk module" (hasModule "/disk-configs/drlight.nix" drlightMachine)}
+        ${checkEqual "drlight Disko declares only its OS disk" ["main"] (builtins.attrNames diskoDisks)}
+        ${checkEqual "drlight Disko targets the stable Patriot sda identity" "/dev/disk/by-id/ata-Patriot_P210_512GB_P210IICB25030501733" (diskoDisk.device or null)}
+        ${checkEqual "drlight Disko does not define ZFS data-pool devices" [] (builtins.attrNames (diskoDevices.zpool or {}))}
+        ${checkEqual "drlight Disko declares ESP, root, and swap partitions" ["ESP" "root" "swap"] (builtins.sort builtins.lessThan (builtins.attrNames diskoPartitions))}
+        ${checkEqual "drlight Disko keeps the ESP mounted at /boot" "/boot" (diskoPartitions.ESP.content.mountpoint or null)}
+        ${checkTrue "drlight Disko force-formats the EFI filesystem after stale signatures" (lib.hasInfix "mkfs.vfat -F 32" (diskoPartitions.ESP.content.preCreateHook or ""))}
+        ${checkEqual "drlight Disko mounts root at /" "/" (diskoPartitions.root.content.mountpoint or null)}
+        ${checkEqual "drlight root filesystem is ext4" "ext4" (drlight.fileSystems."/".fsType or null)}
+        ${checkEqual "drlight boot filesystem is vfat" "vfat" (drlight.fileSystems."/boot".fsType or null)}
+        ${checkEqual "primary media path binds ZFS-managed /media" "/media" (mediaMount.device or null)}
+        ${checkEqual "primary media path uses a bind mount" "none" (mediaMount.fsType or null)}
+        ${checkTrue "primary media bind does not block boot when absent" (builtins.elem "nofail" (mediaMount.options or []))}
+        ${checkTrue "primary media bind waits for ZFS mounts" (builtins.elem "x-systemd.after=zfs-mount.service" (mediaMount.options or []) && builtins.elem "x-systemd.requires=zfs-mount.service" (mediaMount.options or []))}
+        ${checkFalse "ZFS owns the /media mountpoint" (drlight.fileSystems ? "/media")}
+        ${checkEqual "compatibility media mount remains absent" null (compatibilityMediaMount.device or null)}
         ${checkTrue "Jellyfin waits for the media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
@@ -183,6 +231,10 @@ in {
     if checks == null
     then skipped "drlight-media-storage"
     else checks.drlightMediaStorageTest;
+  drlightRootSshTest =
+    if checks == null
+    then skipped "drlight-root-ssh"
+    else checks.drlightRootSshTest;
   drlightNoNixarrBackupTest =
     if checks == null
     then skipped "drlight-no-nixarr-backup"

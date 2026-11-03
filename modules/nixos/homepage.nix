@@ -19,7 +19,7 @@ in {
     services.homepage-dashboard = {
       enable = true;
       listenPort = 8082;
-      allowedHosts = "dashboard.home.buildingbananas.com";
+      allowedHosts = "dashboard.home.buildingbananas.com,drlight.uaru-daggertooth.ts.net:8443";
       openFirewall = false;
       services =
         [

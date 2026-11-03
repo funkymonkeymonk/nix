@@ -60,7 +60,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. |
+| `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. Creating /var/lib/nixos-upgrade.disabled pauses scheduled upgrades on that host; manual upgrades remain available. |
 
 ### myConfig.bifrost
 
@@ -466,7 +466,9 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `advertiseRoutes` | list of string | `[ ]` | Additional routes to advertise (CIDR notation, e.g. ["10.0.0.0/24"]) |
-| `authKeyOpnixItem` | string | `"Tailscale/auth-key"` | 1Password item reference for Tailscale auth key. If the value does not start with 'op://', it is treated as 'Item/Field' and the default vault is prepended. |
+| `authKeyMode` | one of "opnix", "devenv-oauth" | `"opnix"` | How NixOS obtains an auth key: from OpNix or from a one-time key provisioned by the Devenv deployment task. |
+| `authKeyOpnixItem` | string | `"Tailscale/auth-key"` | 1Password item reference for static Tailscale auth keys. If the value does not start with 'op://', the default vault is prepended. |
+| `authKeyTags` | list of string | `[ ]` | Tailscale tags assigned to devices authenticated with deployment-generated OAuth auth keys. |
 | `enable` | boolean | `false` | Tailscale VPN with auto-connect via 1Password secrets |
 | `exitNode` | boolean | `false` | Advertise this machine as a Tailscale exit node |
 

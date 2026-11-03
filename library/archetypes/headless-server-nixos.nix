@@ -5,7 +5,6 @@
   ...
 }: {
   imports = [
-    inputs.disko.nixosModules.disko
     ../../modules/nixos/base.nix
     ../../modules/nixos/prometheus.nix
   ];

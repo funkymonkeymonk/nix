@@ -9,9 +9,15 @@ mkdir -p "$tmp/bin" "$tmp/dotfile/machine-plans/plan-123" "$tmp/dotfile/machine-
 export DEVENV_DOTFILE="$tmp/dotfile"
 export MACHINE_OPS_TEST_LOG="$tmp/devenv.log"
 export MACHINE_OPS_SECRETSPEC_LOG="$tmp/secretspec.log"
+export MACHINE_OPS_SSH_LOG="$tmp/ssh.log"
+export MACHINE_OPS_AUTHKEY_LOG="$tmp/authkey.log"
+export MACHINE_OPS_KEY_CAPTURE="$tmp/staged-auth-key"
+export MACHINE_OPS_TEST_TARGET_HOST="root@192.0.2.23"
 export PATH="$tmp/bin:$PATH"
 : > "$MACHINE_OPS_TEST_LOG"
 : > "$MACHINE_OPS_SECRETSPEC_LOG"
+: > "$MACHINE_OPS_SSH_LOG"
+: > "$MACHINE_OPS_AUTHKEY_LOG"
 
 printf '#!%s\n' "$BASH" > "$tmp/bin/devenv"
 cat >> "$tmp/bin/devenv" <<'MOCK'
@@ -19,6 +25,12 @@ cat >> "$tmp/bin/devenv" <<'MOCK'
   echo 'SecretSpec profile leaked into global environment' >&2
   exit 93
 }
+if [[ "${1:-}" == machines && "${2:-}" == info && -n "${3:-}" ]]; then
+  printf '| Name | System | Target | Roles |\n'
+  printf '| %s | x86_64-linux | %s | nixos |\n' "$3" "$MACHINE_OPS_TEST_TARGET_HOST"
+  printf 'devenv|%s\n' "$*" >> "$MACHINE_OPS_TEST_LOG"
+  exit 0
+fi
 printf 'devenv|%s\n' "$*" >> "$MACHINE_OPS_TEST_LOG"
 MOCK
 
@@ -50,11 +62,15 @@ secret_mode=${MACHINE_OPS_TEST_SECRET_MODE:-none}
 case "$secret_mode" in
   none) secret_status=false; bootstrap_status=false ;;
   unrelated) secret_status=true; bootstrap_status=false ;;
-  bootstrap) secret_status=true; bootstrap_status=true ;;
+  bootstrap|oauth) secret_status=true; bootstrap_status=true ;;
   *) exit 92 ;;
 esac
 emit_metadata() {
-  printf '%s\t%s\t%s\t%s\t%s' "$1" "$2" "$3" "$4" "${MACHINE_OPS_TEST_TARGET_SYSTEM_OVERRIDE:-$5}"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' \
+    "$1" "$2" "$3" "$4" "${MACHINE_OPS_TEST_TARGET_SYSTEM_OVERRIDE:-$5}" \
+    "${MACHINE_OPS_TEST_TAILSCALE_MODE:-opnix}" \
+    "${MACHINE_OPS_TEST_HAS_TAILSCALE_OAUTH:-false}" \
+    "${MACHINE_OPS_TEST_TAILSCALE_TAGS_JSON:-[]}"
 }
 case "${5:-}" in
   *type-server-arm*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" aarch64-linux ;;
@@ -66,6 +82,28 @@ case "${5:-}" in
 esac
 MOCK
 chmod +x "$tmp/bin/devenv" "$tmp/bin/secretspec" "$tmp/bin/nix"
+
+printf '#!%s\n' "$BASH" > "$tmp/bin/ssh"
+cat >> "$tmp/bin/ssh" <<'MOCK'
+remote_command="${!#}"
+printf 'ssh|%s\n' "$*" >> "$MACHINE_OPS_SSH_LOG"
+case "$remote_command" in
+  *"tailscale status --json"*)
+    printf '{"BackendState":"%s"}\n' "${MACHINE_OPS_TEST_TAILSCALE_STATE:-NeedsLogin}"
+    ;;
+  *"cat > /run/devenv/tailscale-auth-key"*)
+    cat > "$MACHINE_OPS_KEY_CAPTURE"
+    ;;
+  *"rm -f"*"/run/devenv/tailscale-auth-key"*) ;;
+  *) echo "Unexpected SSH remote command" >&2; exit 95 ;;
+esac
+MOCK
+printf '#!%s\n' "$BASH" > "$tmp/bin/tailscale-authkey"
+cat >> "$tmp/bin/tailscale-authkey" <<'MOCK'
+printf 'tailscale-authkey|%s\n' "$*" >> "$MACHINE_OPS_AUTHKEY_LOG"
+printf '%s' 'fake-one-time-auth-key'
+MOCK
+chmod +x "$tmp/bin/ssh" "$tmp/bin/tailscale-authkey"
 
 # Devenv 2.4 stores saved plans as JSON with a top-level machines map.
 cat > "$tmp/dotfile/machine-plans/plan-123/plan.json" <<'JSON'
@@ -79,7 +117,11 @@ printf '{"version":1,"machines":' > "$tmp/dotfile/machine-plans/plan-malformed/p
 run() {
   : > "$MACHINE_OPS_TEST_LOG"
   : > "$MACHINE_OPS_SECRETSPEC_LOG"
+  : > "$MACHINE_OPS_SSH_LOG"
+  : > "$MACHINE_OPS_AUTHKEY_LOG"
+  : > "$MACHINE_OPS_KEY_CAPTURE"
   DEVENV_BIN=devenv SECRETSPEC_BIN="$tmp/bin/secretspec" \
+    SSH_BIN="$tmp/bin/ssh" TAILSCALE_AUTHKEY_SCRIPT="$tmp/bin/tailscale-authkey" \
     MACHINE_OPS_TEST_SECRET_MODE="${MACHINE_OPS_TEST_SECRET_MODE:-none}" \
     bash "$machine_ops_script" "$@"
 }
@@ -184,6 +226,37 @@ expect_log 'devenv|machines plan type-server-arm'
 run deploy zero
 expect_log 'devenv|machines deploy zero'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+run deploy zero --yes
+expect_log 'devenv|machines deploy --yes zero'
+[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+
+# OAuth-backed deployment creates a one-time Tailscale key only when the
+# target is not already authenticated, stages it over SSH, and never logs it.
+MACHINE_OPS_TEST_SECRET_MODE=oauth \
+MACHINE_OPS_TEST_TAILSCALE_MODE=devenv-oauth \
+MACHINE_OPS_TEST_HAS_TAILSCALE_OAUTH=true \
+MACHINE_OPS_TEST_TAILSCALE_TAGS_JSON='["tag:home-lab","tag:media-center"]' \
+run deploy drlight --yes
+expect_log $'devenv|machines info drlight\ndevenv|machines deploy --yes drlight'
+grep -F 'secretspec|run --profile Homelab -- '"$tmp/bin/tailscale-authkey"' drlight ["tag:home-lab","tag:media-center"]' "$MACHINE_OPS_SECRETSPEC_LOG" >/dev/null
+grep -F 'tailscale-authkey|drlight ["tag:home-lab","tag:media-center"]' "$MACHINE_OPS_AUTHKEY_LOG" >/dev/null
+[[ $(cat "$MACHINE_OPS_KEY_CAPTURE") == 'fake-one-time-auth-key' ]]
+grep -F 'root@192.0.2.23' "$MACHINE_OPS_SSH_LOG" >/dev/null
+if grep -F 'fake-one-time-auth-key' "$MACHINE_OPS_TEST_LOG" "$MACHINE_OPS_SECRETSPEC_LOG" "$MACHINE_OPS_SSH_LOG" "$MACHINE_OPS_AUTHKEY_LOG"; then
+  echo 'one-time Tailscale auth key leaked to command logs' >&2
+  exit 1
+fi
+
+# An already authenticated node does not create or stage an unused key.
+MACHINE_OPS_TEST_SECRET_MODE=oauth \
+MACHINE_OPS_TEST_TAILSCALE_MODE=devenv-oauth \
+MACHINE_OPS_TEST_HAS_TAILSCALE_OAUTH=true \
+MACHINE_OPS_TEST_TAILSCALE_TAGS_JSON='["tag:home-lab","tag:media-center"]' \
+MACHINE_OPS_TEST_TAILSCALE_STATE=Running \
+run deploy drlight --yes
+expect_log $'devenv|machines info drlight\ndevenv|machines deploy --yes drlight'
+[[ ! -s "$MACHINE_OPS_AUTHKEY_LOG" ]]
+[[ ! -e "$MACHINE_OPS_KEY_CAPTURE" || ! -s "$MACHINE_OPS_KEY_CAPTURE" ]]
 run check MegamanX
 expect_log 'devenv|machines check MegamanX'
 expect_profile MegamanX 'machines check MegamanX'
@@ -221,12 +294,11 @@ grep -F 'cannot install zero' "$tmp/install-unrelated-secret" >/dev/null
 [[ ! -s "$MACHINE_OPS_TEST_LOG" ]]
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 
-# Only the exact semantic bootstrap secret allows install, and SecretSpec wraps
-# only the explicitly named install operation.
+# Install passes the selected profile to Devenv's bootstrap resolver, which
+# writes the secret to the target without exposing it through a shell wrapper.
 printf 'yes\n' | run_with_bootstrap_secret install zero >"$tmp/install-bootstrap-secret" 2>&1
-expect_profile Homelab 'machines install zero'
-expect_log 'devenv|machines install zero'
-[[ $(wc -l < "$MACHINE_OPS_SECRETSPEC_LOG") -eq 1 ]]
+expect_log 'devenv|machines install zero --secretspec-profile Homelab'
+[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 if grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"; then
   echo 'install unexpectedly bypassed interactive confirmation' >&2
   exit 1
@@ -279,6 +351,6 @@ expect_rejected deploy-auto
 expect_rejected install ''
 expect_rejected check unknown-machine
 expect_rejected apply zero
-expect_rejected deploy zero --yes
+expect_rejected deploy zero --bogus
 
 printf 'machine-ops safety tests passed\n'

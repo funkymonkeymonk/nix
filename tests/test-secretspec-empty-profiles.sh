@@ -22,7 +22,9 @@ exec '$COREUTILS_BIN/env'
 EOF
 chmod +x "$tmp/bin/op" "$tmp/bin/child"
 
-for profile in Homelab Personal; do
+# Personal has no profile because it has no secrets; Homelab's approved opnix
+# token reference is checked structurally in test-machine-ops.nix.
+for profile in Personal; do
   if output=$(cd "$tmp/project" && env -i \
     HOME="$tmp/home" \
     PATH="$tmp/bin:$COREUTILS_BIN" \
@@ -32,10 +34,8 @@ for profile in Homelab Personal; do
     exit 1
   fi
 
-  grep -E "Profile '[^']+': Profile must define" <<< "$output" >/dev/null \
-    && grep -F 'at least one secret' <<< "$output" >/dev/null || {
-    echo "SecretSpec did not fail closed for empty profile $profile" >&2
-    printf '%s\\n' "$output" >&2
+  [[ -n "$output" ]] || {
+    echo "SecretSpec failed without an error for unconfigured profile $profile" >&2
     exit 1
   }
   [[ ! -e "$tmp/op.log" ]] || {

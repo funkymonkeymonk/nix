@@ -63,6 +63,8 @@
   testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
   testSshAuthorizedKeys = import ./test-ssh-authorized-keys.nix {inherit pkgs self;};
+  testSshHostKeyFingerprint = import ./test-ssh-host-key-fingerprint.nix {inherit pkgs self;};
+  testTailscaleOauthAuthKey = import ./test-tailscale-oauth-authkey.nix {inherit pkgs;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
   testSkillsOptionOwnership = import ./test-skills-option-ownership.nix {inherit pkgs;};
   testAgentOptionOwnership = import ./test-agent-option-ownership.nix {inherit pkgs;};
@@ -119,6 +121,8 @@ in
     machines-secretspec-empty-profiles = testMachineOps.secretspecEmptyProfiles;
     installer-ready = testInstallerReady.installerReady;
     ssh-authorized-keys = testSshAuthorizedKeys;
+    ssh-host-key-fingerprint = testSshHostKeyFingerprint.sshHostKeyFingerprint;
+    tailscale-oauth-auth-key = testTailscaleOauthAuthKey.tailscaleOauthAuthKey;
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
@@ -212,6 +216,7 @@ in
     opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
+    onepassword-ssh-agent-config = testHomeManager.onepasswordSshAgentConfigTest;
 
     # Workspace-aware switch shell function tests
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
@@ -265,6 +270,7 @@ in
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
     drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
     drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;
+    drlight-root-ssh = testMediaCenterArchetype.drlightRootSshTest;
     drlight-no-nixarr-backup = testMediaCenterArchetype.drlightNoNixarrBackupTest;
 
     # Core and bootstrap configs

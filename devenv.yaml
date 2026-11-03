@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
 inputs:
   nixpkgs:
-    url: github:NixOS/nixpkgs/a0f7233e070eb72d7f415eda943a1aa2290427c5
+    url: github:NixOS/nixpkgs/6774f7bc253789b113a4f39285dc0fa100abeacc
   disko:
     url: github:nix-community/disko
     inputs:

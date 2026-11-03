@@ -10,16 +10,26 @@ with lib; let
   homeManagerAvailable = builtins.hasAttr "home-manager" options;
 
   # Build home-manager user configs only if home-manager is available
-  homeManagerUsersConfig = listToAttrs (map (user: {
+  sshAgentEnabled = config.myConfig.onepassword.enable && config.myConfig.onepassword.enableSSHAgent;
+  homeManagerUsersConfig = listToAttrs (map (user: let
+      homeDirectory =
+        if isDarwin
+        then "/Users/${user.name}"
+        else "/home/${user.name}";
+      sshAgentSocket =
+        if isDarwin
+        then "${homeDirectory}/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+        else "${homeDirectory}/.1password/agent.sock";
+      sshIdentityAgent =
+        if isDarwin
+        then "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\""
+        else sshAgentSocket;
+    in {
       inherit (user) name;
       value = {
         home = {
           username = user.name;
-          homeDirectory = lib.mkDefault (
-            if isDarwin
-            then "/Users/${user.name}"
-            else "/home/${user.name}"
-          );
+          homeDirectory = lib.mkDefault homeDirectory;
           stateVersion = "25.05";
         };
 
@@ -48,11 +58,15 @@ with lib; let
           enable = true;
           enableDefaultConfig = false;
           includes = user.sshIncludes;
-          settings = lib.optionalAttrs (config.myConfig.onepassword.enableSSHAgent && isDarwin) {
+          settings = lib.optionalAttrs sshAgentEnabled {
             "*" = {
-              IdentityAgent = "\"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock\"";
+              IdentityAgent = sshIdentityAgent;
             };
           };
+        };
+
+        home.sessionVariables = lib.optionalAttrs sshAgentEnabled {
+          SSH_AUTH_SOCK = sshAgentSocket;
         };
 
         # Disable home-manager manpages to avoid expensive options.json
