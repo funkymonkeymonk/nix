@@ -89,6 +89,40 @@ in {
             default = null;
             description = "Path prefix for applications whose web UI is not served at the upstream root";
           };
+
+          homepage = mkOption {
+            type = types.submodule {
+              options = {
+                enable = mkOption {
+                  type = types.bool;
+                  default = true;
+                  description = "Include this Caddy application in the Homepage dashboard";
+                };
+                title = mkOption {
+                  type = types.nullOr types.str;
+                  default = null;
+                  description = "Optional display name for this application in Homepage";
+                };
+                group = mkOption {
+                  type = types.str;
+                  default = "Services";
+                  description = "Homepage section for this Caddy application";
+                };
+                description = mkOption {
+                  type = types.str;
+                  default = "";
+                  description = "Optional description shown below the Homepage link";
+                };
+                widgets = mkOption {
+                  type = types.listOf types.attrs;
+                  default = [];
+                  description = "Optional native Homepage service widgets for this application";
+                };
+              };
+            };
+            default = {};
+            description = "Homepage presentation metadata for this Caddy application";
+          };
         };
       });
       default = {};

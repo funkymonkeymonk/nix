@@ -96,6 +96,12 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `apps` | attribute set of (submodule) | `{ }` | Internal applications exposed through Caddy |
+| `apps.<name>.homepage` | submodule | `{ }` | Homepage presentation metadata for this Caddy application |
+| `apps.<name>.homepage.description` | string | `""` | Optional description shown below the Homepage link |
+| `apps.<name>.homepage.enable` | boolean | `true` | Include this Caddy application in the Homepage dashboard |
+| `apps.<name>.homepage.group` | string | `"Services"` | Homepage section for this Caddy application |
+| `apps.<name>.homepage.title` | null or string | `null` | Optional display name for this application in Homepage |
+| `apps.<name>.homepage.widgets` | list of (attribute set) | `[ ]` | Optional native Homepage service widgets for this application |
 | `apps.<name>.host` | string | *required* | Hostname served by Caddy |
 | `apps.<name>.upstream` | string | *required* | Upstream URL or address for the application |
 | `apps.<name>.upstreamTlsSkipVerify` | boolean | `false` | Disable TLS certificate verification for this HTTPS upstream |

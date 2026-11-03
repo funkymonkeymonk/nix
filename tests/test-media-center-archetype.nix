@@ -71,7 +71,52 @@
         builtins.sort builtins.lessThan
         (homepageHrefs (drlightWithoutObservability.services.homepage-dashboard.services or []));
       caddyRoutes = builtins.attrNames (drlight.services.caddy.virtualHosts or {});
-      caddyApps = builtins.attrNames (drlight.myConfig.caddy.apps or {});
+      caddyAppConfigs = drlight.myConfig.caddy.apps or {};
+      caddyApps = builtins.attrNames caddyAppConfigs;
+      expectedCaddyHomepageHrefs = builtins.sort builtins.lessThan (map
+        (name: "https://${caddyAppConfigs.${name}.host}")
+        (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
+      dnsmasqSettings = drlight.services.dnsmasq.settings or {};
+      caddyDnsRecords = map (name: "${caddyAppConfigs.${name}.host},100.89.187.92") caddyApps;
+      dnsmasqHostRecordLines = builtins.concatStringsSep "\n" (map (record: "host-record=${record}") (dnsmasqSettings.host-record or []));
+      drlightWithSyntheticCaddyApp =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [
+            {
+              myConfig.caddy.apps.synthetic = {
+                host = "synthetic.home.buildingbananas.com";
+                upstream = "http://127.0.0.1:9999";
+                homepage = {
+                  title = "Synthetic";
+                  group = "Test";
+                  description = "Synthetic Caddy application";
+                  widgets = [
+                    {
+                      type = "customapi";
+                      url = "http://127.0.0.1:9999/health";
+                    }
+                  ];
+                };
+              };
+            }
+          ];
+        }).config;
+      syntheticHomepageServices = drlightWithSyntheticCaddyApp.services.homepage-dashboard.services or [];
+      syntheticHomepageHrefs = homepageHrefs syntheticHomepageServices;
+      homepageServiceEntries =
+        lib.concatMap
+        (section: lib.concatMap (group: group) (builtins.attrValues section))
+        homepageServices;
+      syntheticHomepageEntries =
+        lib.concatMap
+        (section: lib.concatMap (group: group) (builtins.attrValues section))
+        syntheticHomepageServices;
+      syntheticHomepageEntry = lib.findFirst (entry: entry ? Synthetic) {} syntheticHomepageEntries;
+      grafanaHomepageEntry = lib.findFirst (entry: entry ? Grafana) {} homepageServiceEntries;
+      grafanaHomepageWidgets = (grafanaHomepageEntry.Grafana or {}).widgets or [];
+      grafanaHomepageEnvironment = drlight.systemd.services.homepage-dashboard.environment or {};
+      grafanaHomepageCredentials = drlight.systemd.services.homepage-dashboard.serviceConfig.LoadCredential or [];
+      syntheticDnsRecords = drlightWithSyntheticCaddyApp.services.dnsmasq.settings.host-record or [];
       resticJobs = drlight.services.restic.backups or {};
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
@@ -140,6 +185,17 @@
         echo "=== Evaluating drlight Homepage links and Caddy routes ==="
 
         ${checkEqual "Homepage allows its Tailscale Serve hostname" "dashboard.home.buildingbananas.com,drlight.uaru-daggertooth.ts.net:8443" (drlight.services.homepage-dashboard.allowedHosts or null)}
+        ${checkEqual "Homepage entries are derived from all non-self Caddy apps" expectedCaddyHomepageHrefs sortedHomepageHrefs}
+        ${checkTrue "Homepage automatically includes a newly added Caddy app" (builtins.elem "https://synthetic.home.buildingbananas.com" syntheticHomepageHrefs)}
+        ${checkEqual "Homepage preserves per-app native widget metadata" [
+          {
+            type = "customapi";
+            url = "http://127.0.0.1:9999/health";
+          }
+        ] ((syntheticHomepageEntry.Synthetic or {}).widgets or [])}
+        ${checkEqual "Grafana uses Homepage's native widget" ["grafana"] (map (widget: widget.type or null) grafanaHomepageWidgets)}
+        ${checkEqual "Grafana widget credentials come from systemd credentials" ["%d/grafana-username" "%d/grafana-password"] [grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_USERNAME or null grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_PASSWORD or null]}
+        ${checkEqual "Homepage loads Grafana credential files through systemd" (builtins.sort builtins.lessThan ["grafana-username:/run/secrets/grafana-username" "grafana-password:/run/secrets/grafana-password"]) (builtins.sort builtins.lessThan grafanaHomepageCredentials)}
         ${checkEqual "Homepage exposes only local Jellyfin and Grafana" expectedLocalHomepageHrefs sortedHomepageHrefs}
         ${checkEqual "Caddy routes only dashboard and local Jellyfin/Grafana" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
         ${checkEqual "Caddy app configuration only includes dashboard and local Jellyfin/Grafana" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
@@ -163,45 +219,79 @@
         touch $out
       '';
 
-      drlightMediaStorageTest = pkgs.runCommand "test-drlight-media-storage" {} ''
-        failures=0
-        echo "=== Evaluating drlight ZFS media storage and Jellyfin mount dependency ==="
+      drlightMediaStorageTest =
+        pkgs.runCommand "test-drlight-media-storage" {
+          nativeBuildInputs = [pkgs.dnsmasq pkgs.dnsutils];
+        } ''
+          failures=0
+          echo "=== Evaluating drlight ZFS media storage and Jellyfin mount dependency ==="
 
-        ${checkTrue "existing media pool is imported" (builtins.elem "media" (drlight.boot.zfs.extraPools or []))}
-        ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
-        ${checkEqual "scheduled upgrades run through the sentinel guard" "nixos-upgrade-scheduled.service" (drlight.systemd.timers.nixos-upgrade.timerConfig.Unit or null)}
-        ${checkEqual "disable sentinel skips scheduled upgrades at runtime" "!/var/lib/nixos-upgrade.disabled" (drlight.systemd.services.nixos-upgrade-scheduled.unitConfig.ConditionPathExists or null)}
-        ${checkFalse "manual upgrades are not gated by the scheduled sentinel" (drlight.systemd.services.nixos-upgrade.unitConfig ? ConditionPathExists)}
-        ${checkEqual "drlight mints Tailscale auth keys through the deployment task" "devenv-oauth" (drlight.myConfig.tailscale.authKeyMode or null)}
-        ${checkEqual "drlight uses the approved homelab and media-center tags" ["tag:home-lab" "tag:media-center"] (drlight.myConfig.tailscale.authKeyTags or [])}
-        ${checkFalse "drlight does not store a static Tailscale auth key in OpNix" (drlight.myConfig.onepassword.secrets ? tailscaleAuthKey)}
-        ${checkTrue "drlight Tailscale service consumes a transient deployment key file" (lib.hasInfix "/run/devenv/tailscale-auth-key" (drlight.systemd.services.tailscale-autoconnect.script or ""))}
-        ${checkEqual "drlight keeps the former zero pool owner host ID" "0badc0de" drlight.networking.hostId}
-        ${checkFalse "drlight does not force-import the root pool" drlight.boot.zfs.forceImportRoot}
-        ${checkFalse "drlight does not force-import all pools" drlight.boot.zfs.forceImportAll}
-        ${checkTrue "drlight uses its dedicated Disko layout" (drlightMachine.disko or false)}
-        ${checkTrue "drlight selects the dedicated safe disk module" (hasModule "/disk-configs/drlight.nix" drlightMachine)}
-        ${checkEqual "drlight Disko declares only its OS disk" ["main"] (builtins.attrNames diskoDisks)}
-        ${checkEqual "drlight Disko targets the stable Patriot sda identity" "/dev/disk/by-id/ata-Patriot_P210_512GB_P210IICB25030501733" (diskoDisk.device or null)}
-        ${checkEqual "drlight Disko does not define ZFS data-pool devices" [] (builtins.attrNames (diskoDevices.zpool or {}))}
-        ${checkEqual "drlight Disko declares ESP, root, and swap partitions" ["ESP" "root" "swap"] (builtins.sort builtins.lessThan (builtins.attrNames diskoPartitions))}
-        ${checkEqual "drlight Disko keeps the ESP mounted at /boot" "/boot" (diskoPartitions.ESP.content.mountpoint or null)}
-        ${checkTrue "drlight Disko force-formats the EFI filesystem after stale signatures" (lib.hasInfix "mkfs.vfat -F 32" (diskoPartitions.ESP.content.preCreateHook or ""))}
-        ${checkEqual "drlight Disko mounts root at /" "/" (diskoPartitions.root.content.mountpoint or null)}
-        ${checkEqual "drlight root filesystem is ext4" "ext4" (drlight.fileSystems."/".fsType or null)}
-        ${checkEqual "drlight boot filesystem is vfat" "vfat" (drlight.fileSystems."/boot".fsType or null)}
-        ${checkEqual "primary media path binds ZFS-managed /media" "/media" (mediaMount.device or null)}
-        ${checkEqual "primary media path uses a bind mount" "none" (mediaMount.fsType or null)}
-        ${checkTrue "primary media bind does not block boot when absent" (builtins.elem "nofail" (mediaMount.options or []))}
-        ${checkTrue "primary media bind waits for ZFS mounts" (builtins.elem "x-systemd.after=zfs-mount.service" (mediaMount.options or []) && builtins.elem "x-systemd.requires=zfs-mount.service" (mediaMount.options or []))}
-        ${checkFalse "ZFS owns the /media mountpoint" (drlight.fileSystems ? "/media")}
-        ${checkEqual "compatibility media mount remains absent" null (compatibilityMediaMount.device or null)}
-        ${checkTrue "Jellyfin waits for the media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+          ${checkTrue "existing media pool is imported" (builtins.elem "media" (drlight.boot.zfs.extraPools or []))}
+          ${checkTrue "Drlight DNS server is enabled" (drlight.services.dnsmasq.enable or false)}
+          ${checkFalse "Drlight DNS server does not replace the machine's local resolver" drlight.services.dnsmasq.resolveLocalQueries}
+          ${checkTrue "Drlight DNS server listens on tailscale0" (builtins.elem "tailscale0" (dnsmasqSettings.interface or []))}
+          ${checkTrue "Drlight DNS accepts tailnet UDP and TCP queries" (builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedUDPPorts or []) && builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))}
+          ${checkTrue "Drlight DNS maps every Caddy app to its Tailscale IP" (builtins.all (record: builtins.elem record (dnsmasqSettings.host-record or [])) caddyDnsRecords)}
+          ${checkTrue "Drlight DNS preserves Zero's Sunshine route" (builtins.elem "sunshine.home.buildingbananas.com,100.71.97.28" (dnsmasqSettings.host-record or []))}
+          ${checkTrue "new Caddy apps automatically receive a split-DNS record" (builtins.elem "synthetic.home.buildingbananas.com,100.89.187.92" syntheticDnsRecords)}
 
-        if [ "$failures" -ne 0 ]; then exit 1; fi
-        echo "All drlight media storage tests passed"
-        touch $out
-      '';
+          cat > dnsmasq-test.conf <<'EOF'
+          port=5353
+          listen-address=127.0.0.1
+          bind-interfaces
+          no-resolv
+          no-hosts
+          ${dnsmasqHostRecordLines}
+          EOF
+          ${pkgs.dnsmasq}/bin/dnsmasq --test --conf-file=dnsmasq-test.conf
+          ${pkgs.dnsmasq}/bin/dnsmasq --no-daemon --conf-file=dnsmasq-test.conf --log-facility="$TMPDIR/dnsmasq.log" &
+          dnsmasq_pid=$!
+          trap 'kill "$dnsmasq_pid" 2>/dev/null || true; wait "$dnsmasq_pid" 2>/dev/null || true' EXIT
+          sleep 1
+          ${
+            lib.concatMapStringsSep "\n" (name: ''
+              resolved=$(${pkgs.dnsutils}/bin/dig +short @127.0.0.1 -p 5353 ${lib.escapeShellArg name} A)
+              if [ "$resolved" != "100.89.187.92" ]; then
+                echo "FAIL: DNS resolved ${name} to $resolved instead of Drlight's Tailscale IP"
+                exit 1
+              fi
+            '') ["dashboard.home.buildingbananas.com" "jellyfin.home.buildingbananas.com" "grafana.home.buildingbananas.com"]
+          }
+          echo "  Homepage Caddy hostnames resolve to Drlight in split DNS: OK"
+          ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
+          ${checkEqual "scheduled upgrades run through the sentinel guard" "nixos-upgrade-scheduled.service" (drlight.systemd.timers.nixos-upgrade.timerConfig.Unit or null)}
+          ${checkEqual "disable sentinel skips scheduled upgrades at runtime" "!/var/lib/nixos-upgrade.disabled" (drlight.systemd.services.nixos-upgrade-scheduled.unitConfig.ConditionPathExists or null)}
+          ${checkFalse "manual upgrades are not gated by the scheduled sentinel" (drlight.systemd.services.nixos-upgrade.unitConfig ? ConditionPathExists)}
+          ${checkEqual "drlight mints Tailscale auth keys through the deployment task" "devenv-oauth" (drlight.myConfig.tailscale.authKeyMode or null)}
+          ${checkEqual "drlight uses the approved homelab and media-center tags" ["tag:home-lab" "tag:media-center"] (drlight.myConfig.tailscale.authKeyTags or [])}
+          ${checkFalse "drlight does not store a static Tailscale auth key in OpNix" (drlight.myConfig.onepassword.secrets ? tailscaleAuthKey)}
+          ${checkTrue "drlight Tailscale service consumes a transient deployment key file" (lib.hasInfix "/run/devenv/tailscale-auth-key" (drlight.systemd.services.tailscale-autoconnect.script or ""))}
+          ${checkEqual "drlight keeps the former zero pool owner host ID" "0badc0de" drlight.networking.hostId}
+          ${checkFalse "drlight does not force-import the root pool" drlight.boot.zfs.forceImportRoot}
+          ${checkFalse "drlight does not force-import all pools" drlight.boot.zfs.forceImportAll}
+          ${checkTrue "drlight uses its dedicated Disko layout" (drlightMachine.disko or false)}
+          ${checkTrue "drlight selects the dedicated safe disk module" (hasModule "/disk-configs/drlight.nix" drlightMachine)}
+          ${checkEqual "drlight Disko declares only its OS disk" ["main"] (builtins.attrNames diskoDisks)}
+          ${checkEqual "drlight Disko targets the stable Patriot sda identity" "/dev/disk/by-id/ata-Patriot_P210_512GB_P210IICB25030501733" (diskoDisk.device or null)}
+          ${checkEqual "drlight Disko does not define ZFS data-pool devices" [] (builtins.attrNames (diskoDevices.zpool or {}))}
+          ${checkEqual "drlight Disko declares ESP, root, and swap partitions" ["ESP" "root" "swap"] (builtins.sort builtins.lessThan (builtins.attrNames diskoPartitions))}
+          ${checkEqual "drlight Disko keeps the ESP mounted at /boot" "/boot" (diskoPartitions.ESP.content.mountpoint or null)}
+          ${checkTrue "drlight Disko force-formats the EFI filesystem after stale signatures" (lib.hasInfix "mkfs.vfat -F 32" (diskoPartitions.ESP.content.preCreateHook or ""))}
+          ${checkEqual "drlight Disko mounts root at /" "/" (diskoPartitions.root.content.mountpoint or null)}
+          ${checkEqual "drlight root filesystem is ext4" "ext4" (drlight.fileSystems."/".fsType or null)}
+          ${checkEqual "drlight boot filesystem is vfat" "vfat" (drlight.fileSystems."/boot".fsType or null)}
+          ${checkEqual "primary media path binds ZFS-managed /media" "/media" (mediaMount.device or null)}
+          ${checkEqual "primary media path uses a bind mount" "none" (mediaMount.fsType or null)}
+          ${checkTrue "primary media bind does not block boot when absent" (builtins.elem "nofail" (mediaMount.options or []))}
+          ${checkTrue "primary media bind waits for ZFS mounts" (builtins.elem "x-systemd.after=zfs-mount.service" (mediaMount.options or []) && builtins.elem "x-systemd.requires=zfs-mount.service" (mediaMount.options or []))}
+          ${checkFalse "ZFS owns the /media mountpoint" (drlight.fileSystems ? "/media")}
+          ${checkEqual "compatibility media mount remains absent" null (compatibilityMediaMount.device or null)}
+          ${checkTrue "Jellyfin waits for the media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+
+          if [ "$failures" -ne 0 ]; then exit 1; fi
+          echo "All drlight media storage tests passed"
+          touch $out
+        '';
 
       drlightNoNixarrBackupTest = pkgs.runCommand "test-drlight-no-nixarr-backup" {} ''
         failures=0
