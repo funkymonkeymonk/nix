@@ -76,6 +76,8 @@
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
       secretValues = builtins.attrValues onePasswordSecrets;
+      cacheOnlyDiskConfig = import ../disk-configs/drlight-cache.nix;
+      cacheOnlyDisks = cacheOnlyDiskConfig.disko.devices.disk or {};
       diskoDevices = (drlight.disko or {}).devices or {};
       diskoDisks = diskoDevices.disk or {};
       diskoDisk = diskoDisks.main or {};
@@ -190,6 +192,7 @@
         ${checkEqual "drlight Disko declares OS and cache disks" ["cache" "main"] (builtins.attrNames diskoDisks)}
         ${checkEqual "drlight Disko targets the stable Patriot sda identity" "/dev/disk/by-id/ata-Patriot_P210_512GB_P210IICB25030501733" (diskoDisk.device or null)}
         ${checkEqual "drlight Disko targets the dedicated Samsung NVMe by-id" "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_2TB_S7L9NJ0Y422825N" (cacheDisk.device or null)}
+        ${checkEqual "cache-only Disko config cannot reformat the OS disk" ["cache"] (builtins.attrNames cacheOnlyDisks)}
         ${checkEqual "drlight cache disk has one dedicated partition" ["cache"] (builtins.attrNames cachePartitions)}
         ${checkEqual "NVMe cache partition is ext4" "ext4" (cacheFilesystem.format or null)}
         ${checkEqual "NVMe filesystem mounts at /srv/local" "/srv/local" (cacheFilesystem.mountpoint or null)}
