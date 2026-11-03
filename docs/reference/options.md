@@ -60,7 +60,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. |
+| `flakeUrl` | string | `""` | GitHub flake URL for auto-upgrade (e.g., 'github:funkymonkeymonk/nix#type-server'). Set this to enable auto-upgrade on NixOS machines. Creating /var/lib/nixos-upgrade.disabled pauses scheduled upgrades on that host; manual upgrades remain available. |
 
 ### myConfig.bifrost
 
