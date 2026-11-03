@@ -121,7 +121,7 @@
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
       secretValues = builtins.attrValues onePasswordSecrets;
-      mediaMount = drlight.fileSystems."/srv/media" or {};
+
       cacheOnlyDiskConfig = import ../disk-configs/drlight-cache.nix;
       cacheOnlyDisks = cacheOnlyDiskConfig.disko.devices.disk or {};
       diskoDevices = (drlight.disko or {}).devices or {};
@@ -135,6 +135,7 @@
       zfsMountpointService = drlight.systemd.services.zfs-media-mountpoints or {};
       localStorageTmpfiles = drlight.systemd.tmpfiles.rules or [];
       localStorageFilesystem = drlight.fileSystems."/srv/local" or {};
+      jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
       jellyfinMountRequirements = drlight.systemd.services.jellyfin.serviceConfig.RequiresMountsFor or [];
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan [
         "https://grafana.home.buildingbananas.com"
@@ -294,20 +295,20 @@
           ${checkEqual "drlight Disko mounts root at /" "/" (diskoPartitions.root.content.mountpoint or null)}
           ${checkEqual "drlight root filesystem is ext4" "ext4" (drlight.fileSystems."/".fsType or null)}
           ${checkEqual "drlight boot filesystem is vfat" "vfat" (drlight.fileSystems."/boot".fsType or null)}
-          ${checkEqual "ZFS library dataset mounts directly at /srv/media" "media/library" (mediaMount.device or null)}
-          ${checkEqual "permanent media path uses ZFS" "zfs" (mediaMount.fsType or null)}
-          ${checkTrue "ZFS media mount does not block boot when absent" (builtins.elem "nofail" (mediaMount.options or []))}
+          ${checkFalse "ZFS library is not shadowed by a second fstab mount" (drlight.fileSystems ? "/srv/media")}
           ${checkFalse "legacy /media mountpoint is removed from the filesystem table" (drlight.fileSystems ? "/media")}
           ${checkTrue "ZFS parent mountpoint is disabled before automatic mounting" (lib.hasInfix "zfs set mountpoint=none media" (zfsMountpointService.script or "") && builtins.elem "zfs-mount.service" (zfsMountpointService.before or []))}
-          ${checkTrue "ZFS library uses a legacy mountpoint for explicit NixOS mounting" (lib.hasInfix "zfs set mountpoint=legacy media/library" (zfsMountpointService.script or ""))}
+          ${checkTrue "ZFS library dataset has the sole /srv/media mountpoint" (lib.hasInfix "zfs set mountpoint=/srv/media media/library" (zfsMountpointService.script or ""))}
           ${checkTrue "ZFS mountpoint setup waits for the imported media pool" (builtins.elem "zfs-import-media.service" (zfsMountpointService.after or []))}
-          ${checkTrue "ZFS mountpoint setup runs before the /srv/media mount" (builtins.elem "srv-media.mount" (zfsMountpointService.before or []))}
           ${checkEqual "ZFS pool mounting softly wants mountpoint setup" ["zfs-mount.service"] (zfsMountpointService.wantedBy or [])}
-          ${checkEqual "the media mount requires successful mountpoint setup" ["srv-media.mount"] (zfsMountpointService.requiredBy or [])}
+          ${checkTrue "ZFS mountpoint setup runs before Jellyfin" (builtins.elem "jellyfin.service" (zfsMountpointService.before or []))}
+          ${checkEqual "Jellyfin requires mountpoint setup to succeed" ["jellyfin.service"] (zfsMountpointService.requiredBy or [])}
           ${checkEqual "NVMe transfer staging directory is prepared" "d /srv/local/cache/ultra 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/cache/ultra" rule) null localStorageTmpfiles)}
           ${checkEqual "NVMe machine-specific state directory is prepared" "d /srv/local/state 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/state" rule) null localStorageTmpfiles)}
           ${checkEqual "NVMe cache mount is ext4" "ext4" (localStorageFilesystem.fsType or null)}
           ${checkTrue "Jellyfin waits for the permanent media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+          ${checkTrue "Jellyfin starts after ZFS automatic mounts complete" (builtins.elem "zfs-mount.service" (drlight.systemd.services.jellyfin.after or []))}
+          ${checkEqual "Jellyfin will not start with the underlying empty directory" "/srv/media" (jellyfinUnitConfig.ConditionPathIsMountPoint or null)}
 
           if [ "$failures" -ne 0 ]; then exit 1; fi
           echo "All drlight media storage tests passed"
