@@ -144,6 +144,11 @@
       ../../targets/drlight
     ];
     extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
+    install.secrets."/etc/opnix/token" = {
+      secret = "OPNIX_SERVICE_ACCOUNT_TOKEN";
+      owner = "0:0";
+      mode = "0600";
+    };
     overrides = {
       autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#drlight";
       tailscale.authKeyMode = "devenv-oauth";

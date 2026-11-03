@@ -138,6 +138,12 @@ run_scoped_machine_operation() {
     printf "ERROR: cannot install %s: profile '%s' must declare OPNIX_SERVICE_ACCOUNT_TOKEN with an approved default-vault reference before installing\n" "$machine" "$profile" >&2
     exit 69
   fi
+  if [[ "$operation" == install ]]; then
+    # Devenv's install.secrets resolver writes this token to the target after
+    # nixos-install, without putting the value in the Nix store.
+    "$devenv_bin" machines install "$@" --secretspec-profile "$profile"
+    return
+  fi
   if [[ "$operation" == deploy && "$tailscale_auth_mode" == "devenv-oauth" ]]; then
     [[ "$kind" == nixos ]] || {
       printf 'ERROR: OAuth-generated Tailscale keys are only supported for NixOS machines\n' >&2

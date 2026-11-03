@@ -21,7 +21,7 @@
     }
     {
       name = "drlight";
-      accounts = ["monkey"];
+      accounts = ["monkey" "root"];
     }
     {
       name = "installer-iso";

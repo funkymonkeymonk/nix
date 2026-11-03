@@ -77,6 +77,9 @@
   };
   asMachine = _: machine:
     {system = machine.system;}
+    // lib.optionalAttrs (machine ? install) {
+      inherit (machine) install;
+    }
     // (
       if machine.kind == "nixos"
       then {nixos = nixosModule machine;}

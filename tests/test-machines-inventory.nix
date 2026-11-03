@@ -121,6 +121,11 @@
     ${assertEqual "native zero retains configured disko devices" true (builtins.attrNames self.nixosConfigurations.zero.config.disko.devices != [])}
     ${assertEqual "Machines zero system" "x86_64-linux" machinesProjection.machines.zero.system}
     ${assertEqual "Machines zero NixOS role" true (builtins.hasAttr "nixos" machinesProjection.machines.zero)}
+    ${assertEqual "Drlight install securely provisions the OpNix token" {
+      secret = "OPNIX_SERVICE_ACCOUNT_TOKEN";
+      owner = "0:0";
+      mode = "0600";
+    } (machinesProjection.machines.drlight.install.secrets."/etc/opnix/token" or {})}
     ${assertEqual "Machines zero evaluates its NixOS module stack" "zero" machinesZero.config.networking.hostName}
     ${assertEqual "Machines zero has disko devices from the automatic module" true (builtins.attrNames machinesZero.config.disko.devices != [])}
     ${assertEqual "Machines bootstrap evaluates its NixOS module stack" "nixos-bootstrap" machinesBootstrap.config.networking.hostName}

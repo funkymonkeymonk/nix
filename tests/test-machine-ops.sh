@@ -294,12 +294,11 @@ grep -F 'cannot install zero' "$tmp/install-unrelated-secret" >/dev/null
 [[ ! -s "$MACHINE_OPS_TEST_LOG" ]]
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 
-# Only the exact semantic bootstrap secret allows install, and SecretSpec wraps
-# only the explicitly named install operation.
+# Install passes the selected profile to Devenv's bootstrap resolver, which
+# writes the secret to the target without exposing it through a shell wrapper.
 printf 'yes\n' | run_with_bootstrap_secret install zero >"$tmp/install-bootstrap-secret" 2>&1
-expect_profile Homelab 'machines install zero'
-expect_log 'devenv|machines install zero'
-[[ $(wc -l < "$MACHINE_OPS_SECRETSPEC_LOG") -eq 1 ]]
+expect_log 'devenv|machines install zero --secretspec-profile Homelab'
+[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 if grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"; then
   echo 'install unexpectedly bypassed interactive confirmation' >&2
   exit 1
