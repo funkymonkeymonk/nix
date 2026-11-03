@@ -131,6 +131,21 @@ assert "PR test shard records disk space after cleanup" \
   "awk '/^  test-and-validate:/,/^  build-report:/' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \
     | grep -q 'df -h'"
+assert "PR VM smoke job frees disk before Nix setup" \
+  "awk '/^  vm-tests:/,/^  test-and-validate:/' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+    | awk '/Free up disk space/ { free=NR } /name: Install Nix/ { install=NR } END { exit !(free && install && free < install) }'"
+assert "PR VM smoke job removes unused runner toolchains and Docker images" \
+  "awk '/^  vm-tests:/,/^  test-and-validate:/' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+    | grep -q '/usr/share/dotnet' \
+    && awk '/^  vm-tests:/,/^  test-and-validate:/' \
+      '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+      | grep -q 'docker system prune -af'"
+assert "PR VM smoke job reports disk usage after cleanup" \
+  "awk '/^  vm-tests:/,/^  test-and-validate:/' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+    | grep -q 'df -h'"
 assert "PR workflow runs CI workflow regression tests" \
   "grep -q 'bash tests/test-ci-workflows.sh' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
