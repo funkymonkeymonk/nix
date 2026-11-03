@@ -21,8 +21,8 @@ in {
   boot.zfs.forceImportRoot = false;
   boot.zfs.forceImportAll = false;
 
-  # disk-configs/drlight.nix provisions only the Patriot OS disk. The media
-  # mirror on /dev/sdc and /dev/sdd is not part of the Disko layout.
+  # Disko provisions the Patriot OS disk and Samsung NVMe cache. The existing
+  # media ZFS mirror remains outside the Disko layout.
 
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
