@@ -177,6 +177,7 @@
     if sshAgentEval.myConfig.isDarwin
     then ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"''
     else expectedSshAgentSocket;
+  canonicalSshPublicKey = import ../library/ssh-public-key.nix;
 in {
   # Test opencode option defaults
   opencodeOptionsTest =
@@ -535,6 +536,42 @@ in {
         if sshAgentUser.programs.ssh.settings."*".IdentityAgent == expectedSshIdentityAgent
         then ''echo "  OpenSSH uses the platform agent socket: OK"''
         else ''echo "  OpenSSH does not use the platform agent socket!"; exit 1''
+      }
+
+      touch $out
+    '';
+
+  sshGitHubConfigTest =
+    pkgs.runCommand "test-ssh-github-config"
+    {}
+    ''
+      echo "=== Testing SSH configuration for GitHub tools ==="
+
+      ${
+        if sshAgentUser.programs.git.settings.user.signingkey == canonicalSshPublicKey
+        then ''echo "  Git uses the canonical public key: OK"''
+        else ''echo "  Git does not use the canonical public key!"; exit 1''
+      }
+
+      ${
+        if
+          sshAgentUser.programs.git.settings.gpg.format
+          == "ssh"
+          && sshAgentUser.programs.git.settings.commit.gpgsign
+        then ''echo "  Git and Jujutsu commit signing use SSH: OK"''
+        else ''echo "  Git and Jujutsu SSH commit signing is incomplete!"; exit 1''
+      }
+
+      ${
+        if sshAgentUser.programs.git.settings.url."git@github.com:".insteadOf == ["https://github.com/"]
+        then ''echo "  GitHub Git URLs use SSH: OK"''
+        else ''echo "  GitHub Git URLs do not use SSH!"; exit 1''
+      }
+
+      ${
+        if sshAgentUser.programs.gh.settings.git_protocol == "ssh"
+        then ''echo "  GitHub CLI uses SSH: OK"''
+        else ''echo "  GitHub CLI does not use SSH!"; exit 1''
       }
 
       touch $out

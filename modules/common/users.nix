@@ -2,6 +2,7 @@
   config,
   lib,
   options,
+  pkgs,
   ...
 }:
 with lib; let
@@ -11,6 +12,10 @@ with lib; let
 
   # Build home-manager user configs only if home-manager is available
   sshAgentEnabled = config.myConfig.onepassword.enable && config.myConfig.onepassword.enableSSHAgent;
+  sshSigningProgram =
+    if isDarwin
+    then "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+    else "${pkgs._1password-cli}/bin/op-ssh-sign";
   homeManagerUsersConfig = listToAttrs (map (user: let
       homeDirectory =
         if isDarwin
@@ -41,17 +46,23 @@ with lib; let
                 inherit (user) name email;
               };
             }
-            // lib.optionalAttrs (config.myConfig.onepassword.enable && isDarwin) {
+            // lib.optionalAttrs config.myConfig.onepassword.enable {
               gpg = {
                 format = "ssh";
                 ssh = {
-                  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign";
+                  program = sshSigningProgram;
                   allowedSignersFile = "~/.ssh/allowed_signers";
                 };
               };
               commit.gpgsign = config.myConfig.onepassword.enableGitSigning;
               user.signingkey = config.myConfig.onepassword.signingKey;
+              url."git@github.com:".insteadOf = ["https://github.com/"];
             };
+        };
+
+        programs.gh = {
+          enable = true;
+          settings.git_protocol = "ssh";
         };
 
         programs.ssh = {
@@ -79,7 +90,6 @@ with lib; let
           lib.optionalString (
             config.myConfig.onepassword.enableGitSigning
             && config.myConfig.onepassword.enable
-            && isDarwin
           ) ''
             ${user.email} ${config.myConfig.onepassword.signingKey}
           '';
