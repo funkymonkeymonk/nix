@@ -93,6 +93,8 @@ assert "PR workflow keeps VM smoke checks independent" \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR check matrix is capped at eight concurrent runners" \
   "grep -q 'max-parallel: 8' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR check shards contain at most two checks" \
+  "grep -q 'batchSize:2' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "each PR check shard has a twenty-minute budget" \
   "grep -q 'timeout-minutes: 20' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow runs smoke VM checks through devenv" \

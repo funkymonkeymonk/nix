@@ -432,7 +432,7 @@ jobs:
           CHECK_PREFIXES: ${{ needs.changes.outputs.check-prefixes }}
         run: |
           input=$(jq -cn --argjson prefixes "$CHECK_PREFIXES" \
-            '{batchSize:4,checkPrefixes:$prefixes}')
+            '{batchSize:2,checkPrefixes:$prefixes}')
           devenv tasks run ci:checks:changed-plan --input-json "$input"
 
   # VM checks require KVM and remain independent of the non-VM matrix.

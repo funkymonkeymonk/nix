@@ -40,8 +40,8 @@ in {
 
     signingKey = mkOption {
       type = types.str;
-      default = "";
-      description = "SSH key name for git signing in 1Password";
+      default = import ../../library/ssh-public-key.nix;
+      description = "SSH public key used for Git and Jujutsu commit signing";
     };
 
     sudoPasswordRef = mkOption {
