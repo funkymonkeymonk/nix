@@ -1,4 +1,5 @@
 {
+  config,
   inputs,
   lib,
   mkUser,
@@ -37,15 +38,36 @@ in {
         apps.jellyfin = {
           host = "jellyfin.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8096";
+          homepage = {
+            title = "Jellyfin";
+            group = "Media";
+            description = "Media server";
+          };
         };
         apps.grafana = {
           host = "grafana.home.buildingbananas.com";
           upstream = "http://127.0.0.1:3000";
+          homepage = {
+            enable = config.services.grafana.enable;
+            title = "Grafana";
+            group = "Monitoring";
+            description = "System monitoring";
+            widgets = [
+              {
+                type = "grafana";
+                version = 2;
+                url = "http://127.0.0.1:3000";
+                username = "{{HOMEPAGE_FILE_GRAFANA_USERNAME}}";
+                password = "{{HOMEPAGE_FILE_GRAFANA_PASSWORD}}";
+              }
+            ];
+          };
         };
         # TODO: Add remote seed-box routes when that integration is ready.
         apps.dashboard = {
           host = "dashboard.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8082";
+          homepage.enable = false;
         };
       };
       onepassword = {

@@ -139,6 +139,7 @@
     # Tested via the drlight media-target evaluation and test-zero.nix.
     "nixos/backup.nix"
     "nixos/homepage.nix"
+    "nixos/tailscale-home-dns.nix"
     "nixos/media-config.nix"
     "nixos/media-storage.nix"
     "nixos/onepacerr.nix"
