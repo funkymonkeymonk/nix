@@ -76,12 +76,20 @@
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
       secretValues = builtins.attrValues onePasswordSecrets;
-      mediaMount = drlight.fileSystems."/srv/media" or {};
-      compatibilityMediaMount = drlight.fileSystems."/media" or {};
+      cacheOnlyDiskConfig = import ../disk-configs/drlight-cache.nix;
+      cacheOnlyDisks = cacheOnlyDiskConfig.disko.devices.disk or {};
       diskoDevices = (drlight.disko or {}).devices or {};
       diskoDisks = diskoDevices.disk or {};
       diskoDisk = diskoDisks.main or {};
       diskoPartitions = (diskoDisk.content or {}).partitions or {};
+      cacheDisk = diskoDisks.cache or {};
+      cachePartitions = (cacheDisk.content or {}).partitions or {};
+      cachePartition = cachePartitions.cache or {};
+      cacheFilesystem = cachePartition.content or {};
+      zfsMountpointService = drlight.systemd.services.zfs-media-mountpoints or {};
+      localStorageTmpfiles = drlight.systemd.tmpfiles.rules or [];
+      localStorageFilesystem = drlight.fileSystems."/srv/local" or {};
+      jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
       jellyfinMountRequirements = drlight.systemd.services.jellyfin.serviceConfig.RequiresMountsFor or [];
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan [
         "https://grafana.home.buildingbananas.com"
@@ -181,8 +189,14 @@
         ${checkFalse "drlight does not force-import all pools" drlight.boot.zfs.forceImportAll}
         ${checkTrue "drlight uses its dedicated Disko layout" (drlightMachine.disko or false)}
         ${checkTrue "drlight selects the dedicated safe disk module" (hasModule "/disk-configs/drlight.nix" drlightMachine)}
-        ${checkEqual "drlight Disko declares only its OS disk" ["main"] (builtins.attrNames diskoDisks)}
+        ${checkEqual "drlight Disko declares OS and cache disks" ["cache" "main"] (builtins.attrNames diskoDisks)}
         ${checkEqual "drlight Disko targets the stable Patriot sda identity" "/dev/disk/by-id/ata-Patriot_P210_512GB_P210IICB25030501733" (diskoDisk.device or null)}
+        ${checkEqual "drlight Disko targets the dedicated Samsung NVMe by-id" "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_2TB_S7L9NJ0Y422825N" (cacheDisk.device or null)}
+        ${checkEqual "cache-only Disko config cannot reformat the OS disk" ["cache"] (builtins.attrNames cacheOnlyDisks)}
+        ${checkEqual "drlight cache disk has one dedicated partition" ["cache"] (builtins.attrNames cachePartitions)}
+        ${checkEqual "NVMe cache partition is ext4" "ext4" (cacheFilesystem.format or null)}
+        ${checkEqual "NVMe filesystem mounts at /srv/local" "/srv/local" (cacheFilesystem.mountpoint or null)}
+        ${checkTrue "NVMe cache mount does not block boot when absent" (builtins.elem "nofail" (cacheFilesystem.mountOptions or []))}
         ${checkEqual "drlight Disko does not define ZFS data-pool devices" [] (builtins.attrNames (diskoDevices.zpool or {}))}
         ${checkEqual "drlight Disko declares ESP, root, and swap partitions" ["ESP" "root" "swap"] (builtins.sort builtins.lessThan (builtins.attrNames diskoPartitions))}
         ${checkEqual "drlight Disko keeps the ESP mounted at /boot" "/boot" (diskoPartitions.ESP.content.mountpoint or null)}
@@ -190,13 +204,20 @@
         ${checkEqual "drlight Disko mounts root at /" "/" (diskoPartitions.root.content.mountpoint or null)}
         ${checkEqual "drlight root filesystem is ext4" "ext4" (drlight.fileSystems."/".fsType or null)}
         ${checkEqual "drlight boot filesystem is vfat" "vfat" (drlight.fileSystems."/boot".fsType or null)}
-        ${checkEqual "primary media path binds ZFS-managed /media" "/media" (mediaMount.device or null)}
-        ${checkEqual "primary media path uses a bind mount" "none" (mediaMount.fsType or null)}
-        ${checkTrue "primary media bind does not block boot when absent" (builtins.elem "nofail" (mediaMount.options or []))}
-        ${checkTrue "primary media bind waits for ZFS mounts" (builtins.elem "x-systemd.after=zfs-mount.service" (mediaMount.options or []) && builtins.elem "x-systemd.requires=zfs-mount.service" (mediaMount.options or []))}
-        ${checkFalse "ZFS owns the /media mountpoint" (drlight.fileSystems ? "/media")}
-        ${checkEqual "compatibility media mount remains absent" null (compatibilityMediaMount.device or null)}
-        ${checkTrue "Jellyfin waits for the media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+        ${checkFalse "ZFS library path is not shadowed by an fstab mount" (drlight.fileSystems ? "/srv/media")}
+        ${checkFalse "ZFS parent path is not in the filesystem table" (drlight.fileSystems ? "/media")}
+        ${checkTrue "ZFS parent mountpoint is disabled before automatic mounting" (lib.hasInfix "zfs set mountpoint=none media" (zfsMountpointService.script or "") && builtins.elem "zfs-mount.service" (zfsMountpointService.before or []))}
+        ${checkTrue "ZFS library dataset mounts at the sole /srv/media path" (lib.hasInfix "zfs set mountpoint=/srv/media media/library" (zfsMountpointService.script or ""))}
+        ${checkTrue "ZFS mountpoint setup waits for the imported media pool" (builtins.elem "zfs-import-media.service" (zfsMountpointService.after or []))}
+        ${checkEqual "ZFS pool mounting softly wants mountpoint setup" ["zfs-mount.service"] (zfsMountpointService.wantedBy or [])}
+        ${checkTrue "ZFS mountpoint setup runs before Jellyfin" (builtins.elem "jellyfin.service" (zfsMountpointService.before or []))}
+        ${checkEqual "Jellyfin requires mountpoint setup to succeed" ["jellyfin.service"] (zfsMountpointService.requiredBy or [])}
+        ${checkEqual "NVMe transfer staging directory is prepared" "d /srv/local/cache/ultra 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/cache/ultra" rule) null localStorageTmpfiles)}
+        ${checkEqual "NVMe machine-specific state directory is prepared" "d /srv/local/state 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/state" rule) null localStorageTmpfiles)}
+        ${checkEqual "NVMe cache mount is ext4" "ext4" (localStorageFilesystem.fsType or null)}
+        ${checkTrue "Jellyfin waits for the permanent media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+        ${checkTrue "Jellyfin starts after ZFS automatic mounts complete" (builtins.elem "zfs-mount.service" (drlight.systemd.services.jellyfin.after or []))}
+        ${checkEqual "Jellyfin will not start with the underlying empty directory" "/srv/media" (jellyfinUnitConfig.ConditionPathIsMountPoint or null)}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media storage tests passed"

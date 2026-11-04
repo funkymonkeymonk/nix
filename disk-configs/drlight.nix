@@ -1,5 +1,7 @@
-# Drlight's OS disk layout. The media ZFS mirror is intentionally excluded.
+# Drlight's OS and local-cache disk layouts. The media ZFS mirror is excluded.
 {...}: {
+  imports = [./drlight-cache.nix];
+
   disko.devices.disk.main = {
     device = "/dev/disk/by-id/ata-Patriot_P210_512GB_P210IICB25030501733";
     type = "disk";
