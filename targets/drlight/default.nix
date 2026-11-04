@@ -73,12 +73,6 @@ in {
       onepassword = {
         enable = true;
         defaultVault = "Homelab";
-        secrets.jellyfinAdminPassword = {
-          reference = "zero-jellyfin-admin/password";
-          path = "/run/secrets/jellyfin-admin-password";
-          mode = "0400";
-          services = ["jellyfin-declarative-config"];
-        };
         secrets.cloudflareApiToken = {
           reference = "cloudflare.com/dns-api-token";
           path = "/run/secrets/cloudflare-api-token";
