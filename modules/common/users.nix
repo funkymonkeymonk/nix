@@ -65,6 +65,8 @@ with lib; let
           settings.git_protocol = "ssh";
         };
 
+        xdg.configFile."gh/config.yml".force = true;
+
         programs.ssh = {
           enable = true;
           enableDefaultConfig = false;

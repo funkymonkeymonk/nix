@@ -574,6 +574,12 @@ in {
         else ''echo "  GitHub CLI does not use SSH!"; exit 1''
       }
 
+      ${
+        if sshAgentUser.xdg.configFile."gh/config.yml".force
+        then ''echo "  Existing GitHub CLI config can be replaced: OK"''
+        else ''echo "  Existing GitHub CLI config would block activation!"; exit 1''
+      }
+
       touch $out
     '';
 
