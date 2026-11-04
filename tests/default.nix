@@ -217,6 +217,7 @@ in
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
     onepassword-ssh-agent-config = testHomeManager.onepasswordSshAgentConfigTest;
+    ssh-github-config = testHomeManager.sshGitHubConfigTest;
 
     # Workspace-aware switch shell function tests
     workspace-switch = testWorkspaceSwitch.workspaceSwitchTest;
