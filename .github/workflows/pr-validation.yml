@@ -448,6 +448,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          echo "Runner disk usage before cleanup:"
+          df -h
+          df -i
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY" \
+            /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+          echo "Runner disk usage after cleanup:"
+          df -h
+          df -i
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v21
         with:
@@ -491,6 +503,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Free up disk space
+        run: |
+          echo "Runner disk usage before cleanup:"
+          df -h
+          df -i
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY" \
+            /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          docker system prune -af
+          echo "Runner disk usage after cleanup:"
+          df -h
+          df -i
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v21
         with:
