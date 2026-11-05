@@ -131,11 +131,14 @@
       localStorageTmpfiles = drlight.systemd.tmpfiles.rules or [];
       localStorageFilesystem = drlight.fileSystems."/srv/local" or {};
       jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
+      jellyfinService = drlight.systemd.services.jellyfin or {};
+      mediaLibraryFoldersService = drlight.systemd.services.media-library-folders or {};
+      mediaLibraryFoldersScript = mediaLibraryFoldersService.script or "";
       diskoDevices = (drlight.disko or {}).devices or {};
       diskoDisks = diskoDevices.disk or {};
       diskoDisk = diskoDisks.main or {};
       diskoPartitions = (diskoDisk.content or {}).partitions or {};
-      jellyfinMountRequirements = drlight.systemd.services.jellyfin.serviceConfig.RequiresMountsFor or [];
+      jellyfinMountRequirements = drlight.systemd.services.jellyfin.unitConfig.RequiresMountsFor or [];
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan [
         "https://grafana.home.buildingbananas.com"
         "https://jellyfin.home.buildingbananas.com"
@@ -305,9 +308,15 @@
            ${checkEqual "NVMe transfer staging directory is prepared" "d /srv/local/cache/ultra 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/cache/ultra" rule) null localStorageTmpfiles)}
            ${checkEqual "NVMe machine-specific state directory is prepared" "d /srv/local/state 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/state" rule) null localStorageTmpfiles)}
            ${checkEqual "NVMe cache mount is ext4" "ext4" (localStorageFilesystem.fsType or null)}
-           ${checkTrue "Jellyfin waits for the media mount" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+           ${checkTrue "Jellyfin declares its media mount requirement in the unit section" (builtins.elem "/srv/media" jellyfinMountRequirements)}
+           ${checkFalse "Jellyfin does not emit RequiresMountsFor in the service section" (jellyfinService.serviceConfig ? RequiresMountsFor)}
            ${checkTrue "Jellyfin starts after ZFS automatic mounts complete" (builtins.elem "zfs-mount.service" (drlight.systemd.services.jellyfin.after or []))}
            ${checkEqual "Jellyfin will not start with the underlying empty directory" "/srv/media" (jellyfinUnitConfig.ConditionPathIsMountPoint or null)}
+           ${checkTrue "Nix prepares the five media folders" (builtins.all (path: lib.hasInfix path mediaLibraryFoldersScript) ["/srv/media/audiobooks" "/srv/media/books" "/srv/media/movies" "/srv/media/music" "/srv/media/shows"])}
+           ${checkFalse "Nix does not create a Podcasts folder" (lib.hasInfix "/srv/media/podcasts" mediaLibraryFoldersScript)}
+           ${checkTrue "Nix prepares media folders after ZFS mount and before Jellyfin" (builtins.elem "zfs-mount.service" (mediaLibraryFoldersService.after or []) && builtins.elem "jellyfin.service" (mediaLibraryFoldersService.before or []) && builtins.elem "media-library-folders.service" (jellyfinService.after or []))}
+           ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
+           ${checkFalse "drlight no longer fetches a Jellyfin admin password for API sync" (onePasswordSecrets ? jellyfinAdminPassword)}
 
           if [ "$failures" -ne 0 ]; then exit 1; fi
           echo "All drlight media storage tests passed"

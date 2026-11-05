@@ -16,7 +16,6 @@
   streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
   caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
-  mediaConfigModuleText = builtins.readFile ../modules/nixos/media-config.nix;
   onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
 
   # Helper: check if string contains substring, throw if not
@@ -403,27 +402,6 @@ in {
       ${assertContainsStr "Transmission Caddy web root" ''webRoot = "/transmission/web"'' zeroConfigText}
 
       echo "Zero media automation test passed"
-      touch $out
-    '';
-
-  # Test: application-level media configuration must be declared in Nix and
-  # receive its credentials from runtime opnix secrets.
-  zeroMediaDeclarativeConfigTest =
-    pkgs.runCommand "test-zero-media-declarative-config"
-    {}
-    ''
-      echo "=== Testing Zero declarative media configuration ==="
-
-      ${assertContainsStr "Jellyfin admin secret" "zero-jellyfin-admin/password" zeroConfigText}
-      ${assertContainsStr "Nixarr settings sync" "settings-sync" zeroConfigText}
-      ${assertContainsStr "Sonarr auth method" ''services.sonarr.settings.auth.method = "Forms"'' zeroConfigText}
-      ${assertContainsStr "Radarr auth method" ''services.radarr.settings.auth.method = "Forms"'' zeroConfigText}
-      ${assertContainsStr "Prowlarr auth method" ''services.prowlarr.settings.auth.method = "Forms"'' zeroConfigText}
-      ${assertContainsStr "Jellyfin startup bootstrap" "jellyfin-declarative-config" mediaConfigModuleText}
-      ${assertContainsStr "Jellyfin startup completion" "/Startup/Complete" mediaConfigModuleText}
-      ${assertContainsStr "Jellyfin library reconciliation" "/Library/VirtualFolders" mediaConfigModuleText}
-
-      echo "Zero declarative media configuration test passed"
       touch $out
     '';
 }
