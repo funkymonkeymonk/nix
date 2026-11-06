@@ -140,6 +140,7 @@
       ../archetypes/type-observability.nix
       ../../disk-configs/drlight.nix
       ../../modules/nixos/media-storage.nix
+      ../../modules/nixos/ultra-media-sync.nix
       ../../modules/nixos/tailscale-home-dns.nix
       ../../modules/nixos/ghostty-terminfo.nix
       ../../targets/drlight

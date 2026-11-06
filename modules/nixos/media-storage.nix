@@ -26,7 +26,6 @@
   };
 
   systemd.tmpfiles.rules = [
-    "d /srv/local/cache/ultra 0750 root root - -"
     "d /srv/local/state 0750 root root - -"
   ];
 }

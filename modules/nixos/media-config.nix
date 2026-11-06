@@ -7,6 +7,7 @@
   mediaLibraryPaths = map (name: "/srv/media/${name}") [
     "audiobooks"
     "books"
+    "comics"
     "movies"
     "music"
     "shows"

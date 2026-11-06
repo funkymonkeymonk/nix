@@ -55,3 +55,6 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+
+secretspec:
+  enable: false

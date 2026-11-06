@@ -20,6 +20,7 @@ in {
   };
 
   boot.loader.systemd-boot.enable = lib.mkForce false;
+  boot.zfs.forceImportRoot = false;
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
 

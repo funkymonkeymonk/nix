@@ -148,7 +148,7 @@
     lib.hasInfix "devenv = pkgs.devenv;" outputsText
     && !(lib.hasInfix "if isDarwin then pkgs.devenv" outputsText);
   devenvDoesNotLoadSecretsGlobally =
-    !(lib.hasInfix "secretspec" (lib.toLower devenvSourceText))
+    lib.hasInfix "secretspec:\n  enable: false" devenvYamlText
     && !(lib.hasInfix "SECRETSPEC_" devenvSourceText)
     && !(lib.hasInfix "OP_SERVICE_ACCOUNT_TOKEN" devenvSourceText);
 
@@ -175,7 +175,7 @@ in {
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
     ${assertResult "SecretSpec profiles declare the expected Homelab and MegamanX fields" (manifestExists && profilesDeclareExpectedFields && profilesHaveNoResolvedValuesOrCredentials)}
     ${assertResult "Homelab opnix service-account token is a reference-only field" homelabOpnixTokenIsReferenceOnly}
-    ${assertResult "devenv does not configure global SecretSpec loading" devenvDoesNotLoadSecretsGlobally}
+    ${assertResult "devenv explicitly keeps global SecretSpec loading disabled" devenvDoesNotLoadSecretsGlobally}
     touch $out
   '';
 }
