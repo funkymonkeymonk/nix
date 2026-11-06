@@ -44,6 +44,7 @@
     apps.installer = {
       type = "app";
       program = "${pkgs.callPackage ../packages/installer {}}/bin/nixos-flake-installer";
+      meta.description = "Standalone NixOS installer for bootstrapping systems";
     };
 
     checks =

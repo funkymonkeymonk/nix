@@ -142,6 +142,7 @@
     "nixos/tailscale-home-dns.nix"
     "nixos/media-config.nix"
     "nixos/media-storage.nix"
+    "nixos/ultra-media-sync.nix"
     "nixos/onepacerr.nix"
     "services/caddy/nixos.nix"
   ];

@@ -6,6 +6,7 @@
   lib = pkgs.lib;
   config = self.nixosConfigurations.installer-iso.config;
   installerReady = self.packages.x86_64-linux.installer-ready;
+  installerAppDescription = (self.apps.x86_64-linux.installer.meta or {}).description or "";
   publicAuthorizedKey = import ../library/ssh-public-key.nix;
   packageNames = map (package: package.name or "") config.environment.systemPackages;
   sshSettings = config.services.openssh.settings;
@@ -14,6 +15,8 @@
   configChecks = assert config.networking.networkmanager.enable;
   assert config.services.openssh.enable;
   assert builtins.elem "flakes" config.nix.settings.experimental-features;
+  assert config.boot.zfs.forceImportRoot == false;
+  assert installerAppDescription != "";
   assert builtins.elem installerReady config.environment.systemPackages;
   assert lib.hasInfix "installer-ready" loginShellInit;
   assert lib.hasInfix "/dev/tty1" loginShellInit;
