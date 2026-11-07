@@ -5,7 +5,7 @@
 # myConfig.llmEndpoints option declarations (sharedModels/llmEndpoints have
 # no active consumer modules currently — they're legacy declarations kept
 # for backward compatibility with hosts that still set them, e.g.
-# targets/zero).
+# machines/zero).
 {
   config,
   lib,

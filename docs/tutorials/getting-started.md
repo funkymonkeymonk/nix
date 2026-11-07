@@ -3,7 +3,7 @@ title: "Getting Started"
 description: "Overview of this Nix configuration system and your first steps"
 type: tutorial
 audience: both
-last-reviewed: 2026-06-30
+last-reviewed: 2026-11-07
 ---
 
 # Getting Started
@@ -24,21 +24,13 @@ The repo follows two patterns:
 ## Repository Structure at a Glance
 
 ```
-├── modules/                 # Reusable configuration logic
-│   ├── common/              # Shared options and user management
-│   ├── home-manager/        # User environment (dotfiles, apps)
-│   ├── roles/               # Role modules (package bundles)
-│   ├── services/            # Background service definitions
-│   └── nixos/              # NixOS-specific modules
-├── targets/                 # Machine-specific configurations
-│   ├── wweaver/             # Work laptop (macOS)
-│   ├── MegamanX/            # Personal desktop (macOS)
-│   └── zero/                # Gaming PC (NixOS)
-├── machine-types/           # Generic configurations (type-server, type-desktop)
-├── disk-configs/            # Disko disk layouts
-├── os/                      # Platform-specific base configuration
-├── library/                 # System-building abstractions
-└── flake.nix               # Composes everything together
+├── modules/                 # Reusable options and service behavior
+├── machines/                # Per-machine settings for named outputs
+├── library/machines/         # Catalog and output composition
+├── library/archetypes/      # Reusable machine profiles
+├── targets/                 # Bootstrap, installer, and hardware inputs
+├── disk-configs/            # Disko layouts
+└── flake.nix                # Flake entry point
 ```
 
 ## Core Concepts
@@ -51,7 +43,7 @@ The repo follows two patterns:
 - `opencode` / `claude` / `pi` — AI coding agents
 - And more (see [Roles Reference](../reference/roles.md))
 
-**Targets** hold machine-specific settings in `targets/<name>/`. Heirloom machines have their own target directory; takeout container machines use one of the generic configurations under `machine-types/`.
+Machine-specific NixOS and Darwin settings live in `machines/<name>/`. The machine catalog in `library/machines/catalog.nix` records output metadata (platform, hostname, secrets profile, and module composition) and generates the flake's named configurations. Reusable archetypes keep common profiles shared. The `targets/` directory is for bootstrap, installer, and shared hardware inputs—not a second home for named machine settings.
 
 ## Prerequisites
 

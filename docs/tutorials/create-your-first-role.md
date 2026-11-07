@@ -3,7 +3,7 @@ title: "Create Your First Role"
 description: "Learn how to create a reusable role module for grouping packages"
 type: tutorial
 audience: both
-last-reviewed: 2026-06-30
+last-reviewed: 2026-11-07
 ---
 
 # Create Your First Role
@@ -13,7 +13,7 @@ In this tutorial you will bundle related tools into a single toggleable role. By
 ## Prerequisites
 
 - Completed [Getting Started](getting-started.md) and either the Mac or NixOS setup tutorial
-- Familiarity with `modules/` and `targets/` directories from earlier tutorials
+- Familiarity with reusable `modules/` and per-machine `machines/` settings from earlier tutorials
 - About 20 minutes
 
 ## Step 1: Plan the Role
@@ -82,7 +82,7 @@ Both should pass. If you see "option myConfig.roles.writing does not exist", dou
 
 ## Step 6: Enable the Role on Your Machine
 
-In your target configuration under `targets/`, enable the role inside `myConfig`:
+In the relevant machine module under `machines/`, enable the role inside `myConfig`. If the machine currently has no module because its archetype is sufficient, create one and add it to `library/machines/catalog.nix`:
 
 ```nix
 roles = {
@@ -95,10 +95,10 @@ Then rebuild:
 
 ```bash
 # macOS
-./result/sw/bin/darwin-rebuild switch --flake .#your-target
+./result/sw/bin/darwin-rebuild switch --flake .#your-machine
 
 # NixOS
-sudo nixos-rebuild switch --flake .#your-target
+sudo nixos-rebuild switch --flake .#your-machine
 ```
 
 ## Step 7: Verify the Installation

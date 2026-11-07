@@ -18,6 +18,7 @@ in rec {
         [
           {
             networking.hostName = hostname;
+            nixpkgs.hostPlatform = system;
             system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
           }
           (mkNixpkgsConfigModule {inherit inputs;})

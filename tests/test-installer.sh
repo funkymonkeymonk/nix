@@ -40,6 +40,17 @@ assert "packages/installer/default.nix has purpose comment" \
 assert "targets/installer-iso/installer.nix has purpose comment" \
   "grep -q '# Purpose:' '$REPO_ROOT/targets/installer-iso/installer.nix'"
 
+# Installable NixOS configurations come from the flake catalog, not paths under targets/.
+assert "standalone installer reads NixOS configurations from the flake" \
+  "grep -q '#nixosConfigurations' '$REPO_ROOT/packages/installer/default.nix'"
+assert "ISO installer reads NixOS configurations from the flake" \
+  "grep -q '#nixosConfigurations' '$REPO_ROOT/targets/installer-iso/installer.nix'"
+
+assert "legacy installer resolves named outputs from the machine catalog" \
+  "grep -q 'nixosConfigurations' '$REPO_ROOT/scripts/nixos-install.sh'"
+assert "machine installer keeps generated hardware reports with machine modules" \
+  "grep -q 'machines/' '$REPO_ROOT/scripts/install-machine.sh'"
+
 # The standalone package produces nixos-flake-installer binary name
 assert "packages/installer produces nixos-flake-installer binary" \
   "grep -q 'writeScriptBin.*nixos-flake-installer' '$REPO_ROOT/packages/installer/default.nix'"

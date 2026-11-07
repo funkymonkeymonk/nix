@@ -49,7 +49,7 @@
     ../disk-configs/zero.nix
     ../library/archetypes/desktop-machine.nix
     ../modules/nixos/ghostty-terminfo.nix
-    ../targets/zero
+    ../machines/zero
   ];
 
   phase3ZeroFlakePartsTest = pkgs.runCommand "test-phase3-zero-flake-parts" {} ''

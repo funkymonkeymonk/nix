@@ -128,15 +128,15 @@
     "common/obsidian.nix"
     "home-manager/obsidian.nix"
     # Tested via test-log-aggregator.nix (option defaults, enabled wiring,
-    # and type-server target wiring)
+    # and type-server machine wiring)
     "nixos/vector.nix"
     "nixos/loki.nix"
     # Tested via test-nixos-observability.nix (option defaults, enabled
     # wiring, alert rules, alertmanager routing, firewall opt-in, and
-    # type-server target wiring)
+    # type-server machine wiring)
     "nixos/prometheus.nix"
     "nixos/alertmanager.nix"
-    # Tested via the drlight media-target evaluation and test-zero.nix.
+    # Tested via the drlight machine evaluation and test-zero.nix.
     "nixos/backup.nix"
     "nixos/homepage.nix"
     "nixos/tailscale-home-dns.nix"

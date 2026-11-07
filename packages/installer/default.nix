@@ -69,14 +69,11 @@ pkgs.writeScriptBin "nixos-flake-installer" ''
     echo "unknown"
   }
 
-  # Fetch targets from GitHub
+  # Read installable NixOS outputs from the machine catalog, not source paths.
   fetch_targets() {
-    ${pkgs.curl}/bin/curl -s "https://api.github.com/repos/funkymonkeymonk/nix/git/trees/main?recursive=1" 2>/dev/null | \
-      ${pkgs.gnugrep}/bin/grep -o '"path":"targets/[^"]*default.nix"' | \
-      ${pkgs.gnused}/bin/sed 's/.*targets\//\n/g' | \
-      ${pkgs.gnused}/bin/sed 's/\/default.nix.*//g' | \
-      sort -u | \
-      ${pkgs.gnugrep}/bin/grep -v '^$' || true
+    ${pkgs.nix}/bin/nix eval --json "$FLAKE_URL#nixosConfigurations" --apply builtins.attrNames 2>/dev/null | \
+      ${pkgs.jq}/bin/jq -r '.[]' | \
+      ${pkgs.gnugrep}/bin/grep -vx 'installer-iso' || true
   }
 
   # Guide disk partitioning
@@ -172,18 +169,18 @@ pkgs.writeScriptBin "nixos-flake-installer" ''
   HOSTNAME=''${HOSTNAME:-nixos}
   log_info "Hostname set to: $HOSTNAME"
 
-  # Check if target exists
+  # Check if this named NixOS configuration exists
   echo ""
-  log_info "Checking available targets..."
+  log_info "Checking available machine configurations..."
   TARGETS=$(fetch_targets)
   TARGET_EXISTS=false
 
   if echo "$TARGETS" | ${pkgs.gnugrep}/bin/grep -qx "$HOSTNAME"; then
     TARGET_EXISTS=true
-    log_success "Target 'targets/$HOSTNAME' found in flake"
+    log_success "Machine configuration '$HOSTNAME' found in flake"
   else
-    log_warn "Target not found - will create bootstrap configuration"
-    log_info "You can create a proper target after installation"
+    log_warn "Machine configuration not found - will create bootstrap configuration"
+    log_info "You can add the machine configuration after installation"
   fi
 
   # Step 2: Admin User
@@ -282,18 +279,14 @@ pkgs.writeScriptBin "nixos-flake-installer" ''
     if [[ "$TARGET_EXISTS" == "true" ]]; then
       echo "     sudo nixos-rebuild switch --flake $FLAKE_URL#$HOSTNAME"
       echo ""
-      log_success "Target '$HOSTNAME' is ready to apply!"
+      log_success "Machine configuration '$HOSTNAME' is ready to apply!"
     else
-      echo "     # First, copy hardware config and create target:"
-      echo "     sudo cp /etc/nixos/hardware-configuration.nix /tmp/"
-      echo "     # Add to flake repository, commit, and push"
+      echo "     # Create machines/$HOSTNAME/default.nix and register it in"
+      echo "     # library/machines/catalog.nix before applying the configuration."
       echo "     sudo nixos-rebuild switch --flake $FLAKE_URL#$HOSTNAME"
       echo ""
-      log_warn "Target '$HOSTNAME' does not exist yet"
-      log_info "Steps to create it:"
-      log_info "  1. Copy /etc/nixos/hardware-configuration.nix"
-      log_info "  2. Create targets/$HOSTNAME/default.nix"
-      log_info "  3. Add to flake.nix and push"
+      log_warn "Machine configuration '$HOSTNAME' does not exist yet"
+      log_info "Add a module under machines/$HOSTNAME/ and register it in library/machines/catalog.nix"
     fi
     echo ""
     echo "Alternatively, the bootstrap system will automatically try to apply"
@@ -308,9 +301,7 @@ pkgs.writeScriptBin "nixos-flake-installer" ''
     echo ""
     log_info "Now applying full configuration: $FLAKE_URL#$HOSTNAME"
     nixos-rebuild switch --flake "$FLAKE_URL#$HOSTNAME" || {
-      log_warn "Full configuration failed - you may need to:"
-      log_info "  1. Ensure hardware-configuration.nix exists"
-      log_info "  2. Check that target '$HOSTNAME' exists in the flake"
+      log_warn "Full configuration failed - verify the machine record and hardware inputs for '$HOSTNAME'"
     }
 
     echo ""

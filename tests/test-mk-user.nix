@@ -2,7 +2,7 @@
 #
 # mkUser was extracted verbatim from flake.nix's inline `outputs`
 # let-binding so that both flake.nix and the upcoming
-# library/machines/zero.nix flake-parts module (which cannot reach
+# machines/zero/default.nix machine module (which cannot reach
 # into flake.nix's local let-block) can import the same helper with
 # identical behavior. These tests pin the exact output shape and the
 # curried `name: email: {...}` calling convention so a future edit

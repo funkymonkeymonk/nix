@@ -1,4 +1,4 @@
-# MegamanX headless inference server target configuration.
+# MegamanX headless inference server machine configuration.
 # The host runs only the local oMLX/Bifrost stack and Temporal.
 {
   lib,
@@ -6,7 +6,6 @@
   pkgs,
   ...
 }: {
-  nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
@@ -17,7 +16,10 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      onepassword.defaultVault = "Opnix";
+      onepassword = {
+        defaultVault = "Opnix";
+        sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
+      };
       ssh.enable = true;
       tailscale.enable = true;
       collector.destinationHostname = "drlight";
@@ -48,8 +50,8 @@
 
       roles.pi.enable = true;
       pi = {
-        opencodeGoOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
-        jevOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
+        opencodeGoOnePasswordItem = "Opencode/Service Accounts/MegamanX";
+        jevOnePasswordItem = "Opencode/Service Accounts/MegamanX";
         settings = {
           defaultProvider = "opencode-go";
         };

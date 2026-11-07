@@ -59,6 +59,7 @@
   testDevBaseMigration = import ./test-dev-base-migration.nix {inherit pkgs;};
   testMachinesFoundation = import ./test-machines-foundation.nix {inherit pkgs inputs;};
   testMachinesInventory = import ./test-machines-inventory.nix {inherit pkgs self inputs;};
+  testMachineCatalogConstructor = import ./test-machine-catalog-constructor.nix {inherit pkgs;};
   testObservabilityInventory = import ./test-observability-inventory.nix {inherit pkgs inputs;};
   testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
@@ -72,6 +73,17 @@
     if self != null
     then import ./test-options-doc.nix {inherit pkgs self;}
     else {};
+  installerSourceRepo = builtins.path {
+    path = ../.;
+    name = "installer-source-repo";
+  };
+  installerSourceTest =
+    pkgs.runCommand "test-installer-source" {
+      nativeBuildInputs = [pkgs.bash pkgs.coreutils pkgs.gnugrep];
+    } ''
+      ${pkgs.bash}/bin/bash ${installerSourceRepo}/tests/test-installer.sh
+      touch $out
+    '';
   # VM tests only available on x86_64-linux (NixOS testing framework)
   inherit (pkgs.stdenv.hostPlatform) isLinux;
   # VM checks defined by tests/vm/default.nix are Linux-only and are merged
@@ -116,10 +128,12 @@ in
     dev-base-migration = testDevBaseMigration.devBaseMigration;
     machines-secret-profiles = testMachinesFoundation.machinesSecretProfiles;
     machines-inventory = testMachinesInventory.machinesInventory;
+    machine-catalog-constructor = testMachineCatalogConstructor.catalogMachineConstructor;
     observability-inventory = testObservabilityInventory.observabilityInventory;
     machines-ops = testMachineOps.machineOps;
     machines-secretspec-empty-profiles = testMachineOps.secretspecEmptyProfiles;
     installer-ready = testInstallerReady.installerReady;
+    installer-source = installerSourceTest;
     ssh-authorized-keys = testSshAuthorizedKeys;
     ssh-host-key-fingerprint = testSshHostKeyFingerprint.sshHostKeyFingerprint;
     tailscale-oauth-auth-key = testTailscaleOauthAuthKey.tailscaleOauthAuthKey;

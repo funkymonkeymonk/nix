@@ -258,28 +258,18 @@ select_admin_user() {
   done
 }
 
-# Check if target exists in flake
-# In remote mode, checks GitHub; in local mode, checks filesystem
+# Check if the NixOS output exists in the machine catalog.
 check_target_exists() {
   local hostname="$1"
+  local flake_ref="$FLAKE_URL"
 
-  if [[ "$REMOTE_MODE" == true ]]; then
-    # Check GitHub for the target
-    local target_url="$GITHUB_RAW_URL/targets/$hostname/default.nix"
-    if curl -fsSL "$target_url" -o /dev/null 2>/dev/null; then
-      return 0
-    else
-      return 1
-    fi
-  else
-    # Check local filesystem
-    local target_dir="$REPO_DIR/targets/$hostname"
-    if [[ -d "$target_dir" ]]; then
-      return 0
-    else
-      return 1
-    fi
+  if [[ "$REMOTE_MODE" != true ]]; then
+    flake_ref="$REPO_DIR"
   fi
+
+  local configurations
+  configurations=$(nix eval --json "${flake_ref}#nixosConfigurations" --apply builtins.attrNames 2>/dev/null) || return 1
+  printf '%s\n' "$configurations" | grep -Fq "\"$hostname\""
 }
 
 # Guided disk partitioning
@@ -549,14 +539,14 @@ main() {
   fi
   log_info "Hostname set to: $hostname"
 
-  log_info "Step 4: Checking if target exists..."
-  # Check if target exists
+  log_info "Step 4: Checking if a machine configuration exists..."
+  # Check if a named machine configuration exists
   local target_exists=false
   if check_target_exists "$hostname"; then
     target_exists=true
-    log_info "Found existing target: targets/$hostname"
+    log_info "Found machine configuration: machines/$hostname"
   else
-    log_warn "Target not found: targets/$hostname"
+    log_warn "Machine configuration not found: machines/$hostname"
     log_info "Will use bootstrap configuration"
   fi
 
@@ -588,7 +578,7 @@ main() {
   echo "--------------------"
   echo "  Hostname: $hostname"
   echo "  Mode: $mode"
-  echo "  Target exists: $target_exists"
+  echo "  Machine configuration exists: $target_exists"
   echo "  Admin user: $admin_user"
   echo "  SSH keys: $(echo "$ssh_keys" | wc -l) key(s)"
   echo ""
@@ -607,7 +597,7 @@ main() {
     generate_hardware_config
 
     if [[ "$target_exists" == true ]]; then
-      log_info "Using existing target configuration"
+      log_info "Using existing machine configuration"
       # Copy hardware config to the target location
       mkdir -p "/mnt/etc/nixos"
       cp "/mnt/etc/nixos/hardware-configuration.nix" "/mnt/etc/nixos/"
@@ -632,17 +622,13 @@ main() {
     if [[ "$target_exists" == false ]]; then
       echo "IMPORTANT: Bootstrap configuration installed!"
       echo ""
-      echo "To create a proper target configuration:"
-      echo "1. Copy hardware-configuration.nix from the new system:"
-      echo "   scp $admin_user@$hostname:/etc/nixos/hardware-configuration.nix \\"
-      echo "       targets/$hostname/"
-      echo "2. Create targets/$hostname/default.nix with your custom config"
-      echo "3. Add the target to flake.nix"
-      echo "4. Commit and push:"
-      echo "   git add targets/$hostname"
-      echo "   git commit -m 'feat: add $hostname target'"
-      echo "   git push"
-      echo "5. On the new machine, apply the full configuration:"
+      echo "To create a machine configuration:"
+      echo "1. Create machines/$hostname/default.nix with your custom config"
+      echo "2. Register the machine in library/machines/catalog.nix"
+      echo "3. Commit and push the machine configuration:"
+      echo "   jj describe -m 'feat: add $hostname machine'"
+      echo "   jj git push"
+      echo "4. On the new machine, apply the full configuration:"
       echo "   sudo nixos-rebuild switch --flake ${FLAKE_URL}#$hostname"
       echo ""
     fi

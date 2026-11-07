@@ -37,7 +37,7 @@ yx ls
 **Step 2: For each yak — verify the code before deciding**
 ```bash
 yx show "yak name"
-grep -rn "<pattern>" modules/ targets/ os/
+grep -rn "<pattern>" modules/ machines/ targets/ os/
 find . -name "<filename>" 2>/dev/null
 ```
 

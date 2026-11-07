@@ -1,6 +1,6 @@
 # Canonical NixOS platform configuration (used by: zero)
-# Note: machine-types/* define their own copies since they
-# are NOT included alongside this file in any nixosConfiguration.
+# Note: NixOS archetypes may define their own platform defaults when they
+# are not composed alongside this module.
 {
   lib,
   pkgs,

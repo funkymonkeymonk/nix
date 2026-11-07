@@ -53,7 +53,7 @@ select_for_path() {
     tests/test-media-center-archetype.nix|modules/nixos/homepage.nix)
       add media-center-archetype drlight-media- type-server-archetypes
       ;;
-    tests/test-zero.nix|targets/zero/*|modules/nixos/streaming.nix)
+    tests/test-zero.nix|machines/zero/*|modules/nixos/streaming.nix)
       add zero- phase3-zero drlight-media-storage
       ;;
     tests/test-phase2-cattle.nix)
@@ -113,8 +113,11 @@ select_for_path() {
     tests/test-home-manager.nix)
       add opencode- aerospace- shell-aliases switch-task workspace-switch
       ;;
+    tests/test-installer.sh|packages/installer/default.nix|scripts/nixos-install.sh|scripts/install-machine.sh)
+      add installer-source
+      ;;
     tests/test-installer-ready.nix|targets/installer-iso/*)
-      add installer-ready
+      add installer-ready installer-source
       ;;
     tests/test-jj-workspace-access.nix)
       add opencode-jj-workspace-access
@@ -197,10 +200,10 @@ select_for_path() {
     library/archetypes/*)
       add type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype phase4-darwin-server
       ;;
-    targets/drlight/*)
+    machines/drlight/*)
       add media-center-archetype drlight-media- central-observability type-server-archetypes
       ;;
-    targets/type-server/*|targets/type-server-arm/*)
+    machines/type-server/*|machines/type-server-arm/*)
       add type-server-archetypes type-server-observability type-server-log-aggregator central-observability
       ;;
     modules/nixos/media-config.nix|modules/nixos/media-storage.nix)

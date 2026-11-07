@@ -22,11 +22,12 @@
     "type-desktop"
     "installer-iso"
     "darwin-server"
+    "wweaver"
   ];
   profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Homelab") homelabMachines;
   assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Personal") personalMachines;
   assert !(manifest.profiles ? Personal);
-  assert catalog.wweaver.secretProfile == "Employee";
+  assert catalog.wweaver.secretProfile == "Personal";
   assert !(manifest.profiles ? Employee);
   assert manifest.providers.opnix == "onepassword://Opnix";
   assert manifest.providers.employee == "onepassword://Employee";

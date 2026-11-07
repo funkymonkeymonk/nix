@@ -98,27 +98,14 @@ pkgs.writeScriptBin "nixos-installer-iso" ''
       echo ""
     }
 
-    # Fetch available targets from flake
+    # Fetch NixOS configurations from the machine catalog, independent of source paths.
     fetch_targets() {
-      log_step "Fetching available targets..."
+      log_step "Fetching available NixOS configurations..."
 
       local targets=""
-      if [ "$FLAKE_SOURCE" = "remote" ]; then
-        # Try to get from GitHub API
-        targets=$(${pkgs.curl}/bin/curl -s "https://api.github.com/repos/funkymonkeymonk/nix/git/trees/main?recursive=1" 2>/dev/null | \
-          ${pkgs.gnugrep}/bin/grep -o '"path":"targets/[^"]*default.nix"' | \
-          ${pkgs.gnused}/bin/sed 's/.*targets\///g' | \
-          ${pkgs.gnused}/bin/sed 's/\/default.nix.*//g' | \
-          ${pkgs.gnugrep}/bin/grep -v "^$" | \
-          sort -u || true)
-      else
-        # Get from local filesystem
-        if [ -d "$LOCAL_FLAKE/targets" ]; then
-          targets=$(find "$LOCAL_FLAKE/targets" -name "default.nix" -exec dirname {} \; | \
-            ${pkgs.gnused}/bin/sed "s|$LOCAL_FLAKE/targets/||g" | \
-            sort -u || true)
-        fi
-      fi
+      targets=$(${pkgs.nix}/bin/nix eval --json "$ACTIVE_FLAKE#nixosConfigurations" --apply builtins.attrNames 2>/dev/null | \
+        ${pkgs.jq}/bin/jq -r '.[]' | \
+        ${pkgs.gnugrep}/bin/grep -vx 'installer-iso' || true)
 
       echo "$targets"
     }

@@ -528,10 +528,10 @@ perform_installation() {
     log_info "Generating SSH host keys"
     generate_ssh_keys
 
-    # Create host directory for facter.json
-    local host_dir="$FLAKE_DIR/hosts/$HOSTNAME"
-    mkdir -p "$host_dir"
-    log_info "Created host directory: $host_dir"
+    # Store generated hardware facts alongside the machine module.
+    local machine_dir="$FLAKE_DIR/machines/$HOSTNAME"
+    mkdir -p "$machine_dir"
+    log_info "Created machine directory: $machine_dir"
 
     # Create hardware config with disko device set
     local hw_config_file="$TEMP_DIR/hardware.nix"
@@ -569,7 +569,7 @@ EOF
     local na_args=(
         "--flake" "$FLAKE_DIR#type-$TYPE"
         "--target-host" "$TARGET"
-        "--generate-hardware-config" "nixos-facter" "$host_dir/facter.json"
+        "--generate-hardware-config" "nixos-facter" "$machine_dir/facter.json"
         "--extra-files" "$TEMP_DIR"
         "--env-password"
         "--disko-mode" "destroy"

@@ -376,7 +376,7 @@ my-service-options
 ## Step 8: Wire Into the Target
 
 ```nix
-# targets/MegamanX/default.nix
+# machines/megamanx/default.nix
 myConfig = {
   my-service = {
     enable = true;

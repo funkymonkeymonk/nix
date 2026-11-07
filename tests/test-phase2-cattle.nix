@@ -4,7 +4,7 @@
   ...
 }: let
   hasConfig = name: builtins.hasAttr name self.nixosConfigurations;
-  hasTargetModule = name: builtins.pathExists (../targets + "/${name}/default.nix");
+  hasMachineModule = name: builtins.pathExists (../machines + "/${name}/default.nix");
   flakeText = builtins.readFile ../flake.nix;
 
   headlessServerUsers = ["type-server" "type-nas" "type-server-arm" "drlight"];
@@ -79,25 +79,18 @@
     echo "  type-desktop: defined ✓"
 
     ${
-      if hasTargetModule "type-server"
+      if hasMachineModule "type-server-arm"
       then ""
-      else ''echo "FAIL: type-server target module not found"; exit 1''
+      else ''echo "FAIL: type-server-arm machine module not found"; exit 1''
     }
-    echo "  type-server target module: defined ✓"
+    echo "  type-server-arm machine module: defined ✓"
 
     ${
-      if hasTargetModule "type-server-arm"
+      if hasMachineModule "type-desktop"
       then ""
-      else ''echo "FAIL: type-server-arm target module not found"; exit 1''
+      else ''echo "FAIL: type-desktop machine module not found"; exit 1''
     }
-    echo "  type-server-arm target module: defined ✓"
-
-    ${
-      if hasTargetModule "type-desktop"
-      then ""
-      else ''echo "FAIL: type-desktop target module not found"; exit 1''
-    }
-    echo "  type-desktop target module: defined ✓"
+    echo "  type-desktop machine module: defined ✓"
 
     ${
       if builtins.pathExists ../library/machines/catalog.nix

@@ -4,7 +4,7 @@
 # modules/ as flake.nixosModules.library, and (b) provides libraryLib
 # (mk-system.nix's mkNixosSystem/mkDarwinSystem) and mkUser (mk-user.nix)
 # as shared _module.args so any sibling flake-parts module imported
-# alongside it (starting with the upcoming library/machines/zero.nix)
+# alongside it (including the machine module under machines/zero/)
 # can consume them without re-deriving libraryLib from scratch.
 #
 # This file is intentionally NOT yet imported by flake.nix — these tests

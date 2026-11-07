@@ -2,7 +2,7 @@
 # This minimal configuration gets the system running so you can:
 # 1. SSH into the machine
 # 2. Generate proper hardware-configuration.nix
-# 3. Create a full target configuration
+# 3. Create a named machine configuration
 {
   pkgs,
   lib,

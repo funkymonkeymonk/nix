@@ -12,7 +12,6 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  nixpkgs.hostPlatform = "x86_64-linux";
   system.stateVersion = "25.05";
 
   myConfig =
@@ -47,7 +46,7 @@
       };
       onepassword = {
         enable = true;
-        defaultVault = "Opnix";
+        defaultVault = "Homelab";
         secrets.sunshinePassword = {
           reference = "Sunshine/password";
           path = "/var/lib/opnix/secrets/sunshinePassword";
@@ -57,7 +56,7 @@
           services = ["sunshine-user-restart"];
         };
         secrets.cloudflareApiToken = {
-          reference = "Cloudflare DNS API Token/credential";
+          reference = "cloudflare.com/dns-api-token";
           path = "/run/secrets/cloudflare-api-token";
           mode = "0400";
           owner = "root";
@@ -74,7 +73,7 @@
         providers = lib.mkForce {
           "opencode-go" = {
             name = "OpenCode Go";
-            onePasswordItem = "OpenCode Service Account - Zero/credential";
+            onePasswordItem = "Opencode/Service Accounts/Zero";
           };
         };
       };
@@ -82,8 +81,8 @@
       # Mirror MegamanX's pi setup, minus the local oMLX/Bifrost model.
       pi = {
         pluginsSource = inputs.pi-plugins.outPath or null;
-        opencodeGoOnePasswordItem = "OpenCode Service Account - Zero/credential";
-        jevOnePasswordItem = "OpenCode Service Account - Zero/credential";
+        opencodeGoOnePasswordItem = "Opencode/Service Accounts/Zero";
+        jevOnePasswordItem = "Opencode/Service Accounts/Zero";
         npmPackages = {
           "pi-web-access" = "^0.10.7";
           "pi-subagents" = "^0.33.1";
@@ -129,7 +128,7 @@
             name = "OpenCode Go";
             provider = "opencode-go";
             modelId = "";
-            onePasswordItem = "OpenCode Go API/credential";
+            onePasswordItem = "op://Homelab/OpenCode Go API/credential";
           };
         };
 
@@ -146,7 +145,6 @@
     };
 
   networking = {
-    hostName = "zero";
     hostId = lib.mkDefault "0badc0de";
     networkmanager.enable = true;
     firewall.enable = true;

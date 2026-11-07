@@ -3,7 +3,9 @@
   lib,
   inputs,
   ...
-}: {
+}: let
+  sshPublicKey = import ../ssh-public-key.nix;
+in {
   imports = [
     ../../modules/nixos/base.nix
     ../../modules/nixos/prometheus.nix
@@ -13,7 +15,7 @@
     skills.superpowersPath = inputs.superpowers or null;
     onepassword = {
       tokenFile = "/etc/opnix/token";
-      defaultVault = "Opnix";
+      defaultVault = lib.mkDefault "Opnix";
     };
     tailscale = {
       enable = true;
@@ -28,7 +30,7 @@
     isNormalUser = true;
     extraGroups = ["wheel"];
     useDefaultShell = true;
-    openssh.authorizedKeys.keys = [];
+    openssh.authorizedKeys.keys = [sshPublicKey];
   };
 
   security.sudo.wheelNeedsPassword = false;

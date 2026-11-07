@@ -1,4 +1,11 @@
-{inputs}: {
+{inputs}: let
+  mkCatalogMachine = import ./mk-catalog-machine.nix;
+  nixosMachine = mkCatalogMachine {kind = "nixos";};
+  darwinMachine = mkCatalogMachine {
+    kind = "darwin";
+    extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
+  };
+in {
   bootstrap = {
     kind = "nixos";
     secretProfile = "Personal";
@@ -14,11 +21,9 @@
     overrides = {};
   };
 
-  type-nas = {
-    kind = "nixos";
+  type-nas = nixosMachine {
     secretProfile = "Homelab";
     disko = true;
-    builder = "mk-system";
     system = "x86_64-linux";
     hostname = "type-nas";
     nodeExporter.enable = true;
@@ -26,17 +31,14 @@
       ../archetypes/headless-server-nixos.nix
       ../../disk-configs/zfs-nas.nix
       ../../targets/hardware-facter.nix
-      ../../targets/type-nas
+      ../../machines/type-nas
     ];
-    extraSpecialArgs = {};
     overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
   };
 
-  type-server = {
-    kind = "nixos";
+  type-server = nixosMachine {
     secretProfile = "Homelab";
     disko = true;
-    builder = "mk-system";
     system = "x86_64-linux";
     hostname = "type-server";
     nodeExporter.enable = true;
@@ -44,17 +46,13 @@
       ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
       ../../targets/hardware-facter.nix
-      ../../targets/type-server
     ];
-    extraSpecialArgs = {};
     overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
   };
 
-  type-server-arm = {
-    kind = "nixos";
+  type-server-arm = nixosMachine {
     secretProfile = "Homelab";
     disko = true;
-    builder = "mk-system";
     system = "aarch64-linux";
     hostname = "type-server-arm";
     nodeExporter.enable = true;
@@ -62,20 +60,17 @@
       ../archetypes/type-server.nix
       ../../disk-configs/single-disk-ext4.nix
       ../../targets/hardware-facter.nix
-      ../../targets/type-server-arm
+      ../../machines/type-server-arm
     ];
-    extraSpecialArgs = {};
     overrides = {
       autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server-arm";
       tailscale.enable = false;
     };
   };
 
-  type-desktop = {
-    kind = "nixos";
+  type-desktop = nixosMachine {
     secretProfile = "Personal";
     disko = true;
-    builder = "mk-system";
     system = "x86_64-linux";
     hostname = "type-desktop";
     modules = [
@@ -84,9 +79,8 @@
       ../../modules/nixos/ghostty-terminfo.nix
       ../../disk-configs/single-disk-ext4.nix
       ../../targets/hardware-facter.nix
-      ../../targets/type-desktop
+      ../../machines/type-desktop
     ];
-    extraSpecialArgs = {};
     overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-desktop";
   };
 
@@ -103,11 +97,9 @@
     overrides = {};
   };
 
-  zero = {
-    kind = "nixos";
+  zero = nixosMachine {
     secretProfile = "Homelab";
     disko = true;
-    builder = "mk-system";
     system = "x86_64-linux";
     hostname = "zero";
     modules = [
@@ -121,17 +113,15 @@
       ../../disk-configs/zero.nix
       ../archetypes/desktop-machine.nix
       ../../modules/nixos/ghostty-terminfo.nix
-      ../../targets/zero
+      ../../machines/zero
     ];
     extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
     overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
   };
 
-  drlight = {
-    kind = "nixos";
+  drlight = nixosMachine {
     secretProfile = "Homelab";
     disko = true;
-    builder = "mk-system";
     system = "x86_64-linux";
     hostname = "drlight";
     nodeExporter.enable = true;
@@ -143,7 +133,7 @@
       ../../modules/nixos/ultra-media-sync.nix
       ../../modules/nixos/tailscale-home-dns.nix
       ../../modules/nixos/ghostty-terminfo.nix
-      ../../targets/drlight
+      ../../machines/drlight
     ];
     extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
     install.secrets."/etc/opnix/token" = {
@@ -158,26 +148,20 @@
     };
   };
 
-  wweaver = {
-    kind = "darwin";
-    secretProfile = "Employee";
-    builder = "mk-system";
+  wweaver = darwinMachine {
+    secretProfile = "Personal";
     system = "aarch64-darwin";
     hostname = "wweaver";
     modules = [
       ../../modules/services/bifrost/darwin.nix
       ../../modules/services/omlx/darwin.nix
       ../../modules/home-manager/aerospace.nix
-      ../../hosts/wweaver
+      ../../machines/wweaver
     ];
-    extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
-    overrides = {};
   };
 
-  darwin-server = {
-    kind = "darwin";
+  darwin-server = darwinMachine {
     secretProfile = "Personal";
-    builder = "mk-system";
     system = "aarch64-darwin";
     hostname = "darwin-server";
     nodeExporter.enable = true;
@@ -188,16 +172,12 @@
           "olm-3.2.16"
         ];
       }
-      ../../hosts/darwin-server
+      ../../machines/darwin-server
     ];
-    extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
-    overrides = {};
   };
 
-  MegamanX = {
-    kind = "darwin";
+  MegamanX = darwinMachine {
     secretProfile = "MegamanX";
-    builder = "mk-system";
     system = "aarch64-darwin";
     hostname = "MegamanX";
     nodeExporter.enable = true;
@@ -207,9 +187,7 @@
       ../../modules/services/caddy/darwin.nix
       ../../modules/services/omlx/darwin.nix
       ../../modules/services/temporal/darwin.nix
-      ../../hosts/megamanx
+      ../../machines/megamanx
     ];
-    extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
-    overrides = {};
   };
 }
