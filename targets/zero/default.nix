@@ -47,7 +47,7 @@
       };
       onepassword = {
         enable = true;
-        defaultVault = "Homelab";
+        defaultVault = "Opnix";
         secrets.sunshinePassword = {
           reference = "Sunshine/password";
           path = "/var/lib/opnix/secrets/sunshinePassword";
@@ -57,7 +57,7 @@
           services = ["sunshine-user-restart"];
         };
         secrets.cloudflareApiToken = {
-          reference = "cloudflare.com/dns-api-token";
+          reference = "Cloudflare DNS API Token/credential";
           path = "/run/secrets/cloudflare-api-token";
           mode = "0400";
           owner = "root";
@@ -74,7 +74,7 @@
         providers = lib.mkForce {
           "opencode-go" = {
             name = "OpenCode Go";
-            onePasswordItem = "Opencode/Service Accounts/Zero";
+            onePasswordItem = "OpenCode Service Account - Zero/credential";
           };
         };
       };
@@ -82,8 +82,8 @@
       # Mirror MegamanX's pi setup, minus the local oMLX/Bifrost model.
       pi = {
         pluginsSource = inputs.pi-plugins.outPath or null;
-        opencodeGoOnePasswordItem = "Opencode/Service Accounts/Zero";
-        jevOnePasswordItem = "Opencode/Service Accounts/Zero";
+        opencodeGoOnePasswordItem = "OpenCode Service Account - Zero/credential";
+        jevOnePasswordItem = "OpenCode Service Account - Zero/credential";
         npmPackages = {
           "pi-web-access" = "^0.10.7";
           "pi-subagents" = "^0.33.1";
@@ -129,7 +129,7 @@
             name = "OpenCode Go";
             provider = "opencode-go";
             modelId = "";
-            onePasswordItem = "op://Homelab/OpenCode Go API/credential";
+            onePasswordItem = "OpenCode Go API/credential";
           };
         };
 

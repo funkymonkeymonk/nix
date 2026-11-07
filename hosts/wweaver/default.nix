@@ -36,7 +36,7 @@
           inherit (inputs) vercel-skills;
         };
       };
-      onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
+      onepassword.defaultVault = "Employee";
 
       obsidian.vaults = ["personal"];
 

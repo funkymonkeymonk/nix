@@ -17,10 +17,7 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      onepassword = {
-        defaultVault = "Opnix";
-        sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
-      };
+      onepassword.defaultVault = "Opnix";
       ssh.enable = true;
       tailscale.enable = true;
       collector.destinationHostname = "drlight";
@@ -51,8 +48,8 @@
 
       roles.pi.enable = true;
       pi = {
-        opencodeGoOnePasswordItem = "Opencode/Service Accounts/MegamanX";
-        jevOnePasswordItem = "Opencode/Service Accounts/MegamanX";
+        opencodeGoOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
+        jevOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
         settings = {
           defaultProvider = "opencode-go";
         };

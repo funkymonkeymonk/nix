@@ -12,7 +12,7 @@ in {
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
     onepassword = {
       tokenFile = "/etc/opnix/token";
-      defaultVault = "Homelab";
+      defaultVault = "Opnix";
     };
     tailscale = {
       enable = true;

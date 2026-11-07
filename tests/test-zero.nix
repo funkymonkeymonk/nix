@@ -65,7 +65,7 @@ in {
     ''
       echo "=== Testing Zero Tailscale opnix secret config ==="
 
-      ${assertContainsStr "default vault" ''"Homelab"'' zeroConfigText}
+      ${assertContainsStr "default vault" ''"Opnix"'' zeroConfigText}
       ${assertContainsStr "auth key item" "Tailscale Auth Key/credential" zeroConfigText}
 
       echo "Tailscale opnix secret config test passed"
@@ -213,7 +213,7 @@ in {
       # Legacy llmEndpoints block removed
       ${assertNotContainsStr "no llmEndpoints" "llmEndpoints" zeroConfigText}
       # OpenCode Go service-account key wired through 1Password.
-      ${assertContainsStr "go service account item" ''onePasswordItem = "Opencode/Service Accounts/Zero"'' zeroConfigText}
+      ${assertContainsStr "go service account item" ''onePasswordItem = "OpenCode Service Account - Zero/credential"'' zeroConfigText}
 
       echo "Zero cloud-only config test passed"
       touch $out
@@ -228,9 +228,9 @@ in {
 
       ${assertNotContainsStr "no OAuth provider package" "pi-provider-opencode-console" zeroConfigText}
       ${assertContainsStr "native Go provider" ''defaultProvider = "opencode-go"'' zeroConfigText}
-      ${assertContainsStr "Go service-account key" "Service Accounts/Zero" zeroConfigText}
-      ${assertContainsStr "Pi explicitly opts into Go" ''opencodeGoOnePasswordItem = "Opencode/Service Accounts/Zero"'' zeroConfigText}
-      ${assertContainsStr "Pi Jev uses the same service account" ''jevOnePasswordItem = "Opencode/Service Accounts/Zero"'' zeroConfigText}
+      ${assertContainsStr "Go service-account key" "OpenCode Service Account - Zero/credential" zeroConfigText}
+      ${assertContainsStr "Pi explicitly opts into Go" ''opencodeGoOnePasswordItem = "OpenCode Service Account - Zero/credential"'' zeroConfigText}
+      ${assertContainsStr "Pi Jev uses the same service account" ''jevOnePasswordItem = "OpenCode Service Account - Zero/credential"'' zeroConfigText}
 
       echo "Zero Pi OpenCode provider config test passed"
       touch $out
@@ -306,7 +306,7 @@ in {
       ${assertContainsStr "LAN Sunshine hostname" "sunshine.home.buildingbananas.com" zeroConfigText}
       ${assertContainsStr "Cloudflare DNS challenge" "dns cloudflare {env.CLOUDFLARE_API_TOKEN}" caddyNixosModuleText}
       ${assertContainsStr "runtime Cloudflare secret" "/run/secrets/cloudflare-api-token" zeroConfigText}
-      ${assertContainsStr "Cloudflare token reference" "cloudflare.com/dns-api-token" zeroConfigText}
+      ${assertContainsStr "Cloudflare token reference" "Cloudflare DNS API Token/credential" zeroConfigText}
       ${assertContainsStr "Cloudflare Caddy plugin" "caddy-dns/cloudflare@v0.2.4" caddyNixosModuleText}
       ${assertContainsStr "Caddy secret path option" "cloudflareApiTokenPath" caddyNixosModuleText}
       ${assertContainsStr "LAN proxy restriction" "remote_ip 10.0.0.0/8" caddyNixosModuleText}

@@ -160,7 +160,7 @@
 
   wweaver = {
     kind = "darwin";
-    secretProfile = "Personal";
+    secretProfile = "Employee";
     builder = "mk-system";
     system = "aarch64-darwin";
     hostname = "wweaver";
