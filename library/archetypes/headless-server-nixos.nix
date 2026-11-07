@@ -13,7 +13,7 @@
     skills.superpowersPath = inputs.superpowers or null;
     onepassword = {
       tokenFile = "/etc/opnix/token";
-      defaultVault = "Homelab";
+      defaultVault = "Opnix";
     };
     tailscale = {
       enable = true;

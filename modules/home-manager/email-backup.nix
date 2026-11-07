@@ -78,7 +78,7 @@ with lib; let
     #   echo 'your-app-password' > ~/.mbsync-passwd && chmod 600 ~/.mbsync-passwd
     #
     # For 1Password:
-    #   Replace PassCmd with: PassCmd "op read 'op://Private/Gmail App Password/password'"
+    #   Replace PassCmd with: PassCmd "op read 'op://Opnix/Gmail App Password/password'"
 
     IMAPAccount ${accountName}
     Host ${imapHost}

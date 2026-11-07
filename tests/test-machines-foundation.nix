@@ -113,10 +113,10 @@
   homelabOpnixTokenIsReferenceOnly =
     (homelabOpnixToken.ref or {})
     == {
-      item = "1Password Service Account - Opnix";
+      item = "opcec4mg3aykq2qkbnhri2vtn4";
       field = "credential";
     }
-    && (homelabOpnixToken.providers or []) == ["homelab"]
+    && (homelabOpnixToken.providers or []) == ["service-accounts"]
     && (homelabOpnixToken ? description)
     && !(homelabOpnixToken ? value);
   megamanxSudoPassword = (profiles.MegamanX or {}).MEGAMANX_SUDO_PASSWORD or {};
@@ -126,7 +126,7 @@
       item = "MegamanX Sudo Password";
       field = "password";
     }
-    && (megamanxSudoPassword.providers or []) == ["megamanx"]
+    && (megamanxSudoPassword.providers or []) == ["opnix"]
     && (megamanxSudoPassword ? description)
     && !(megamanxSudoPassword ? value);
   profilesHaveNoResolvedValuesOrCredentials =
@@ -168,10 +168,12 @@ in {
     ${assertResult "foundation role consumes the selected devenv package" roleUsesSelectedDevenv}
     ${assertResult "Machines projection receives the NixOS facter input with nixpkgs following devenv nixpkgs" machinesProjectionReceivesFacterInput}
     ${assertResult "Devenv locks all inputs needed by the shared Machines package overlay" machineBuildInputsMatchRootLock}
-    ${assertResult "SecretSpec has a Homelab 1Password profile route" (manifestExists && profileRoutesTo "Homelab" "Homelab")}
+    ${assertResult "SecretSpec routes the Homelab profile through Opnix" (manifestExists && profileRoutesTo "Homelab" "Opnix")}
+    ${assertResult "SecretSpec routes the bootstrap token through the Service Accounts vault ID" (manifestExists && (providers."service-accounts" or null) == "onepassword://vio73ncjh7hofsrzj7ogf473w4")}
     ${assertResult "SecretSpec omits the unused Personal profile" (manifestExists && !(profiles ? Personal))}
-    ${assertResult "SecretSpec keeps the MegamanX sudo profile routed to Private" (manifestExists && profileRoutesTo "MegamanX" "Private")}
-    ${assertResult "MegamanX sudo password is referenced from Private without embedding a value" megamanxSudoPasswordIsReferenceOnly}
+    ${assertResult "SecretSpec routes the MegamanX sudo profile through Opnix" (manifestExists && profileRoutesTo "MegamanX" "Opnix")}
+    ${assertResult "Employee has no empty SecretSpec profile" (manifestExists && !(profiles ? Employee))}
+    ${assertResult "MegamanX sudo password is referenced from Opnix without embedding a value" megamanxSudoPasswordIsReferenceOnly}
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
     ${assertResult "SecretSpec profiles declare the expected Homelab and MegamanX fields" (manifestExists && profilesDeclareExpectedFields && profilesHaveNoResolvedValuesOrCredentials)}
     ${assertResult "Homelab opnix service-account token is a reference-only field" homelabOpnixTokenIsReferenceOnly}

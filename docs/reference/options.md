@@ -298,12 +298,12 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `defaultVault` | string | `"Personal"` | Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references. |
+| `defaultVault` | string | `"Opnix"` | Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references. |
 | `enable` | boolean | `true` | Enable 1Password integration |
 | `enableGUI` | boolean | `true` | Enable 1Password GUI application |
 | `enableGitSigning` | boolean | `true` | Enable git commit signing with 1Password |
 | `enableSSHAgent` | boolean | `true` | Enable 1Password SSH agent |
-| `secrets` | attribute set of (submodule) | `{ }` | Secrets to fetch from 1Password using opnix. Secrets are fetched at boot time and written to the specified paths. The 1Password service account must have access to the referenced vaults. Example: { myApiKey = { reference = "op://Private/MyAPI/credential"; path = "/run/secrets/my-api-key"; mode = "0600"; owner = "myuser"; }; } |
+| `secrets` | attribute set of (submodule) | `{ }` | Secrets to fetch from 1Password using opnix. Secrets are fetched at boot time and written to the specified paths. The 1Password service account must have access to the referenced vaults. Example: { myApiKey = { reference = "op://Opnix/MyAPI/credential"; path = "/run/secrets/my-api-key"; mode = "0600"; owner = "myuser"; }; } |
 | `secrets.<name>.group` | string | `"root"` | Group of the secret file |
 | `secrets.<name>.mode` | string | `"0600"` | File permissions for the secret |
 | `secrets.<name>.owner` | string | `"root"` | Owner of the secret file |
@@ -311,7 +311,7 @@ or changing a `myConfig.*` option.
 | `secrets.<name>.reference` | string | *required* | 1Password reference (e.g., 'op://vault/item/field') |
 | `secrets.<name>.services` | list of string | `[ ]` | Services that depend on this secret (will be restarted when secret changes) |
 | `signingKey` | string | `"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC3Menyj24Rf31b2ZkanyvVbXEESZU1Ek+a4/mz2Gg6L"` | SSH public key used for Git and Jujutsu commit signing |
-| `sudoPasswordRef` | string | `""` | 1Password reference for the sudo password used by the system:switch task. If empty (default), falls back to op://Private/<hostname> Sudo Password/password. Override this for machines with different vault or item names, e.g. "op://Employee/wweaver Sudo Password/password". |
+| `sudoPasswordRef` | string | `""` | 1Password reference for the sudo password used by the system:switch task. If empty (default), falls back to op://Opnix/<hostname> Sudo Password/password. Override this for machines with different vault or item names, e.g. "op://Employee/wweaver Sudo Password/password". |
 | `tokenFile` | absolute path | `"/etc/opnix-token"` | Path to the 1Password service account token file. This file should contain a 1Password service account token and have restricted permissions (0600). The token is used by opnix to fetch secrets at runtime. To create a service account token: 1. Go to https://my.1password.com/developer-tools/service-accounts 2. Create a service account with access to the vaults containing your secrets 3. Copy the token and save it to this file The service will fail gracefully if the token file doesn't exist or is invalid. |
 
 ### myConfig.opencode

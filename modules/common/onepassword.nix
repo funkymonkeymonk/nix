@@ -49,7 +49,7 @@ in {
       default = "";
       description = ''
         1Password reference for the sudo password used by the system:switch task.
-        If empty (default), falls back to op://Private/<hostname> Sudo Password/password.
+        If empty (default), falls back to op://Opnix/<hostname> Sudo Password/password.
         Override this for machines with different vault or item names,
         e.g. "op://Employee/wweaver Sudo Password/password".
       '';
@@ -57,7 +57,7 @@ in {
 
     defaultVault = mkOption {
       type = types.str;
-      default = "Personal";
+      default = "Opnix";
       description = "Default 1Password vault for all secrets. Prepended to any opnix secret reference that does not start with 'op://'. Set per-machine to change the vault for all unqualified references.";
     };
 
@@ -124,7 +124,7 @@ in {
         Example:
         {
           myApiKey = {
-            reference = "op://Private/MyAPI/credential";
+            reference = "op://Opnix/MyAPI/credential";
             path = "/run/secrets/my-api-key";
             mode = "0600";
             owner = "myuser";

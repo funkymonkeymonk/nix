@@ -21,25 +21,29 @@
     "bootstrap"
     "type-desktop"
     "installer-iso"
-    "wweaver"
     "darwin-server"
   ];
   profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Homelab") homelabMachines;
   assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Personal") personalMachines;
   assert !(manifest.profiles ? Personal);
+  assert catalog.wweaver.secretProfile == "Employee";
+  assert !(manifest.profiles ? Employee);
+  assert manifest.providers.opnix == "onepassword://Opnix";
+  assert manifest.providers.employee == "onepassword://Employee";
+  assert manifest.providers."service-accounts" == "onepassword://vio73ncjh7hofsrzj7ogf473w4";
   assert catalog.MegamanX.secretProfile == "MegamanX";
   assert homelabBootstrapSecret != null;
-  assert homelabBootstrapSecret.ref.item == "1Password Service Account - Opnix";
+  assert homelabBootstrapSecret.ref.item == "opcec4mg3aykq2qkbnhri2vtn4";
   assert homelabBootstrapSecret.ref.field == "credential";
-  assert homelabBootstrapSecret.providers == ["homelab"];
+  assert homelabBootstrapSecret.providers == ["service-accounts"];
   assert tailscaleOAuthClientId != null;
   assert tailscaleOAuthClientId.ref.item == "Tailscale Oauth";
   assert tailscaleOAuthClientId.ref.field == "Client ID";
-  assert tailscaleOAuthClientId.providers == ["homelab"];
+  assert tailscaleOAuthClientId.providers == ["opnix"];
   assert tailscaleOAuthClientSecret != null;
   assert tailscaleOAuthClientSecret.ref.item == "Tailscale Oauth";
   assert tailscaleOAuthClientSecret.ref.field == "Client secret";
-  assert tailscaleOAuthClientSecret.providers == ["homelab"];
+  assert tailscaleOAuthClientSecret.providers == ["opnix"];
   assert drlightTailscaleOverrides.authKeyMode == "devenv-oauth";
   assert drlightTailscaleOverrides.authKeyTags == ["tag:home-lab" "tag:media-center"]; true;
 in {
