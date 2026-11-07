@@ -50,8 +50,8 @@
 
       roles.pi.enable = true;
       pi = {
-        opencodeGoOnePasswordItem = "Opencode/Service Accounts/MegamanX";
-        jevOnePasswordItem = "Opencode/Service Accounts/MegamanX";
+        opencodeGoOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
+        jevOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
         settings = {
           defaultProvider = "opencode-go";
         };

@@ -78,14 +78,14 @@
           && !megamanx.myConfig.roles.developer.enable
           && !megamanx.myConfig.roles.opencode.enable
           && megamanx.myConfig.roles.pi.enable
-          && megamanx.myConfig.pi.opencodeGoOnePasswordItem == "Opencode/Service Accounts/MegamanX"
-          && megamanx.myConfig.pi.jevOnePasswordItem == "Opencode/Service Accounts/MegamanX"
+          && megamanx.myConfig.pi.opencodeGoOnePasswordItem == "OpenCode Service Account - MegamanX/credential"
+          && megamanx.myConfig.pi.jevOnePasswordItem == "OpenCode Service Account - MegamanX/credential"
           && megamanx.myConfig.pi.npmPackages."pi-jev" == "^0.7.0"
           && megamanx.myConfig.pi.settings.defaultProvider == "opencode-go"
           && megamanx.myConfig.pi.settings.defaultModel == "gpt-6-luna"
           && megamanx.home-manager.users.monkey.home.sessionVariables.PI_JEV_BASE_URL == "https://opencode.ai/inference/systemone"
           && megamanx.home-manager.users.monkey.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
-          && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/Opencode/Service Accounts/MegamanX"
+          && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/OpenCode Service Account - MegamanX/credential"
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.path == ".pi/agent/secrets/typesafe_api_key"
           && builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after
           && megamanx.myConfig.pi.pluginsSource != null
