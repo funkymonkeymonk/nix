@@ -22,7 +22,7 @@ in {
   };
 
   type-nas = nixosMachine {
-    secretProfile = "Homelab";
+    secretProfile = "Opnix";
     disko = true;
     system = "x86_64-linux";
     hostname = "type-nas";
@@ -37,7 +37,7 @@ in {
   };
 
   type-server = nixosMachine {
-    secretProfile = "Homelab";
+    secretProfile = "Opnix";
     disko = true;
     system = "x86_64-linux";
     hostname = "type-server";
@@ -51,7 +51,7 @@ in {
   };
 
   type-server-arm = nixosMachine {
-    secretProfile = "Homelab";
+    secretProfile = "Opnix";
     disko = true;
     system = "aarch64-linux";
     hostname = "type-server-arm";
@@ -98,7 +98,7 @@ in {
   };
 
   zero = nixosMachine {
-    secretProfile = "Homelab";
+    secretProfile = "Opnix";
     disko = true;
     system = "x86_64-linux";
     hostname = "zero";
@@ -120,7 +120,7 @@ in {
   };
 
   drlight = nixosMachine {
-    secretProfile = "Homelab";
+    secretProfile = "Opnix";
     disko = true;
     system = "x86_64-linux";
     hostname = "drlight";

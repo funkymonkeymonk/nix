@@ -62,9 +62,9 @@
     }
 
     ${
-      if zero.secretProfile == "Homelab"
-      then ''echo "  zero Homelab profile: OK"''
-      else ''echo "  FAIL: zero should retain its Homelab profile"; exit 1''
+      if zero.secretProfile == "Opnix"
+      then ''echo "  zero Opnix profile: OK"''
+      else ''echo "  FAIL: zero should retain its Opnix profile"; exit 1''
     }
 
     ${

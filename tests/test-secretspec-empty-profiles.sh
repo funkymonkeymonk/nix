@@ -23,7 +23,7 @@ EOF
 chmod +x "$tmp/bin/op" "$tmp/bin/child"
 
 # Personal and Employee have no profiles because they have no SecretSpec fields.
-# Homelab's profile must still load and attempt its configured provider.
+# Opnix's profile must still load and attempt its configured providers.
 for profile in Personal Employee; do
   if output=$(cd "$tmp/project" && env -i \
     HOME="$tmp/home" \
@@ -53,12 +53,12 @@ done
 if output=$(cd "$tmp/project" && env -i \
   HOME="$tmp/home" \
   PATH="$tmp/bin:$COREUTILS_BIN" \
-  "$SECRETSPEC_BIN" run --profile Homelab -- child 2>&1); then
-  echo "SecretSpec unexpectedly resolved Homelab with a failing op stub" >&2
+  "$SECRETSPEC_BIN" run --profile Opnix -- child 2>&1); then
+  echo "SecretSpec unexpectedly resolved Opnix with a failing op stub" >&2
   exit 1
 fi
 [[ -s "$tmp/op.log" ]] || {
-  echo "SecretSpec failed before attempting the configured Homelab provider" >&2
+  echo "SecretSpec failed before attempting the configured Opnix providers" >&2
   exit 1
 }
 [[ ! -e "$tmp/child-ran" ]] || {

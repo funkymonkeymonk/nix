@@ -73,8 +73,8 @@ emit_metadata() {
     "${MACHINE_OPS_TEST_TAILSCALE_TAGS_JSON:-[]}"
 }
 case "${5:-}" in
-  *type-server-arm*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" aarch64-linux ;;
-  *zero*|*drlight*|*type-nas*|*type-server*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
+  *type-server-arm*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" aarch64-linux ;;
+  *zero*|*drlight*|*type-nas*|*type-server*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
   *MegamanX*) emit_metadata MegamanX darwin true false aarch64-darwin ;;
   *wweaver*) emit_metadata Employee darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
   *darwin-server*) emit_metadata Personal darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
@@ -239,7 +239,7 @@ MACHINE_OPS_TEST_HAS_TAILSCALE_OAUTH=true \
 MACHINE_OPS_TEST_TAILSCALE_TAGS_JSON='["tag:home-lab","tag:media-center"]' \
 run deploy drlight --yes
 expect_log $'devenv|machines info drlight\ndevenv|machines deploy --yes drlight'
-grep -F 'secretspec|run --profile Homelab -- '"$tmp/bin/tailscale-authkey"' drlight ["tag:home-lab","tag:media-center"]' "$MACHINE_OPS_SECRETSPEC_LOG" >/dev/null
+grep -F 'secretspec|run --profile Opnix -- '"$tmp/bin/tailscale-authkey"' drlight ["tag:home-lab","tag:media-center"]' "$MACHINE_OPS_SECRETSPEC_LOG" >/dev/null
 grep -F 'tailscale-authkey|drlight ["tag:home-lab","tag:media-center"]' "$MACHINE_OPS_AUTHKEY_LOG" >/dev/null
 [[ $(cat "$MACHINE_OPS_KEY_CAPTURE") == 'fake-one-time-auth-key' ]]
 grep -F 'root@192.0.2.23' "$MACHINE_OPS_SSH_LOG" >/dev/null
@@ -301,7 +301,7 @@ grep -F 'cannot install zero' "$tmp/install-unrelated-secret" >/dev/null
 # Install passes the selected profile to Devenv's bootstrap resolver, which
 # writes the secret to the target without exposing it through a shell wrapper.
 printf 'yes\n' | run_with_bootstrap_secret install zero >"$tmp/install-bootstrap-secret" 2>&1
-expect_log 'devenv|machines install zero --secretspec-profile Homelab'
+expect_log 'devenv|machines install zero --secretspec-profile Opnix'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 if grep -q -- '--yes' "$MACHINE_OPS_TEST_LOG"; then
   echo 'install unexpectedly bypassed interactive confirmation' >&2
@@ -315,7 +315,7 @@ expect_log 'devenv|machines apply plan-123'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 run_with_unrelated_secret apply zero plan-123
 expect_log 'devenv|machines apply plan-123'
-expect_profile Homelab 'machines apply plan-123'
+expect_profile Opnix 'machines apply plan-123'
 [[ $(wc -l < "$MACHINE_OPS_SECRETSPEC_LOG") -eq 1 ]]
 
 # Reject mismatched, fleet, malformed, and missing saved plans before either
