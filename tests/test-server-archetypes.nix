@@ -71,7 +71,7 @@
         ${checkEqual "generic headless type-nas does not enable Alertmanager" false (nas.services.prometheus.alertmanager.enable or false)}
         ${checkEqual "generic headless type-nas enables node_exporter explicitly" true (nas.services.prometheus.exporters.node.enable or false)}
         ${checkEqual "headless server archetype provides its default vault" "Opnix" nas.myConfig.onepassword.defaultVault}
-        ${checkEqual "drlight machine overrides the archetype default vault" "Homelab" mediaServer.myConfig.onepassword.defaultVault}
+        ${checkEqual "drlight uses the Opnix default vault" "Opnix" mediaServer.myConfig.onepassword.defaultVault}
         ${checkEqual "generic headless type-nas does not enable Vector" false (nas.services.vector.enable or false)}
         ${checkEqual "drlight enables central Prometheus" true (mediaServer.services.prometheus.enable or false)}
         ${checkEqual "drlight enables central Loki receiver" true (mediaServer.services.loki.enable or false)}
