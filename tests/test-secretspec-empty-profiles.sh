@@ -22,9 +22,9 @@ exec '$COREUTILS_BIN/env'
 EOF
 chmod +x "$tmp/bin/op" "$tmp/bin/child"
 
-# Personal has no profile because it has no secrets; Homelab's approved opnix
-# token reference is checked structurally in test-machine-ops.nix.
-for profile in Personal; do
+# Personal and Employee have no profiles because they have no SecretSpec fields.
+# Homelab's profile must still load and attempt its configured provider.
+for profile in Personal Employee; do
   if output=$(cd "$tmp/project" && env -i \
     HOME="$tmp/home" \
     PATH="$tmp/bin:$COREUTILS_BIN" \
@@ -48,5 +48,22 @@ for profile in Personal; do
     exit 1
   }
 done
+
+: > "$tmp/op.log"
+if output=$(cd "$tmp/project" && env -i \
+  HOME="$tmp/home" \
+  PATH="$tmp/bin:$COREUTILS_BIN" \
+  "$SECRETSPEC_BIN" run --profile Homelab -- child 2>&1); then
+  echo "SecretSpec unexpectedly resolved Homelab with a failing op stub" >&2
+  exit 1
+fi
+[[ -s "$tmp/op.log" ]] || {
+  echo "SecretSpec failed before attempting the configured Homelab provider" >&2
+  exit 1
+}
+[[ ! -e "$tmp/child-ran" ]] || {
+  echo "SecretSpec ran the child after the provider failed" >&2
+  exit 1
+}
 
 printf 'SecretSpec empty-profile fail-closed tests passed\\n'

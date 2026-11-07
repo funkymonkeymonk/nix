@@ -10,6 +10,7 @@
       grep -q '"system:switch" = {' <<< "$source"
       grep -q 'switch() {.*system:switch' <<< "$source"
       grep -q 'command devenv tasks run system:switch' <<< "$source"
+      ! grep -q 'agentsudo' <<< "$source"
 
       # The shared helper provides non-interactive sudo for system tasks.
       grep -q 'runWithSudoPassword = ' "$devenv"

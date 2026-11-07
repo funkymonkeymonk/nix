@@ -72,9 +72,9 @@ in {
       };
       onepassword = {
         enable = true;
-        defaultVault = "Homelab";
+        defaultVault = "Opnix";
         secrets.cloudflareApiToken = {
-          reference = "cloudflare.com/dns-api-token";
+          reference = "Cloudflare DNS API Token/credential";
           path = "/run/secrets/cloudflare-api-token";
           mode = "0400";
           owner = "root";

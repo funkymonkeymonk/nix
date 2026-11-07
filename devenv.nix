@@ -264,7 +264,6 @@ in {
     alias dt="devenv tasks run"
     alias dtr="devenv tasks run"
     alias dtl="devenv tasks list"
-    alias agentsudo='op read "op://Private/$(hostname -s) Sudo Password/password" | sudo -S '
 
     # devenv requires namespaced task names, but keep the documented short
     # command working for users already inside the devenv shell.
@@ -344,7 +343,18 @@ in {
     echo "Run with KEEP_DAYS=7 for a more aggressive cleanup."
 
     HOSTNAME=$(hostname -s)
-    PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+    if [[ "$PLATFORM" == "macOS" ]]; then
+      CONFIG_SET="darwinConfigurations"
+    else
+      CONFIG_SET="nixosConfigurations"
+    fi
+    CUSTOM_REF=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
+    if [[ -n "$CUSTOM_REF" ]]; then
+      PASSWORD_PATH="$CUSTOM_REF"
+    else
+      DEFAULT_VAULT=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+      PASSWORD_PATH="op://''${DEFAULT_VAULT}/''${HOSTNAME} Sudo Password/password"
+    fi
     run_with_sudo_password "$PASSWORD_PATH" \
       nix-collect-garbage --delete-older-than "''${KEEP_DAYS}d"
   '';
@@ -634,7 +644,8 @@ in {
           if [[ -n "$CUSTOM_REF" ]]; then
             PASSWORD_PATH="$CUSTOM_REF"
           else
-            PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+            DEFAULT_VAULT=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+            PASSWORD_PATH="op://''${DEFAULT_VAULT}/''${HOSTNAME} Sudo Password/password"
           fi
           # Build and switch with output logging
           SWITCH_LOG="/tmp/system-switch-$(date +%Y%m%d-%H%M%S).log"
@@ -671,7 +682,8 @@ in {
           if [[ -n "$CUSTOM_REF" ]]; then
             PASSWORD_PATH="$CUSTOM_REF"
           else
-            PASSWORD_PATH="op://Private/''${HOSTNAME} Sudo Password/password"
+            DEFAULT_VAULT=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+            PASSWORD_PATH="op://''${DEFAULT_VAULT}/''${HOSTNAME} Sudo Password/password"
           fi
           echo "--- Building Configuration ---"
           echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"

@@ -73,7 +73,7 @@ Attribute set of secrets to fetch from 1Password.
 ```nix
 myConfig.onepassword.secrets = {
   apiKey = {
-    reference = "op://Private/MyAPI/credential";
+    reference = "op://Opnix/MyAPI/credential";
     path = "/run/secrets/api-key";
     mode = "0600";
     owner = "myapp";
@@ -101,9 +101,9 @@ Each secret in `myConfig.onepassword.secrets` is an attribute set with the follo
 **Examples:**
 
 ```nix
-reference = "op://Private/Database/password";
-reference = "op://Homelab/WiFi/password";
-reference = "op://Work/AWS Access Key/access-key-id";
+reference = "op://Opnix/Database/password";
+reference = "op://Opnix/WiFi/password";
+reference = "op://Opnix/AWS Access Key/access-key-id";
 ```
 
 **Reference Format:**
@@ -315,7 +315,7 @@ sudo journalctl -u opnix-secrets
     secrets = {
       # Database password for PostgreSQL
       dbPassword = {
-        reference = "op://Private/Production DB/password";
+        reference = "op://Opnix/Production DB/password";
         path = "/run/secrets/db-password";
         mode = "0400";
         owner = "postgres";
@@ -324,7 +324,7 @@ sudo journalctl -u opnix-secrets
       
       # API key for a custom application
       apiKey = {
-        reference = "op://Work/MyService/api-key";
+        reference = "op://Opnix/MyService/api-key";
         path = "/run/secrets/myapp-api-key";
         mode = "0600";
         owner = "myapp";
@@ -334,14 +334,14 @@ sudo journalctl -u opnix-secrets
       
       # TLS certificate (readable by services)
       tlsCert = {
-        reference = "op://Homelab/Website/cert";
+        reference = "op://Opnix/Website/cert";
         path = "/run/secrets/tls.crt";
         mode = "0444";
       };
       
       # TLS private key (restricted)
       tlsKey = {
-        reference = "op://Homelab/Website/private-key";
+        reference = "op://Opnix/Website/private-key";
         path = "/run/secrets/tls.key";
         mode = "0400";
         owner = "nginx";

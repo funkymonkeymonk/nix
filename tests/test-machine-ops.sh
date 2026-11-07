@@ -76,7 +76,8 @@ case "${5:-}" in
   *type-server-arm*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" aarch64-linux ;;
   *zero*|*drlight*|*type-nas*|*type-server*) emit_metadata Homelab nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
   *MegamanX*) emit_metadata MegamanX darwin true false aarch64-darwin ;;
-  *wweaver*|*darwin-server*) emit_metadata Personal darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
+  *wweaver*) emit_metadata Employee darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
+  *darwin-server*) emit_metadata Personal darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
   *bootstrap*|*type-desktop*|*installer-iso*) emit_metadata Personal nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
   *) exit 92 ;;
 esac
@@ -260,6 +261,9 @@ expect_log $'devenv|machines info drlight\ndevenv|machines deploy --yes drlight'
 run check MegamanX
 expect_log 'devenv|machines check MegamanX'
 expect_profile MegamanX 'machines check MegamanX'
+run_with_unrelated_secret check wweaver
+expect_log 'devenv|machines check wweaver'
+expect_profile Employee 'machines check wweaver'
 run deploy MegamanX --use-machines-as-builders
 expect_log 'devenv|machines deploy --use-machines-as-builders MegamanX'
 expect_no_secret_resolution

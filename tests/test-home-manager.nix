@@ -404,6 +404,12 @@ in {
         else ''echo "  ops alias should be defined!"; exit 1''
       }
 
+      ${
+        if !(shellAliases ? agentsudo)
+        then ''echo "  agentsudo alias removed: OK"''
+        else ''echo "  agentsudo alias should be removed!"; exit 1''
+      }
+
       echo "  Total aliases: ${toString (builtins.length (builtins.attrNames shellAliases))}"
       echo "  Aliases: ${builtins.concatStringsSep ", " (builtins.attrNames shellAliases)}"
 
