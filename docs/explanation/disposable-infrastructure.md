@@ -1,218 +1,43 @@
 ---
 title: "Disposable Infrastructure"
-description: "Philosophy and design of disposable vs artisanal approaches for NixOS management"
+description: "How reusable NixOS archetypes, machine records, and generated hardware facts fit together"
 type: explanation
 audience: both
-last-reviewed: 2026-04-06
+last-reviewed: 2026-11-07
 ---
 
 # Disposable Infrastructure
 
-This document explains the disposable infrastructure approach to NixOS management: generic machine types with automatic hardware detection. No more per-machine `hardware-configuration.nix` files!
+This repository uses reusable NixOS profiles to make some systems easier to replace or reinstall. “Disposable” describes how much configuration is shared and how the machine is provisioned; it does **not** mean the machine has no named configuration or no catalog record.
 
-## Philosophy: Artisanal vs Disposable
+## Machine identity and reusable behavior are separate
 
-Understanding the two approaches to machine management:
+Every named NixOS or Darwin output has a record in `library/machines/catalog.nix`. The catalog supplies the output name, platform, hostname, secrets profile, deployment metadata, and the modules used to compose that output. Flake-parts projects those records into `nixosConfigurations` and `darwinConfigurations`; other tooling uses the same inventory.
 
-- **Artisanal**: Each machine is unique, hand-crafted, named, and cared for individually. If it breaks, you repair it. You know its history.
-- **Disposable**: Machines are standardized, interchangeable, and treated as infrastructure. If one has a problem, you replace it. You don't care which specific one you get.
+A machine module under `machines/<name>/` sets NixOS or Darwin options that are specific to that system. It is optional when the catalog and shared archetypes already describe the configuration. For example, `type-server` is composed from the shared server archetype and disk/hardware inputs without needing an otherwise-empty machine module. `zero` has a machine module because it contains gaming, user, and hardware-specific settings.
 
-Your existing `zero` config is artisanal. The `type-*` configs here are disposable.
+The catalog and a machine module therefore serve different purposes: the catalog describes the output and assembles its modules; the machine module supplies system configuration. Keep platform and hostname in the catalog rather than repeating them in the machine module.
 
-## How It Works
+## What “disposable” means here
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Your Flake                                             │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Machine Types (Generic)                                │
-│  ├─ type-desktop.nix   ← Gaming/GUI config             │
-│  └─ type-server.nix    ← Headless config               │
-│                                                         │
-│  Disk Layouts                                           │
-│  └─ single-disk-ext4.nix                               │
-│                                                         │
-│  Hardware Detection                                     │
-│  └─ nixos-facter       ← Auto-detects everything       │
-│                                                         │
-│  Installation                                           │
-│  └─ nixos-anywhere     ← One-command remote install    │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+Standardized NixOS configurations use shared archetypes, declarative disk layouts, and—where appropriate—NixOS Facter reports instead of hand-maintained hardware configuration. This reduces per-system setup and makes reinstalling a system more repeatable. It does not make every machine interchangeable: disk layout, persistent data, credentials, hardware, and service settings can still be machine-specific.
 
-### The Magic: nixos-facter
+Examples include:
 
-Instead of `hardware-configuration.nix`, we use `nixos-facter`:
+- `type-server` and `type-server-arm`, which reuse the server archetype while retaining different output platforms and machine records.
+- `type-nas`, which combines the headless-server archetype with NAS-specific storage and services.
+- `drlight`, which uses shared server, media-center, and observability profiles plus its own media and storage configuration.
+- `zero`, which has a more bespoke desktop and gaming configuration.
 
-```json
-// Generated during install: facter.json
-{
-  "hardware": {
-    "cpu": { "vendor": "GenuineIntel", "features": [...] },
-    "graphics": { "cards": [{ "vendor": "NVIDIA", ... }] },
-    "kernel_modules": ["nvidia", "nvidia_modeset", ...]
-  }
-}
-```
+Disko layouts and hardware discovery are inputs to machine composition, not substitutes for the machine catalog. Facter is used only by configurations that import the Facter hardware module; other systems can use explicit hardware configuration.
 
-This auto-configures:
-- ✅ Kernel modules
-- ✅ Graphics drivers
-- ✅ Firmware
-- ✅ Network drivers
-- ✅ All hardware detection
+## Why keep a catalog?
 
-### The Magic: disko
+The catalog provides one source of machine identity and output metadata to flake generation, deployment tooling, and machine inventory consumers. A module alone does not say which flake output name, platform, secret profile, or installation metadata should be associated with it. Keeping that registry separate also prevents the machine’s option-level configuration from being mixed into one large inventory file.
 
-Instead of `fileSystems` in `hardware-configuration.nix`:
+The catalog is intentionally not a copy of the machine module. It selects the module stack and carries output metadata; the module sets system options. Shared constructors in the catalog provide common builder defaults so those defaults do not need to be repeated in every record.
 
-```nix
-# disk-configs/single-disk-ext4.nix
-disko.devices = {
-  disk.main = {
-    device = "/dev/nvme0n1";
-    content = {
-      type = "gpt";
-      partitions = {
-        ESP = { ... };      # /boot
-        root = { ... };     # /
-      };
-    };
-  };
-};
-```
+## Related documents
 
-## Migration Path
-
-### Option 1: Keep Artisanal + Add Disposable (Recommended)
-
-Keep `zero` as-is. Use disposable configurations for new machines:
-
-```nix
-nixosConfigurations = {
-  # Existing (artisanal) - keep working
-  zero = mkNixosHost { ... };
-  
-  # New machines (disposable) - pure, no per-machine config needed
-  type-desktop = nixpkgs.lib.nixosSystem { ... };
-  type-server = nixpkgs.lib.nixosSystem { ... };  # Hostname from DHCP
-};
-```
-
-**Key difference**: Disposable machines don't need `targets/<hostname>/` directories. The hostname comes from DHCP, not the flake.
-
-### Option 2: Full Migration
-
-Convert everything to disposable:
-
-1. Backup data from zero
-2. Reinstall using disposable approach
-3. Restore data
-4. Delete old artisanal configs
-
-## Machine Types
-
-### `type-desktop`
-- Gaming/workstation setup
-- GNOME desktop
-- NVIDIA/AMD/Intel graphics (auto-detected)
-- Steam, audio, networking
-- SSH enabled
-
-### `type-server`
-- Headless server (disposable pattern - no hardcoded hostname)
-- KVM virtualization support (qemu, virtiofsd)
-- Hardened SSH (keys only, no root login)
-- Auto-upgrade from GitHub daily at 02:00
-- Firewall with SSH access
-- Hostname assigned via DHCP
-- No desktop environment
-
-## Hostnames and DHCP
-
-Disposable machines don't have hardcoded hostnames in the flake. Instead, hostnames come from:
-
-1. **DHCP server** (recommended) - Configure your router/dhcpd to assign hostnames by MAC address
-2. **Local override** - Create `/etc/nixos/local.nix` on the machine (outside flake)
-
-Example DHCP configuration (dnsmasq):
-```
-dhcp-host=aa:bb:cc:dd:ee:ff,drlight,192.168.1.50,infinite
-```
-
-This keeps all "artisanal" metadata (names, IPs) out of the flake.
-
-## Benefits
-
-| Before (Artisanal) | After (Disposable) |
-|---------------------|---------------------------|
-| `hardware-configuration.nix` per machine | ❌ None - auto-detected |
-| Manual partitioning | ❌ Automated |
-| Per-machine target directories | ❌ Just use type-* |
-| Hostname in flake | ❌ From DHCP |
-| Impure builds (local paths) | ✅ Pure GitHub builds |
-| 30+ minute install | ✅ 5 minute install |
-| Per-machine SSH keys | ✅ Auto-generated |
-| Can't build remotely | ✅ Pure flake - build anywhere |
-| CI uses stubs | ✅ CI tests real configs |
-
-## Customization
-
-### Add a New Machine Type
-
-1. Create `machine-types/my-type.nix`
-2. Add to `flake.nix`:
-
-```nix
-"type-my-type" = nixpkgs.lib.nixosSystem {
-  modules = [
-    inputs.disko.nixosModules.disko
-    ./disk-configs/my-layout.nix
-    inputs.nixos-facter.nixosModules.facter
-    ./machine-types/my-type.nix
-    # ... other modules
-  ];
-};
-```
-
-### Custom Disk Layout
-
-See [disko examples](https://github.com/nix-community/disko/tree/master/example) for:
-- ZFS
-- BTRFS with subvolumes
-- RAID arrays
-- Multiple disks
-
-## Troubleshooting
-
-### "Device not found"
-Check the disk device name:
-```bash
-# On target machine
-lsblk
-```
-
-### SSH connection fails
-Ensure target has SSH enabled in installer:
-```bash
-# On target
-systemctl start sshd
-passwd  # Set password
-```
-
-### Hardware not detected
-nixos-facter requires kexec or installer image. If on existing Linux:
-```bash
-# May need to boot NixOS installer USB instead
-```
-
----
-
-## Related Documents
-
-- [Set Up Your NixOS Machine](../tutorials/setup-your-nixos-machine.md) - Step-by-step installation tutorial
-- [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) - Remote installation
-- [disko](https://github.com/nix-community/disko) - Declarative partitioning
-- [nixos-facter](https://github.com/nix-community/nixos-facter) - Hardware detection
+- [Architecture](architecture.md) explains how modules, archetypes, machine modules, and catalog records fit together.
+- [Set Up Your NixOS Machine](../tutorials/setup-your-nixos-machine.md) covers the guarded live-USB installation workflow.

@@ -3,7 +3,7 @@ title: "Set Up Your Mac"
 description: "Step-by-step walkthrough for configuring a new macOS machine from this flake"
 type: tutorial
 audience: both
-last-reviewed: 2026-06-30
+last-reviewed: 2026-11-07
 ---
 
 # Set Up Your Mac
@@ -53,15 +53,15 @@ Roles bundle packages by purpose. Common picks for a development Mac:
 
 For this tutorial we'll enable `developer`, `desktop`, and `opencode`. You can find the full catalogue in the [Roles Reference](../reference/roles.md).
 
-## Step 4: Create Your Target
+## Step 4: Create the Machine Module
 
-Your target directory holds machine-specific settings. Most config comes from roles, so keep it minimal to start:
+The machine module holds macOS settings that do not belong in reusable roles or archetypes. Create it under the canonical machine configuration path:
 
 ```bash
-mkdir -p targets/my-mac
+mkdir -p machines/my-mac
 ```
 
-Create `targets/my-mac/default.nix`:
+Create `machines/my-mac/default.nix`:
 
 ```nix
 {
@@ -86,27 +86,22 @@ Create `targets/my-mac/default.nix`:
 
 Replace `your-username` with your macOS username (run `whoami` to find it). Replace the email address too.
 
-## Step 5: Add Your Target to flake.nix
+## Step 5: Register the Machine
 
-Open `flake.nix` and add your machine under `darwinConfigurations`. Look for the existing entries (`wweaver`, `MegamanX`) and model yours on them:
+Add a record to `library/machines/catalog.nix`. The catalog supplies the flake output name, platform, hostname, secrets profile, and the machine module path. The shared Darwin builder handles common modules and arguments.
 
 ```nix
-"my-mac" = nix-darwin.lib.darwinSystem {
-  specialArgs = { inherit inputs mkUser; };
+my-mac = darwinMachine {
+  secretProfile = "Employee"; # Choose the appropriate configured profile.
+  system = "aarch64-darwin";
+  hostname = "my-mac";
   modules = [
-    configuration
-    nix-homebrew.darwinModules.nix-homebrew
-    ./modules
-    ./modules/roles/homebrew.nix
-    ./os/darwin.nix
-    ./targets/my-mac
-    home-manager.darwinModules.home-manager
-    { home-manager.sharedModules = [ opnix.homeManagerModules.default ]; }
+    ../../machines/my-mac
   ];
 };
 ```
 
-Notice you need the same module list pattern as the other targets. The key differences per target are the hostname and the target directory path.
+Keep machine-specific settings in `machines/my-mac/default.nix`; put reusable behavior in a module or archetype. The catalog's `system` and `hostname` are authoritative, so do not repeat them in the machine module.
 
 ## Step 6: Validate Before Building
 
@@ -141,8 +136,8 @@ devenv tasks list     # devenv is available
 
 - Installed Nix and cloned the flake
 - Signed in to 1Password and registered an SSH key
-- Created a target directory with role selections
-- Added the target to `flake.nix`
+- Created a machine module with role selections
+- Registered the machine in `library/machines/catalog.nix`
 - Built and applied the configuration
 - Verified tools are installed
 

@@ -133,7 +133,7 @@ Add the module to the MegamanX target's `darwinModules`:
 
 ## Step 4: Enable on a Target
 
-Enable the service in the target configuration:
+Enable the service in the machine module:
 
 ```nix
 myConfig.my-service = {

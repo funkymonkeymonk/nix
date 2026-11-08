@@ -43,8 +43,8 @@
         ${checkEqual "type-server selects shared archetype" true (hasModule "/archetypes/type-server.nix" typeServer)}
         ${checkEqual "type-server-arm selects shared archetype" true (hasModule "/archetypes/type-server.nix" typeServerArm)}
 
-        ${checkEqual "type-server target module remains present" true (hasModule "/targets/type-server" typeServer)}
-        ${checkEqual "type-server-arm target module remains present" true (hasModule "/targets/type-server-arm" typeServerArm)}
+        ${checkEqual "type-server uses the archetype without a per-machine module" false (hasModule "/machines/type-server" typeServer)}
+        ${checkEqual "type-server-arm machine module remains present" true (hasModule "/machines/type-server-arm" typeServerArm)}
         ${checkEqual "type-server disk configuration remains present" true (hasModule "/disk-configs/single-disk-ext4.nix" typeServer)}
         ${checkEqual "type-server-arm disk configuration remains present" true (hasModule "/disk-configs/single-disk-ext4.nix" typeServerArm)}
         ${checkEqual "type-server hardware discovery module remains present" true (hasModule "/targets/hardware-facter.nix" typeServer)}
@@ -61,8 +61,8 @@
         ${checkEqual "type-server-arm node_exporter remains in scrape inventory" true (builtins.elem "type-server-arm" actualInventoryNames)}
         ${checkEqual "type-server-arm exporter port is not globally exposed" false (builtins.elem armExporterPort (serverArm.networking.firewall.allowedTCPPorts or []))}
         ${checkEqual "type-server-arm exporter port is not exposed on any interface" false (builtins.elem armExporterPort armFirewallInterfacePorts)}
-        ${checkEqual "type-server target retains monkey SSH access" true (server.users.users.monkey.openssh.authorizedKeys.keys != [])}
-        ${checkEqual "type-server-arm target disables Intel microcode" false serverArm.hardware.cpu.intel.updateMicrocode}
+        ${checkEqual "type-server retains monkey SSH access" true (server.users.users.monkey.openssh.authorizedKeys.keys != [])}
+        ${checkEqual "type-server-arm machine module disables Intel microcode" false serverArm.hardware.cpu.intel.updateMicrocode}
         ${checkEqual "type-server retains single-disk layout" true (server.disko.devices.disk ? main)}
         ${checkEqual "type-server-arm retains single-disk layout" true (serverArm.disko.devices.disk ? main)}
 
@@ -70,6 +70,8 @@
         ${checkEqual "generic headless type-nas does not enable Loki" false (nas.services.loki.enable or false)}
         ${checkEqual "generic headless type-nas does not enable Alertmanager" false (nas.services.prometheus.alertmanager.enable or false)}
         ${checkEqual "generic headless type-nas enables node_exporter explicitly" true (nas.services.prometheus.exporters.node.enable or false)}
+        ${checkEqual "headless server archetype provides its default vault" "Opnix" nas.myConfig.onepassword.defaultVault}
+        ${checkEqual "drlight uses the Opnix default vault" "Opnix" mediaServer.myConfig.onepassword.defaultVault}
         ${checkEqual "generic headless type-nas does not enable Vector" false (nas.services.vector.enable or false)}
         ${checkEqual "drlight enables central Prometheus" true (mediaServer.services.prometheus.enable or false)}
         ${checkEqual "drlight enables central Loki receiver" true (mediaServer.services.loki.enable or false)}

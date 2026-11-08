@@ -14,9 +14,22 @@
   catalogNixos = lib.filterAttrs (_: machine: machine.kind == "nixos") catalog;
   catalogDarwin = lib.filterAttrs (_: machine: machine.kind == "darwin") catalog;
   catalogNames = builtins.attrNames catalog;
+  machineConfigNames = ["darwin-server" "drlight" "megamanx" "type-desktop" "type-nas" "type-server-arm" "wweaver" "zero"];
+  machineConfigPaths = map (name: ../. + "/machines/${name}/default.nix") machineConfigNames;
+  legacyMachineConfigPaths = map (path: ../. + path) [
+    "/hosts/darwin-server"
+    "/hosts/megamanx"
+    "/hosts/wweaver"
+    "/targets/drlight"
+    "/targets/type-desktop"
+    "/targets/type-nas"
+    "/targets/type-server-arm"
+    "/targets/zero"
+  ];
   catalogNixosNames = builtins.attrNames catalogNixos;
   catalogDarwinNames = builtins.attrNames catalogDarwin;
   headlessServerNixosSource = builtins.readFile ../library/archetypes/headless-server-nixos.nix;
+  headlessMachineModuleSources = map (name: builtins.readFile (../machines + "/${name}/default.nix")) ["type-nas" "type-server-arm" "drlight"];
   nativeNixosNames = builtins.attrNames self.nixosConfigurations;
   nativeDarwinNames = builtins.attrNames self.darwinConfigurations;
   rootDevenv = import ../devenv.nix {inherit pkgs inputs;};
@@ -101,10 +114,14 @@
     ${assertEqual "Darwin catalog/native names" catalogDarwinNames nativeDarwinNames}
     ${assertEqual "root devenv imports one Machines projection" 1 (builtins.length machineModules)}
     ${assertEqual "Catalog/Machines names" catalogNames machinesNames}
+    ${assertEqual "all named machine modules live under machines/" true (builtins.all builtins.pathExists machineConfigPaths)}
+    ${assertEqual "machine modules have been removed from hosts/ and targets/" true (builtins.all (path: !(builtins.pathExists path)) legacyMachineConfigPaths)}
     ${assertEqual "Devenv and flake use the same Nixpkgs revision" flakeNixpkgsRev devenvNixpkgsRev}
     ${assertEqual "type-server declares its Disko layout for native projection" true (catalog.type-server.disko or false)}
     ${assertEqual "type-server-arm declares its Disko layout for native projection" true (catalog.type-server-arm.disko or false)}
     ${assertEqual "headless server archetype leaves Disko injection to machine projections" false (lib.hasInfix "inputs.disko.nixosModules.disko" headlessServerNixosSource)}
+    ${assertEqual "headless server archetype authorizes the shared monkey SSH key" true (lib.hasInfix "openssh.authorizedKeys.keys = [sshPublicKey]" headlessServerNixosSource)}
+    ${assertEqual "headless machine modules do not duplicate monkey SSH key wiring" true (builtins.all (source: !(lib.hasInfix "users.users.monkey.openssh.authorizedKeys.keys" source)) headlessMachineModuleSources)}
     ${assertEqual "zero system" "x86_64-linux" representativeNixos.system}
     ${assertEqual "zero hostname" "zero" representativeNixos.hostname}
     ${assertEqual "zero module count" 11 (builtins.length representativeNixos.modules)}
@@ -114,7 +131,7 @@
     ${assertEqual "zero auto-upgrade URL" "github:funkymonkeymonk/nix#zero" representativeNixos.overrides.autoUpgrade.flakeUrl}
     ${assertEqual "zero extra special args" ["mkUser"] (builtins.attrNames representativeNixos.extraSpecialArgs)}
     ${assertEqual "zero mkUser special arg is a function" true (builtins.isFunction representativeNixos.extraSpecialArgs.mkUser)}
-    ${assertEqual "zero target module retained" true (builtins.elem ../targets/zero representativeNixos.modules)}
+    ${assertEqual "zero machine module retained" true (builtins.elem ../machines/zero representativeNixos.modules)}
     ${assertEqual "generated zero hostname" "zero" self.nixosConfigurations.zero.config.networking.hostName}
     ${assertEqual "generated zero system" "x86_64-linux" self.nixosConfigurations.zero.config.nixpkgs.hostPlatform.system}
     ${assertEqual "generated zero override" "github:funkymonkeymonk/nix#zero" self.nixosConfigurations.zero.config.myConfig.autoUpgrade.flakeUrl}
@@ -141,6 +158,8 @@
     ${assertEqual "installer ISO projection supplies inputs set" inputs.nixpkgs.outPath projectedInstallerIso.config._module.args.inputs.nixpkgs.outPath}
     ${assertEqual "installer ISO projection wraps module paths" true (builtins.isFunction (builtins.head projectedInstallerIso.imports))}
     ${assertEqual "wweaver system" "aarch64-darwin" representativeDarwin.system}
+    ${assertEqual "wweaver generated host platform follows the catalog" representativeDarwin.system self.darwinConfigurations.wweaver.config.nixpkgs.hostPlatform.system}
+    ${assertEqual "Darwin Machines projection host platform follows the catalog" representativeDarwin.system devenvMegamanX.config.nixpkgs.hostPlatform.system}
     ${assertEqual "wweaver hostname" "wweaver" representativeDarwin.hostname}
     ${assertEqual "wweaver module count" 4 (builtins.length representativeDarwin.modules)}
     ${assertEqual "wweaver extra special args" ["mkUser"] (builtins.attrNames representativeDarwin.extraSpecialArgs)}

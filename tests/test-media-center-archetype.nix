@@ -535,7 +535,9 @@
            ${checkFalse "Ultra media sync timer does not launch a catch-up run during a switch" (ultraSyncTimerConfig.Persistent or false)}
            ${checkEqual "Ultra media sync timer activates its service" "ultra-media-sync.service" (ultraSyncTimerConfig.Unit or null)}
            ${checkTrue "Ultra media sync timer is enabled through timers.target" (builtins.elem "timers.target" (ultraSyncTimer.wantedBy or []))}
-           ${checkEqual "Drlight resolves unqualified OpNix references through the Opnix vault" "Opnix" (drlight.myConfig.onepassword.defaultVault or null)}
+           ${checkEqual "Drlight uses Opnix as its default vault" "Opnix" (drlight.myConfig.onepassword.defaultVault or null)}
+           ${checkEqual "Drlight Cloudflare secret uses the Opnix item and field" "Cloudflare DNS API Token/credential" (onePasswordSecrets.cloudflareApiToken.reference or null)}
+           ${checkEqual "Drlight Cloudflare secret resolves to the Opnix vault" "op://Opnix/Cloudflare DNS API Token/credential" (opnixSecrets.cloudflareApiToken.reference or null)}
            ${checkEqual "Ultra media sync JSON config secret has its runtime path" "/run/secrets/ultra-media-sync-config.json" (ultraSyncConfigSecret.path or null)}
            ${checkEqual "Ultra media sync private key secret has its runtime path" "/run/secrets/ultra-media-sync-key" (ultraSyncKeySecret.path or null)}
            ${checkTrue "Ultra media sync config secret is restricted to its service account" ((ultraSyncConfigSecret.owner or null) == "ultra-sync" && (ultraSyncConfigSecret.group or null) == "users" && (ultraSyncConfigSecret.mode or null) == "0400")}

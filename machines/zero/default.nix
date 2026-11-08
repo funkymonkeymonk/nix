@@ -12,8 +12,26 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  nixpkgs.hostPlatform = "x86_64-linux";
   system.stateVersion = "25.05";
+
+  nix = {
+    distributedBuilds = true;
+    buildMachines = [
+      {
+        hostName = "megamanx";
+        system = "aarch64-darwin";
+        protocol = "ssh-ng";
+        sshUser = "nixbuilder";
+        sshKey = "/run/secrets/nix-remote-builder-megamanx";
+        # Nix expects base64 of the full OpenSSH public-key line, not only its key blob.
+        publicHostKey = "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK";
+        maxJobs = 4;
+        speedFactor = 1;
+        supportedFeatures = ["big-parallel"];
+      }
+    ];
+    settings.builders-use-substitutes = true;
+  };
 
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
@@ -63,6 +81,13 @@
           owner = "root";
           group = "root";
           services = ["caddy-cloudflare-env" "caddy"];
+        };
+        secrets.nixRemoteBuilderKey = {
+          reference = "Nix Remote Builder Zero to MegamanX/private key";
+          path = "/run/secrets/nix-remote-builder-megamanx";
+          mode = "0400";
+          owner = "root";
+          group = "root";
         };
       };
 
@@ -146,7 +171,6 @@
     };
 
   networking = {
-    hostName = "zero";
     hostId = lib.mkDefault "0badc0de";
     networkmanager.enable = true;
     firewall.enable = true;

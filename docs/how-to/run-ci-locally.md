@@ -79,7 +79,7 @@ It uses mock `devenv`, `secretspec`, and catalog lookup commands to verify that
 machine names are explicit, profiles are operation-scoped, deployment never
 adds `--yes`, and installation cancels unless disk erasure is affirmatively
 confirmed. The focused Nix check also exercises the pinned SecretSpec CLI with
-temporary HOME and a failing `op` stub against the empty Homelab and Personal
+temporary HOME and a failing `op` stub against the empty Opnix and Personal
 profiles, without accessing 1Password. The Nix check is available as:
 
 ```bash

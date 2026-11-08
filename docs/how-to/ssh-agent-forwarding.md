@@ -144,9 +144,7 @@ All NixOS machines in this repository have SSH agent forwarding enabled:
 services.openssh.settings.AllowAgentForwarding = true;
 ```
 
-This includes:
-- `machine-types/server.nix`
-- `machine-types/desktop.nix`
+This is configured in the reusable NixOS archetypes, including:
 - `library/archetypes/headless-server-nixos.nix`
 - `library/archetypes/desktop-nixos.nix`
 

@@ -29,7 +29,7 @@ assert_selection \
   '["nixos-vector-","type-server-log-aggregator","vector-"]' \
   "modules/nixos/vector.nix"
 assert_selection \
-  "Zero target regression tests" \
+  "Zero machine regression tests" \
   '["drlight-media-storage","phase3-zero","zero-"]' \
   "tests/test-zero.nix"
 assert_selection \
@@ -60,6 +60,13 @@ assert_selection \
   "tests/default.nix" \
   "tests/test-media-center-archetype.nix"
 assert_selection \
+  "Installer source changes select installer coverage" \
+  '["installer-ready","installer-source"]' \
+  "packages/installer/default.nix" \
+  "targets/installer-iso/installer.nix" \
+  "scripts/nixos-install.sh" \
+  "tests/test-installer.sh"
+assert_selection \
   "Standalone test registry changes select all checks" \
   '["*"]' \
   "tests/default.nix"
@@ -80,9 +87,21 @@ assert_selection \
   '["*"]' \
   "modules/nixos/future-module.nix"
 assert_selection \
-  "Drlight target changes select media and observability checks" \
+  "Drlight machine module changes select media and observability checks" \
   '["central-observability","drlight-media-","media-center-archetype","type-server-archetypes"]' \
-  "targets/drlight/default.nix"
+  "machines/drlight/default.nix"
+assert_selection \
+  "MegamanX machine changes select its builder access checks" \
+  '["phase4-darwin-server","ssh-authorized-keys"]' \
+  "machines/megamanx/default.nix"
+assert_selection \
+  "Remote builder public key changes select SSH coverage" \
+  '["ssh-authorized-keys"]' \
+  "keys/nix-remote-builder-megamanx.pub"
+assert_selection \
+  "SSH authorized-key test source selects its focused check" \
+  '["ssh-authorized-keys"]' \
+  "tests/test-ssh-authorized-keys.nix"
 assert_selection \
   "Workflow changes select all checks" \
   '["*"]' \

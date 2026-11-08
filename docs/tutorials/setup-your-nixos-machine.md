@@ -110,7 +110,7 @@ example:
 }
 ```
 
-SecretSpec's Homelab and Personal provider profiles are configured but
+SecretSpec's Opnix and Personal provider profiles are configured but
 intentionally contain no values. Secret-dependent operations may run only
 after the owner confirms a real item/field reference in that machine's default
 vault. Fresh-host installation fails closed until

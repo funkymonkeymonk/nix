@@ -164,7 +164,7 @@ my-skill/
 
 ### Skills Not Deployed After `system:switch`
 
-1. Verify `opencode.enable = true` in your host config (e.g., `hosts/wweaver/default.nix`)
+1. Verify `opencode.enable = true` in your host config (e.g., `machines/wweaver/default.nix`)
 2. Check enabled roles: `nix eval --impure ".#darwinConfigurations.wweaver.config.myConfig.skills.enabledRoles"`
 3. Verify skill matches a role: check `manifest.nix` roles list
 4. Test manually: `cat ~/.config/opencode/skills/my-skill/SKILL.md`

@@ -215,7 +215,7 @@ tail -f "$HOME/.local/share/caddy/caddy.log"
 
 Routes added via the admin API are ephemeral and lost when Caddy restarts. For persistent routes:
 
-1. Add them to your host configuration (see [Add Local Dev DNS Names](add-local-dev-dns-name.md))
+1. Add them to your machine module (see [Add Local Dev DNS Names](add-local-dev-dns-name.md))
 2. Or add them in devenv startup if they're development-specific
 
 ### Cannot Connect to Service

@@ -23,7 +23,7 @@ Open a terminal in any git repository managed by this Nix config:
 yx --version
 ```
 
-You should see `yx 0.1.0` or similar. If not, make sure the `developer` role is enabled in your target configuration.
+You should see `yx 0.1.0` or similar. If not, make sure the `developer` role is enabled in your machine configuration.
 
 ## Step 2: See What's Already There
 

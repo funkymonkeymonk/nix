@@ -1,4 +1,4 @@
-# Zero target configuration tests
+# Zero machine configuration tests
 # Tests that the tailscale-autoconnect service uses opnix secrets
 # instead of the fragile TAILSCALE_AUTH_KEY environment variable
 #
@@ -12,7 +12,7 @@
   inherit (pkgs) lib;
 
   # Read zero config as a string for pattern checking (pure Nix, no derivation needed)
-  zeroConfigText = builtins.readFile ../targets/zero/default.nix;
+  zeroConfigText = builtins.readFile ../machines/zero/default.nix;
   streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
   caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
@@ -307,6 +307,8 @@ in {
       ${assertContainsStr "Cloudflare DNS challenge" "dns cloudflare {env.CLOUDFLARE_API_TOKEN}" caddyNixosModuleText}
       ${assertContainsStr "runtime Cloudflare secret" "/run/secrets/cloudflare-api-token" zeroConfigText}
       ${assertContainsStr "Cloudflare token reference" "Cloudflare DNS API Token/credential" zeroConfigText}
+      ${assertContainsStr "OpenCode Go API reference uses the default vault" ''onePasswordItem = "OpenCode Go API/credential"'' zeroConfigText}
+      ${assertNotContainsStr "no explicit Homelab secret references" "op://Homelab/" zeroConfigText}
       ${assertContainsStr "Cloudflare Caddy plugin" "caddy-dns/cloudflare@v0.2.4" caddyNixosModuleText}
       ${assertContainsStr "Caddy secret path option" "cloudflareApiTokenPath" caddyNixosModuleText}
       ${assertContainsStr "LAN proxy restriction" "remote_ip 10.0.0.0/8" caddyNixosModuleText}
@@ -404,4 +406,75 @@ in {
       echo "Zero media automation test passed"
       touch $out
     '';
+
+  zeroNixRemoteBuilderTest =
+    if self == null
+    then
+      pkgs.runCommand "test-zero-nix-remote-builder-skipped" {} ''
+        echo "Skipped: self not provided"
+        touch $out
+      ''
+    else let
+      zero = self.nixosConfigurations.zero.config;
+      builder = lib.findFirst (machine: machine.hostName == "megamanx") null zero.nix.buildMachines;
+      builderSecret = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey or {};
+      megamanx = self.darwinConfigurations.MegamanX.config;
+      builderUser = megamanx.users.users.nixbuilder or {};
+      remoteBuilderUserTrusted = builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users;
+      builderUserConfigured =
+        builderUser
+        != {}
+        && builtins.isInt builderUser.uid
+        && builderUser.uid > 501
+        && builderUser.gid == 20
+        && builderUser.isHidden
+        && builtins.toString builderUser.home == "/var/empty"
+        && builderUser.shell != null
+        && builtins.toString builderUser.shell != "/usr/bin/false"
+        && !(builtins.elem "admin" (builderUser.groups or []))
+        && builtins.elem "nixbuilder" megamanx.users.knownUsers;
+      builderSshConfig = megamanx.services.openssh.extraConfig;
+      builderSshAuthenticationRestricted =
+        lib.hasInfix "Match User nixbuilder" builderSshConfig
+        && lib.hasInfix "AuthenticationMethods publickey" builderSshConfig
+        && lib.hasInfix "PasswordAuthentication no" builderSshConfig
+        && lib.hasInfix "KbdInteractiveAuthentication no" builderSshConfig
+        && lib.hasInfix "AllowAgentForwarding no" builderSshConfig
+        && lib.hasInfix "AllowTcpForwarding no" builderSshConfig
+        && lib.hasInfix "PermitTTY no" builderSshConfig
+        && lib.hasInfix "X11Forwarding no" builderSshConfig
+        && lib.hasInfix "ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio" builderSshConfig
+        && lib.hasInfix "Match all" builderSshConfig;
+      builderKey =
+        if builtins.pathExists ../keys/nix-remote-builder-megamanx.pub
+        then builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile ../keys/nix-remote-builder-megamanx.pub)
+        else "";
+      configuredCorrectly =
+        zero.nix.distributedBuilds
+        && zero.nix.settings.builders-use-substitutes
+        && builder != null
+        && builder.system == "aarch64-darwin"
+        && builder.protocol == "ssh-ng"
+        && builder.sshUser == "nixbuilder"
+        && builder.sshKey == "/run/secrets/nix-remote-builder-megamanx"
+        && builder.publicHostKey == "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK"
+        && builderSecret.reference == "Nix Remote Builder Zero to MegamanX/private key"
+        && builderSecret.path == "/run/secrets/nix-remote-builder-megamanx"
+        && builderSecret.owner == "root"
+        && builderSecret.group == "root"
+        && builderSecret.mode == "0400"
+        && zero.myConfig.onepassword.defaultVault == "Opnix"
+        && remoteBuilderUserTrusted
+        && builderUserConfigured
+        && builderSshAuthenticationRestricted;
+    in
+      pkgs.runCommand "test-zero-nix-remote-builder" {} ''
+        echo "=== Testing Zero's MegamanX remote builder configuration ==="
+        ${
+          if configuredCorrectly && builderKey != ""
+          then ''echo "Zero's remote builder, Opnix key file, and host pin are configured: OK"''
+          else ''echo "FAIL: Zero's remote builder must use the Opnix builder key and pinned MegamanX host"; exit 1''
+        }
+        touch $out
+      '';
 }

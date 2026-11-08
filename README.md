@@ -51,7 +51,9 @@ darwin-rebuild switch --flake .#<hostname>
 │   ├── home-manager/ # User environment, skills
 │   ├── roles/        # Role modules (packages, skills per role)
 │   └── nixos/        # NixOS-specific modules
-├── targets/          # Machine-specific configurations
+├── machines/         # Per-machine NixOS and Darwin settings
+├── targets/          # Bootstrap, installer, and hardware inputs
+├── library/machines/ # Machine catalog and output composition
 ├── flake.nix         # Main flake with helper functions
 └── docs/             # Documentation (Diataxis)
 ```

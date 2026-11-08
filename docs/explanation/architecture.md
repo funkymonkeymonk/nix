@@ -3,7 +3,7 @@ title: "Architecture"
 description: "Design and structure of the Nix configuration system"
 type: explanation
 audience: both
-last-reviewed: 2026-07-28
+last-reviewed: 2026-11-07
 ---
 
 # Architecture
@@ -192,22 +192,14 @@ Services are launchd system daemons that run on macOS. Each service lives in `mo
 - Log to ephemeral `/tmp/<service>.log`
 
 
-### Targets (Machine-Specific Settings)
+### Machine Modules and the Catalog
 
-Targets define *where* configurations apply for **artisanal** machines. Each target represents a specific machine.
+A named machine output has two deliberately different parts:
 
-**Location:** `targets/`
+- `machines/<name>/default.nix` is a NixOS or Darwin module. It sets that machine's actual options: roles, services, users, state version, and any machine-specific hardware details.
+- `library/machines/catalog.nix` is the registry and composition manifest. It provides the output name, OS kind, platform, hostname, secrets profile, deployment metadata, and the ordered module stack. Flake-parts uses it to generate `nixosConfigurations` and `darwinConfigurations`; devenv and inventory code also use it.
 
-```
-targets/
-├── wweaver/          # Work laptop (artisanal)
-├── MegamanX/         # Personal desktop (artisanal)
-└── zero/             # NixOS gaming PC (artisanal)
-```
-
-Targets contain only machine-specific settings like hostname, hardware config, and GPU drivers.
-
-**Disposable machines** (type-server, type-desktop) don't need targets - they use generic configurations from `machine-types/`.
+The catalog is not a second copy of the machine's NixOS/Darwin settings. It assembles the reusable archetypes, disk layout, hardware inputs, and the machine module. The catalog owns platform and hostname; machine modules should not repeat those values. Bootstrap and installer definitions, plus shared hardware inputs, remain in `targets/` because they are not named machine-setting modules.
 
 ## Configuration Flow
 
@@ -260,46 +252,18 @@ config = mkIf cfg.gaming.enable {
 
 Options are defined in `modules/common/options.nix` and implemented by various modules.
 
-## Heirloom Dishes vs Takeout Containers
+## Named Machines and Reusable Profiles
 
-The flake supports two approaches to machine management:
+Every output in the flake has a named record in the machine catalog. Some records select a broad reusable archetype (such as a headless server or desktop); others compose more machine-specific settings. Both kinds are real flake configurations with a platform and hostname. A reusable profile reduces repeated behavior, but it does not remove the need to register the output or set its machine identity.
 
-### Heirloom Dishes (Traditional)
+The distinction is about configuration reuse, not whether a system has a per-machine identity:
 
-Each machine is unique, hand-crafted, named, and cared for individually:
-- Hostname defined in the flake (`networking.hostName`)
-- Per-machine `targets/<hostname>/` directory
-- Hardware-specific settings
-- Impure builds (references local paths like `/etc/nixos/`)
-- If it breaks, you repair it
+- Use an archetype for shared behavior such as common users, SSH policy, or a service profile.
+- Use a machine module for settings unique to a named system.
+- Use catalog fields for output identity and composition.
+- Use separate disk and hardware modules when those inputs are shared or deployment-specific.
 
-**Examples**: `wweaver`, `MegamanX`, `zero`
-
-### Takeout Containers (Disposable)
-
-Machines are standardized, disposable, and interchangeable:
-- Hostname from DHCP (not in flake)
-- No per-machine directories
-- Generic machine types (`type-server`, `type-desktop`)
-- Pure builds (everything from GitHub)
-- Auto-upgrading from flake
-- If one has a problem, throw it away and grab another
-
-**Benefits**:
-- ✅ Build anywhere (CI, different machines)
-- ✅ No `hardware-configuration.nix` per machine
-- ✅ Faster deployment (5 min vs 30 min)
-- ✅ True infrastructure-as-code
-- ✅ You don't care which specific one you get
-
-### When to Use Which
-
-| Use Case | Pattern | Example |
-|----------|---------|---------|
-| Headless servers | Takeout Container | `type-server` |
-| Gaming workstation | Heirloom | `zero` |
-| Work laptop | Heirloom | `wweaver` |
-| Desktop with unique GPU | Heirloom | Custom target |
+For example, `type-server` can use the headless-server archetype without a separate machine module when the archetype and catalog fully describe it. `zero` still needs a machine module for its gaming and hardware configuration.
 
 ## Platform Handling
 
@@ -334,7 +298,7 @@ This ensures consistent skill availability across all your machines.
 
 - **Modules** can be modified without changing machine configs
 - **Roles** can add packages without touching module logic
-- **Targets** isolate machine-specific details
+- **Machine modules** isolate machine-specific settings, while the catalog owns output identity and composition
 
 ### DRY Principle
 

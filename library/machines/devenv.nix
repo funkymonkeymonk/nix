@@ -58,6 +58,7 @@
     baseModules = [
       ({...}: {
         networking.hostName = machine.hostname;
+        nixpkgs.hostPlatform = machine.system;
       })
       (nixpkgsConfig {inherit inputs;})
       (observabilityInventory.machineModule machine)

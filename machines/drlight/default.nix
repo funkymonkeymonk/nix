@@ -7,16 +7,12 @@
 }: let
   sshPublicKey = import ../../library/ssh-public-key.nix;
 in {
-  # Initial monkey SSH access
-  users.users.monkey.openssh.authorizedKeys.keys = [sshPublicKey];
-
   # Machines requires root SSH for transactional installation/deployment. Keep
   # it key-only and limited to the same approved public key.
   users.users.root.openssh.authorizedKeys.keys = [sshPublicKey];
   services.openssh.settings.PermitRootLogin = lib.mkForce "prohibit-password";
   services.openssh.settings.PasswordAuthentication = false;
 
-  nixpkgs.hostPlatform = "x86_64-linux";
   # Preserve the ZFS pool owner's host ID while drlight takes over from zero.
   networking.hostId = "0badc0de";
   boot.zfs.forceImportRoot = false;

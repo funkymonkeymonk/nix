@@ -5,12 +5,12 @@
 }: let
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
   manifest = builtins.fromTOML (builtins.readFile ../secretspec.toml);
-  homelabBootstrapSecret = manifest.profiles.Homelab.OPNIX_SERVICE_ACCOUNT_TOKEN or null;
-  tailscaleOAuthClientId = manifest.profiles.Homelab.TAILSCALE_OAUTH_CLIENT_ID or null;
-  tailscaleOAuthClientSecret = manifest.profiles.Homelab.TAILSCALE_OAUTH_CLIENT_SECRET or null;
+  opnixBootstrapSecret = manifest.profiles.Opnix.OPNIX_SERVICE_ACCOUNT_TOKEN or null;
+  tailscaleOAuthClientId = manifest.profiles.Opnix.TAILSCALE_OAUTH_CLIENT_ID or null;
+  tailscaleOAuthClientSecret = manifest.profiles.Opnix.TAILSCALE_OAUTH_CLIENT_SECRET or null;
   drlightTailscaleOverrides = catalog.drlight.overrides.tailscale or {};
   pinnedDevenv = inputs.devenv.packages.${pkgs.stdenv.hostPlatform.system}.devenv;
-  homelabMachines = [
+  opnixMachines = [
     "zero"
     "drlight"
     "type-nas"
@@ -22,20 +22,22 @@
     "type-desktop"
     "installer-iso"
     "darwin-server"
+    "wweaver"
   ];
-  profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Homelab") homelabMachines;
+  profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Opnix") opnixMachines;
   assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Personal") personalMachines;
   assert !(manifest.profiles ? Personal);
-  assert catalog.wweaver.secretProfile == "Employee";
+  assert !(manifest.profiles ? Homelab);
+  assert catalog.wweaver.secretProfile == "Personal";
   assert !(manifest.profiles ? Employee);
   assert manifest.providers.opnix == "onepassword://Opnix";
   assert manifest.providers.employee == "onepassword://Employee";
   assert manifest.providers."service-accounts" == "onepassword://vio73ncjh7hofsrzj7ogf473w4";
   assert catalog.MegamanX.secretProfile == "MegamanX";
-  assert homelabBootstrapSecret != null;
-  assert homelabBootstrapSecret.ref.item == "opcec4mg3aykq2qkbnhri2vtn4";
-  assert homelabBootstrapSecret.ref.field == "credential";
-  assert homelabBootstrapSecret.providers == ["service-accounts"];
+  assert opnixBootstrapSecret != null;
+  assert opnixBootstrapSecret.ref.item == "opcec4mg3aykq2qkbnhri2vtn4";
+  assert opnixBootstrapSecret.ref.field == "credential";
+  assert opnixBootstrapSecret.providers == ["service-accounts"];
   assert tailscaleOAuthClientId != null;
   assert tailscaleOAuthClientId.ref.item == "Tailscale Oauth";
   assert tailscaleOAuthClientId.ref.field == "Client ID";

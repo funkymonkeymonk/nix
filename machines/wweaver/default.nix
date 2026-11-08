@@ -10,7 +10,6 @@
     ../../library/archetypes/workstation-darwin.nix
   ];
 
-  nixpkgs.hostPlatform = "aarch64-darwin";
   system.stateVersion = 4;
   system.primaryUser = "wweaver";
 
@@ -36,7 +35,7 @@
           inherit (inputs) vercel-skills;
         };
       };
-      onepassword.defaultVault = "Employee";
+      onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
 
       obsidian.vaults = ["personal"];
 

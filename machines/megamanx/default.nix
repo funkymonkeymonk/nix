@@ -1,23 +1,49 @@
-# MegamanX headless inference server target configuration.
+# MegamanX headless inference server machine configuration.
 # The host runs only the local oMLX/Bifrost stack and Temporal.
 {
   lib,
   mkUser,
   pkgs,
   ...
-}: {
-  nixpkgs.hostPlatform = "aarch64-darwin";
+}: let
+  nixBuilderPublicKey =
+    builtins.replaceStrings ["\n" "\r"] ["" ""]
+    (builtins.readFile ../../keys/nix-remote-builder-megamanx.pub);
+  nixBuilderAuthorizedKey = "restrict,command=\"/nix/var/nix/profiles/default/bin/nix-daemon --stdio\" ${nixBuilderPublicKey}";
+in {
   system.stateVersion = 4;
   system.primaryUser = "monkey";
+
+  # The remote Nix daemon must trust its dedicated SSH user for ssh-ng builds.
+  # Keep monkey trusted for interactive Nix use and isolate the builder key.
+  nix.settings.trusted-users = ["root" "monkey" "nixbuilder"];
 
   imports = [
     ../../library/archetypes/headless-omlx-darwin.nix
   ];
 
+  # This hidden staff account has no admin membership and only exposes the
+  # Nix daemon protocol to Zero's dedicated builder key.
+  users.knownUsers = ["nixbuilder"];
+  users.users.nixbuilder = {
+    uid = 502;
+    gid = 20;
+    description = "Nix remote builder for Zero";
+    home = "/var/empty";
+    shell = pkgs.bashInteractive;
+    ignoreShellProgramCheck = true;
+    isHidden = true;
+    createHome = false;
+    openssh.authorizedKeys.keys = [nixBuilderAuthorizedKey];
+  };
+
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      onepassword.defaultVault = "Opnix";
+      onepassword = {
+        defaultVault = "Opnix";
+        sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
+      };
       ssh.enable = true;
       tailscale.enable = true;
       collector.destinationHostname = "drlight";
@@ -96,13 +122,24 @@
   services.tailscale.enable = true;
   launchd.daemons.tailscaled.serviceConfig.KeepAlive = true;
 
-  # Preserve the currently working password-based SSH path until key-based
-  # access is explicitly provisioned for this host.
+  # Keep password authentication available for monkey's interactive SSH access.
   services.openssh.extraConfig = lib.mkForce ''
     PermitRootLogin no
     PubkeyAuthentication yes
     PasswordAuthentication yes
     AllowAgentForwarding yes
+
+    Match User nixbuilder
+      AuthenticationMethods publickey
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      PermitTTY no
+      X11Forwarding no
+      ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio
+
+    Match all
   '';
 
   environment.systemPackages = with pkgs;

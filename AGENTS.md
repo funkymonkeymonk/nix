@@ -36,7 +36,7 @@ This repository manages the configuration of computers via Nix flakes. **Agents 
 
 - **Modules**: Reusable configuration logic (`modules/`)
 - **Roles**: Modular role configurations (`modules/roles/`)
-- **Targets**: Machine-specific configurations (`targets/`)
+- **Machines**: Per-machine configuration modules (`machines/`); machine metadata and composition live in `library/machines/catalog.nix
 - **Options**: Type-safe configuration (`modules/common/options.nix`)
 
 ## Principles
@@ -353,7 +353,7 @@ Common traps:
 
 | Feature | Steps |
 |---------|-------|
-| New Machine | Create `targets/<name>/`, add to `flake.nix` |
+| New Machine | Create `machines/<name>/default.nix`, add its metadata and module stack to `library/machines/catalog.nix` |
 | New Role | Create `modules/roles/<name>.nix`, add enable option to `modules/common/options.nix` |
 | New Module | Create in `modules/` subdirectory |
 | New Option | Add to `modules/common/options.nix` |

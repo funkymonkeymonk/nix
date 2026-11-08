@@ -10,6 +10,11 @@
     builtins.filter
     (name: builtins.match ".*\\.pub" name != null)
     (builtins.attrNames (builtins.readDir ../keys));
+  nixBuilderPublicKeyPath = ../keys/nix-remote-builder-megamanx.pub;
+  nixBuilderPublicKey =
+    if builtins.pathExists nixBuilderPublicKeyPath
+    then builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile nixBuilderPublicKeyPath)
+    else "";
   installerScript = builtins.readFile ../scripts/nixos-install.sh;
   installerUsesCanonicalKey =
     pkgs.lib.hasInfix "keys/monkey-ssh.pub" installerScript
@@ -51,7 +56,13 @@
   darwinHosts = [
     {
       name = "MegamanX";
-      accounts = ["monkey"];
+      accounts = ["monkey" "nixbuilder"];
+      expectedKeysByAccount = {
+        monkey = [expectedPublicKey];
+        nixbuilder = [
+          ''restrict,command="/nix/var/nix/profiles/default/bin/nix-daemon --stdio" ${nixBuilderPublicKey}''
+        ];
+      };
     }
     {
       name = "darwin-server";
@@ -65,7 +76,10 @@
   checkHost = configurations: host: let
     config = configurations.${host.name}.config;
     users = config.users.users;
-    actualAccountKeys = map (account: users.${account}.openssh.authorizedKeys.keys or []) host.accounts;
+    expectedKeysForAccount = account: builtins.sort builtins.lessThan ((host.expectedKeysByAccount or {}).${account} or [expectedPublicKey]);
+    userKeys = account: (users.${account} or {}).openssh.authorizedKeys.keys or [];
+    expectedHostKeys = builtins.concatLists (map expectedKeysForAccount host.accounts);
+    actualAccountKeys = map (account: builtins.sort builtins.lessThan (userKeys account)) host.accounts;
     allConfiguredKeys = builtins.concatLists (map
       (user: user.openssh.authorizedKeys.keys or [])
       (builtins.attrValues users));
@@ -73,9 +87,9 @@
       (_: user: (user.openssh.authorizedKeys.keys or []) != [])
       users));
     expectedKeyAccounts = builtins.sort builtins.lessThan host.accounts;
-    accountKeysMatch = actualAccountKeys == map (_: [expectedPublicKey]) host.accounts;
+    accountKeysMatch = actualAccountKeys == map expectedKeysForAccount host.accounts;
     keyScopesMatch = actualKeyAccounts == expectedKeyAccounts;
-    noOtherKeys = builtins.all (key: key == expectedPublicKey) allConfiguredKeys;
+    noOtherKeys = builtins.all (key: builtins.elem key expectedHostKeys) allConfiguredKeys;
   in {
     inherit (host) name;
     passed = accountKeysMatch && keyScopesMatch && noOtherKeys;
@@ -89,13 +103,13 @@ in
     ${builtins.concatStringsSep "\n" (map (
         check:
           if check.passed
-          then ''echo "${check.name}: only the approved SSH public key is authorized: OK"''
-          else ''echo "FAIL: ${check.name} must authorize only the approved SSH public key on its existing access account"; exit 1''
+          then ''echo "${check.name}: approved SSH public keys are authorized only on their intended accounts: OK"''
+          else ''echo "FAIL: ${check.name} must authorize approved SSH public keys only on their intended accounts"; exit 1''
       )
       checks)}
     ${
-      if publicKeyFiles == ["monkey-ssh.pub"] && installerUsesCanonicalKey
-      then ''echo "Installer and key directory use only the canonical SSH public key: OK"''
+      if publicKeyFiles == ["monkey-ssh.pub" "nix-remote-builder-megamanx.pub"] && installerUsesCanonicalKey && nixBuilderPublicKey != ""
+      then ''echo "Installer and key directory contain the approved and remote-builder public keys: OK"''
       else ''echo "FAIL: installer and key directory must use only the canonical SSH public key"; exit 1''
     }
     touch $out

@@ -129,10 +129,14 @@
         if
           megamanx.services.openssh.enable
           && megamanx.myConfig.onepassword.defaultVault == "Opnix"
-          && megamanx.myConfig.onepassword.sudoPasswordRef == ""
+          && megamanx.myConfig.onepassword.sudoPasswordRef == "op://Private/MegamanX Sudo Password/password"
           && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
           && pkgs.lib.hasInfix "PasswordAuthentication yes" sshConfig
-          && !pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig
+          && pkgs.lib.hasInfix "Match User nixbuilder" sshConfig
+          && pkgs.lib.hasInfix "AuthenticationMethods publickey" sshConfig
+          && pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig
+          && pkgs.lib.hasInfix "KbdInteractiveAuthentication no" sshConfig
+          && pkgs.lib.hasInfix "Match all" sshConfig
           && builtins.hasAttr "caddy" megamanx.myConfig
           && megamanx.myConfig.caddy.enable
           && builtins.hasAttr "resolver/internal" megamanx.environment.etc
@@ -168,12 +172,12 @@
         if
           wweaver.myConfig.roles.pi.enable
           && wweaver.myConfig.pi.npmPackages."pi-jev" == "^0.7.0"
-          && wweaver.myConfig.onepassword.defaultVault == "Employee"
-          && wweaver.myConfig.onepassword.sudoPasswordRef == ""
+          && wweaver.myConfig.onepassword.defaultVault == "Opnix"
+          && wweaver.myConfig.onepassword.sudoPasswordRef == "op://Employee/wweaver Sudo Password/password"
           && wweaver.myConfig.pi.jevOnePasswordItem == "Opencode/Service Accounts/wweaver"
           && wweaver.home-manager.users.wweaver.home.sessionVariables.PI_JEV_BASE_URL == "https://opencode.ai/inference/systemone"
           && wweaver.home-manager.users.wweaver.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
-          && wweaver.home-manager.users.wweaver.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Employee/Opencode/Service Accounts/wweaver"
+          && wweaver.home-manager.users.wweaver.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/Opencode/Service Accounts/wweaver"
         then ""
         else ''echo "FAIL: wweaver should receive pi-jev with its Console Jev key"; exit 1''
     }

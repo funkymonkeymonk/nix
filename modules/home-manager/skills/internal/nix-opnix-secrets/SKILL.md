@@ -23,7 +23,7 @@ Wire 1Password items into Nix-managed configs via opnix. The flow: define a 1Pas
 
 ### Define the Secret
 
-In your target config, add an `apiKeyOpnixItem` or `onePasswordItem` option pointing to a 1Password reference:
+In your machine module, add an `apiKeyOpnixItem` or `onePasswordItem` option pointing to a 1Password reference:
 
 ```nix
 providers.opencode-go = {

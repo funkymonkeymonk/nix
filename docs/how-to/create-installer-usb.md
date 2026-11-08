@@ -106,7 +106,7 @@ machine's local NixOS module and explicitly disable facter locally, for example:
 }
 ```
 
-SecretSpec's Homelab and Personal provider profiles are configured but
+SecretSpec's Opnix and Personal provider profiles are configured but
 intentionally contain no secret values. Secret-dependent operations should
 run only after the owner adds a real, confirmed item/field reference from the
 machine's default vault. Fresh-host install fails closed until

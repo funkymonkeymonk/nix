@@ -10,11 +10,11 @@ Caddy (when enabled with `myConfig.caddy.enable = true`) provides a personal rev
 
 ## Static Routes via Configuration
 
-Static routes are configured in your host configuration and persist across system rebuilds.
+Static routes are configured in your machine module and persist across system rebuilds.
 
 ### Step 1: Add to `myConfig.caddy.hosts`
 
-In your host file (e.g., `hosts/wweaver/default.nix`):
+In your machine module (e.g., `machines/wweaver/default.nix`):
 
 ```nix
 myConfig = {
