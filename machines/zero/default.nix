@@ -23,7 +23,8 @@
         protocol = "ssh-ng";
         sshUser = "monkey";
         sshKey = "/run/secrets/nix-remote-builder-megamanx";
-        publicHostKey = "AAAAC3NzaC1lZDI1NTE5AAAAIOGwijFLoxsvQTap2RqekZggKy+2RsUFCVtkOo0IkT7t";
+        # Nix expects base64 of the full OpenSSH public-key line, not only its key blob.
+        publicHostKey = "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK";
         maxJobs = 4;
         speedFactor = 1;
         supportedFeatures = ["big-parallel"];

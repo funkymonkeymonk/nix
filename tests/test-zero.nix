@@ -431,7 +431,7 @@ in {
         && builder.protocol == "ssh-ng"
         && builder.sshUser == "monkey"
         && builder.sshKey == "/run/secrets/nix-remote-builder-megamanx"
-        && builder.publicHostKey == "AAAAC3NzaC1lZDI1NTE5AAAAIOGwijFLoxsvQTap2RqekZggKy+2RsUFCVtkOo0IkT7t"
+        && builder.publicHostKey == "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK"
         && builderSecret.reference == "Nix Remote Builder Zero to MegamanX/private key"
         && builderSecret.path == "/run/secrets/nix-remote-builder-megamanx"
         && builderSecret.owner == "root"
