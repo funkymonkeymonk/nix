@@ -65,6 +65,12 @@ select_for_path() {
     tests/test-phase4-darwin-server.nix)
       add phase4-darwin-server
       ;;
+    tests/test-ssh-authorized-keys.nix|keys/*.pub)
+      add ssh-authorized-keys
+      ;;
+    machines/megamanx/*)
+      add phase4-darwin-server ssh-authorized-keys
+      ;;
     tests/test-phase5-core-bootstrap.nix)
       add core-bootstrap
       ;;

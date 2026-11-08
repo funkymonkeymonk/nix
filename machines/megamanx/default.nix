@@ -9,8 +9,16 @@
   system.stateVersion = 4;
   system.primaryUser = "monkey";
 
+  # The remote Nix daemon must trust Zero's SSH user for ssh-ng builds.
+  nix.settings.trusted-users = ["root" "monkey"];
+
   imports = [
     ../../library/archetypes/headless-omlx-darwin.nix
+  ];
+
+  # Allow Zero's Nix daemon to build aarch64-darwin closures on this host.
+  users.users.monkey.openssh.authorizedKeys.keys = [
+    (builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile ../../keys/nix-remote-builder-megamanx.pub))
   ];
 
   myConfig =

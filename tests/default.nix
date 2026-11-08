@@ -282,6 +282,7 @@ in
     zero-sunshine-caddy-proxy = testZero.zeroSunshineCaddyProxyTest;
     zero-sunshine-lan-pairing = testZero.zeroSunshineLanPairingTest;
     zero-sunshine-user-restart = testZero.zeroSunshineUserRestartTest;
+    zero-nix-remote-builder = testZero.zeroNixRemoteBuilderTest;
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
     drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
     drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;

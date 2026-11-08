@@ -406,4 +406,47 @@ in {
       echo "Zero media automation test passed"
       touch $out
     '';
+
+  zeroNixRemoteBuilderTest =
+    if self == null
+    then
+      pkgs.runCommand "test-zero-nix-remote-builder-skipped" {} ''
+        echo "Skipped: self not provided"
+        touch $out
+      ''
+    else let
+      zero = self.nixosConfigurations.zero.config;
+      builder = lib.findFirst (machine: machine.hostName == "megamanx") null zero.nix.buildMachines;
+      builderSecret = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey or {};
+      remoteBuilderUserTrusted = builtins.elem "monkey" self.darwinConfigurations.MegamanX.config.nix.settings.trusted-users;
+      builderKey =
+        if builtins.pathExists ../keys/nix-remote-builder-megamanx.pub
+        then builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile ../keys/nix-remote-builder-megamanx.pub)
+        else "";
+      configuredCorrectly =
+        zero.nix.distributedBuilds
+        && zero.nix.settings.builders-use-substitutes
+        && builder != null
+        && builder.system == "aarch64-darwin"
+        && builder.protocol == "ssh-ng"
+        && builder.sshUser == "monkey"
+        && builder.sshKey == "/run/secrets/nix-remote-builder-megamanx"
+        && builder.publicHostKey == "AAAAC3NzaC1lZDI1NTE5AAAAIOGwijFLoxsvQTap2RqekZggKy+2RsUFCVtkOo0IkT7t"
+        && builderSecret.reference == "Nix Remote Builder Zero to MegamanX/private key"
+        && builderSecret.path == "/run/secrets/nix-remote-builder-megamanx"
+        && builderSecret.owner == "root"
+        && builderSecret.group == "root"
+        && builderSecret.mode == "0400"
+        && zero.myConfig.onepassword.defaultVault == "Opnix"
+        && remoteBuilderUserTrusted;
+    in
+      pkgs.runCommand "test-zero-nix-remote-builder" {} ''
+        echo "=== Testing Zero's MegamanX remote builder configuration ==="
+        ${
+          if configuredCorrectly && builderKey != ""
+          then ''echo "Zero's remote builder, Opnix key file, and host pin are configured: OK"''
+          else ''echo "FAIL: Zero's remote builder must use the Opnix builder key and pinned MegamanX host"; exit 1''
+        }
+        touch $out
+      '';
 }

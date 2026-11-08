@@ -14,6 +14,24 @@
 
   system.stateVersion = "25.05";
 
+  nix = {
+    distributedBuilds = true;
+    buildMachines = [
+      {
+        hostName = "megamanx";
+        system = "aarch64-darwin";
+        protocol = "ssh-ng";
+        sshUser = "monkey";
+        sshKey = "/run/secrets/nix-remote-builder-megamanx";
+        publicHostKey = "AAAAC3NzaC1lZDI1NTE5AAAAIOGwijFLoxsvQTap2RqekZggKy+2RsUFCVtkOo0IkT7t";
+        maxJobs = 4;
+        speedFactor = 1;
+        supportedFeatures = ["big-parallel"];
+      }
+    ];
+    settings.builders-use-substitutes = true;
+  };
+
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
@@ -62,6 +80,13 @@
           owner = "root";
           group = "root";
           services = ["caddy-cloudflare-env" "caddy"];
+        };
+        secrets.nixRemoteBuilderKey = {
+          reference = "Nix Remote Builder Zero to MegamanX/private key";
+          path = "/run/secrets/nix-remote-builder-megamanx";
+          mode = "0400";
+          owner = "root";
+          group = "root";
         };
       };
 

@@ -91,6 +91,18 @@ assert_selection \
   '["central-observability","drlight-media-","media-center-archetype","type-server-archetypes"]' \
   "machines/drlight/default.nix"
 assert_selection \
+  "MegamanX machine changes select its builder access checks" \
+  '["phase4-darwin-server","ssh-authorized-keys"]' \
+  "machines/megamanx/default.nix"
+assert_selection \
+  "Remote builder public key changes select SSH coverage" \
+  '["ssh-authorized-keys"]' \
+  "keys/nix-remote-builder-megamanx.pub"
+assert_selection \
+  "SSH authorized-key test source selects its focused check" \
+  '["ssh-authorized-keys"]' \
+  "tests/test-ssh-authorized-keys.nix"
+assert_selection \
   "Workflow changes select all checks" \
   '["*"]' \
   ".github/workflows/pr-validation.yml"
