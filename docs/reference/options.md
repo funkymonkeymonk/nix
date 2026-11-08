@@ -478,19 +478,6 @@ or changing a `myConfig.*` option.
 | `enable` | boolean | `false` | Tailscale VPN with auto-connect via 1Password secrets |
 | `exitNode` | boolean | `false` | Advertise this machine as a Tailscale exit node |
 
-### myConfig.temporal
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Whether to enable local Temporal server. |
-| `ip` | string | `"127.0.0.1"` | Temporal frontend bind address. |
-| `namespaces` | list of string | `[ "inference" ]` | Namespaces to create when the server starts. |
-| `package` | package | `<derivation temporal-cli-1.8.3>` | Temporal CLI package providing the development server. |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7233` | Temporal frontend gRPC port. |
-| `stateDir` | absolute path | `"/Users/monkey/.local/share/temporal"` | Directory containing Temporal's persistent SQLite state. |
-| `uiIp` | string | `"127.0.0.1"` | Temporal Web UI bind address. |
-| `uiPort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8233` | Temporal Web UI port. |
-
 ### myConfig.users
 
 | Option | Type | Default | Description |

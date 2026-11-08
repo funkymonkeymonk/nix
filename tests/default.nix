@@ -47,7 +47,7 @@
   testZero = import ./test-zero.nix {inherit pkgs self;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
-  testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self;};
+  testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self inputs;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
   testLibrary =
     if self != null

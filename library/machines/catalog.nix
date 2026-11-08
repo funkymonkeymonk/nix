@@ -1,9 +1,10 @@
 {inputs}: let
   mkCatalogMachine = import ./mk-catalog-machine.nix;
+  mkUser = import ../lib/mk-user.nix;
   nixosMachine = mkCatalogMachine {kind = "nixos";};
   darwinMachine = mkCatalogMachine {
     kind = "darwin";
-    extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
+    extraSpecialArgs = {inherit mkUser;};
   };
 in {
   bootstrap = {
@@ -166,14 +167,21 @@ in {
     hostname = "darwin-server";
     nodeExporter.enable = true;
     modules = [
-      ../archetypes/headless-server-darwin.nix
+      ../archetypes/vm-management-darwin.nix
       {
         nixpkgs.config.permittedInsecurePackages = [
           "olm-3.2.16"
         ];
+        system.stateVersion = 4;
+        system.primaryUser = "monkey";
       }
-      ../../machines/darwin-server
     ];
+    overrides =
+      mkUser "monkey" "me@willweaver.dev"
+      // {
+        skills.superpowersPath = inputs.superpowers;
+        opencode.enable = true;
+      };
   };
 
   MegamanX = darwinMachine {
@@ -182,12 +190,143 @@ in {
     hostname = "MegamanX";
     nodeExporter.enable = true;
     modules = [
-      ../../modules/services/bifrost/darwin.nix
-      ../../modules/services/searxng/darwin.nix
-      ../../modules/services/caddy/darwin.nix
-      ../../modules/services/omlx/darwin.nix
-      ../../modules/services/temporal/darwin.nix
-      ../../machines/megamanx
+      ../archetypes/headless-inference-darwin.nix
+      ({
+        lib,
+        pkgs,
+        ...
+      }: let
+        nixBuilderPublicKey =
+          builtins.replaceStrings ["\n" "\r"] ["" ""]
+          (builtins.readFile ../../keys/nix-remote-builder-megamanx.pub);
+        nixBuilderAuthorizedKey = "restrict,command=\"/nix/var/nix/profiles/default/bin/nix-daemon --stdio\" ${nixBuilderPublicKey}";
+      in {
+        system.stateVersion = 4;
+        system.primaryUser = "monkey";
+
+        nix.settings.trusted-users = ["root" "monkey" "nixbuilder"];
+
+        # This hidden account exposes only the Nix daemon protocol to Zero's builder key.
+        users.knownUsers = ["nixbuilder"];
+        users.users.nixbuilder = {
+          uid = 502;
+          gid = 20;
+          description = "Nix remote builder for Zero";
+          home = "/var/empty";
+          shell = pkgs.bashInteractive;
+          ignoreShellProgramCheck = true;
+          isHidden = true;
+          createHome = false;
+          openssh.authorizedKeys.keys = [nixBuilderAuthorizedKey];
+        };
+
+        services.tailscale.enable = true;
+        launchd.daemons.tailscaled.serviceConfig.KeepAlive = true;
+
+        services.openssh.extraConfig = lib.mkForce ''
+          PermitRootLogin no
+          PubkeyAuthentication yes
+          PasswordAuthentication yes
+          AllowAgentForwarding yes
+
+          Match User nixbuilder
+            AuthenticationMethods publickey
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            AllowAgentForwarding no
+            AllowTcpForwarding no
+            PermitTTY no
+            X11Forwarding no
+            ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio
+
+          Match all
+        '';
+
+        environment.systemPackages = with pkgs;
+          [
+            clang
+            python3
+            nodejs
+            yarn
+            gh-dash
+            slidev-cli
+            mergiraf
+          ]
+          ++ lib.optional (pkgs ? yaks) pkgs.yaks;
+
+        environment.shellAliases = {
+          yl = "yx ls";
+          yla = "yx ls --all";
+          ya = "yx add";
+          yd = "yx done";
+          ys = "yx sync";
+        };
+      })
     ];
+    overrides =
+      mkUser "monkey" "me@willweaver.dev"
+      // {
+        onepassword = {
+          defaultVault = "Opnix";
+          sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
+        };
+        ssh.enable = true;
+        tailscale.enable = true;
+        nodeExporter.listenOnTailscale = true;
+        collector.destinationHostname = "drlight";
+        vector = {
+          enable = true;
+          hostLabel = "MegamanX";
+          logGlobs = [
+            "/tmp/*.log"
+            "/Users/monkey/Library/Logs/omlx/*.log"
+            "/Users/monkey/.omlx/logs/*.log"
+          ];
+        };
+
+        omlx = {
+          enable = true;
+          server = {
+            host = "127.0.0.1";
+            port = 8300;
+          };
+          logLevel = "info";
+          memoryGuardGb = 96;
+          maxConcurrentRequests = 4;
+          hotCacheMaxSize = "20GB";
+        };
+
+        pi = {
+          opencodeGoOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
+          jevOnePasswordItem = "OpenCode Service Account - MegamanX/credential";
+          settings = {
+            defaultProvider = "opencode-go";
+          };
+        };
+        llmClient = {
+          serverHost = "127.0.0.1";
+          serverPort = "8081";
+        };
+
+        bifrost = {
+          enable = true;
+          host = "127.0.0.1";
+          exposeViaTailscaleServe = true;
+          logLevel = "debug";
+          upstreams = {
+            omlx = {
+              url = "http://localhost:8300";
+              type = "anthropic";
+              requestTimeout = 1800;
+              streamIdleTimeoutInSeconds = 1800;
+              maxRetries = 3;
+              models = ["qwen3.8-27b"];
+            };
+          };
+        };
+
+        searxng.enable = true;
+        caddy.enable = true;
+      };
   };
 }

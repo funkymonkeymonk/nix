@@ -1,9 +1,19 @@
 {
   pkgs,
   self,
+  inputs,
   ...
 }: let
+  catalog = import ../library/machines/catalog.nix {inherit inputs;};
+  inferenceArchetypeSource = builtins.readFile ../library/archetypes/headless-inference-darwin.nix;
+  vmManagementArchetypeSource = builtins.readFile ../library/archetypes/vm-management-darwin.nix;
   hasConfig = name: builtins.hasAttr name self.darwinConfigurations;
+  hasCatalogModule = suffix: machine:
+    pkgs.lib.any
+    (module:
+      (builtins.isPath module || builtins.isString module)
+      && pkgs.lib.hasSuffix suffix (builtins.toString module))
+    machine.modules;
 
   phase4DarwinServerTest = pkgs.runCommand "test-phase4-darwin-server" {} ''
     echo "=== Testing Darwin Server Config ==="
@@ -16,6 +26,27 @@
       else ''echo "FAIL: darwin-server not found"; exit 1''
     }
     echo "  darwin-server: defined ✓"
+
+    ${
+      if
+        hasCatalogModule "/archetypes/vm-management-darwin.nix" catalog.darwin-server
+        && !hasCatalogModule "/hosts/darwin-server" catalog.darwin-server
+        && !hasCatalogModule "/machines/darwin-server" catalog.darwin-server
+        && hasCatalogModule "/archetypes/headless-inference-darwin.nix" catalog.MegamanX
+        && !hasCatalogModule "/hosts/megamanx" catalog.MegamanX
+        && !hasCatalogModule "/machines/megamanx" catalog.MegamanX
+        && pkgs.lib.hasInfix "./base-darwin.nix" inferenceArchetypeSource
+        && pkgs.lib.hasInfix "./base-darwin.nix" vmManagementArchetypeSource
+        && pkgs.lib.hasInfix "./server-observability-darwin.nix" inferenceArchetypeSource
+        && pkgs.lib.hasInfix "./server-observability-darwin.nix" vmManagementArchetypeSource
+        && !builtins.pathExists ../hosts/darwin-server
+        && !builtins.pathExists ../hosts/megamanx
+        && !builtins.pathExists ../machines/darwin-server
+        && !builtins.pathExists ../machines/megamanx
+      then ""
+      else ''echo "FAIL: Darwin servers must be composed from catalog archetypes without host directories"; exit 1''
+    }
+    echo "  Darwin servers use catalog archetypes without host directories ✓"
 
     ${
       if hasConfig "wweaver" && hasConfig "MegamanX"
@@ -112,14 +143,17 @@
           && !(megamanx.launchd.daemons ? prometheus)
           && megamanx.myConfig.nodeExporter.enable
           && megamanx.myConfig.searxng.enable
-          && megamanx.myConfig.temporal.enable
-          && megamanx.myConfig.temporal.ip == "0.0.0.0"
-          && megamanx.myConfig.temporal.uiIp == "0.0.0.0"
+          && !(megamanx.myConfig.lume.enable or false)
+          && megamanx.system.stateVersion == 4
+          && megamanx.system.primaryUser == "monkey"
+          && !(megamanx.myConfig.temporal.enable or false)
+          && !(megamanx.launchd.daemons ? temporal)
+          && !(builtins.elem pkgs.temporal-cli megamanx.environment.systemPackages)
           && pkgs.lib.hasInfix "ghostty-terminfo" megamanx.environment.variables.TERMINFO_DIRS
         then ""
         else ''echo "FAIL: MegamanX should be a minimal remotely accessible headless server"; exit 1''
     }
-    echo "  MegamanX: minimal headless LLM server with remote Temporal ✓"
+    echo "  MegamanX: headless inference server without Temporal ✓"
 
     ${
       let
@@ -128,6 +162,9 @@
       in
         if
           megamanx.services.openssh.enable
+          && builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users
+          && megamanx.users.users.nixbuilder.isHidden
+          && megamanx.users.users.nixbuilder.openssh.authorizedKeys.keys != []
           && megamanx.myConfig.onepassword.defaultVault == "Opnix"
           && megamanx.myConfig.onepassword.sudoPasswordRef == "op://Private/MegamanX Sudo Password/password"
           && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
@@ -157,6 +194,22 @@
           builtins.hasAttr "ssh" darwinServer.myConfig
           && !darwinServer.myConfig.ssh.enable
           && !darwinServer.services.openssh.enable
+          && darwinServer.myConfig.lume.enable
+          && darwinServer.myConfig.lume.enableBackgroundService
+          && darwinServer.myConfig.lume.enableAutoUpdater
+          && builtins.elem "macos-tahoe-vanilla:latest" darwinServer.myConfig.lume.prePullImages
+          && darwinServer.launchd.daemons ? lume
+          && darwinServer.myConfig.roles.developer.enable
+          && darwinServer.myConfig.roles.opencode.enable
+          && darwinServer.system.stateVersion == 4
+          && darwinServer.system.primaryUser == "monkey"
+          && !(darwinServer.myConfig.omlx.enable or false)
+          && !(darwinServer.myConfig.bifrost.enable or false)
+          && !(darwinServer.myConfig.searxng.enable or false)
+          && !(darwinServer.myConfig.caddy.enable or false)
+          && pkgs.lib.hasInfix "monkey ALL=(ALL) NOPASSWD: ALL" darwinServer.security.sudo.extraConfig
+          && darwinServer.time.timeZone == "America/New_York"
+          && builtins.hasAttr "newsyslog.d/lume-services.conf" darwinServer.environment.etc
           && builtins.hasAttr "ssh" wweaver.myConfig
           && !wweaver.myConfig.ssh.enable
           && !wweaver.services.openssh.enable
