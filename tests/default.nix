@@ -385,6 +385,8 @@ in
     nixos-grafana-service = testGrafana.nixosGrafanaServiceTest;
     nixos-grafana-datasources = testGrafana.nixosGrafanaDatasourcesTest;
     nixos-grafana-dashboard = testGrafana.nixosGrafanaDashboardTest;
+    nixos-grafana-ultra-sync-dashboard = testGrafana.nixosGrafanaSyncDashboardTest;
+    nixos-grafana-ultra-sync-alerting = testGrafana.nixosGrafanaAlertingTest;
     nixos-grafana-secrets = testGrafana.nixosGrafanaSecretsTest;
     nixos-grafana-archetype = testGrafana.nixosGrafanaArchetypeTest;
 

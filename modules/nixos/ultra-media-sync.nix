@@ -140,12 +140,11 @@ in {
           --recursive \
           --times \
           --omit-dir-times \
-          --perms \
+          --no-perms \
           --chmod=Du=rwx,Dg=rwx,Do=rx,Fu=rw,Fg=rw,Fo=r,ugo-s,o-t \
           --protect-args \
           --bwlimit=20000 \
           --partial-dir=.rsync-partial \
-          --delay-updates \
           --itemize-changes \
           --out-format='%i %n%L' \
           --rsh="$ssh_command" \

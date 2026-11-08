@@ -30,6 +30,23 @@
     lib.findFirst (datasource: datasource.name == name) null nixosGrafanaDatasources;
   nixosGrafanaDashboardPath =
     (builtins.head nixosGrafanaEnabled.services.grafana.provision.dashboards.settings.providers).options.path;
+  nixosGrafanaAlertSettings = nixosGrafanaEnabled.services.grafana.provision.alerting.rules.settings;
+  nixosGrafanaAlertRules =
+    if nixosGrafanaAlertSettings == null
+    then {}
+    else nixosGrafanaAlertSettings;
+  nixosGrafanaAlertRuleGroups = nixosGrafanaAlertRules.groups or [];
+  nixosGrafanaAlertRule =
+    lib.findFirst
+    (rule: (rule.uid or "") == "ultra-media-sync-failure")
+    {}
+    (lib.concatMap (group: group.rules or []) nixosGrafanaAlertRuleGroups);
+  nixosGrafanaAlertQuery =
+    lib.findFirst
+    (query: (query.refId or "") == "A")
+    {}
+    (nixosGrafanaAlertRule.data or []);
+  ultraSyncFailureExpr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-sync.service" | JOB_RESULT="failed" [5m]))'';
 
   nixosGrafanaSettings = nixosGrafanaEnabled.services.grafana.settings;
   nixosGrafanaAdminUser = nixosGrafanaSettings.security.admin_user or "";
@@ -180,6 +197,15 @@ in {
       else ''echo "FAIL: Loki datasource must target http://127.0.0.1:3101"; exit 1''
     }
 
+    ${
+      if
+        findNixosGrafanaDatasource "Loki"
+        != null
+        && ((findNixosGrafanaDatasource "Loki").uid or null) == "P8E80F9AEF21F6940"
+      then ''echo "Loki datasource retains its existing persistent UID for alert rule references: OK"''
+      else ''echo "FAIL: Loki datasource must retain UID P8E80F9AEF21F6940 for Grafana DB compatibility"; exit 1''
+    }
+
     echo "Native NixOS Grafana datasource tests passed"
     touch $out
   '';
@@ -191,7 +217,7 @@ in {
       echo "=== Testing system-overview dashboard and central labels ==="
 
       DASHBOARD_DIR=${nixosGrafanaDashboardPath}
-      DASHBOARD=$(find "$DASHBOARD_DIR" -type f -name '*.json' -print -quit)
+      DASHBOARD=$(find "$DASHBOARD_DIR" -type f -name 'system-overview.json' -print -quit)
       if [ -z "$DASHBOARD" ]; then
         echo "FAIL: Grafana must provision a system-overview dashboard JSON"; exit 1
       fi
@@ -225,6 +251,87 @@ in {
       echo "System-overview dashboard tests passed"
       touch $out
     '';
+
+  nixosGrafanaSyncDashboardTest =
+    pkgs.runCommand "test-nixos-grafana-ultra-sync-dashboard" {
+      nativeBuildInputs = [pkgs.jq];
+    } ''
+      echo "=== Testing the Ultra media sync Grafana dashboard ==="
+
+      DASHBOARD=${nixosGrafanaDashboardPath}/ultra-media-sync.json
+      if [ ! -f "$DASHBOARD" ]; then
+        echo "FAIL: Grafana must provision an Ultra media sync dashboard JSON"; exit 1
+      fi
+
+      if jq -e '.uid == "drlight-ultra-media-sync" and (.title | contains("Ultra Media Sync"))' "$DASHBOARD" > /dev/null; then
+        echo "Ultra media sync dashboard has its stable title and UID: OK"
+      else
+        echo "FAIL: dashboard must use title Ultra Media Sync and UID drlight-ultra-media-sync"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-sync-start"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard includes the rsync job logs: OK"
+      else
+        echo "FAIL: dashboard must show the rsync job logs"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .datasource.uid] | length >= 3 and all(. == "P8E80F9AEF21F6940")' "$DASHBOARD" > /dev/null; then
+        echo "dashboard panels reference the persistent Loki datasource UID: OK"
+      else
+        echo "FAIL: dashboard Loki panels must reference the persistent datasource UID"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-sync.service") and contains("JOB_RESULT"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard includes systemd run status events: OK"
+      else
+        echo "FAIL: dashboard must show systemd run status events"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "prometheus") | .expr] | any(contains("mountpoint=\"/srv/media\"") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard includes the drlight media-pool capacity metrics: OK"
+      else
+        echo "FAIL: dashboard must show /srv/media capacity from drlight node metrics"; exit 1
+      fi
+
+      echo "Ultra media sync dashboard tests passed"
+      touch $out
+    '';
+
+  nixosGrafanaAlertingTest = pkgs.runCommand "test-nixos-grafana-ultra-sync-alerting" {} ''
+    echo "=== Testing provisioned Grafana alert for Ultra media sync failures ==="
+
+    ${
+      if
+        (nixosGrafanaAlertRule.uid or null)
+        == "ultra-media-sync-failure"
+        && (nixosGrafanaAlertRule.title or null) == "Ultra media sync failed"
+        && (nixosGrafanaAlertRule.condition or null) == "A"
+      then ''echo "Grafana provisions the stable Ultra sync failure rule: OK"''
+      else ''echo "FAIL: Grafana must provision the Ultra media sync failure alert rule"; exit 1''
+    }
+
+    ${
+      if
+        (nixosGrafanaAlertQuery.datasourceUid or null)
+        == "P8E80F9AEF21F6940"
+        && (nixosGrafanaAlertQuery.model.datasource.uid or null) == "P8E80F9AEF21F6940"
+        && (nixosGrafanaAlertQuery.model.expr or "") == ultraSyncFailureExpr
+        && (nixosGrafanaAlertQuery.model.queryType or null) == "instant"
+      then ''echo "alert evaluates the exact five-minute Loki systemd failure query: OK"''
+      else ''echo "FAIL: alert must query Loki for failed ultra-media-sync.service runs"; exit 1''
+    }
+
+    ${
+      if
+        builtins.any (group: (group.interval or null) == "1m" && builtins.elem nixosGrafanaAlertRule (group.rules or [])) nixosGrafanaAlertRuleGroups
+        && (nixosGrafanaAlertRule.for or null) == "0s"
+      then ''echo "alert is evaluated every minute with no additional pending delay: OK"''
+      else ''echo "FAIL: alert must evaluate every minute and fire without a pending delay"; exit 1''
+    }
+
+    echo "Ultra media sync alerting tests passed"
+    touch $out
+  '';
 
   nixosGrafanaSecretsTest = pkgs.runCommand "test-nixos-grafana-secrets" {} ''
     echo "=== Testing runtime Grafana credentials and secret key ==="
