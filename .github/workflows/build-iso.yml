@@ -40,6 +40,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             # Allow building for x86_64-linux
             extra-platforms = x86_64-linux
 

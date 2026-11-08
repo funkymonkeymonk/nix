@@ -36,6 +36,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
       - name: Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
