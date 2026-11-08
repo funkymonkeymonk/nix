@@ -60,6 +60,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
 
       - name: Restore derivation cache
         uses: actions/cache@v4

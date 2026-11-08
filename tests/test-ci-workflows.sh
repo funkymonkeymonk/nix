@@ -19,6 +19,16 @@ assert() {
 
 echo "=== CI Workflow Tests ==="
 
+# Test: every Nix installer invocation raises retries for transient cache downloads.
+for workflow in "$REPO_ROOT"/.github/workflows/*.yml; do
+  if grep -q 'uses: DeterminateSystems/nix-installer-action' "$workflow"; then
+    installer_count=$(grep -c 'uses: DeterminateSystems/nix-installer-action' "$workflow")
+    retry_count=$(grep -cF 'download-attempts = 10' "$workflow" || true)
+    assert "$(basename "$workflow") configures ten Nix download attempts for every installer" \
+      "[[ $installer_count -eq $retry_count ]]"
+  fi
+done
+
 # Test: all CI workflows have permissions blocks
 for wf in build-iso.yml cache-maintenance.yml extended-validation.yml main-build.yml overlay-upstream-sources.yml pr-validation.yml; do
   assert "$wf has permissions block" \

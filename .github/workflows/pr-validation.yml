@@ -31,6 +31,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
@@ -134,6 +135,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
@@ -210,6 +212,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
@@ -248,6 +251,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
@@ -289,6 +293,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
@@ -407,6 +412,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
         uses: cachix/cachix-action@v15
@@ -466,6 +472,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Hestia Nix Cache
         uses: Mic92/hestia/action@v3.1.0
@@ -521,6 +528,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Hestia Nix Cache
         uses: Mic92/hestia/action@v3.1.0

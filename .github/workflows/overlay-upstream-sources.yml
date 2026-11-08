@@ -33,6 +33,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Check pinned overlay source URLs
         run: bash scripts/check-overlay-upstream-urls.sh

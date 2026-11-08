@@ -75,6 +75,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             extra-platforms = x86_64-linux
       - name: Setup Cachix
         uses: cachix/cachix-action@v15

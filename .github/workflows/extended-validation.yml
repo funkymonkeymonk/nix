@@ -30,6 +30,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Install devenv CLI from the locked project flake
         run: |
@@ -57,6 +58,7 @@ jobs:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
+            download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Install devenv CLI from the locked project flake
         run: |
