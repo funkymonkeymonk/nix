@@ -132,7 +132,11 @@
           && megamanx.myConfig.onepassword.sudoPasswordRef == "op://Private/MegamanX Sudo Password/password"
           && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
           && pkgs.lib.hasInfix "PasswordAuthentication yes" sshConfig
-          && !pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig
+          && pkgs.lib.hasInfix "Match User nixbuilder" sshConfig
+          && pkgs.lib.hasInfix "AuthenticationMethods publickey" sshConfig
+          && pkgs.lib.hasInfix "PasswordAuthentication no" sshConfig
+          && pkgs.lib.hasInfix "KbdInteractiveAuthentication no" sshConfig
+          && pkgs.lib.hasInfix "Match all" sshConfig
           && builtins.hasAttr "caddy" megamanx.myConfig
           && megamanx.myConfig.caddy.enable
           && builtins.hasAttr "resolver/internal" megamanx.environment.etc

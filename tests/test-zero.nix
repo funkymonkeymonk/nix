@@ -418,7 +418,33 @@ in {
       zero = self.nixosConfigurations.zero.config;
       builder = lib.findFirst (machine: machine.hostName == "megamanx") null zero.nix.buildMachines;
       builderSecret = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey or {};
-      remoteBuilderUserTrusted = builtins.elem "monkey" self.darwinConfigurations.MegamanX.config.nix.settings.trusted-users;
+      megamanx = self.darwinConfigurations.MegamanX.config;
+      builderUser = megamanx.users.users.nixbuilder or {};
+      remoteBuilderUserTrusted = builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users;
+      builderUserConfigured =
+        builderUser
+        != {}
+        && builtins.isInt builderUser.uid
+        && builderUser.uid > 501
+        && builderUser.gid == 20
+        && builderUser.isHidden
+        && builtins.toString builderUser.home == "/var/empty"
+        && builderUser.shell != null
+        && builtins.toString builderUser.shell != "/usr/bin/false"
+        && !(builtins.elem "admin" (builderUser.groups or []))
+        && builtins.elem "nixbuilder" megamanx.users.knownUsers;
+      builderSshConfig = megamanx.services.openssh.extraConfig;
+      builderSshAuthenticationRestricted =
+        lib.hasInfix "Match User nixbuilder" builderSshConfig
+        && lib.hasInfix "AuthenticationMethods publickey" builderSshConfig
+        && lib.hasInfix "PasswordAuthentication no" builderSshConfig
+        && lib.hasInfix "KbdInteractiveAuthentication no" builderSshConfig
+        && lib.hasInfix "AllowAgentForwarding no" builderSshConfig
+        && lib.hasInfix "AllowTcpForwarding no" builderSshConfig
+        && lib.hasInfix "PermitTTY no" builderSshConfig
+        && lib.hasInfix "X11Forwarding no" builderSshConfig
+        && lib.hasInfix "ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio" builderSshConfig
+        && lib.hasInfix "Match all" builderSshConfig;
       builderKey =
         if builtins.pathExists ../keys/nix-remote-builder-megamanx.pub
         then builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile ../keys/nix-remote-builder-megamanx.pub)
@@ -429,7 +455,7 @@ in {
         && builder != null
         && builder.system == "aarch64-darwin"
         && builder.protocol == "ssh-ng"
-        && builder.sshUser == "monkey"
+        && builder.sshUser == "nixbuilder"
         && builder.sshKey == "/run/secrets/nix-remote-builder-megamanx"
         && builder.publicHostKey == "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK"
         && builderSecret.reference == "Nix Remote Builder Zero to MegamanX/private key"
@@ -438,7 +464,9 @@ in {
         && builderSecret.group == "root"
         && builderSecret.mode == "0400"
         && zero.myConfig.onepassword.defaultVault == "Opnix"
-        && remoteBuilderUserTrusted;
+        && remoteBuilderUserTrusted
+        && builderUserConfigured
+        && builderSshAuthenticationRestricted;
     in
       pkgs.runCommand "test-zero-nix-remote-builder" {} ''
         echo "=== Testing Zero's MegamanX remote builder configuration ==="

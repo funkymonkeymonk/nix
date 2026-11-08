@@ -21,7 +21,7 @@
         hostName = "megamanx";
         system = "aarch64-darwin";
         protocol = "ssh-ng";
-        sshUser = "monkey";
+        sshUser = "nixbuilder";
         sshKey = "/run/secrets/nix-remote-builder-megamanx";
         # Nix expects base64 of the full OpenSSH public-key line, not only its key blob.
         publicHostKey = "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK";
