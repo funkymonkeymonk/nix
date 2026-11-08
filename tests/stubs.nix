@@ -268,6 +268,22 @@
         };
         default = {};
       };
+      alerting = lib.mkOption {
+        type = lib.types.submodule {
+          options.rules = lib.mkOption {
+            type = lib.types.submodule {
+              options.settings = lib.mkOption {
+                type = lib.types.nullOr (lib.types.submodule {
+                  freeformType = lib.types.attrsOf lib.types.anything;
+                });
+                default = null;
+              };
+            };
+            default = {};
+          };
+        };
+        default = {};
+      };
     };
   };
 

@@ -433,6 +433,18 @@
                echo "FAIL: Ultra media sync passes the fixture local destination to rsync"
                failures=1
              fi
+             if grep -Fxq -- '--no-perms' "$TMPDIR/rsync-arguments" && ! grep -Fxq -- '--perms' "$TMPDIR/rsync-arguments"; then
+               echo "  Ultra media sync does not attempt to set destination permissions: OK"
+             else
+               echo "FAIL: Ultra media sync must disable permission preservation"
+               failures=1
+             fi
+             if ! grep -Fxq -- '--delay-updates' "$TMPDIR/rsync-arguments"; then
+               echo "  Ultra media sync publishes each completed file immediately: OK"
+             else
+               echo "FAIL: Ultra media sync delays completed files until the whole mapping finishes"
+               failures=1
+             fi
              if grep -Eq '(^|[[:space:]])-p([[:space:]]|$)|(^|[[:space:]])-p22222([[:space:]]|$)' "$TMPDIR/rsync-arguments" && grep -Fq '22222' "$TMPDIR/rsync-arguments"; then
                echo "  Ultra media sync passes the fixture SSH port to rsync: OK"
              else
@@ -521,7 +533,8 @@
            ${checkTrue "Ultra media sync uses batch SSH" (lib.hasInfix "BatchMode=yes" ultraSyncCommand)}
            ${checkEqual "Ultra media sync uses a group-friendly umask" "0002" (ultraSyncServiceConfig.UMask or null)}
            ${checkFalse "Ultra media sync is not restarted during a NixOS switch" (ultraSyncService.restartIfChanged or true)}
-           ${checkTrue "Ultra media sync delays publishing transferred files" (lib.hasInfix "--delay-updates" ultraSyncCommand)}
+           ${checkTrue "Ultra media sync disables permission preservation for shared destination directories" (lib.hasInfix "--no-perms" ultraSyncCommand && !(lib.hasInfix "--perms" ultraSyncCommand))}
+           ${checkFalse "Ultra media sync does not delay publishing completed files" (lib.hasInfix "--delay-updates" ultraSyncCommand)}
            ${checkTrue "Ultra media sync enforces strict SSH host-key checking" (lib.hasInfix "StrictHostKeyChecking=yes" ultraSyncCommand && lib.hasInfix "UserKnownHostsFile" ultraSyncCommand)}
            ${checkTrue "Ultra media sync uses basename-only remote folder enumeration" (lib.hasInfix "-printf '%f\\\\0'" ultraSyncCommand)}
            ${checkTrue "Ultra media sync checks jq mapping output before reading it" (lib.hasInfix "mapping_file" ultraSyncCommand && lib.hasInfix "jq --raw-output0" ultraSyncCommand)}
@@ -554,21 +567,31 @@
 
            if ${pkgs.fakeroot}/bin/fakeroot ${pkgs.bash}/bin/bash <<'EOF'
           set -e
+          umask 0002
           mkdir -p "$TMPDIR/restrictive-source/library" "$TMPDIR/normalized-destination"
           printf 'fixture media bytes\n' > "$TMPDIR/restrictive-source/library/movie.mkv"
+          chmod 0700 "$TMPDIR/restrictive-source"
           chmod 2700 "$TMPDIR/restrictive-source/library"
           chmod 4700 "$TMPDIR/restrictive-source/library/movie.mkv"
+          chmod 2775 "$TMPDIR/normalized-destination"
           touch -d @1000000000 "$TMPDIR/restrictive-source/library/movie.mkv"
           touch -d @1000000000 "$TMPDIR/restrictive-source/library"
-          ${pkgs.rsync}/bin/rsync --recursive --times --omit-dir-times --perms --chmod=Du=rwx,Dg=rwx,Do=rx,Fu=rw,Fg=rw,Fo=r,ugo-s,o-t "$TMPDIR/restrictive-source/" "$TMPDIR/normalized-destination/"
+          ${pkgs.rsync}/bin/rsync --recursive --times --omit-dir-times --no-perms --chmod=Du=rwx,Dg=rwx,Do=rx,Fu=rw,Fg=rw,Fo=r,ugo-s,o-t "$TMPDIR/restrictive-source/" "$TMPDIR/normalized-destination/"
+          copied_root_mode=$(stat -c '%a' "$TMPDIR/normalized-destination")
           copied_dir_mode=$(stat -c '%a' "$TMPDIR/normalized-destination/library")
           copied_file_mode=$(stat -c '%a' "$TMPDIR/normalized-destination/library/movie.mkv")
           source_dir_mtime=$(stat -c '%Y' "$TMPDIR/restrictive-source/library")
           copied_dir_mtime=$(stat -c '%Y' "$TMPDIR/normalized-destination/library")
           source_file_mtime=$(stat -c '%Y' "$TMPDIR/restrictive-source/library/movie.mkv")
           copied_file_mtime=$(stat -c '%Y' "$TMPDIR/normalized-destination/library/movie.mkv")
+          if [ "$copied_root_mode" = 2775 ]; then
+            echo "  Real rsync leaves the shared destination root permissions unchanged: OK"
+          else
+            echo "FAIL: Real rsync changed the shared destination root mode to $copied_root_mode instead of 2775"
+            exit 1
+          fi
           if [ "$copied_dir_mode" = 775 ] && [ "$copied_file_mode" = 664 ]; then
-            echo "  Real rsync normalizes restrictive/set-ID source modes to 775/664: OK"
+            echo "  Real rsync normalizes new restrictive/set-ID source modes to 775/664: OK"
           else
             echo "FAIL: Real rsync produced directory/file modes $copied_dir_mode/$copied_file_mode instead of 775/664"
             exit 1

@@ -6,6 +6,11 @@
   ...
 }: let
   cfg = config.myConfig.grafana;
+  # Match drlight's existing provisioned Loki datasource instead of changing
+  # its UID, which would break Grafana's persistent datasource references.
+  lokiDatasourceUid = "P8E80F9AEF21F6940";
+
+  ultraSyncFailureQuery = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-sync.service" | JOB_RESULT="failed" [5m]))'';
 
   dashboard = pkgs.writeText "system-overview.json" (builtins.toJSON {
     title = "protoman: System Overview";
@@ -83,9 +88,194 @@
     ];
   });
 
+  ultraSyncDashboard = pkgs.writeText "ultra-media-sync.json" (builtins.toJSON {
+    title = "drlight: Ultra Media Sync";
+    uid = "drlight-ultra-media-sync";
+    schemaVersion = 39;
+    refresh = "1m";
+    time = {
+      from = "now-24h";
+      to = "now";
+    };
+    panels = [
+      {
+        id = 1;
+        title = "Recent rsync logs";
+        type = "logs";
+        gridPos = {
+          h = 10;
+          w = 12;
+          x = 0;
+          y = 0;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="ultra-media-sync-start"}'';
+          }
+        ];
+      }
+      {
+        id = 2;
+        title = "Systemd run status";
+        type = "logs";
+        gridPos = {
+          h = 10;
+          w = 12;
+          x = 12;
+          y = 0;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="systemd"} | json | UNIT="ultra-media-sync.service"'';
+          }
+        ];
+      }
+      {
+        id = 3;
+        title = "Failed runs (24h)";
+        type = "stat";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 0;
+          y = 10;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-sync.service" | JOB_RESULT="failed" [24h]))'';
+            queryType = "instant";
+          }
+        ];
+      }
+      {
+        id = 4;
+        title = "Rsync log activity (5m)";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 6;
+          y = 10;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''sum(count_over_time({host="drlight",service="ultra-media-sync-start"}[5m]))'';
+          }
+        ];
+      }
+      {
+        id = 5;
+        title = "Media library free space";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 12;
+          x = 12;
+          y = 10;
+        };
+        fieldConfig.defaults.unit = "bytes";
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''node_filesystem_avail_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"}'';
+          }
+        ];
+      }
+      {
+        id = 6;
+        title = "Media library used";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 12;
+          x = 0;
+          y = 16;
+        };
+        fieldConfig.defaults.unit = "percent";
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''100 * (1 - node_filesystem_avail_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"} / node_filesystem_size_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"})'';
+          }
+        ];
+      }
+    ];
+  });
+
+  ultraSyncFailureAlerting = {
+    apiVersion = 1;
+    groups = [
+      {
+        orgId = 1;
+        name = "ultra-media-sync";
+        folder = "Media";
+        interval = "1m";
+        rules = [
+          {
+            uid = "ultra-media-sync-failure";
+            title = "Ultra media sync failed";
+            condition = "A";
+            data = [
+              {
+                refId = "A";
+                queryType = "instant";
+                relativeTimeRange = {
+                  from = 300;
+                  to = 0;
+                };
+                datasourceUid = lokiDatasourceUid;
+                model = {
+                  datasource = {
+                    type = "loki";
+                    uid = lokiDatasourceUid;
+                  };
+                  editorMode = "code";
+                  expr = ultraSyncFailureQuery;
+                  queryType = "instant";
+                  refId = "A";
+                  intervalMs = 1000;
+                  maxDataPoints = 43200;
+                };
+              }
+            ];
+            noDataState = "OK";
+            execErrState = "Error";
+            for = "0s";
+            annotations = {
+              summary = "Ultra media sync failed on drlight";
+              description = "systemd reported JOB_RESULT=failed for ultra-media-sync.service. See the Ultra Media Sync dashboard for logs.";
+            };
+            labels = {
+              severity = "critical";
+              host = "drlight";
+            };
+            isPaused = false;
+          }
+        ];
+      }
+    ];
+  };
+
   dashboardsDir = pkgs.runCommand "grafana-dashboards" {} ''
     mkdir -p $out
     cp ${dashboard} $out/system-overview.json
+    cp ${ultraSyncDashboard} $out/ultra-media-sync.json
   '';
 
   grafanaSecretKey = "/var/lib/grafana/secret_key";
@@ -148,6 +338,7 @@ in {
           }
           {
             name = "Loki";
+            uid = lokiDatasourceUid;
             type = "loki";
             access = "proxy";
             url = "http://127.0.0.1:${toString config.myConfig.loki.port}";
@@ -162,6 +353,7 @@ in {
             options.path = dashboardsDir;
           }
         ];
+        alerting.rules.settings = ultraSyncFailureAlerting;
       };
     };
 
