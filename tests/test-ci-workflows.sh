@@ -122,7 +122,7 @@ assert "PR Cachix access is read-only" \
     && grep -q 'skipPush: true' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR build jobs use the rate-limit-resistant Hestia cache" \
-  "grep -q 'Mic92/hestia/action@v3.1.0' \\
+  "grep -q 'Mic92/hestia@v3.1.0' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
     && grep -q 'upstream-cache-filter: true' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
