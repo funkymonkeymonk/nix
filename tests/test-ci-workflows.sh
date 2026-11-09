@@ -122,11 +122,14 @@ assert "PR Cachix access is read-only" \
     && grep -q 'skipPush: true' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR build jobs use the rate-limit-resistant Hestia cache" \
-  "grep -q 'Mic92/hestia/action@v3.1.0' \\
+  "grep -q 'Mic92/hestia@v3.1.0' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
     && grep -q 'upstream-cache-filter: true' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
     && ! grep -q 'magic-nix-cache-action' \\
+    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "Hestia cache outages do not block PR jobs" \
+  "awk '/- name: Hestia Nix Cache/ { active=1; steps++; next } active && /continue-on-error: true/ { tolerated++ } active && /upstream-cache-filter:/ { active=0 } END { exit !(steps == 2 && tolerated == 2) }' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR test shard frees runner disk before Nix setup" \
   "awk '/^  test-and-validate:/,/^  build-report:/' \
