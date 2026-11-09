@@ -475,7 +475,8 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Hestia Nix Cache
-        uses: Mic92/hestia/action@v3.1.0
+        uses: Mic92/hestia@v3.1.0
+        continue-on-error: true
         with:
           upstream-cache-filter: true
       - name: Cachix (read-only)
@@ -531,7 +532,8 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Hestia Nix Cache
-        uses: Mic92/hestia/action@v3.1.0
+        uses: Mic92/hestia@v3.1.0
+        continue-on-error: true
         with:
           upstream-cache-filter: true
       - name: Cachix (read-only)
