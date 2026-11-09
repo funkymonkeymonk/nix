@@ -169,7 +169,7 @@
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
-        hash = "sha256-cOswnT4ZahWX66h9oiw4t3r5GZeOH/yjbnTCAsjVgnw=";
+        hash = "sha256-JtaSXBfz7toZ8gF9Jjq5iveV/b5obQNhA9VvjyvDky0=";
       };
       # Temporary compatibility patch for the latest upstream OSS fallback:
       # VKCreationPolicyResponse is referenced there but is no longer exported

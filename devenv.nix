@@ -810,8 +810,12 @@ in {
     # ============================================
 
     "flake:update" = {
-      description = "Update the nix flake to latest versions";
-      exec = "nix flake update";
+      description = "Update flake inputs and refresh fixed-output dependency hashes";
+      exec = ''
+        set -euo pipefail
+        nix flake update
+        ./scripts/refresh-fixed-output-hashes.sh
+      '';
     };
 
     # ============================================

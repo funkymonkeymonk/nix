@@ -422,7 +422,7 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 
 | Task | Description |
 |------|-------------|
-| `flake:update` | Update flake inputs to latest versions |
+| `flake:update` | Update flake inputs and refresh fixed-output dependency hashes |
 
 ## Dependency Graph
 

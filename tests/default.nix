@@ -21,6 +21,7 @@
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testSwitchTask = import ./test-switch-task.nix {inherit pkgs;};
+  testFlakeUpdate = import ./test-flake-update.nix {inherit pkgs;};
   testLlmClient = import ./test-llm-client.nix {inherit pkgs;};
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
@@ -331,6 +332,9 @@ in
     pi-auth-json-initialization = testPi.piAuthJsonInitializationTest;
     pi-options = testPi.piOptionsTest;
     pi-custom-options = testPi.piCustomOptionsTest;
+
+    # Flake maintenance task tests
+    flake-update-refreshes-fixed-output-hashes = testFlakeUpdate.flakeUpdateRefreshesFixedOutputHashesTest;
 
     # Bifrost AI gateway module tests
     bifrost-options = testBifrost.bifrostOptionsTest;
