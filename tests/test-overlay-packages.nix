@@ -51,6 +51,17 @@
       touch $out
     '';
 
+  # Test that the Himalaya CLI builds and can display help.
+  himalayaPackageTest =
+    pkgs.runCommand "test-himalaya-package"
+    {
+      nativeBuildInputs = [pkgs.himalaya];
+    }
+    ''
+      himalaya --help > /dev/null
+      touch $out
+    '';
+
   # Test that jj-hooks is fetched from its current standalone release and
   # provides the jj-hp / jj-hooks binaries used by the Home Manager config.
   jjHooksPackageTest = let
@@ -147,7 +158,9 @@
         exit 1
       fi
 
-      if pi --help > /dev/null 2>&1; then
+      pi_config_dir="$TMPDIR/pi-agent-config"
+      mkdir -p "$pi_config_dir"
+      if PI_CODING_AGENT_DIR="$pi_config_dir" PI_OFFLINE=1 pi --help > /dev/null 2>&1; then
         echo "  pi --help exits successfully: OK"
       else
         echo "  pi --help failed!"

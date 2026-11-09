@@ -5,6 +5,7 @@
   rustPlatform,
   fetchFromGitHub,
   installShellFiles,
+  libgit2,
   openssl,
   pkg-config,
 }:
@@ -26,7 +27,7 @@ rustPlatform.buildRustPackage rec {
     pkg-config
   ];
 
-  buildInputs = [openssl];
+  buildInputs = [libgit2 openssl];
 
   # Skip tests during build - they may need git environment
   doCheck = false;

@@ -3,8 +3,9 @@
   inputs,
   ...
 }: let
-  foundationPackages = (import ./modules/roles/foundation-packages.nix {inherit pkgs;}).common;
-  developerPackages = import ./modules/roles/developer-packages.nix {inherit pkgs;};
+  devenvPkgs = pkgs.extend (import ./overlays {inherit inputs;});
+  foundationPackages = (import ./modules/roles/foundation-packages.nix {pkgs = devenvPkgs;}).common;
+  developerPackages = import ./modules/roles/developer-packages.nix {pkgs = devenvPkgs;};
 
   # Benchmarking suites are not in upstream nixpkgs; call them directly from
   # the repo packages so they are available in the devenv shell and tasks.
@@ -1020,8 +1021,14 @@ in {
     # ============================================
 
     "flake:update" = {
-      description = "Update the nix flake to latest versions";
-      exec = "nix flake update";
+      description = "Update flake inputs, sync devenv, and refresh fixed-output dependency hashes";
+      exec = ''
+        set -euo pipefail
+        nix flake update
+        ./scripts/sync-devenv-inputs.sh
+        devenv update
+        ./scripts/refresh-fixed-output-hashes.sh
+      '';
     };
 
     # ============================================
