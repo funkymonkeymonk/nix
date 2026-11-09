@@ -1,6 +1,13 @@
 # Custom package overlays
 {inputs ? {}}: final: _prev:
 {
+  # WHY: current nixpkgs Himalaya omits its libgit2 and SQLite build inputs.
+  # REMOVE WHEN: the upstream package declares libgit2 and pkg-config itself.
+  himalaya = _prev.himalaya.overrideAttrs (oldAttrs: {
+    nativeBuildInputs = (oldAttrs.nativeBuildInputs or []) ++ [final.pkg-config];
+    buildInputs = (oldAttrs.buildInputs or []) ++ [final.libgit2 final.sqlite];
+  });
+
   # WHY: pins RTK and installs its rewrite hooks used by developer roles.
   # REMOVE WHEN: nixpkgs provides a version with the same CLI and hook files.
   rtk = final.callPackage ../packages/rtk {};

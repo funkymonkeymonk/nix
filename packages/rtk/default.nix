@@ -4,6 +4,7 @@
   lib,
   rustPlatform,
   fetchFromGitHub,
+  sqlite,
 }:
 rustPlatform.buildRustPackage rec {
   pname = "rtk";
@@ -17,6 +18,8 @@ rustPlatform.buildRustPackage rec {
   };
 
   cargoHash = "sha256-s3AtUftUZtzhlep8R/ZuxwmGELIZpqbQXqLTD+aS4Ro=";
+
+  buildInputs = [sqlite];
 
   # Skip tests if they require network or specific environment
   doCheck = false;

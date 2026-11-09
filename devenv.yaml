@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
 inputs:
   nixpkgs:
-    url: github:NixOS/nixpkgs/6774f7bc253789b113a4f39285dc0fa100abeacc
+    url: github:NixOS/nixpkgs/f4a03c008967841f2a0b3cb7c436fc6fc31671f6
   disko:
-    url: github:nix-community/disko
+    url: github:nix-community/disko/cedd626e11b635470fa6f9fdb8ad79b0075dd7f9
     inputs:
       nixpkgs:
         follows: nixpkgs
@@ -13,21 +13,21 @@ inputs:
       nixpkgs:
         follows: nixpkgs
   home-manager:
-    url: github:nix-community/home-manager
+    url: github:nix-community/home-manager/2c0c1f01521469cf0271180c453c79782d53c2f6
     inputs:
       nixpkgs:
         follows: nixpkgs
   bifrost:
-    url: github:maximhq/bifrost/e01c39a7dd2fc43dba687c5692a84c7c3722a3e7
+    url: github:maximhq/bifrost/6e640279b36337820f2088fb85f6e78f339063c3
     inputs:
       nixpkgs:
         follows: nixpkgs
   devenv:
     url: github:cachix/devenv/v2.4.0
   himalaya-tui:
-    url: github:pimalaya/himalaya-tui/1303e56f17788f2a0b41ac3b384c9580a201338e
+    url: github:pimalaya/himalaya-tui/4c2af0f0caea64beda66ebd230387da1434ff9d7
   nix-darwin:
-    url: github:nix-darwin/nix-darwin/master
+    url: github:nix-darwin/nix-darwin/ff0e21a414d4547183396da1b44a66f2577b65e9
     inputs:
       nixpkgs:
         follows: nixpkgs
@@ -37,7 +37,7 @@ inputs:
       nixpkgs:
         follows: nixpkgs
   nix-homebrew:
-    url: github:zhaofengli/nix-homebrew/09a921d0181146cf6163ec2cc1db7b6fd539a885
+    url: github:zhaofengli/nix-homebrew/52bc87da3f30c2261a6d1cfef3c892097b53daeb
   nixpkgs-stable:
     url: github:nixos/nixpkgs/ac62194c3917d5f474c1a844b6fd6da2db95077d
   pi-plugins:
@@ -46,12 +46,12 @@ inputs:
       nixpkgs:
         follows: nixpkgs
   superpowers:
-    url: github:obra/superpowers/b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+    url: github:obra/superpowers/22f0b463e7a5e579904dd6211a520321035526f7
     flake: false
   zellij-pane-tracker:
     url: github:funkymonkeymonk/zellij-pane-tracker/7c8df56c94ad2a9f80d5a3fbfb0e8bfe5f3e2f89
   opnix:
-    url: github:brizzbuzz/opnix
+    url: github:brizzbuzz/opnix/0ea3a9e6a94fdd0c444aa7729b98e568a0588222
     inputs:
       nixpkgs:
         follows: nixpkgs
