@@ -91,9 +91,9 @@ assert_selection \
   '["central-observability","drlight-media-","media-center-archetype","type-server-archetypes"]' \
   "machines/drlight/default.nix"
 assert_selection \
-  "MegamanX machine changes select its builder access checks" \
-  '["phase4-darwin-server","ssh-authorized-keys"]' \
-  "machines/megamanx/default.nix"
+  "Darwin catalog changes select inference and builder access checks" \
+  '["central-observability","drlight-media-","machines-inventory","machines-ops","machines-secret-profiles","media-center-archetype","observability-inventory","phase4-darwin-server","ssh-authorized-keys","type-observability-archetype","type-server-archetypes","type-server-observability"]' \
+  "library/machines/catalog.nix"
 assert_selection \
   "Remote builder public key changes select SSH coverage" \
   '["ssh-authorized-keys"]' \

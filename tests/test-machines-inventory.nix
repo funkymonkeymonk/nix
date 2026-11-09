@@ -14,11 +14,13 @@
   catalogNixos = lib.filterAttrs (_: machine: machine.kind == "nixos") catalog;
   catalogDarwin = lib.filterAttrs (_: machine: machine.kind == "darwin") catalog;
   catalogNames = builtins.attrNames catalog;
-  machineConfigNames = ["darwin-server" "drlight" "megamanx" "type-desktop" "type-nas" "type-server-arm" "wweaver" "zero"];
+  machineConfigNames = ["drlight" "type-desktop" "type-nas" "type-server-arm" "wweaver" "zero"];
   machineConfigPaths = map (name: ../. + "/machines/${name}/default.nix") machineConfigNames;
   legacyMachineConfigPaths = map (path: ../. + path) [
     "/hosts/darwin-server"
     "/hosts/megamanx"
+    "/machines/darwin-server"
+    "/machines/megamanx"
     "/hosts/wweaver"
     "/targets/drlight"
     "/targets/type-desktop"

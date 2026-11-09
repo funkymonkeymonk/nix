@@ -1,10 +1,4 @@
-# Headless Darwin server archetype
-#
-# Generic headless macOS server profile:
-# - SSH hardened (keys only, no root)
-# - Lume VM runtime for macOS VMs
-# - Developer & opencode tools for remote management
-# - No heavy LLM stack (remote APIs only)
+# Headless Darwin host for managing macOS virtual machines.
 {
   inputs,
   pkgs,
@@ -12,23 +6,19 @@
 }: {
   imports = [
     ./base-darwin.nix
+    ./server-observability-darwin.nix
     ../../modules/services/lume/darwin.nix
-    ../../modules/services/node-exporter/darwin.nix
-    ../../modules/services/vector/darwin.nix
   ];
 
   myConfig = {
     skills.superpowersPath = inputs.superpowers or null;
 
     roles = {
-      developer.enable = true; # Basic dev tools for VM management
-      opencode.enable = true; # AI assistant for management tasks
+      developer.enable = true;
+      opencode.enable = true;
     };
 
-    opencode = {
-      enable = true;
-    };
-
+    opencode.enable = true;
     llmClient.rtk.enable = true;
 
     lume = {
@@ -38,13 +28,9 @@
       enableAutoUpdater = true;
       prePullImages = ["macos-tahoe-vanilla:latest"];
     };
-
-    # Collect logs locally and send them to the central Loki host.
-    collector.destinationHostname = "drlight";
-    vector.enable = true;
   };
 
-  # SSH policy for hosts that opt in through myConfig.ssh.enable.
+  # Apply key-only SSH policy only when a host opts in through myConfig.ssh.enable.
   services.openssh.extraConfig = ''
     PermitRootLogin no
     PubkeyAuthentication yes
@@ -54,13 +40,12 @@
 
   users.users.root.openssh.authorizedKeys.keys = [];
 
-  # Passwordless sudo for remote deployment (deploy-rs)
+  # Passwordless sudo for remote deployment (deploy-rs).
   security.sudo.extraConfig = ''
     Defaults timestamp_timeout=0
     monkey ALL=(ALL) NOPASSWD: ALL
   '';
 
-  # Basic management tools
   environment.systemPackages = with pkgs; [
     curl
     jq

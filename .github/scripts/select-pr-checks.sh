@@ -68,9 +68,6 @@ select_for_path() {
     tests/test-ssh-authorized-keys.nix|keys/*.pub)
       add ssh-authorized-keys
       ;;
-    machines/megamanx/*)
-      add phase4-darwin-server ssh-authorized-keys
-      ;;
     tests/test-phase5-core-bootstrap.nix)
       add core-bootstrap
       ;;
@@ -201,7 +198,7 @@ select_for_path() {
       add workspace-switch
       ;;
     library/machines/catalog.nix|library/machines/modules.nix|library/machines/flake-parts.nix)
-      add machines-inventory machines-secret-profiles observability-inventory machines-ops type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype drlight-media-
+      add machines-inventory machines-secret-profiles observability-inventory machines-ops type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype drlight-media- phase4-darwin-server ssh-authorized-keys
       ;;
     library/archetypes/*)
       add type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype phase4-darwin-server
