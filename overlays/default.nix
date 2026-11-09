@@ -163,30 +163,14 @@
 // (
   if inputs ? bifrost
   then {
-    # WHY: patches the upstream UI build until its OSS fallback exports the referenced type.
-    # REMOVE WHEN: upstream exports VKCreationPolicyResponse from the access-profile types.
+    # WHY: pins the UI npm dependency hash for the selected Bifrost input revision.
+    # REMOVE WHEN: the upstream flake package no longer needs this hash override.
     bifrost-ui = (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-ui).overrideAttrs (oldAttrs: {
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
         hash = "sha256-JtaSXBfz7toZ8gF9Jjq5iveV/b5obQNhA9VvjyvDky0=";
       };
-      # Temporary compatibility patch for the latest upstream OSS fallback:
-      # VKCreationPolicyResponse is referenced there but is no longer exported
-      # by the OSS accessProfile types. Remove this when upstream fixes it.
-      postPatch =
-        (oldAttrs.postPatch or "")
-        + ''
-          substituteInPlace app/_fallbacks/enterprise/lib/store/apis/accessProfileApi.ts \
-            --replace ', VKCreationPolicyResponse' ""
-          printf '%s\n' \
-            "" \
-            "type VKCreationPolicyResponse = {" \
-            "  governed?: boolean;" \
-            "  profile_name?: string;" \
-            "};" \
-            >> app/_fallbacks/enterprise/lib/store/apis/accessProfileApi.ts
-        '';
     });
 
     # WHY: regenerates stale vendored module metadata in the pinned Bifrost HTTP source.
@@ -195,7 +179,7 @@
       (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (prev: {
-        vendorHash = "sha256-GGpV5tE66LudwzCQROu2WDVF/5NPXnDbJZKRAtbWF34=";
+        vendorHash = "sha256-tyxDAo2CBaCf0Fco+fcugLUz9AzSdYogkBiIMJjT3lE=";
         postPatch =
           (prev.postPatch or "")
           + ''

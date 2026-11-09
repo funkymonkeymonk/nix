@@ -33,6 +33,10 @@ for encoded_target in "${targets[@]}"; do
     exit 1
   fi
 
+  sed -i \
+    -e "/$start/,/^[[:space:]]*});/ s|$field = .*;|$field = $bootstrap;|" \
+    "$file"
+
   for attempt in $(seq 1 "$max_attempts"); do
     echo "Building $name (attempt $attempt/$max_attempts)..."
     if nix build "$build_target" --no-link --print-build-logs \
