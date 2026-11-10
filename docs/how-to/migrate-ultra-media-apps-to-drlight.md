@@ -86,10 +86,10 @@ For Bazarr, use only its installed version's supported restore path. If a cross-
 
 Use only approved runtime connection data. Do not place values in this runbook, shell history, logs, tickets, or Git.
 
-1. **Transmission:** Configure each destination Arr app to use the existing authenticated Transmission RPC connection and run its built-in test. Do not expose RPC or Arr APIs publicly.
-2. **Remote-path mappings:** In each applicable Arr app, map the actual Transmission-reported download location to `/srv/media/.arr-staging`. Verify the exact reported path and local stage root during the approved preflight; do not infer the source mapping from a library category. A mapping does not transfer data by itself.
+1. **Transmission:** The Drlight NixOS generation configures the declared Transmission download client in Radarr, Sonarr, and Lidarr from the runtime RPC URL and credential files. After applying it, inspect each `*-media-config-sync.service` result and use each app's built-in connection test. Do not manually replace the declared client or expose RPC/API ports publicly.
+2. **Remote-path mappings:** Nix reconciles each Arr app's mapping from the actual Transmission-reported completed-download root to `/srv/media/.arr-staging`. Verify the exact root during the approved preflight and inspect the reconciled mapping after deployment. The mapping translates a path; it does not transfer data. The separate staging service performs the copy.
 3. **Prowlarr:** Keep Prowlarr on Ultra. Prove Ultra's beta Tailscale route from Prowlarr's application environment, then configure and test its Arr integrations over that private route. Do not open a public Arr API port, use a public proxy, or bypass Ultra for indexer requests.
-4. **Bazarr:** Configure its Sonarr/Radarr integrations to use the local destination apps and their API authentication. Run its connection tests and verify synchronization completes.
+4. **Bazarr:** Nix reconciles its Sonarr/Radarr connections to the Drlight-local apps using runtime-extracted API keys. After applying the generation, inspect `bazarr-media-config-sync.service`, run Bazarr's connection tests, and verify synchronization completes.
 5. Keep Prowlarr, FlareSolverr, and Transmission on Ultra. Do not uninstall or relocate them.
 
 **Stop if:** a connection test fails, the private route cannot be proven, credentials are unavailable from the approved runtime source, or indexer requests would bypass Ultra.
