@@ -33,7 +33,7 @@
     serviceConfig = {
       Group = "users";
       PrivateTmp = lib.mkDefault true;
-      ProtectSystem = "strict";
+      ProtectSystem = lib.mkForce "strict";
       ReadWritePaths = [service.dataDir] ++ service.roots ++ [stagingRoot];
       UMask = lib.mkForce "0002";
     };

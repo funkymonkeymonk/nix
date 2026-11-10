@@ -304,6 +304,7 @@
             ${checkTrue "${app.name} runs in the shared media group" ((mediaManagementServiceConfig "${app.name}").Group or null == "users")}
             ${checkEqual "${app.name} uses a group-writable umask" "0002" (mediaManagementServiceConfig "${app.name}").UMask or null}
             ${checkTrue "${app.name} has isolated writable temporary storage under strict filesystem protection" (builtins.elem ((mediaManagementServiceConfig "${app.name}").PrivateTmp or false) [true "disconnected"])}
+            ${checkEqual "${app.name} uses strict filesystem protection" "strict" ((mediaManagementServiceConfig "${app.name}").ProtectSystem or null)}
             ${checkTrue "${app.name} is granted access to its local media root" (builtins.elem "${app.root}" ((mediaManagementServiceConfig "${app.name}").ReadWritePaths or []))}
             ${checkTrue "${app.name} waits for the local media mount" (builtins.elem "/srv/media" ((mediaManagementService "${app.name}").unitConfig.RequiresMountsFor or []))}
             ${checkTrue "${app.name} can write to the local Arr staging root" (builtins.elem "/srv/media/.arr-staging" ((mediaManagementServiceConfig "${app.name}").ReadWritePaths or []))}
