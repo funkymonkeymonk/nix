@@ -131,7 +131,8 @@ in {
       ../archetypes/type-observability.nix
       ../../disk-configs/drlight.nix
       ../../modules/nixos/media-storage.nix
-      ../../modules/nixos/ultra-media-sync.nix
+      ../../modules/nixos/media-management.nix
+      ../../modules/nixos/ultra-media-download-stage.nix
       ../../modules/nixos/tailscale-home-dns.nix
       ../../modules/nixos/ghostty-terminfo.nix
       ../../machines/drlight

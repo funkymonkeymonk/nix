@@ -14,7 +14,7 @@
   sshPublicKey = import ../library/ssh-public-key.nix;
 
   hasModule = suffix: machine:
-    lib.any (module: lib.hasSuffix suffix (builtins.toString module)) machine.modules;
+    lib.any (module: (builtins.isPath module || builtins.isString module) && lib.hasSuffix suffix (builtins.toString module)) machine.modules;
 
   checkEqual = name: expected: actual:
     if expected == actual
@@ -79,6 +79,11 @@
       dnsmasqSettings = drlight.services.dnsmasq.settings or {};
       caddyDnsRecords = map (name: "${caddyAppConfigs.${name}.host},100.89.187.92") caddyApps;
       dnsmasqHostRecordLines = builtins.concatStringsSep "\n" (map (record: "host-record=${record}") (dnsmasqSettings.host-record or []));
+      drlightWithDownloadStageEnabled =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
+        }).config;
+      ultraDownloadStageEnabledTimer = drlightWithDownloadStageEnabled.systemd.timers.ultra-media-download-stage or {};
       drlightWithSyntheticCaddyApp =
         (self.nixosConfigurations.drlight.extendModules {
           modules = [
@@ -121,48 +126,48 @@
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
       secretValues = builtins.attrValues onePasswordSecrets;
-      ultraSyncService = drlight.systemd.services.ultra-media-sync or {};
-      ultraSyncServiceConfig = ultraSyncService.serviceConfig or {};
-      ultraSyncUnitConfig = ultraSyncService.unitConfig or {};
-      ultraSyncCommand = ultraSyncService.script or (ultraSyncServiceConfig.ExecStart or "");
-      ultraSyncCommandLines = lib.splitString "\n" ultraSyncCommand;
-      ultraSyncTestCommand =
-        builtins.replaceStrings
-        [
-          "/run/secrets/ultra-media-sync-config.json"
-          "/run/secrets/ultra-media-sync-key"
-          "${pkgs.openssh}/bin/ssh-keygen"
-          "${pkgs.openssh}/bin/ssh"
-          "${pkgs.rsync}/bin/rsync"
-        ]
-        [
-          "$TMPDIR/fixture-config.json"
-          "$TMPDIR/fixture-private-key"
-          "$TMPDIR/ultra-sync-test-bin/ssh-keygen"
-          "$TMPDIR/ultra-sync-test-bin/ssh"
-          "$TMPDIR/ultra-sync-test-bin/rsync"
-        ]
-        ultraSyncCommand;
-      hasUltraSyncJqAssignment = variable: field:
-        builtins.any
-        (line:
-          builtins.match ".*(^|[[:space:]])${variable}=\"[$][(]jq[[:space:]]+-r[[:space:]]+'[.]${field}'[[:space:]]+[^)]*[)]\".*" line != null)
-        ultraSyncCommandLines;
-      ultraSyncRsyncArguments = let
-        commandParts = lib.splitString "rsync " ultraSyncCommand;
-      in
-        if builtins.length commandParts > 1
-        then builtins.elemAt commandParts 1
-        else "";
-      ultraSyncRsyncOptions =
-        builtins.head (lib.splitString " -e " (builtins.head (lib.splitString " --rsh=" ultraSyncRsyncArguments)));
-      ultraSyncTimer = drlight.systemd.timers.ultra-media-sync or {};
-      ultraSyncTimerConfig = ultraSyncTimer.timerConfig or {};
-      ultraSyncConfigSecret = onePasswordSecrets.ultraMediaSyncConfig or {};
-      ultraSyncKeySecret = onePasswordSecrets.ultraMediaSyncKey or {};
+      ultraSyncStagingSource = builtins.readFile ../modules/nixos/scripts/ultra-media-download-stage.py;
+      ultraSyncPolicySource = builtins.readFile ../modules/nixos/scripts/ultra-media-cleanup.py;
+      ultraSyncCleanupModuleSource = builtins.readFile ../modules/nixos/ultra-media-cleanup.nix;
+      ultraDownloadStageService = drlight.systemd.services.ultra-media-download-stage or {};
+      ultraDownloadStageServiceConfig = ultraDownloadStageService.serviceConfig or {};
+      ultraDownloadStageCommand = ultraDownloadStageService.script or (ultraDownloadStageServiceConfig.ExecStart or "");
+      ultraCleanupService = drlight.systemd.services.ultra-media-cleanup or {};
+      ultraCleanupServiceConfig = ultraCleanupService.serviceConfig or {};
+      ultraCleanupCommand = ultraCleanupService.script or (ultraCleanupServiceConfig.ExecStart or "");
+      ultraCleanupTimer = drlight.systemd.timers.ultra-media-cleanup or {};
+      ultraDownloadStageTimer = drlight.systemd.timers.ultra-media-download-stage or {};
+      ultraDownloadStageTimerConfig = ultraDownloadStageTimer.timerConfig or {};
+      ultraDownloadStageEnabled = drlight.myConfig.ultraMediaDownloadStage.enable or false;
+      ultraStageSecretNames = [
+        "ultraMediaStageHost"
+        "ultraMediaStageUsername"
+        "ultraMediaStageKnownHosts"
+        "ultraMediaStageKey"
+        "ultraMediaStageRpcUrl"
+        "ultraMediaStageDownloadRoot"
+        "ultraMediaStageRpcUsername"
+        "ultraMediaStageRpcPassword"
+      ];
+      ultraStageSecrets = map (name: onePasswordSecrets.${name} or {}) ultraStageSecretNames;
+      ultraStageExpectedReferences = [
+        "Ultra Media Sync Config/host"
+        "Ultra Media Sync Config/username"
+        "Ultra Media Sync Config/knownHosts"
+        "Ultra Media Sync Key/private key"
+        "Ultra Media Sync Config/rpcUrl"
+        "Ultra Media Sync Config/completedDownloadsRoot"
+        "Ultra - Transmission/username"
+        "Ultra - Transmission/password"
+      ];
+      ultraStageKeySecret = onePasswordSecrets.ultraMediaStageKey or {};
+      ultraStageRpcUsernameSecret = onePasswordSecrets.ultraMediaStageRpcUsername or {};
+      ultraStageRpcPasswordSecret = onePasswordSecrets.ultraMediaStageRpcPassword or {};
       opnixSecrets = drlight.services.onepassword-secrets.secrets or {};
-      opnixUltraSyncConfigSecret = opnixSecrets.ultraMediaSyncConfig or {};
-      opnixUltraSyncKeySecret = opnixSecrets.ultraMediaSyncKey or {};
+      opnixUltraStageSecrets = map (name: opnixSecrets.${name} or {}) ultraStageSecretNames;
+      opnixUltraStageKeySecret = opnixSecrets.ultraMediaStageKey or {};
+      opnixUltraStageRpcUsernameSecret = opnixSecrets.ultraMediaStageRpcUsername or {};
+      opnixUltraStageRpcPasswordSecret = opnixSecrets.ultraMediaStageRpcPassword or {};
       cacheOnlyDiskConfig = import ../disk-configs/drlight-cache.nix;
       cacheOnlyDisks = cacheOnlyDiskConfig.disko.devices.disk or {};
       cacheDisks = diskoDevices.disk or {};
@@ -181,11 +186,20 @@
       diskoDisk = diskoDisks.main or {};
       diskoPartitions = (diskoDisk.content or {}).partitions or {};
       jellyfinMountRequirements = drlight.systemd.services.jellyfin.unitConfig.RequiresMountsFor or [];
-      expectedLocalHomepageHrefs = builtins.sort builtins.lessThan [
-        "https://grafana.home.buildingbananas.com"
-        "https://jellyfin.home.buildingbananas.com"
-      ];
-      expectedMediaCenterOnlyHomepageHrefs = ["https://jellyfin.home.buildingbananas.com"];
+      expectedMediaManagerHomepageHrefs = builtins.sort builtins.lessThan (map
+        (app: "http://drlight.uaru-daggertooth.ts.net:${toString app.port}")
+        mediaManagementApps);
+      expectedLocalHomepageHrefs = builtins.sort builtins.lessThan (
+        [
+          "https://grafana.home.buildingbananas.com"
+          "https://jellyfin.home.buildingbananas.com"
+        ]
+        ++ expectedMediaManagerHomepageHrefs
+      );
+      expectedMediaCenterOnlyHomepageHrefs = builtins.sort builtins.lessThan (
+        ["https://jellyfin.home.buildingbananas.com"]
+        ++ expectedMediaManagerHomepageHrefs
+      );
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
         "dashboard.home.buildingbananas.com"
         "grafana.home.buildingbananas.com"
@@ -198,7 +212,143 @@
         jellyfin = "http://127.0.0.1:8096";
       };
       actualLocalCaddyUpstreams = lib.mapAttrs (_: app: app.upstream) (drlight.myConfig.caddy.apps or {});
+      mediaManagementApps = [
+        {
+          name = "radarr";
+          root = "/srv/media/movies";
+          port = 7878;
+        }
+        {
+          name = "sonarr";
+          root = "/srv/media/shows";
+          port = 8989;
+        }
+        {
+          name = "lidarr";
+          root = "/srv/media/music";
+          port = 8686;
+        }
+        {
+          name = "mylar3";
+          root = "/srv/media/comics";
+          port = 8090;
+        }
+        {
+          name = "bazarr";
+          root = "/srv/media/movies";
+          port = 6767;
+        }
+      ];
+      mediaManagementService = name: drlight.systemd.services.${name} or {};
+      mediaManagementServiceConfig = name: (mediaManagementService name).serviceConfig or {};
+      mediaManagementRootService = drlight.systemd.services.media-management-roots or {};
+      preparedJellyfinLibraryRoots = map (name: "/srv/media/${name}") [
+        "audiobooks"
+        "books"
+        "comics"
+        "movies"
+        "music"
+        "shows"
+      ];
+      preparedArrLibraryRoots = map (app: app.root) mediaManagementApps;
+      mylar3Package = drlight.services.mylar3.package;
+      mediaManagementRootScript = mediaManagementRootService.script or "";
+      mediaManagerDataDirs = [
+        {
+          name = "radarr";
+          path = drlight.services.radarr.dataDir;
+        }
+        {
+          name = "sonarr";
+          path = drlight.services.sonarr.dataDir;
+        }
+        {
+          name = "lidarr";
+          path = drlight.services.lidarr.dataDir;
+        }
+        {
+          name = "bazarr";
+          path = drlight.services.bazarr.dataDir;
+        }
+      ];
+      nonTailnetInterfacePorts = lib.concatLists (lib.mapAttrsToList
+        (name: interface:
+          if name == "tailscale0"
+          then []
+          else (interface.allowedTCPPorts or []))
+        (drlight.networking.firewall.interfaces or {}));
+      mediaManagementServicesReachableOverTailscale =
+        builtins.all (app: builtins.elem app.port (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [])) mediaManagementApps;
+      mediaManagementServicesNotGlobal =
+        builtins.all (app: !(builtins.elem app.port (drlight.networking.firewall.allowedTCPPorts or []))) mediaManagementApps;
+      mediaManagementServicesNotReachableOnOtherInterfaces =
+        builtins.all (app: !(builtins.elem app.port nonTailnetInterfacePorts)) mediaManagementApps;
+      nonDrlightMachines = builtins.removeAttrs (self.nixosConfigurations or {}) ["drlight"];
+      nonDrlightHasNoMediaManagers =
+        lib.all
+        (machine:
+          !(machine.config.services.radarr.enable or false)
+          && !(machine.config.services.sonarr.enable or false)
+          && !(machine.config.services.lidarr.enable or false)
+          && !(machine.config.services.mylar3.enable or false)
+          && !(machine.config.services.bazarr.enable or false))
+        (builtins.attrValues nonDrlightMachines);
     in {
+      drlightMediaManagementTest = pkgs.runCommand "test-drlight-media-management" {} ''
+        failures=0
+        echo "=== Evaluating Drlight media-manager ownership, permissions, and network policy ==="
+
+        ${checkTrue "Drlight selects the media-management module" (hasModule "/modules/nixos/media-management.nix" drlightMachine)}
+        ${lib.concatMapStringsSep "\n" (app: ''
+            ${checkTrue "${app.name} is enabled on Drlight" (drlight.services.${app.name}.enable or false)}
+            ${checkTrue "${app.name} runs in the shared media group" ((mediaManagementServiceConfig "${app.name}").Group or null == "users")}
+            ${checkEqual "${app.name} uses a group-writable umask" "0002" (mediaManagementServiceConfig "${app.name}").UMask or null}
+            ${checkTrue "${app.name} has isolated writable temporary storage under strict filesystem protection" (builtins.elem ((mediaManagementServiceConfig "${app.name}").PrivateTmp or false) [true "disconnected"])}
+            ${checkEqual "${app.name} uses strict filesystem protection" "strict" ((mediaManagementServiceConfig "${app.name}").ProtectSystem or null)}
+            ${checkTrue "${app.name} is granted access to its local media root" (builtins.elem "${app.root}" ((mediaManagementServiceConfig "${app.name}").ReadWritePaths or []))}
+            ${checkTrue "${app.name} waits for the local media mount" (builtins.elem "/srv/media" ((mediaManagementService "${app.name}").unitConfig.RequiresMountsFor or []))}
+            ${checkTrue "${app.name} can write to the local Arr staging root" (builtins.elem "/srv/media/.arr-staging" ((mediaManagementServiceConfig "${app.name}").ReadWritePaths or []))}
+            ${checkTrue "${app.name} starts after shared media roots are prepared" (builtins.elem "media-management-roots.service" ((mediaManagementService "${app.name}").after or []))}
+            ${checkTrue "${app.name} requires shared media roots to be prepared" (builtins.elem "media-management-roots.service" ((mediaManagementService "${app.name}").requires or []))}
+            ${checkTrue "${app.name} has a service account in the shared media group" ((drlight.users.users.${app.name}.group or null) == "users")}
+            ${checkTrue "${app.name} library roots are prepared locally" (lib.hasInfix "${app.root}" mediaLibraryFoldersScript)}
+          '')
+          mediaManagementApps}
+        ${checkTrue "the local Arr staging root is group-writable" (lib.hasInfix "-g users -m 2775 /srv/media/.arr-staging" mediaManagementRootScript)}
+        ${checkTrue "Arr state directories are prepared before their service namespaces are created" (builtins.all (app: lib.hasInfix "install -d -o ${app.name} -g users -m 0750 ${app.path}" mediaManagementRootScript && builtins.elem "${app.name}.service" (mediaManagementRootService.before or [])) mediaManagerDataDirs)}
+        ${checkTrue "media-library roots preserve group-writable permissions" (lib.hasInfix "-g users -m 2775" mediaLibraryFoldersScript)}
+        ${checkFalse "Arr staging is excluded from all prepared Jellyfin and Arr library roots" (
+          lib.hasInfix "/srv/media/.arr-staging" mediaLibraryFoldersScript
+          || builtins.elem "/srv/media/.arr-staging" preparedJellyfinLibraryRoots
+          || builtins.elem "/srv/media/.arr-staging" preparedArrLibraryRoots
+        )}
+        ${checkTrue "Bazarr can read and write the Drlight-local Sonarr library root" (builtins.elem "/srv/media/shows" ((mediaManagementServiceConfig "bazarr").ReadWritePaths or []))}
+        ${checkTrue "media-manager API ports are allowed on tailscale0 only" mediaManagementServicesReachableOverTailscale}
+        ${checkTrue "media-manager API ports are not opened globally" mediaManagementServicesNotGlobal}
+        ${checkTrue "media-manager API ports are not opened on other interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
+        ${checkFalse "Radarr firewall opening is disabled globally" (drlight.services.radarr.openFirewall or false)}
+        ${checkFalse "Sonarr firewall opening is disabled globally" (drlight.services.sonarr.openFirewall or false)}
+        ${checkFalse "Lidarr firewall opening is disabled globally" (drlight.services.lidarr.openFirewall or false)}
+        ${checkFalse "Bazarr firewall opening is disabled globally" (drlight.services.bazarr.openFirewall or false)}
+        ${checkTrue "Bazarr starts after its Drlight-local Sonarr and Radarr services" (builtins.all (unit: builtins.elem unit ((mediaManagementService "bazarr").after or [])) ["sonarr.service" "radarr.service"])}
+        ${checkTrue "Bazarr wants its Drlight-local Sonarr and Radarr services" (builtins.all (unit: builtins.elem unit ((mediaManagementService "bazarr").wants or [])) ["sonarr.service" "radarr.service"])}
+        ${checkTrue "Mylar3 is an unprivileged system service" ((mediaManagementServiceConfig "mylar3").User or null == "mylar3" && (drlight.users.users.mylar3.isSystemUser or false))}
+        ${checkEqual "Mylar3 uses isolated state directory" "mylar3" (mediaManagementServiceConfig "mylar3").StateDirectory or null}
+        ${checkTrue "Mylar3 runs in the shared media group" ((mediaManagementServiceConfig "mylar3").Group or null == "users")}
+        ${checkTrue "Mylar3 has a service health check" ((mediaManagementServiceConfig "mylar3").ExecStartPost or null != null)}
+        ${checkTrue "Mylar3 service is enabled on Drlight" (drlight.services.mylar3.enable or false)}
+        ${checkEqual "Mylar3 package uses its pinned version" "0.8.3" (mylar3Package.version or null)}
+        ${checkTrue "Mylar3 package verifies runtime native image imports" (mylar3Package.doInstallCheck or false)}
+        echo "  Mylar3 package runtime import check: ${mylar3Package}"
+        ${checkTrue "media-management module is not selected by other machines" (lib.all (machine: !(hasModule "/modules/nixos/media-management.nix" machine)) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
+        ${checkTrue "no Arr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
+        ${checkFalse "media-manager apps are not exposed through Caddy" (lib.any (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
+
+        if [ "$failures" -ne 0 ]; then exit 1; fi
+        echo "All Drlight media-management tests passed"
+        touch $out
+      '';
+
       mediaCenterArchetypeTest = pkgs.runCommand "test-media-center-archetype" {} ''
         failures=0
         echo "=== Evaluating type-media-center composition and backend separation ==="
@@ -238,7 +388,9 @@
         echo "=== Evaluating drlight Homepage links and Caddy routes ==="
 
         ${checkEqual "Homepage allows its Tailscale Serve hostname" "dashboard.home.buildingbananas.com,drlight.uaru-daggertooth.ts.net:8443" (drlight.services.homepage-dashboard.allowedHosts or null)}
-        ${checkEqual "Homepage entries are derived from all non-self Caddy apps" expectedCaddyHomepageHrefs sortedHomepageHrefs}
+        ${checkTrue "Homepage includes every enabled Caddy app" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedCaddyHomepageHrefs)}
+        ${checkTrue "Homepage links all five Arr apps directly over Tailscale" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedMediaManagerHomepageHrefs)}
+        ${checkEqual "Homepage includes Caddy apps and direct Tailscale media links" expectedLocalHomepageHrefs sortedHomepageHrefs}
         ${checkTrue "Homepage automatically includes a newly added Caddy app" (builtins.elem "https://synthetic.home.buildingbananas.com" syntheticHomepageHrefs)}
         ${checkEqual "Homepage preserves per-app native widget metadata" [
           {
@@ -347,218 +499,66 @@
            ${checkEqual "ZFS pool mounting softly wants mountpoint setup" ["zfs-mount.service"] (zfsMountpointService.wantedBy or [])}
            ${checkTrue "ZFS mountpoint setup runs before Jellyfin" (builtins.elem "jellyfin.service" (zfsMountpointService.before or []))}
            ${checkEqual "Jellyfin requires mountpoint setup to succeed" ["jellyfin.service"] (zfsMountpointService.requiredBy or [])}
-           ${checkFalse "NVMe transfer staging directory is not prepared" (lib.any (rule: lib.hasInfix "/srv/local/cache/ultra" rule) localStorageTmpfiles)}
+           ${checkTrue "Arr staging root is prepared on the media filesystem with group-write and setgid permissions" (lib.hasInfix "install -d -o root -g users -m 2775 /srv/media/.arr-staging" mediaManagementRootScript)}
+           ${checkFalse "obsolete NVMe cache staging path is not prepared" (lib.any (rule: lib.hasInfix "/srv/local/cache/ultra" rule) localStorageTmpfiles || lib.hasInfix "/srv/local/cache/ultra" mediaManagementRootScript)}
            ${checkEqual "NVMe machine-specific state directory is prepared" "d /srv/local/state 0750 root root - -" (lib.findFirst (rule: lib.hasInfix "/srv/local/state" rule) null localStorageTmpfiles)}
            ${checkEqual "NVMe cache mount is ext4" "ext4" (localStorageFilesystem.fsType or null)}
            ${checkTrue "Jellyfin declares its media mount requirement in the unit section" (builtins.elem "/srv/media" jellyfinMountRequirements)}
            ${checkFalse "Jellyfin does not emit RequiresMountsFor in the service section" (jellyfinService.serviceConfig ? RequiresMountsFor)}
            ${checkTrue "Jellyfin starts after ZFS automatic mounts complete" (builtins.elem "zfs-mount.service" (drlight.systemd.services.jellyfin.after or []))}
            ${checkEqual "Jellyfin will not start with the underlying empty directory" "/srv/media" (jellyfinUnitConfig.ConditionPathIsMountPoint or null)}
-           ${checkTrue "Drlight selects the dedicated Ultra media-sync module" (hasModule "/modules/nixos/ultra-media-sync.nix" drlightMachine)}
-           ${checkEqual "Ultra media sync is a oneshot service" "oneshot" (ultraSyncServiceConfig.Type or null)}
-           ${checkTrue "Ultra media sync runs as its dedicated unprivileged service account" ((ultraSyncServiceConfig.User or null) == "ultra-sync" && (drlight.users.users.ultra-sync.isSystemUser or false))}
-           ${checkTrue "Ultra media sync runs in the library-access group" ((ultraSyncServiceConfig.Group or null) == "users")}
-           ${checkTrue "Ultra media sync starts after networking and ZFS mounts" (builtins.elem "network-online.target" (ultraSyncService.after or []) && builtins.elem "zfs-mount.service" (ultraSyncService.after or []))}
-           ${checkEqual "Ultra media sync requires the media mountpoint" "/srv/media" (ultraSyncUnitConfig.ConditionPathIsMountPoint or null)}
-           ${checkTrue "Ultra media sync waits for OpNix secrets" (builtins.elem "opnix-secrets.service" (ultraSyncService.after or []) && builtins.elem "opnix-secrets.service" (ultraSyncService.requires or []))}
-           ${checkTrue "Ultra media sync reads its runtime JSON configuration with jq" (lib.hasInfix "/run/secrets/ultra-media-sync-config.json" ultraSyncCommand && lib.hasInfix "jq" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync reads its runtime private key" (lib.hasInfix "/run/secrets/ultra-media-sync-key" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync builds rsync transfers from runtime configuration" (lib.hasInfix "rsync" ultraSyncCommand && lib.hasInfix "/run/secrets/ultra-media-sync-config.json" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync assigns each endpoint variable from jq using its matching selector" (builtins.all (field: hasUltraSyncJqAssignment (builtins.elemAt field 0) (builtins.elemAt field 1)) [["host" "host"] ["username" "username"] ["port" "port"] ["mediaRoot" "mediaRoot"] ["knownHosts" "knownHosts"]])}
-           ${checkFalse "Ultra media sync test script does not reset PATH" (lib.hasInfix "PATH=" ultraSyncTestCommand)}
-           ${checkFalse "Ultra media sync test script does not retain an absolute SSH executable path" (lib.hasInfix "/bin/ssh" ultraSyncTestCommand)}
-           ${checkFalse "Ultra media sync test script does not retain an absolute rsync executable path" (lib.hasInfix "/bin/rsync" ultraSyncTestCommand)}
-           if [ -n ${lib.escapeShellArg ultraSyncCommand} ]; then
-             mkdir -p "$TMPDIR/ultra-sync-test-bin"
-             cat > "$TMPDIR/ultra-sync-test-bin/ssh" <<'EOF'
-          #!${pkgs.runtimeShell}
-          {
-            printf '%s\n' 'SSH_CALL'
-            printf '%s\n' "$@"
-          } >> "$SSH_CAPTURE"
-          remote_command="''${!#}"
-          if [[ "$remote_command" == *"-printf"* ]]; then
-            printf 'fixture space\\with\ttab\0unconfigured-fixture-folder\0'
-          else
-            printf '/fixture/remote/media/fixture space\\with\ttab\0/fixture/remote/media/unconfigured-fixture-folder\0'
-          fi
-          EOF
-             cat > "$TMPDIR/ultra-sync-test-bin/rsync" <<'EOF'
-          #!${pkgs.runtimeShell}
-          {
-            printf '%s\n' 'RSYNC_CALL'
-            printf '%s\n' "$@"
-          } >> "$RSYNC_CAPTURE"
-          for argument in "$@"; do
-            case "$argument" in
-              *UserKnownHostsFile=*)
-                known_hosts_path=''${argument#*UserKnownHostsFile=}
-                known_hosts_path=''${known_hosts_path%% *}
-                printf '%s\n' "$known_hosts_path" > "$KNOWN_HOSTS_PATH_CAPTURE"
-                cat "$known_hosts_path" > "$KNOWN_HOSTS_CAPTURE"
-                ;;
-            esac
-          done
-          EOF
-             ln -s ${pkgs.openssh}/bin/ssh-keygen "$TMPDIR/ultra-sync-test-bin/ssh-keygen"
-             chmod +x "$TMPDIR/ultra-sync-test-bin/ssh" "$TMPDIR/ultra-sync-test-bin/rsync"
-             cat > "$TMPDIR/fixture-config.json" <<'EOF'
-          {"host":"example.invalid","username":"fixture-user","port":22222,"mediaRoot":"/fixture/remote/media","knownHosts":"[example.invalid]:22222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureOnlySyntheticKeyMaterial000000000000000000000000000000000000","mappings":[{"source":"fixture space\\with\ttab","destination":"movies"}]}
-          EOF
-             printf '%s\n' 'fixture-only-private-key' > "$TMPDIR/fixture-private-key"
-             : > "$TMPDIR/rsync-arguments"
-             : > "$TMPDIR/ssh-arguments"
-             : > "$TMPDIR/known-hosts-content"
-             : > "$TMPDIR/known-hosts-path"
-             export RSYNC_CAPTURE="$TMPDIR/rsync-arguments"
-             export SSH_CAPTURE="$TMPDIR/ssh-arguments"
-             export KNOWN_HOSTS_CAPTURE="$TMPDIR/known-hosts-content"
-             export KNOWN_HOSTS_PATH_CAPTURE="$TMPDIR/known-hosts-path"
-             export PATH="$TMPDIR/ultra-sync-test-bin:$PATH"
-             printf '%s\n' ${lib.escapeShellArg ultraSyncTestCommand} > "$TMPDIR/ultra-media-sync-test.sh"
-             if ! ${pkgs.bash}/bin/bash "$TMPDIR/ultra-media-sync-test.sh" > "$TMPDIR/service-output"; then
-               echo "FAIL: Ultra media sync executes with synthetic fixture configuration"
-               failures=1
-             fi
-             expected_remote_source=$(printf 'fixture-user@example.invalid:/fixture/remote/media/fixture space\\with\ttab/')
-             if grep -Fxq "$expected_remote_source" "$TMPDIR/rsync-arguments"; then
-               echo "  Ultra media sync passes the fixture remote source to rsync: OK"
-             else
-               echo "FAIL: Ultra media sync passes the fixture remote source to rsync"
-               failures=1
-             fi
-             if grep -Eq '^/srv/media/movies/?$' "$TMPDIR/rsync-arguments"; then
-               echo "  Ultra media sync passes the fixture local destination to rsync: OK"
-             else
-               echo "FAIL: Ultra media sync passes the fixture local destination to rsync"
-               failures=1
-             fi
-             if grep -Fxq -- '--no-perms' "$TMPDIR/rsync-arguments" && ! grep -Fxq -- '--perms' "$TMPDIR/rsync-arguments"; then
-               echo "  Ultra media sync does not attempt to set destination permissions: OK"
-             else
-               echo "FAIL: Ultra media sync must disable permission preservation"
-               failures=1
-             fi
-             if ! grep -Fxq -- '--delay-updates' "$TMPDIR/rsync-arguments"; then
-               echo "  Ultra media sync publishes each completed file immediately: OK"
-             else
-               echo "FAIL: Ultra media sync delays completed files until the whole mapping finishes"
-               failures=1
-             fi
-             if grep -Eq '(^|[[:space:]])-p([[:space:]]|$)|(^|[[:space:]])-p22222([[:space:]]|$)' "$TMPDIR/rsync-arguments" && grep -Fq '22222' "$TMPDIR/rsync-arguments"; then
-               echo "  Ultra media sync passes the fixture SSH port to rsync: OK"
-             else
-               echo "FAIL: Ultra media sync passes the fixture SSH port to rsync"
-               failures=1
-             fi
-             known_hosts_path=$(sed -n 's/.*UserKnownHostsFile=\([^ ]*\).*/\1/p' "$TMPDIR/rsync-arguments" | head -n 1)
-             if [ -n "$known_hosts_path" ] && [ "$known_hosts_path" = "$(cat "$TMPDIR/known-hosts-path")" ] && [ "$known_hosts_path" != "$TMPDIR/fixture-known-hosts" ] && grep -Fxq '[example.invalid]:22222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureOnlySyntheticKeyMaterial000000000000000000000000000000000000' "$TMPDIR/known-hosts-content"; then
-               echo "  Ultra media sync writes the synthetic known-hosts line to its SSH file: OK"
-             else
-               echo "FAIL: Ultra media sync writes the synthetic known-hosts line to its SSH file"
-               failures=1
-             fi
-             if grep -Fq 'SSH_CALL' "$TMPDIR/ssh-arguments"; then
-               echo "  Ultra media sync enumerates remote source folders through fake SSH: OK"
-             else
-               echo "FAIL: Ultra media sync enumerates remote source folders through fake SSH"
-               failures=1
-             fi
-             if ! grep -Eq 'Unconfigured remote media folder: .*fixture space' "$TMPDIR/service-output"; then
-               echo "  Ultra media sync does not warn for a configured remote folder: OK"
-             else
-               echo "FAIL: Ultra media sync warns for a configured remote folder"
-               failures=1
-             fi
-             if grep -Fxq 'Unconfigured remote media folder: unconfigured-fixture-folder' "$TMPDIR/service-output"; then
-               echo "  Ultra media sync journals unmatched remote folders: OK"
-             else
-               echo "FAIL: Ultra media sync journals unmatched remote folders"
-               failures=1
-             fi
-             if ! grep -Fq 'unconfigured-fixture-folder' "$TMPDIR/rsync-arguments"; then
-               echo "  Ultra media sync never transfers an unmatched remote folder: OK"
-             else
-               echo "FAIL: Ultra media sync transfers an unmatched remote folder"
-               failures=1
-             fi
-             if ${pkgs.openssh}/bin/ssh-keygen -F '[example.invalid]:22222' -f "$TMPDIR/known-hosts-content" >/dev/null; then
-               echo "  Ultra media sync runtime known-hosts file matches the non-default-port alias: OK"
-             else
-               echo "FAIL: Ultra media sync runtime known-hosts file does not match the non-default-port alias"
-               failures=1
-             fi
-             : > "$TMPDIR/ssh-arguments"
-             : > "$TMPDIR/rsync-arguments"
-             cat > "$TMPDIR/fixture-config.json" <<'EOF'
-          {"host":"example.invalid","username":"fixture-user","port":22222,"mediaRoot":"/fixture/remote/media","knownHosts":"example.invalid ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureOnlySyntheticKeyMaterial000000000000000000000000000000000000","mappings":[{"source":"fixture-folder","destination":"movies"}]}
-          EOF
-             if ${pkgs.bash}/bin/bash "$TMPDIR/ultra-media-sync-test.sh" > "$TMPDIR/unpinned-output" 2>&1; then
-               echo "FAIL: Ultra media sync accepts a pinned host key under the wrong port alias"
-               failures=1
-             else
-               echo "  Ultra media sync rejects a missing non-default-port host-key alias: OK"
-             fi
-             if [ ! -s "$TMPDIR/ssh-arguments" ]; then
-               echo "  Ultra media sync validates host keys before invoking SSH: OK"
-             else
-               echo "FAIL: Ultra media sync invokes SSH before validating the host-key alias"
-               failures=1
-             fi
-             : > "$TMPDIR/rsync-arguments"
-             cat > "$TMPDIR/fixture-config.json" <<'EOF'
-          {"host":"example.invalid","username":"fixture-user","port":22222,"mediaRoot":"/fixture/remote/media","knownHosts":"[example.invalid]:22222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFixtureOnlySyntheticKeyMaterial000000000000000000000000000000000000","mappings":[{"source":"bad\u0000mapping","destination":"movies"}]}
-          EOF
-             if ${pkgs.bash}/bin/bash "$TMPDIR/ultra-media-sync-test.sh" > "$TMPDIR/malformed-output" 2>&1; then
-               echo "FAIL: Ultra media sync accepts a NUL-containing mapping"
-               failures=1
-             else
-               echo "  Ultra media sync fails on a NUL-containing mapping: OK"
-             fi
-             if [ ! -s "$TMPDIR/rsync-arguments" ]; then
-               echo "  Ultra media sync does not invoke rsync for a malformed mapping: OK"
-             else
-               echo "FAIL: Ultra media sync invokes rsync for a malformed mapping"
-               failures=1
-             fi
-           else
-             echo "FAIL: Ultra media sync has a service script for behavioral execution"
-             failures=1
-           fi
-           ${checkTrue "Ultra media sync uses the runtime port and known-hosts path" (builtins.match ".*[$][{]?port[}]?.*" ultraSyncCommand != null && builtins.match ".*[$][{]?knownHosts[}]?.*" ultraSyncCommand != null)}
-           ${checkTrue "Ultra media sync caps bandwidth at 20,000 KiB/s" (lib.hasInfix "--bwlimit=20000" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync uses the hidden partial directory" (lib.hasInfix "--partial-dir=.rsync-partial" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync protects remote paths with spaces" (lib.hasInfix "--protect-args" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync itemizes journal output" (lib.hasInfix "--itemize-changes" ultraSyncCommand && lib.hasInfix "--out-format=" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync uses batch SSH" (lib.hasInfix "BatchMode=yes" ultraSyncCommand)}
-           ${checkEqual "Ultra media sync uses a group-friendly umask" "0002" (ultraSyncServiceConfig.UMask or null)}
-           ${checkFalse "Ultra media sync is not restarted during a NixOS switch" (ultraSyncService.restartIfChanged or true)}
-           ${checkTrue "Ultra media sync disables permission preservation for shared destination directories" (lib.hasInfix "--no-perms" ultraSyncCommand && !(lib.hasInfix "--perms" ultraSyncCommand))}
-           ${checkFalse "Ultra media sync does not delay publishing completed files" (lib.hasInfix "--delay-updates" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync enforces strict SSH host-key checking" (lib.hasInfix "StrictHostKeyChecking=yes" ultraSyncCommand && lib.hasInfix "UserKnownHostsFile" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync uses basename-only remote folder enumeration" (lib.hasInfix "-printf '%f\\\\0'" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync checks jq mapping output before reading it" (lib.hasInfix "mapping_file" ultraSyncCommand && lib.hasInfix "jq --raw-output0" ultraSyncCommand)}
-           ${checkFalse "Ultra media sync does not delete destination files" (lib.hasInfix "--delete" ultraSyncCommand)}
-           ${checkFalse "Ultra media sync does not remove source files" (lib.hasInfix "--remove-source-files" ultraSyncCommand)}
-           ${checkFalse "Ultra media sync does not preserve seedbox owners or raw permissions" (lib.hasInfix "--owner" ultraSyncCommand || lib.hasInfix "--group" ultraSyncCommand || (lib.hasInfix "--perms" ultraSyncCommand && !(lib.hasInfix "--chmod=Du=rwx,Dg=rwx,Do=rx,Fu=rw,Fg=rw,Fo=r,ugo-s,o-t" ultraSyncCommand)) || lib.hasInfix "--archive" ultraSyncCommand || lib.hasInfix "--numeric-ids" ultraSyncCommand || lib.hasInfix "--chown" ultraSyncCommand || builtins.match ".*(^|[[:space:]])-[[:alpha:]]*[aogp][[:alpha:]]*([[:space:]]|$).*" ultraSyncRsyncOptions != null)}
-           ${checkTrue "Ultra media sync normalizes copied permissions and clears set-ID/sticky bits" (lib.hasInfix "--chmod=Du=rwx,Dg=rwx,Do=rx,Fu=rw,Fg=rw,Fo=r,ugo-s,o-t" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync preserves file timestamps but omits directory timestamps" (lib.hasInfix "--times" ultraSyncCommand && lib.hasInfix "--omit-dir-times" ultraSyncCommand)}
-           ${checkTrue "Ultra media sync validates the pinned host-key alias before SSH use" (lib.hasInfix "ssh-keygen -F" ultraSyncCommand)}
-           ${checkEqual "Ultra media sync runs on the hourly schedule" "hourly" (ultraSyncTimerConfig.OnCalendar or null)}
-           ${checkFalse "Ultra media sync timer does not launch a catch-up run during a switch" (ultraSyncTimerConfig.Persistent or false)}
-           ${checkEqual "Ultra media sync timer activates its service" "ultra-media-sync.service" (ultraSyncTimerConfig.Unit or null)}
-           ${checkTrue "Ultra media sync timer is enabled through timers.target" (builtins.elem "timers.target" (ultraSyncTimer.wantedBy or []))}
+           ${checkTrue "Drlight selects the torrent download-staging module" (hasModule "/modules/nixos/ultra-media-download-stage.nix" drlightMachine)}
+           ${checkFalse "legacy organized-library sync service is removed" (drlight.systemd.services ? ultra-media-sync)}
+           ${checkFalse "legacy organized-library sync timer is removed" (drlight.systemd.timers ? ultra-media-sync)}
+           ${checkFalse "legacy media-root Opnix reference is removed" (onePasswordSecrets ? ultraMediaStageMediaRoot)}
+           ${checkFalse "legacy library source Opnix references are removed" (onePasswordSecrets ? ultraMediaStageMoviesSource || onePasswordSecrets ? ultraMediaStageShowsSource || onePasswordSecrets ? ultraMediaStageMusicSource || onePasswordSecrets ? ultraMediaStageComicsSource)}
+           ${checkFalse "SSH port is no longer an Opnix secret" (onePasswordSecrets ? ultraMediaStagePort)}
+           ${checkTrue "staging uses the default SSH port 22" (lib.hasInfix "--ssh-port 22" ultraDownloadStageCommand)}
+           ${checkFalse "completed-download staging option defaults to false" (drlight.myConfig.ultraMediaDownloadStage.enable or false)}
+           ${checkFalse "completed-download staging is disabled by default" ultraDownloadStageEnabled}
+           ${checkFalse "completed-download staging timer is not enabled by default" (builtins.elem "timers.target" (ultraDownloadStageTimer.wantedBy or []))}
+           ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
+           ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
+           ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
+           ${checkEqual "completed-download staging is a oneshot service" "oneshot" (ultraDownloadStageServiceConfig.Type or null)}
+           ${checkEqual "completed-download staging runs as the existing Ultra sync user" "ultra-sync" (ultraDownloadStageServiceConfig.User or null)}
+           ${checkEqual "completed-download staging runs in the shared media group" "users" (ultraDownloadStageServiceConfig.Group or null)}
+           ${checkEqual "completed-download staging requires the mounted media filesystem" "/srv/media" (ultraDownloadStageService.unitConfig.ConditionPathIsMountPoint or null)}
+           ${checkEqual "report-only cleanup is triggered only after successful staging" "ultra-media-cleanup.service" (ultraDownloadStageService.unitConfig.OnSuccess or null)}
+           ${checkEqual "cleanup is a report-only oneshot under the Ultra sync account" ["oneshot" "ultra-sync" "users"] [(ultraCleanupServiceConfig.Type or null) (ultraCleanupServiceConfig.User or null) (ultraCleanupServiceConfig.Group or null)]}
+           ${checkTrue "cleanup command explicitly selects report-only mode" (lib.hasInfix "ultra-media-cleanup.py" ultraCleanupCommand && lib.hasInfix "--report-only" ultraCleanupCommand)}
+           ${checkTrue "cleanup service has no timer or activation target" (!(builtins.elem "timers.target" (ultraCleanupTimer.wantedBy or [])) && !(builtins.elem "multi-user.target" (ultraCleanupService.wantedBy or [])))}
+           ${checkTrue "cleanup cannot access the network or credentials" ((ultraCleanupServiceConfig.PrivateNetwork or false) && (ultraCleanupServiceConfig.NoNewPrivileges or false) && !(lib.hasInfix "opnix-secrets" ultraSyncCleanupModuleSource) && !(lib.hasInfix "/run/secrets" ultraSyncCleanupModuleSource))}
+           ${checkTrue "cleanup and staging serialize on the same operation lock" (lib.hasInfix ".operation.lock" ultraSyncStagingSource && lib.hasInfix ".operation.lock" ultraSyncPolicySource)}
+           ${checkFalse "cleanup has no data deletion operation or destructive service mode" (lib.hasInfix "torrent-remove" ultraSyncPolicySource || lib.hasInfix "torrent-remove" ultraSyncCleanupModuleSource || lib.hasInfix "--delete" ultraSyncCleanupModuleSource)}
+           ${checkTrue "completed-download staging writes only to the hidden stage root" (builtins.elem "/srv/media/.arr-staging" (ultraDownloadStageServiceConfig.ReadWritePaths or []))}
+           ${checkTrue "completed-download staging waits for ZFS, media roots, and OpNix secrets" (builtins.all (unit: builtins.elem unit (ultraDownloadStageService.after or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"] && builtins.all (unit: builtins.elem unit (ultraDownloadStageService.requires or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"])}
+           ${checkTrue "completed-download staging service runs the dedicated Python adapter" (lib.hasInfix "ultra-media-download-stage.py" ultraDownloadStageCommand && lib.hasInfix "--stage-downloads" ultraDownloadStageCommand)}
+           ${checkTrue "stage runtime validates individually supplied RPC URL and completed-download root fields" (lib.hasInfix "rpc_url" ultraSyncStagingSource && lib.hasInfix "download_root" ultraSyncStagingSource && lib.hasInfix "normalize_download_root" ultraSyncStagingSource)}
+           ${checkTrue "the retention policy evaluator remains available separately from staging" (lib.hasInfix "evaluate_retention" ultraSyncPolicySource)}
+           ${checkTrue "stage runtime reports aggregate counters only" (lib.hasInfix "staging " ultraSyncStagingSource && lib.hasInfix "reason=" ultraSyncStagingSource)}
+           ${checkFalse "stage rsync never deletes seedbox or local files" (lib.hasInfix "--delete" ultraSyncStagingSource || lib.hasInfix "--remove-source-files" ultraSyncStagingSource)}
+           ${checkEqual "Transmission RPC username uses the unqualified OpNix field" "Ultra - Transmission/username" (ultraStageRpcUsernameSecret.reference or null)}
+           ${checkEqual "Transmission RPC password uses the unqualified OpNix field" "Ultra - Transmission/password" (ultraStageRpcPasswordSecret.reference or null)}
+           ${checkTrue "Transmission RPC credentials are scoped only to the stage service" ((ultraStageRpcUsernameSecret.services or []) == ["ultra-media-download-stage"] && (ultraStageRpcPasswordSecret.services or []) == ["ultra-media-download-stage"])}
+           ${checkEqual "Transmission RPC username resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/username" (opnixUltraStageRpcUsernameSecret.reference or null)}
+           ${checkEqual "Transmission RPC password resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/password" (opnixUltraStageRpcPasswordSecret.reference or null)}
+           ${checkTrue "the SSH key is scoped only to staging" ((ultraStageKeySecret.services or []) == ["ultra-media-download-stage"])}
            ${checkEqual "Drlight uses Opnix as its default vault" "Opnix" (drlight.myConfig.onepassword.defaultVault or null)}
            ${checkEqual "Drlight Cloudflare secret uses the Opnix item and field" "Cloudflare DNS API Token/credential" (onePasswordSecrets.cloudflareApiToken.reference or null)}
            ${checkEqual "Drlight Cloudflare secret resolves to the Opnix vault" "op://Opnix/Cloudflare DNS API Token/credential" (opnixSecrets.cloudflareApiToken.reference or null)}
-           ${checkEqual "Ultra media sync JSON config secret has its runtime path" "/run/secrets/ultra-media-sync-config.json" (ultraSyncConfigSecret.path or null)}
-           ${checkEqual "Ultra media sync private key secret has its runtime path" "/run/secrets/ultra-media-sync-key" (ultraSyncKeySecret.path or null)}
-           ${checkTrue "Ultra media sync config secret is restricted to its service account" ((ultraSyncConfigSecret.owner or null) == "ultra-sync" && (ultraSyncConfigSecret.group or null) == "users" && (ultraSyncConfigSecret.mode or null) == "0400")}
-           ${checkTrue "Ultra media sync key secret is restricted to its service account" ((ultraSyncKeySecret.owner or null) == "ultra-sync" && (ultraSyncKeySecret.group or null) == "users" && (ultraSyncKeySecret.mode or null) == "0400")}
-           ${checkTrue "OpNix materializes the config secret with service ownership and mode" ((opnixUltraSyncConfigSecret.path or null) == "/run/secrets/ultra-media-sync-config.json" && (opnixUltraSyncConfigSecret.owner or null) == "ultra-sync" && (opnixUltraSyncConfigSecret.group or null) == "users" && (opnixUltraSyncConfigSecret.mode or null) == "0400")}
-           ${checkTrue "OpNix materializes the key secret with service ownership and mode" ((opnixUltraSyncKeySecret.path or null) == "/run/secrets/ultra-media-sync-key" && (opnixUltraSyncKeySecret.owner or null) == "ultra-sync" && (opnixUltraSyncKeySecret.group or null) == "users" && (opnixUltraSyncKeySecret.mode or null) == "0400")}
-           ${checkTrue "Ultra media sync config reference is unqualified and resolved through Opnix" ((ultraSyncConfigSecret.reference or "") != "" && !(lib.hasPrefix "op://" (ultraSyncConfigSecret.reference or "")) && !(lib.hasPrefix "Opnix/" (ultraSyncConfigSecret.reference or "")) && (opnixUltraSyncConfigSecret.reference or null) == "op://Opnix/${ultraSyncConfigSecret.reference or ""}")}
-           ${checkTrue "Ultra media sync key reference is unqualified and resolved through Opnix" ((ultraSyncKeySecret.reference or "") != "" && !(lib.hasPrefix "op://" (ultraSyncKeySecret.reference or "")) && !(lib.hasPrefix "Opnix/" (ultraSyncKeySecret.reference or "")) && (opnixUltraSyncKeySecret.reference or null) == "op://Opnix/${ultraSyncKeySecret.reference or ""}")}
+           ${checkEqual "stage SSH private key uses its runtime path" "/run/secrets/ultra-media-stage-key" (ultraStageKeySecret.path or null)}
+           ${checkEqual "stage uses the minimal Opnix field contract" ultraStageExpectedReferences (map (secret: secret.reference or null) ultraStageSecrets)}
+           ${checkTrue "stage secrets are restricted to the service account and private mode" (builtins.all (secret: (secret.owner or null) == "ultra-sync" && (secret.group or null) == "users" && (secret.mode or null) == "0400") ultraStageSecrets)}
+           ${checkTrue "OpNix materializes every staging field with service ownership and private mode" (builtins.all (secret: (secret.owner or null) == "ultra-sync" && (secret.group or null) == "users" && (secret.mode or null) == "0400") opnixUltraStageSecrets)}
+           ${checkTrue "staging fields use unqualified references resolved by Opnix" (builtins.all (name: let
+            secret = onePasswordSecrets.${name} or {};
+            resolved = opnixSecrets.${name} or {};
+          in
+            (secret.reference or "") != "" && !(lib.hasPrefix "op://" (secret.reference or "")) && !(lib.hasPrefix "Opnix/" (secret.reference or "")) && (resolved.reference or null) == "op://Opnix/${secret.reference or ""}")
+          ultraStageSecretNames)}
+           ${checkTrue "the SSH key reference is unqualified and resolved through Opnix" ((ultraStageKeySecret.reference or "") == "Ultra Media Sync Key/private key" && (opnixUltraStageKeySecret.reference or null) == "op://Opnix/Ultra Media Sync Key/private key")}
+           ${checkEqual "Drlight uses Opnix as its default vault" "Opnix" (drlight.myConfig.onepassword.defaultVault or null)}
            ${checkTrue "Nix prepares the six media folders including comics" (builtins.all (path: lib.hasInfix path mediaLibraryFoldersScript) ["/srv/media/audiobooks" "/srv/media/books" "/srv/media/comics" "/srv/media/movies" "/srv/media/music" "/srv/media/shows"])}
            ${checkFalse "Nix does not create a Podcasts folder" (lib.hasInfix "/srv/media/podcasts" mediaLibraryFoldersScript)}
            ${checkTrue "Nix prepares media folders after ZFS mount and before Jellyfin" (builtins.elem "zfs-mount.service" (mediaLibraryFoldersService.after or []) && builtins.elem "jellyfin.service" (mediaLibraryFoldersService.before or []) && builtins.elem "media-library-folders.service" (jellyfinService.after or []))}
@@ -636,6 +636,10 @@
       '';
     };
 in {
+  drlightMediaManagementTest =
+    if checks == null
+    then skipped "drlight-media-management"
+    else checks.drlightMediaManagementTest;
   mediaCenterArchetypeTest =
     if checks == null
     then skipped "media-center-archetype"

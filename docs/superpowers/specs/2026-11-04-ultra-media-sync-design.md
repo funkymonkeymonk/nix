@@ -1,5 +1,7 @@
 # Ultra.cc to Drlight Media Sync Design
 
+> **Retired:** This historical design describes the organized-library sync, which has been removed now that Drlight's local library is complete. Current steady state stages completed Transmission torrents for local Arr import; see [the expanded media-retention design](2026-11-09-ultra-media-retention-design.md). Do not use this design to configure a sync service.
+
 **Status:** Approved; credential handling updated per user request  
 **Date:** 2026-11-04
 

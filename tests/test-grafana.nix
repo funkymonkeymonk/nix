@@ -46,7 +46,7 @@
     (query: (query.refId or "") == "A")
     {}
     (nixosGrafanaAlertRule.data or []);
-  ultraSyncFailureExpr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-sync.service" | JOB_RESULT="failed" [5m]))'';
+  ultraStageFailureExpr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-download-stage.service" | JOB_RESULT="failed" [5m]))'';
 
   nixosGrafanaSettings = nixosGrafanaEnabled.services.grafana.settings;
   nixosGrafanaAdminUser = nixosGrafanaSettings.security.admin_user or "";
@@ -252,24 +252,24 @@ in {
       touch $out
     '';
 
-  nixosGrafanaSyncDashboardTest =
-    pkgs.runCommand "test-nixos-grafana-ultra-sync-dashboard" {
+  nixosGrafanaDownloadStageDashboardTest =
+    pkgs.runCommand "test-nixos-grafana-ultra-download-stage-dashboard" {
       nativeBuildInputs = [pkgs.jq];
     } ''
       echo "=== Testing the Ultra media sync Grafana dashboard ==="
 
-      DASHBOARD=${nixosGrafanaDashboardPath}/ultra-media-sync.json
+      DASHBOARD=${nixosGrafanaDashboardPath}/ultra-media-download-stage.json
       if [ ! -f "$DASHBOARD" ]; then
         echo "FAIL: Grafana must provision an Ultra media sync dashboard JSON"; exit 1
       fi
 
-      if jq -e '.uid == "drlight-ultra-media-sync" and (.title | contains("Ultra Media Sync"))' "$DASHBOARD" > /dev/null; then
-        echo "Ultra media sync dashboard has its stable title and UID: OK"
+      if jq -e '.uid == "drlight-ultra-media-sync" and (.title | contains("Ultra Download Staging"))' "$DASHBOARD" > /dev/null; then
+        echo "download-staging dashboard preserves its UID and has the new title: OK"
       else
-        echo "FAIL: dashboard must use title Ultra Media Sync and UID drlight-ultra-media-sync"; exit 1
+        echo "FAIL: dashboard must use title Ultra Download Staging and retain UID drlight-ultra-media-sync"; exit 1
       fi
 
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-sync-start"))' "$DASHBOARD" > /dev/null; then
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard includes the rsync job logs: OK"
       else
         echo "FAIL: dashboard must show the rsync job logs"; exit 1
@@ -281,7 +281,7 @@ in {
         echo "FAIL: dashboard Loki panels must reference the persistent datasource UID"; exit 1
       fi
 
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-sync.service") and contains("JOB_RESULT"))' "$DASHBOARD" > /dev/null; then
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage.service") and contains("JOB_RESULT"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard includes systemd run status events: OK"
       else
         echo "FAIL: dashboard must show systemd run status events"; exit 1
@@ -293,18 +293,18 @@ in {
         echo "FAIL: dashboard must show /srv/media capacity from drlight node metrics"; exit 1
       fi
 
-      echo "Ultra media sync dashboard tests passed"
+      echo "Ultra download staging dashboard tests passed"
       touch $out
     '';
 
-  nixosGrafanaAlertingTest = pkgs.runCommand "test-nixos-grafana-ultra-sync-alerting" {} ''
+  nixosGrafanaAlertingTest = pkgs.runCommand "test-nixos-grafana-ultra-download-stage-alerting" {} ''
     echo "=== Testing provisioned Grafana alert for Ultra media sync failures ==="
 
     ${
       if
         (nixosGrafanaAlertRule.uid or null)
         == "ultra-media-sync-failure"
-        && (nixosGrafanaAlertRule.title or null) == "Ultra media sync failed"
+        && (nixosGrafanaAlertRule.title or null) == "Ultra download staging failed"
         && (nixosGrafanaAlertRule.condition or null) == "A"
       then ''echo "Grafana provisions the stable Ultra sync failure rule: OK"''
       else ''echo "FAIL: Grafana must provision the Ultra media sync failure alert rule"; exit 1''
@@ -315,10 +315,10 @@ in {
         (nixosGrafanaAlertQuery.datasourceUid or null)
         == "P8E80F9AEF21F6940"
         && (nixosGrafanaAlertQuery.model.datasource.uid or null) == "P8E80F9AEF21F6940"
-        && (nixosGrafanaAlertQuery.model.expr or "") == ultraSyncFailureExpr
+        && (nixosGrafanaAlertQuery.model.expr or "") == ultraStageFailureExpr
         && (nixosGrafanaAlertQuery.model.queryType or null) == "instant"
       then ''echo "alert evaluates the exact five-minute Loki systemd failure query: OK"''
-      else ''echo "FAIL: alert must query Loki for failed ultra-media-sync.service runs"; exit 1''
+      else ''echo "FAIL: alert must query Loki for failed ultra-media-download-stage.service runs"; exit 1''
     }
 
     ${
@@ -329,7 +329,7 @@ in {
       else ''echo "FAIL: alert must evaluate every minute and fire without a pending delay"; exit 1''
     }
 
-    echo "Ultra media sync alerting tests passed"
+    echo "Ultra download staging alerting tests passed"
     touch $out
   '';
 

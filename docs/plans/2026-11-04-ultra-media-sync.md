@@ -1,5 +1,7 @@
 # Ultra.cc to Drlight Direct Media Sync Implementation Plan
 
+> **Retired:** This historical plan describes the organized-library sync, which has been removed now that Drlight's local library is complete. Current steady state stages completed Transmission torrents for local Arr import; see [the expanded media-retention plan](2026-11-09-ultra-media-retention.md). Do not use this plan to configure a sync service.
+>
 > **Note:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Set up a recurring, safe rsync pull of Ultra.cc's organized media library into Drlight's ZFS-backed Jellyfin library.

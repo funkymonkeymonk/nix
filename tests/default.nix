@@ -26,6 +26,7 @@
   testGitEnable = import ./test-git-enable.nix {inherit pkgs;};
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
   testOmlx = import ./test-omlx.nix {inherit pkgs;};
+  testUltraMediaCleanup = import ./test-ultra-media-cleanup.nix {inherit pkgs;};
 
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
@@ -286,6 +287,7 @@ in
     zero-sunshine-user-restart = testZero.zeroSunshineUserRestartTest;
     zero-nix-remote-builder = testZero.zeroNixRemoteBuilderTest;
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
+    drlight-media-management = testMediaCenterArchetype.drlightMediaManagementTest;
     drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
     drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;
     drlight-root-ssh = testMediaCenterArchetype.drlightRootSshTest;
@@ -390,8 +392,8 @@ in
     nixos-grafana-service = testGrafana.nixosGrafanaServiceTest;
     nixos-grafana-datasources = testGrafana.nixosGrafanaDatasourcesTest;
     nixos-grafana-dashboard = testGrafana.nixosGrafanaDashboardTest;
-    nixos-grafana-ultra-sync-dashboard = testGrafana.nixosGrafanaSyncDashboardTest;
-    nixos-grafana-ultra-sync-alerting = testGrafana.nixosGrafanaAlertingTest;
+    nixos-grafana-ultra-download-stage-dashboard = testGrafana.nixosGrafanaDownloadStageDashboardTest;
+    nixos-grafana-ultra-download-stage-alerting = testGrafana.nixosGrafanaAlertingTest;
     nixos-grafana-secrets = testGrafana.nixosGrafanaSecretsTest;
     nixos-grafana-archetype = testGrafana.nixosGrafanaArchetypeTest;
 
@@ -406,6 +408,9 @@ in
     nixos-loki-enabled = testLogAggregator.lokiEnabledTest;
     nixos-loki-firewall = testLogAggregator.lokiFirewallTest;
     type-server-log-aggregator = testLogAggregator.typeServerLogAggregatorTest;
+
+    # Drlight Ultra.cc media retention policy tests
+    drlight-ultra-media-cleanup = testUltraMediaCleanup.drlightUltraMediaCleanup;
 
     # NixOS observability (Prometheus + Alertmanager) module tests
     nixos-prometheus-options = testNixosObservability.prometheusOptionsTest;

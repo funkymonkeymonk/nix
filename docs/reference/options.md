@@ -198,6 +198,11 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `directLinks` | list of (submodule) | `[ ]` | Direct Homepage links for private services that do not have a Caddy route. |
+| `directLinks.*.description` | string | `""` | — |
+| `directLinks.*.group` | string | *required* | — |
+| `directLinks.*.href` | string | *required* | — |
+| `directLinks.*.name` | string | *required* | — |
 | `enable` | boolean | `false` | Whether to enable Homepage service dashboard. |
 
 ### myConfig.isDarwin
@@ -477,6 +482,12 @@ or changing a `myConfig.*` option.
 | `authKeyTags` | list of string | `[ ]` | Tailscale tags assigned to devices authenticated with deployment-generated OAuth auth keys. |
 | `enable` | boolean | `false` | Tailscale VPN with auto-connect via 1Password secrets |
 | `exitNode` | boolean | `false` | Advertise this machine as a Tailscale exit node |
+
+### myConfig.ultraMediaDownloadStage
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Whether to enable completed Ultra download staging timer. |
 
 ### myConfig.users
 

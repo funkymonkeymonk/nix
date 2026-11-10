@@ -8,7 +8,7 @@ with lib; let
   cfg = config.myConfig.homepage;
   caddyApps = config.myConfig.caddy.apps or {};
   homepageApps = filterAttrs (_: app: app.homepage.enable) caddyApps;
-  homepageEntries =
+  caddyHomepageEntries =
     mapAttrsToList (name: app: let
       presentation = app.homepage;
       title =
@@ -30,6 +30,21 @@ with lib; let
       entry = {${title} = service;};
     })
     homepageApps;
+  directHomepageEntries =
+    map (link: {
+      group = link.group;
+      entry = {
+        ${link.name} =
+          {
+            href = link.href;
+          }
+          // optionalAttrs (link.description != "") {
+            inherit (link) description;
+          };
+      };
+    })
+    cfg.directLinks;
+  homepageEntries = caddyHomepageEntries ++ directHomepageEntries;
   groupedHomepageEntries = foldl' (groups: item:
     groups
     // {
@@ -42,7 +57,24 @@ with lib; let
     (widget: (widget.type or null) == "grafana")
     (caddyApps.grafana.homepage.widgets or []);
 in {
-  options.myConfig.homepage.enable = mkEnableOption "Homepage service dashboard";
+  options.myConfig.homepage = {
+    enable = mkEnableOption "Homepage service dashboard";
+    directLinks = mkOption {
+      type = types.listOf (types.submodule {
+        options = {
+          name = mkOption {type = types.str;};
+          group = mkOption {type = types.str;};
+          href = mkOption {type = types.str;};
+          description = mkOption {
+            type = types.str;
+            default = "";
+          };
+        };
+      });
+      default = [];
+      description = "Direct Homepage links for private services that do not have a Caddy route.";
+    };
+  };
 
   config = mkIf cfg.enable {
     services.homepage-dashboard = {
