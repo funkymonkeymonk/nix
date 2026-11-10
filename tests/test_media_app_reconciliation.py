@@ -148,7 +148,6 @@ class ServarrReconciliationTests(unittest.TestCase):
                     {"name": "urlBase", "value": ""},
                     {"name": "username", "value": ""},
                     {"name": "password", "value": ""},
-                    {"name": "category", "value": ""},
                     {"name": "unmanaged", "value": "schema-default"},
                 ],
             }
@@ -161,7 +160,6 @@ class ServarrReconciliationTests(unittest.TestCase):
             "password": {"secret": write_secret(self.directory, "rpc-password", "rpc-secret")},
             "remotePath": {"secret": write_secret(self.directory, "remote-path", "/downloads/complete")},
             "localPath": "/srv/media/.arr-staging",
-            "category": "radarr",
         }
 
     def tearDown(self):
@@ -191,7 +189,6 @@ class ServarrReconciliationTests(unittest.TestCase):
         self.assertEqual(fields["urlBase"], "/transmission")
         self.assertEqual(fields["username"], "rpc-user")
         self.assertEqual(fields["password"], "rpc-secret")
-        self.assertEqual(fields["category"], "radarr")
         self.assertEqual(fields["unmanaged"], "schema-default")
         self.assertEqual(self.state.root_folders[0]["path"], "/srv/media/movies")
         self.assertEqual(self.state.remote_path_mappings[0]["host"], "seed.example")
@@ -235,7 +232,6 @@ class ServarrReconciliationTests(unittest.TestCase):
                     {"name": "urlBase", "value": ""},
                     {"name": "username", "value": ""},
                     {"name": "password", "value": "old-secret"},
-                    {"name": "category", "value": ""},
                     {"name": "unmanaged", "value": "keep-me"},
                 ],
             }
@@ -397,7 +393,6 @@ class RuntimeApiKeyTests(unittest.TestCase):
                 "password": {"secret": write_secret(directory, "password", "rpc-secret")},
                 "remotePath": {"secret": write_secret(directory, "remote", "/downloads")},
                 "localPath": "/srv/media/.arr-staging",
-                "category": "radarr",
             }
             with self.assertRaisesRegex(ReconciliationError, "HTTPS"):
                 transmission_fields(config)

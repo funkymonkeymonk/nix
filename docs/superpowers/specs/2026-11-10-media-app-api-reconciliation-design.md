@@ -37,11 +37,11 @@ For Servarr apps, the adapter:
 4. ensures the declared local root folder exists; and
 5. creates or updates the exact host/remote-path mapping.
 
-The Transmission host, port, URL base, and TLS flag are derived at runtime from the existing secret RPC URL. The RPC username/password and completed-download root are read from their existing runtime secret files. Only credentials are secret; no credential value is serialized into Nix or logged. Each app's Transmission download-client category is distinct.
+The Transmission host, port, URL base, and TLS flag are derived at runtime from the existing secret RPC URL. The RPC username/password and completed-download root are read from their existing runtime secret files. Only credentials are secret; no credential value is serialized into Nix or logged. The reconciler requests only fields supported by the app's Transmission schema.
 
 For Bazarr, a separate adapter follows its own API: read its API key and the local Arr API keys at runtime, then update only the Sonarr/Radarr connection fields using Bazarr's form-encoded API. Preserve language/provider settings and the source activation flags by default.
 
-For Mylar3, do not pretend its API is a Servarr API. Add typed settings to the custom NixOS module and produce a runtime INI file using the upstream config option names. Preserve any mutable state/database. Secrets are injected only into the runtime file and the configured file permissions restrict access.
+For Mylar3, do not pretend its API is a Servarr API. Add typed settings to the custom NixOS module and produce a runtime INI file using the upstream config option names. Preserve any mutable state/database. Secrets are injected only into the runtime file and the configured file permissions restrict access. Its existing per-comic locations require Mylar3's documented one-time `locmove` procedure; temporarily disable the Nix INI overlay, verify the database paths now resolve locally, then re-enable it. This updates database paths only and never moves files.
 
 ### Reconciliation and failure policy
 
@@ -60,7 +60,7 @@ Keep host-specific desired state in `modules/nixos/media-management.nix` or a na
 
 - Python unit tests use an in-process HTTP server and temporary secret/config files. Test API-key extraction, schema-driven create/update, preservation of unmanaged fields, duplicate identity failure, no delete calls, URL derivation, and redaction.
 - Bazarr adapter tests verify only the two declared service connections are changed and secret values do not appear in error output.
-- Mylar3 config-generation tests verify supported INI keys, local root, runtime-only secret substitution, and restrictive permissions.
+- Mylar3 config-generation tests verify supported INI keys, local root, runtime-only secret substitution, and restrictive permissions. Nix evaluation also verifies the INI overlay can be disabled for the one-time upstream path migration.
 - Nix eval tests verify each API sync unit is connected to its app service, declared resource paths match the staged/local roots, no public firewall/Caddy exposure is added, and no secret value is present in derivation text.
 - Existing Drlight storage, network-boundary, and migration tests remain in force. No live deployment or calls to seedbox APIs are part of build validation.
 

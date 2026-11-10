@@ -83,6 +83,10 @@
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
         }).config;
+      drlightWithMylarSettingsManagementDisabled =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{services.mylar3.manageSettingsFile = false;}];
+        }).config;
       ultraDownloadStageEnabledTimer = drlightWithDownloadStageEnabled.systemd.timers.ultra-media-download-stage or {};
       drlightWithSyntheticCaddyApp =
         (self.nixosConfigurations.drlight.extendModules {
@@ -379,6 +383,7 @@
         ${checkFalse "Mylar3 does not enable torrent downloads or search" (drlight.services.mylar3.settings.Torrents.ENABLE_TORRENTS or true || drlight.services.mylar3.settings.Torrents.ENABLE_TORRENT_SEARCH or true)}
         ${checkEqual "Mylar3 stores its INI beside its persistent database" "/var/lib/mylar3" drlight.services.mylar3.dataDir}
         ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
+        ${checkFalse "Mylar3 can leave restored INI untouched during one-time root migration" (builtins.hasAttr "ExecStartPre" (drlightWithMylarSettingsManagementDisabled.systemd.services.mylar3.serviceConfig or {}))}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All Drlight media-management tests passed"

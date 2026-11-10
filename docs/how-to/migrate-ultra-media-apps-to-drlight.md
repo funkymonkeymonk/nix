@@ -78,9 +78,11 @@ Restore one app at a time using the version-approved workflows in Step 2. Keep d
 3. Run the app's supported library refresh/rescan. Verify monitored state, aggregate library totals, and representative records against the private source baseline. Confirm the app does not interpret an unavailable old root as a new empty library.
 4. Repeat for Radarr, Sonarr, Lidarr, and Mylar3. Keep the source app state and pristine backups intact.
 
+For Mylar3, `DESTINATION_DIR` sets the default for new comics; it does not rewrite existing `ComicLocation` database records. After restoring Mylar3's backup and before applying the Nix-managed `config.ini` overlay for the cutover, temporarily set `services.mylar3.manageSettingsFile = false` in Nix. Follow the [official Mylar3 moving-filesystem procedure](https://github.com/mylar3/mylar3/wiki/Moving-to-a-new-filesystem): leave the restored `General.DESTINATION_DIR` at the source, set `[Update] locmove = True` and `newcom_dir` to the local comics destination, and set `fftonewcom_dir = False` to preserve the existing folder format. Start Mylar3 and wait for its `locmove` setting to reset. Verify all existing comic records resolve under the local comics root and that the local copy is present; Mylar3's procedure updates database paths but does not copy or move files. Then restore `services.mylar3.manageSettingsFile = true` so Nix enforces the Drlight destination on later starts. Do not edit Mylar3's database directly or use its delete-comic API for path migration.
+
 For Bazarr, use only its installed version's supported restore path. If a cross-instance restore is unsupported, stop as specified in Step 2; do not substitute a file-copy restore.
 
-**Stop if:** any root mapping is ambiguous, expected records disappear, migration errors occur, or aggregate counts do not reconcile.
+**Stop if:** any root mapping is ambiguous, Mylar3's one-time path rewrite does not complete or verify, expected records disappear, migration errors occur, or aggregate counts do not reconcile.
 
 ## 5. Configure and test private application connections
 

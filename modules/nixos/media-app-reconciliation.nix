@@ -21,11 +21,6 @@
 
   transmissionOptions = app: {
     enable = mkEnableOption "managed remote Transmission client for ${app}";
-    category = mkOption {
-      type = types.str;
-      default = app;
-      description = "Transmission category assigned by ${app}.";
-    };
     localPath = mkOption {
       type = types.str;
       default = stageRoot;
@@ -111,7 +106,6 @@
       rootFolders = appCfg.rootFolders;
       transmission = {
         name = "Transmission";
-        category = transmission.category;
         localPath = transmission.localPath;
         rpcUrl.secret = transmission.rpcUrlFile;
         username.secret = transmission.rpcUsernameFile;
@@ -252,7 +246,7 @@ in {
         bazarr-media-config-sync = bazarrSyncService;
       })
       {
-        mylar3.serviceConfig.ExecStartPre = lib.mkIf config.services.mylar3.enable mylarConfigRenderer;
+        mylar3.serviceConfig.ExecStartPre = lib.mkIf (config.services.mylar3.enable && config.services.mylar3.manageSettingsFile) mylarConfigRenderer;
       }
     ];
 

@@ -265,7 +265,6 @@ or changing a `myConfig.*` option.
 | `lidarr` | submodule | `{ }` | — |
 | `lidarr.rootFolders` | list of string | `[ "/srv/media/music" ]` | Local application library roots managed through the app API. |
 | `lidarr.transmission` | submodule | `{ }` | — |
-| `lidarr.transmission.category` | string | `"lidarr"` | Transmission category assigned by lidarr. |
 | `lidarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for lidarr. |
 | `lidarr.transmission.localPath` | string | `"/srv/media/.arr-staging"` | Local path where the download staging job materializes completed data. |
 | `lidarr.transmission.remotePathFile` | string | `"/run/secrets/ultra-media-stage-download-root"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
@@ -275,7 +274,6 @@ or changing a `myConfig.*` option.
 | `radarr` | submodule | `{ }` | — |
 | `radarr.rootFolders` | list of string | `[ "/srv/media/movies" ]` | Local application library roots managed through the app API. |
 | `radarr.transmission` | submodule | `{ }` | — |
-| `radarr.transmission.category` | string | `"radarr"` | Transmission category assigned by radarr. |
 | `radarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for radarr. |
 | `radarr.transmission.localPath` | string | `"/srv/media/.arr-staging"` | Local path where the download staging job materializes completed data. |
 | `radarr.transmission.remotePathFile` | string | `"/run/secrets/ultra-media-stage-download-root"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
@@ -285,7 +283,6 @@ or changing a `myConfig.*` option.
 | `sonarr` | submodule | `{ }` | — |
 | `sonarr.rootFolders` | list of string | `[ "/srv/media/shows" ]` | Local application library roots managed through the app API. |
 | `sonarr.transmission` | submodule | `{ }` | — |
-| `sonarr.transmission.category` | string | `"sonarr"` | Transmission category assigned by sonarr. |
 | `sonarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for sonarr. |
 | `sonarr.transmission.localPath` | string | `"/srv/media/.arr-staging"` | Local path where the download staging job materializes completed data. |
 | `sonarr.transmission.remotePathFile` | string | `"/run/secrets/ultra-media-stage-download-root"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |

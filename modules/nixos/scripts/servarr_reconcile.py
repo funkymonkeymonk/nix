@@ -45,7 +45,6 @@ def transmission_fields(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
         "useSsl": parsed.scheme == "https",
         "username": expand_runtime_secrets(config["username"]),
         "password": expand_runtime_secrets(config["password"]),
-        "category": config["category"],
     }
     if url_base:
         fields["urlBase"] = url_base

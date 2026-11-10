@@ -119,6 +119,15 @@ in {
       default = "/var/lib/mylar3";
       description = "Directory where Mylar3 stores its configuration and database.";
     };
+    manageSettingsFile = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Overlay declared Mylar3 settings onto the runtime config.ini before startup.
+        Disable temporarily when performing Mylar3's one-time root-path migration
+        from an imported backup.
+      '';
+    };
     settings = lib.mkOption {
       type = lib.types.attrsOf (lib.types.attrsOf (lib.types.oneOf [
         lib.types.str

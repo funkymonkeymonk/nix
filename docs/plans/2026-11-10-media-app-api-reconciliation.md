@@ -47,7 +47,7 @@ Read Bazarr and Arr API keys at runtime. Update only the declared Sonarr and Rad
 - Modify: `modules/nixos/media-management.nix`
 - Modify: `library/machines/catalog.nix` only if module composition requires it
 
-Declare per-app desired state. Generate JSON containing only non-secret values and secret file paths. Create oneshots that wait for app services, run as the app user, and are wanted by the corresponding service. Derive Transmission RPC host/port/TLS/base URL at runtime from the configured RPC URL secret file. Configure Radarr/Sonarr/Lidarr's Transmission client category, local root, and exact remote-path mapping to staging. Configure Bazarr to use Drlight-local Sonarr and Radarr.
+Declare per-app desired state. Generate JSON containing only non-secret values and secret file paths. Create oneshots that wait for app services, run as the app user, and are wanted by the corresponding service. Derive Transmission RPC host/port/TLS/base URL at runtime from the configured RPC URL secret file. Configure Radarr/Sonarr/Lidarr's Transmission client, local root, and exact remote-path mapping to staging. Configure Bazarr to use Drlight-local Sonarr and Radarr.
 
 ### Task 5: Add typed Mylar3 declarative INI support
 
@@ -56,7 +56,7 @@ Declare per-app desired state. Generate JSON containing only non-secret values a
 - Modify: `tests/test-media-app-reconciliation.py`
 - Modify: `tests/test-media-center-archetype.nix`
 
-Expose only upstream-supported settings needed for the local comics destination, interface/auth, and configured downloader behavior. Render the INI at runtime before Mylar3 starts so secret values never enter the Nix store. Keep the installed Mylar3 API and database state intact. Test the renderer with temporary files and ensure file mode/owner are restrictive.
+Expose only upstream-supported settings needed for the local comics destination, interface/auth, and configured downloader behavior. Render the INI at runtime before Mylar3 starts so secret values never enter the Nix store. Add a `manageSettingsFile` switch so the one-time upstream Mylar3 `locmove` migration can run against the restored source config before Nix reapplies the local destination. Keep the installed Mylar3 API and database state intact. Test the renderer with temporary files and ensure file mode/owner are restrictive.
 
 ### Task 6: Integrate tests and docs
 
