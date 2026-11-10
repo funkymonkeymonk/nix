@@ -363,11 +363,20 @@
         '') ["radarr" "sonarr" "lidarr" "bazarr"]}
         ${checkTrue "Arr reconciliation imports its packaged shared Python helpers" (lib.hasInfix "media-app-reconciliation-scripts/servarr_reconcile.py" (drlight.systemd.services.radarr-media-config-sync.serviceConfig.ExecStart or ""))}
         ${checkTrue "Bazarr reconciliation imports its packaged shared Python helpers" (lib.hasInfix "media-app-reconciliation-scripts/bazarr_reconcile.py" (drlight.systemd.services.bazarr-media-config-sync.serviceConfig.ExecStart or ""))}
+        ${checkTrue "Arr apps clear seedbox reverse-proxy URL bases for direct Tailscale access" (lib.all (app: (drlight.services.${app}.settings.server.urlbase or null) == "") ["radarr" "sonarr" "lidarr"])}
+        ${checkEqual "Radarr's empty URL base is emitted to its migrated runtime config" "" (drlight.systemd.services.radarr.environment.RADARR__SERVER__URLBASE or null)}
+        ${checkEqual "Sonarr's empty URL base is emitted to its migrated runtime config" "" (drlight.systemd.services.sonarr.environment.SONARR__SERVER__URLBASE or null)}
+        ${checkTrue "Arr apps retain form authentication and Nix-managed external updates" (lib.all (app: (drlight.services.${app}.settings.auth.method or null) == "Forms" && (drlight.services.${app}.settings.auth.required or null) == "Enabled" && (drlight.services.${app}.settings.update.mechanism or null) == "external" && (drlight.services.${app}.settings.update.automatically or null) == false) ["radarr" "sonarr" "lidarr"])}
         ${checkTrue "Radarr reconciles its local library root" (builtins.elem "/srv/media/movies" (((drlight.myConfig.mediaManagement or {}).radarr or {}).rootFolders or []))}
         ${checkTrue "Sonarr reconciles its local library root" (builtins.elem "/srv/media/shows" (((drlight.myConfig.mediaManagement or {}).sonarr or {}).rootFolders or []))}
         ${checkTrue "Lidarr reconciles its local library root" (builtins.elem "/srv/media/music" (((drlight.myConfig.mediaManagement or {}).lidarr or {}).rootFolders or []))}
         ${checkTrue "Arr clients map seedbox downloads to local staging" (lib.all (app: (((((drlight.myConfig.mediaManagement or {}).${app} or {}).transmission or {}).localPath or null) == "/srv/media/.arr-staging")) ["radarr" "sonarr" "lidarr"])}
+        ${checkFalse "Bazarr does not activate source-disabled Arr sync integrations by default" (drlight.myConfig.mediaManagement.bazarr.useSonarr || drlight.myConfig.mediaManagement.bazarr.useRadarr)}
         ${checkTrue "Mylar3's declarative settings use the local comic root" ((drlight.services.mylar3.settings.General.DESTINATION_DIR or null) == "/srv/media/comics")}
+        ${checkEqual "Mylar3 uses a root URL base on Drlight's direct port" "/" (drlight.services.mylar3.settings.Interface.HTTP_ROOT or null)}
+        ${checkEqual "Mylar3 preserves its Forms authentication mode" 2 (drlight.services.mylar3.settings.Interface.AUTHENTICATION or null)}
+        ${checkEqual "Mylar3 retains its non-torrent downloader mode" 0 (drlight.services.mylar3.settings.Client.TORRENT_DOWNLOADER or null)}
+        ${checkFalse "Mylar3 does not enable torrent downloads or search" (drlight.services.mylar3.settings.Torrents.ENABLE_TORRENTS or true || drlight.services.mylar3.settings.Torrents.ENABLE_TORRENT_SEARCH or true)}
         ${checkEqual "Mylar3 stores its INI beside its persistent database" "/var/lib/mylar3" drlight.services.mylar3.dataDir}
         ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
 

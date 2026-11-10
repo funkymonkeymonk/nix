@@ -33,7 +33,7 @@ A reconciliation service should:
 5. Create a missing resource using the service's schema/defaults, or update only the declared fields of the uniquely matching resource. Preserve server-generated IDs and fields Nix does not own.
 6. Fail without mutation if the API is unavailable, the schema changes, the secret is missing, or the identity is ambiguous.
 
-The media integration follows this model: Radarr, Sonarr, and Lidarr reconcile the Transmission download client, local root folders, and remote path mapping. Bazarr has a separate adapter for its Sonarr/Radarr connections because its API contract differs. Mylar3 uses its documented INI config instead of being forced into a Servarr API abstraction.
+The media integration follows this model: Radarr, Sonarr, and Lidarr reconcile the Transmission download client, local root-folder entries, and remote path mapping. Adding a root-folder entry does **not** rewrite existing series/movie/artist paths or move files; that one-time cutover must use the app's supported migration operation and be verified separately. Bazarr has a separate adapter for its Sonarr/Radarr connections because its API contract differs. Mylar3 uses its documented INI config instead of being forced into a Servarr API abstraction.
 
 ## Ownership and deletion
 

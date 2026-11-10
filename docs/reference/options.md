@@ -259,6 +259,9 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `bazarr` | submodule | `{ }` | — |
+| `bazarr.useRadarr` | boolean | `false` | Enable Bazarr's Radarr synchronization after migration. |
+| `bazarr.useSonarr` | boolean | `false` | Enable Bazarr's Sonarr synchronization after migration. |
 | `lidarr` | submodule | `{ }` | — |
 | `lidarr.rootFolders` | list of string | `[ "/srv/media/music" ]` | Local application library roots managed through the app API. |
 | `lidarr.transmission` | submodule | `{ }` | — |

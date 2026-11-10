@@ -142,6 +142,8 @@
   bazarrConfig = pkgs.writeText "bazarr-media-reconcile.json" (builtins.toJSON {
     bazarrBaseUrl = "http://127.0.0.1:${toString config.services.bazarr.settings.general.port}";
     bazarrApiKeyFile = apiKeyFile "bazarr";
+    useSonarr = mediaCfg.bazarr.useSonarr;
+    useRadarr = mediaCfg.bazarr.useRadarr;
     sonarr = {
       baseUrl = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}";
       apiKeyFile = apiKeyFile "sonarr";
@@ -216,6 +218,23 @@ in {
     };
     lidarr = mkOption {
       type = types.submodule {options = arrOptions "lidarr" "/srv/media/music";};
+      default = {};
+    };
+    bazarr = mkOption {
+      type = types.submodule {
+        options = {
+          useSonarr = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Enable Bazarr's Sonarr synchronization after migration.";
+          };
+          useRadarr = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Enable Bazarr's Radarr synchronization after migration.";
+          };
+        };
+      };
       default = {};
     };
   };

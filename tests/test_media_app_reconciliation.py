@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import urllib.parse
 
 
 if len(sys.argv) > 1 and pathlib.Path(sys.argv[1]).is_dir():
@@ -62,9 +63,19 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             self._write_json({"error": "not found"}, 404)
 
     def do_POST(self):
+        if self.path == "/bazarr/api/system/settings":
+            body_bytes = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            body = {key: values[-1] for key, values in urllib.parse.parse_qs(body_bytes.decode(), keep_blank_values=True).items()}
+            self.state.requests.append(("POST", self.path, self.headers.get("X-Api-Key"), body, self.headers.get("Content-Type")))
+            for key, value in body.items():
+                parts = key.split("-", 2)
+                if len(parts) == 3 and parts[0] == "settings":
+                    self.state.bazarr_settings.setdefault(parts[1], {})[parts[2]] = value
+            self._write_json(self.state.bazarr_settings)
+            return
         body = self._read_json()
         self.state.requests.append(("POST", self.path, self.headers.get("X-Api-Key"), body))
-        if self.path.endswith("/downloadclient"):
+        if self.path.endswith("/downloadclient"): 
             body["id"] = self.state.next_id
             self.state.next_id += 1
             self.state.download_clients.append(body)
@@ -79,9 +90,6 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             self.state.next_id += 1
             self.state.remote_path_mappings.append(body)
             self._write_json(body, 201)
-        elif self.path == "/bazarr/api/system/settings":
-            self.state.bazarr_settings.update(body)
-            self._write_json(self.state.bazarr_settings)
         else:
             self._write_json({"error": "not found"}, 404)
 
@@ -288,24 +296,47 @@ class BazarrReconciliationTests(unittest.TestCase):
             sonarr_key = write_secret(directory, "sonarr-key", "sonarr-key-value")
             radarr_key = write_secret(directory, "radarr-key", "radarr-key-value")
             state = ApiState()
-            state.bazarr_settings = {"unmanaged-setting": "preserve"}
+            state.bazarr_settings = {
+                "general": {"base_url": "/bazarr", "use_sonarr": False, "use_radarr": False},
+                "sonarr": {"ip": "seedbox.local", "port": 8989, "base_url": "/", "ssl": False, "apikey": "old-sonarr-key", "only_monitored": True, "series_sync": 17, "episodes_sync": 23},
+                "radarr": {"ip": "seedbox.local", "port": 7878, "base_url": "/", "ssl": False, "apikey": "old-radarr-key", "only_monitored": True, "movies_sync": 19},
+                "unmanaged-setting": "preserve",
+            }
 
             with running_api(state) as server:
-                reconcile(
-                    {
-                        "bazarrBaseUrl": f"{server}/bazarr",
-                        "bazarrApiKeyFile": bazarr_key,
-                        "sonarr": {"baseUrl": "http://127.0.0.1:8989", "apiKeyFile": sonarr_key},
-                        "radarr": {"baseUrl": "http://127.0.0.1:7878", "apiKeyFile": radarr_key},
-                    }
-                )
+                config = {
+                    "bazarrBaseUrl": f"{server}/bazarr",
+                    "bazarrApiKeyFile": bazarr_key,
+                    "useSonarr": False,
+                    "useRadarr": False,
+                    "sonarr": {"baseUrl": "http://127.0.0.1:8989/sonarr", "apiKeyFile": sonarr_key},
+                    "radarr": {"baseUrl": "http://127.0.0.1:7878/radarr", "apiKeyFile": radarr_key},
+                }
+                reconcile(config)
+                writes_after_first_sync = sum(request[0] == "POST" for request in state.requests)
+                reconcile(config)
+
+        self.assertEqual(sum(request[0] == "POST" for request in state.requests), writes_after_first_sync)
 
         self.assertEqual(state.bazarr_settings["unmanaged-setting"], "preserve")
-        self.assertEqual(state.bazarr_settings["settings-sonarr-apikey"], "sonarr-key-value")
-        self.assertEqual(state.bazarr_settings["settings-radarr-apikey"], "radarr-key-value")
-        self.assertEqual(state.bazarr_settings["settings-sonarr-ip"], "127.0.0.1")
-        self.assertEqual(state.bazarr_settings["settings-radarr-ip"], "127.0.0.1")
-        self.assertTrue(all(request[2] == "bazarr-key-value" for request in state.requests))
+        self.assertFalse(state.bazarr_settings["general"]["use_sonarr"])
+        self.assertFalse(state.bazarr_settings["general"]["use_radarr"])
+        self.assertEqual(state.bazarr_settings["general"]["base_url"], "")
+        self.assertEqual(state.bazarr_settings["sonarr"]["apikey"], "sonarr-key-value")
+        self.assertEqual(state.bazarr_settings["radarr"]["apikey"], "radarr-key-value")
+        self.assertEqual(state.bazarr_settings["sonarr"]["ip"], "127.0.0.1")
+        self.assertEqual(state.bazarr_settings["radarr"]["ip"], "127.0.0.1")
+        self.assertEqual(state.bazarr_settings["sonarr"]["base_url"], "/sonarr")
+        self.assertEqual(state.bazarr_settings["radarr"]["base_url"], "/radarr")
+        self.assertTrue(state.bazarr_settings["sonarr"]["only_monitored"])
+        self.assertEqual(state.bazarr_settings["sonarr"]["series_sync"], 17)
+        self.assertEqual(state.bazarr_settings["sonarr"]["episodes_sync"], 23)
+        self.assertTrue(state.bazarr_settings["radarr"]["only_monitored"])
+        self.assertEqual(state.bazarr_settings["radarr"]["movies_sync"], 19)
+        form_posts = [request for request in state.requests if request[0] == "POST"]
+        self.assertEqual(len(form_posts), 1)
+        self.assertTrue(all(request[2] == "bazarr-key-value" for request in form_posts))
+        self.assertTrue(all(request[4] == "application/x-www-form-urlencoded" for request in form_posts))
 
 
 class MylarConfigTests(unittest.TestCase):

@@ -15,10 +15,12 @@ The machine also uses a remote Transmission service on Ultra. Its RPC credential
 2. Manage application-database settings through idempotent API reconciliation services. Represent desired state in Nix, wait for each application API to become available, and reconcile only the resources declared as managed.
 3. The initial managed Arr resources are named download clients, local library root folders, and remote path mappings for Radarr, Sonarr, and Lidarr. The remote Transmission endpoint is derived from runtime secret files. The mapping points from the seedbox-reported completed-download root to Drlight's local staging path; it does not perform file transfer.
 4. Manage Bazarr's connections to the Drlight-local Sonarr and Radarr APIs through its API. Keep app-specific adapters separate from the common reconciliation primitives because the applications have different API contracts.
-5. Manage Mylar3's supported startup settings through a typed service option and a runtime-generated configuration file, rather than mutating its database or assuming it implements the Servarr API.
+5. Manage Mylar3's supported startup settings through a typed service option and a runtime-generated configuration file, rather than mutating its database or assuming it implements the Servarr API. The live service uses the watch-folder downloader with torrent download/search disabled; preserve that mode and do not connect Mylar3 directly to remote Transmission.
 6. Reconciliation is additive/update-only by default. It may create a missing declared object or update the matching object, but it does not delete undeclared app settings, root folders, download clients, profiles, comics, or indexers. Migrated user data is preserved.
 7. The local Drlight module does not configure the remote Prowlarr service. Prowlarr remains owned by its Ultra deployment. Its remote app connections remain a separately managed deployment boundary.
-8. Application profiles, custom formats, language/provider choices, and catalog contents are user policy. Do not invent or overwrite these from defaults during migration. Keep them in imported state until their exact desired values are explicitly declared; the reconciliation pattern must support adding such adapters later.
+8. Application profiles, custom formats, language/provider choices, and catalog contents are user policy. Do not invent or overwrite these from defaults during migration. Preserve them through application-native backup/restore until their exact desired values are explicitly declared; the reconciliation pattern must support adding such adapters later.
+9. Ultra's Arr and Mylar3 URL bases are reverse-proxy prefixes. Drlight exposes the services on private Tailscale ports instead, so clear Arr `server.urlbase` and set Mylar3 `HTTP_ROOT` to `/`. Preserve Forms authentication. Arr updates use the Nix package/update lifecycle (`external`), not the seedbox's Docker updater.
+10. The current Bazarr configuration stores Sonarr/Radarr connection credentials but leaves both integrations disabled. Reconcile the local endpoints and keys while preserving those disabled flags by default. Do not activate subtitle processing or invent language/provider policy during migration.
 
 ## Consequences
 
@@ -26,7 +28,9 @@ The machine also uses a remote Transmission service on Ultra. Its RPC credential
 - Applying a NixOS generation can repair drift in managed resources without erasing unrelated UI configuration.
 - API keys and Transmission credentials remain runtime-only. Reconciliation fails closed if an app is unavailable, its API key cannot be read, a resource identity is ambiguous, or a secret file is missing.
 - Every adapter needs contract tests for its API payload and behavior. Generic HTTP code must not guess service-specific semantics.
-- Full state ownership is incremental: the initial implementation manages migration-critical connections and paths, not subjective profiles or user catalog contents.
+- Application-native backups carry the existing profiles, custom formats, indexers, providers, and catalog state across the host migration; Nix does not re-create those opaque database records.
+- The initial API layer manages integration endpoints and root-folder entries, not every value in each app database. Existing item paths still require the documented, verified cutover remap to local library paths; ensuring a new root-folder entry alone does not remap existing series or movies.
+- Bazarr connections are configured but remain inactive unless the declared `useSonarr`/`useRadarr` options are explicitly enabled.
 
 ## Review checklist
 

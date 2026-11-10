@@ -13,7 +13,7 @@ Make migration-critical configuration for Drlight's Radarr, Sonarr, Lidarr, Baza
 The implementation owns only the desired state explicitly declared in Nix:
 
 - Radarr, Sonarr, and Lidarr each receive the remote Transmission download-client connection, a mapping from the seedbox-reported completed-download root to `/srv/media/.arr-staging`, and their local library root.
-- Bazarr receives its Drlight-local Sonarr and Radarr connection settings.
+- Bazarr receives its Drlight-local Sonarr and Radarr connection settings. Preserve the source `use_sonarr` and `use_radarr` activation flags (currently disabled) unless the machine declaration opts in.
 - Mylar3 receives declarative supported startup settings using its INI configuration mechanism, with the local comics directory and runtime-only credentials where applicable.
 - Native NixOS service settings remain the authority for process-level configuration such as ports, binding, authentication policy, and filesystem permissions.
 
@@ -39,7 +39,7 @@ For Servarr apps, the adapter:
 
 The Transmission host, port, URL base, and TLS flag are derived at runtime from the existing secret RPC URL. The RPC username/password and completed-download root are read from their existing runtime secret files. Only credentials are secret; no credential value is serialized into Nix or logged. Each app's Transmission download-client category is distinct.
 
-For Bazarr, a separate adapter follows its own API: read its API key and the local Arr API keys at runtime, then update the Sonarr/Radarr connection settings. It preserves Bazarr settings not owned by this module.
+For Bazarr, a separate adapter follows its own API: read its API key and the local Arr API keys at runtime, then update only the Sonarr/Radarr connection fields using Bazarr's form-encoded API. Preserve language/provider settings and the source activation flags by default.
 
 For Mylar3, do not pretend its API is a Servarr API. Add typed settings to the custom NixOS module and produce a runtime INI file using the upstream config option names. Preserve any mutable state/database. Secrets are injected only into the runtime file and the configured file permissions restrict access.
 
@@ -66,4 +66,4 @@ Keep host-specific desired state in `modules/nixos/media-management.nix` or a na
 
 ## Rollout
 
-The Nix generation can provision services and declare desired integration state without deleting app data. During cutover, restore the native app backups, apply the Nix generation, then inspect each sync service and verify the app API state before enabling recurring staging. Keep runbook steps for the remote Prowlarr/Tailscale integration separate because Prowlarr is outside this host's configuration boundary.
+The Nix generation can provision services and declare desired integration state without deleting app data. During cutover, restore the native app backups, apply the Nix generation, then inspect each sync service and verify the app API state before enabling recurring staging. Root-folder entries are ensured, but existing media-item paths are not rewritten or moved by reconciliation; the runbook's verified cutover remap remains necessary. Keep runbook steps for the remote Prowlarr/Tailscale integration separate because Prowlarr is outside this host's configuration boundary.
