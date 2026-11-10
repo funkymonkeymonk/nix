@@ -139,8 +139,15 @@ in {
   services.mylar3 = {
     enable = true;
     settings = {
-      General.DESTINATION_DIR = "/srv/media/comics";
+      General = {
+        DESTINATION_DIR = "/srv/media/comics";
+        AUTO_UPDATE = false;
+        CREATE_FOLDERS = true;
+        MOVE_FILES = false;
+        RENAME_FILES = false;
+      };
       Client.TORRENT_DOWNLOADER = 0;
+      PostProcess.POST_PROCESSING = true;
       Torrents = {
         ENABLE_TORRENTS = false;
         ENABLE_TORRENT_SEARCH = false;

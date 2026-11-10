@@ -377,6 +377,9 @@
         ${checkTrue "Arr clients map seedbox downloads to local staging" (lib.all (app: (((((drlight.myConfig.mediaManagement or {}).${app} or {}).transmission or {}).localPath or null) == "/srv/media/.arr-staging")) ["radarr" "sonarr" "lidarr"])}
         ${checkFalse "Bazarr does not activate source-disabled Arr sync integrations by default" (drlight.myConfig.mediaManagement.bazarr.useSonarr || drlight.myConfig.mediaManagement.bazarr.useRadarr)}
         ${checkTrue "Mylar3's declarative settings use the local comic root" ((drlight.services.mylar3.settings.General.DESTINATION_DIR or null) == "/srv/media/comics")}
+        ${checkTrue "Mylar3 keeps media organization behavior from the seedbox config" (drlight.services.mylar3.settings.General.CREATE_FOLDERS && !drlight.services.mylar3.settings.General.MOVE_FILES && !drlight.services.mylar3.settings.General.RENAME_FILES)}
+        ${checkFalse "Mylar3 automatic updates stay under Nix package management" drlight.services.mylar3.settings.General.AUTO_UPDATE}
+        ${checkTrue "Mylar3 retains its configured post-processing mode" drlight.services.mylar3.settings.PostProcess.POST_PROCESSING}
         ${checkEqual "Mylar3 uses a root URL base on Drlight's direct port" "/" (drlight.services.mylar3.settings.Interface.HTTP_ROOT or null)}
         ${checkEqual "Mylar3 preserves its Forms authentication mode" 2 (drlight.services.mylar3.settings.Interface.AUTHENTICATION or null)}
         ${checkEqual "Mylar3 retains its non-torrent downloader mode" 0 (drlight.services.mylar3.settings.Client.TORRENT_DOWNLOADER or null)}
