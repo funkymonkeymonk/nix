@@ -10,7 +10,7 @@
   # its UID, which would break Grafana's persistent datasource references.
   lokiDatasourceUid = "P8E80F9AEF21F6940";
 
-  ultraSyncFailureQuery = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-sync.service" | JOB_RESULT="failed" [5m]))'';
+  ultraStageFailureQuery = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-download-stage.service" | JOB_RESULT="failed" [5m]))'';
 
   dashboard = pkgs.writeText "system-overview.json" (builtins.toJSON {
     title = "protoman: System Overview";
@@ -88,8 +88,8 @@
     ];
   });
 
-  ultraSyncDashboard = pkgs.writeText "ultra-media-sync.json" (builtins.toJSON {
-    title = "drlight: Ultra Media Sync";
+  ultraStageDashboard = pkgs.writeText "ultra-media-download-stage.json" (builtins.toJSON {
+    title = "drlight: Ultra Download Staging";
     uid = "drlight-ultra-media-sync";
     schemaVersion = 39;
     refresh = "1m";
@@ -114,7 +114,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''{host="drlight",service="ultra-media-sync-start"}'';
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"}'';
           }
         ];
       }
@@ -134,7 +134,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''{host="drlight",service="systemd"} | json | UNIT="ultra-media-sync.service"'';
+            expr = ''{host="drlight",service="systemd"} | json | UNIT="ultra-media-download-stage.service"'';
           }
         ];
       }
@@ -154,7 +154,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-sync.service" | JOB_RESULT="failed" [24h]))'';
+            expr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-download-stage.service" | JOB_RESULT="failed" [24h]))'';
             queryType = "instant";
           }
         ];
@@ -175,7 +175,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''sum(count_over_time({host="drlight",service="ultra-media-sync-start"}[5m]))'';
+            expr = ''sum(count_over_time({host="drlight",service="ultra-media-download-stage-start"}[5m]))'';
           }
         ];
       }
@@ -218,18 +218,18 @@
     ];
   });
 
-  ultraSyncFailureAlerting = {
+  ultraStageFailureAlerting = {
     apiVersion = 1;
     groups = [
       {
         orgId = 1;
-        name = "ultra-media-sync";
+        name = "ultra-download-staging";
         folder = "Media";
         interval = "1m";
         rules = [
           {
             uid = "ultra-media-sync-failure";
-            title = "Ultra media sync failed";
+            title = "Ultra download staging failed";
             condition = "A";
             data = [
               {
@@ -246,7 +246,7 @@
                     uid = lokiDatasourceUid;
                   };
                   editorMode = "code";
-                  expr = ultraSyncFailureQuery;
+                  expr = ultraStageFailureQuery;
                   queryType = "instant";
                   refId = "A";
                   intervalMs = 1000;
@@ -258,8 +258,8 @@
             execErrState = "Error";
             for = "0s";
             annotations = {
-              summary = "Ultra media sync failed on drlight";
-              description = "systemd reported JOB_RESULT=failed for ultra-media-sync.service. See the Ultra Media Sync dashboard for logs.";
+              summary = "Ultra download staging failed on drlight";
+              description = "systemd reported JOB_RESULT=failed for ultra-media-download-stage.service. See the Ultra Download Staging dashboard for logs.";
             };
             labels = {
               severity = "critical";
@@ -275,7 +275,7 @@
   dashboardsDir = pkgs.runCommand "grafana-dashboards" {} ''
     mkdir -p $out
     cp ${dashboard} $out/system-overview.json
-    cp ${ultraSyncDashboard} $out/ultra-media-sync.json
+    cp ${ultraStageDashboard} $out/ultra-media-download-stage.json
   '';
 
   grafanaSecretKey = "/var/lib/grafana/secret_key";
@@ -353,7 +353,7 @@ in {
             options.path = dashboardsDir;
           }
         ];
-        alerting.rules.settings = ultraSyncFailureAlerting;
+        alerting.rules.settings = ultraStageFailureAlerting;
       };
     };
 

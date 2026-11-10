@@ -142,7 +142,10 @@
     "nixos/tailscale-home-dns.nix"
     "nixos/media-config.nix"
     "nixos/media-storage.nix"
-    "nixos/ultra-media-sync.nix"
+    "nixos/ultra-media-download-stage.nix"
+    # Tested via test-media-center-archetype.nix (drlight-media-management)
+    "nixos/media-management.nix"
+    "nixos/mylar3.nix"
     "nixos/onepacerr.nix"
     "services/caddy/nixos.nix"
   ];
