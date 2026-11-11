@@ -64,36 +64,108 @@
     config.services.radarr.settings.server.port
     config.services.sonarr.settings.server.port
     config.services.lidarr.settings.server.port
-    config.services.bazarr.listenPort
+    config.services.bazarr.settings.general.port
     config.services.mylar3.port
   ];
 in {
-  imports = [./mylar3.nix];
+  imports = [
+    ./mylar3.nix
+    ./media-app-reconciliation.nix
+  ];
 
   services.radarr = {
     enable = true;
     group = "users";
     openFirewall = false;
-    settings.server.bindaddress = "*";
+    settings = {
+      server = {
+        bindaddress = "*";
+        urlbase = "";
+      };
+      auth = {
+        method = "Forms";
+        required = "Enabled";
+      };
+      update = {
+        mechanism = "external";
+        automatically = false;
+      };
+    };
   };
   services.sonarr = {
     enable = true;
     group = "users";
     openFirewall = false;
-    settings.server.bindaddress = "*";
+    settings = {
+      server = {
+        bindaddress = "*";
+        urlbase = "";
+      };
+      auth = {
+        method = "Forms";
+        required = "Enabled";
+      };
+      update = {
+        mechanism = "external";
+        automatically = false;
+      };
+    };
   };
   services.lidarr = {
     enable = true;
     group = "users";
     openFirewall = false;
-    settings.server.bindaddress = "*";
+    settings = {
+      server = {
+        bindaddress = "*";
+        urlbase = "";
+      };
+      auth = {
+        method = "Forms";
+        required = "Enabled";
+      };
+      update = {
+        mechanism = "external";
+        automatically = false;
+      };
+    };
   };
   services.bazarr = {
     enable = true;
     group = "users";
     openFirewall = false;
+    settings.general.port = 6767;
   };
-  services.mylar3.enable = true;
+  services.mylar3 = {
+    enable = true;
+    settings = {
+      General = {
+        DESTINATION_DIR = "/srv/media/comics";
+        AUTO_UPDATE = false;
+        CREATE_FOLDERS = true;
+        MOVE_FILES = false;
+        RENAME_FILES = false;
+      };
+      Client.TORRENT_DOWNLOADER = 0;
+      PostProcess.POST_PROCESSING = true;
+      Torrents = {
+        ENABLE_TORRENTS = false;
+        ENABLE_TORRENT_SEARCH = false;
+      };
+      Interface = {
+        HTTP_HOST = "0.0.0.0";
+        HTTP_PORT = 8090;
+        HTTP_ROOT = "/";
+        AUTHENTICATION = 2;
+      };
+    };
+  };
+
+  myConfig.mediaManagement = {
+    radarr.transmission.enable = true;
+    sonarr.transmission.enable = true;
+    lidarr.transmission.enable = true;
+  };
 
   myConfig.homepage.directLinks = [
     {
@@ -123,7 +195,7 @@ in {
     {
       name = "Bazarr";
       group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.bazarr.listenPort}";
+      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.bazarr.settings.general.port}";
       description = "Subtitle manager";
     }
   ];

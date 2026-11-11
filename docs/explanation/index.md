@@ -16,6 +16,7 @@ Understanding-oriented background reading. These documents do not walk you throu
 | [Architecture](architecture.md) | Module composition, options, roles, targets, helpers |
 | [Disposable Infrastructure](disposable-infrastructure.md) | Heirloom vs takeout-container machine management |
 | [Testing Strategy](testing.md) | Eval tests, VM tests, CI pipeline design |
+| [Declarative API Reconciliation](api-reconciliation.md) | Managing database-backed service settings from Nix without replacing application state |
 
 ## Multi-Agent Development
 

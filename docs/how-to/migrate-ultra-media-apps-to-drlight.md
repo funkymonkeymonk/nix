@@ -73,23 +73,25 @@ The local library bootstrap is complete. The legacy organized-library sync servi
 
 Restore one app at a time using the version-approved workflows in Step 2. Keep downloads paused and do not begin Arr imports until Step 3 is complete.
 
-1. Confirm the destination app is at the approved version and is not processing downloads. Restore its verified native archive using its documented workflow and the linked app-specific source in Steps 1–2.
-2. Replace each old library root with its verified local counterpart. Apply each one-to-one root remap only after confirming the destination root exists. Do not record root values in notes or Git.
+1. Confirm the destination app is at the approved version and is not processing downloads. Restore its verified native archive using its documented workflow and the linked app-specific source in Steps 1–2. This restores database-backed configuration (such as profiles, indexer integrations, and monitored state) as well as the app database; Nix reconciles only the explicitly declared settings.
+2. Replace each old library root with its verified local counterpart. The Nix reconciler ensures the new local root exists, but it does not rewrite existing movie/series/artist record paths. Use the app's supported root migration operation without moving files, and verify each one-to-one mapping only after confirming the destination root exists. Do not record root values in notes or Git.
 3. Run the app's supported library refresh/rescan. Verify monitored state, aggregate library totals, and representative records against the private source baseline. Confirm the app does not interpret an unavailable old root as a new empty library.
 4. Repeat for Radarr, Sonarr, Lidarr, and Mylar3. Keep the source app state and pristine backups intact.
 
+For Mylar3, `DESTINATION_DIR` sets the default for new comics; it does not rewrite existing `ComicLocation` database records. After restoring Mylar3's backup and before applying the Nix-managed `config.ini` overlay for the cutover, temporarily set `services.mylar3.manageSettingsFile = false` in Nix. Follow the [official Mylar3 moving-filesystem procedure](https://github.com/mylar3/mylar3/wiki/Moving-to-a-new-filesystem): leave the restored `General.DESTINATION_DIR` at the source, set `[Update] locmove = True` and `newcom_dir` to the local comics destination, and set `fftonewcom_dir = False` to preserve the existing folder format. Start Mylar3 and wait for its `locmove` setting to reset. Verify all existing comic records resolve under the local comics root and that the local copy is present; Mylar3's procedure updates database paths but does not copy or move files. Then restore `services.mylar3.manageSettingsFile = true` so Nix enforces the Drlight destination on later starts. Do not edit Mylar3's database directly or use its delete-comic API for path migration.
+
 For Bazarr, use only its installed version's supported restore path. If a cross-instance restore is unsupported, stop as specified in Step 2; do not substitute a file-copy restore.
 
-**Stop if:** any root mapping is ambiguous, expected records disappear, migration errors occur, or aggregate counts do not reconcile.
+**Stop if:** any root mapping is ambiguous, Mylar3's one-time path rewrite does not complete or verify, expected records disappear, migration errors occur, or aggregate counts do not reconcile.
 
 ## 5. Configure and test private application connections
 
 Use only approved runtime connection data. Do not place values in this runbook, shell history, logs, tickets, or Git.
 
-1. **Transmission:** Configure each destination Arr app to use the existing authenticated Transmission RPC connection and run its built-in test. Do not expose RPC or Arr APIs publicly.
-2. **Remote-path mappings:** In each applicable Arr app, map the actual Transmission-reported download location to `/srv/media/.arr-staging`. Verify the exact reported path and local stage root during the approved preflight; do not infer the source mapping from a library category. A mapping does not transfer data by itself.
+1. **Transmission:** The Drlight NixOS generation configures the declared Transmission download client in Radarr, Sonarr, and Lidarr from the runtime RPC URL and credential files. After applying it, inspect each `*-media-config-sync.service` result and use each app's built-in connection test. Do not manually replace the declared client or expose RPC/API ports publicly.
+2. **Remote-path mappings:** Nix reconciles each Arr app's mapping from the actual Transmission-reported completed-download root to `/srv/media/.arr-staging`. Verify the exact root during the approved preflight and inspect the reconciled mapping after deployment. The mapping translates a path; it does not transfer data. The separate staging service performs the copy.
 3. **Prowlarr:** Keep Prowlarr on Ultra. Prove Ultra's beta Tailscale route from Prowlarr's application environment, then configure and test its Arr integrations over that private route. Do not open a public Arr API port, use a public proxy, or bypass Ultra for indexer requests.
-4. **Bazarr:** Configure its Sonarr/Radarr integrations to use the local destination apps and their API authentication. Run its connection tests and verify synchronization completes.
+4. **Bazarr:** Nix reconciles its Sonarr/Radarr connection endpoints and API keys to the Drlight-local apps. The seedbox configuration had both sync toggles disabled, so Nix preserves those flags as disabled by default. After applying the generation, inspect `bazarr-media-config-sync.service` and run Bazarr's connection tests. Enable `myConfig.mediaManagement.bazarr.useSonarr` or `useRadarr` in Nix only if you intend that integration to actively sync.
 5. Keep Prowlarr, FlareSolverr, and Transmission on Ultra. Do not uninstall or relocate them.
 
 **Stop if:** a connection test fails, the private route cannot be proven, credentials are unavailable from the approved runtime source, or indexer requests would bypass Ultra.
@@ -100,7 +102,7 @@ Obtain separate cutover approval. Keep downloads paused during the transition. P
 
 1. Confirm Steps 1–5 passed and the existing local library is available. Confirm `myConfig.ultraMediaDownloadStage.enable` remains `false`; completed-download staging must stay disabled until runtime settings and cutover have been validated.
 2. With downloads paused, stop the old Ultra Radarr, Sonarr, Lidarr, Mylar3, and Bazarr services. Keep their data and backups for rollback. Do not stop or uninstall Prowlarr, FlareSolverr, or Transmission.
-3. Start the Drlight apps. Verify their service and database health, library refreshes and aggregate counts, Transmission integration, private Prowlarr connectivity/sync, and Bazarr connectivity/sync. Confirm no Arr API is publicly reachable and indexer traffic remains on Ultra.
+3. Start the Drlight apps. Verify their service and database health, library refreshes and aggregate counts, Transmission integration, private Prowlarr connectivity/sync, and Bazarr connection tests. Verify Bazarr synchronization only for integrations explicitly enabled in Nix. Confirm no Arr API is publicly reachable and indexer traffic remains on Ultra.
 4. If any check fails, stop and use **Roll back**. Do not start completed-download staging to work around a failure.
 
 ## 7. Validate staging before enabling its timer

@@ -88,7 +88,7 @@
     };
   };
   cfg = config.services.mylar3;
-  dataDir = "/var/lib/mylar3";
+  dataDir = cfg.dataDir;
   stagingRoot = "/srv/media/.arr-staging";
   healthCheck = pkgs.writeShellScript "mylar3-health-check" ''
     set -eu
@@ -113,6 +113,43 @@ in {
       type = lib.types.port;
       default = 8090;
       description = "Port used by the Mylar3 web service.";
+    };
+    dataDir = lib.mkOption {
+      type = lib.types.str;
+      default = "/var/lib/mylar3";
+      description = "Directory where Mylar3 stores its configuration and database.";
+    };
+    manageSettingsFile = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Overlay declared Mylar3 settings onto the runtime config.ini before startup.
+        Disable temporarily when performing Mylar3's one-time root-path migration
+        from an imported backup.
+      '';
+    };
+    settings = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.attrsOf (lib.types.oneOf [
+        lib.types.str
+        lib.types.bool
+        lib.types.int
+        (lib.types.submodule {
+          options.secret = lib.mkOption {
+            type = lib.types.pathWith {
+              inStore = false;
+              absolute = true;
+            };
+            description = "Runtime file containing a secret setting value.";
+          };
+        })
+      ]));
+      default = {};
+      description = ''
+        Mylar3 INI settings, keyed by section and option. Declared values are
+        overlaid on existing configuration before startup; unspecified settings
+        remain untouched. Put sensitive values in a runtime secret file using
+        `{ secret = /run/secrets/path; }`.
+      '';
     };
   };
 
