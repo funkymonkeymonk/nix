@@ -255,6 +255,41 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `enable` | boolean | `false` | Whether to enable media services. |
 
+### myConfig.mediaManagement
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bazarr` | submodule | `{ }` | — |
+| `bazarr.useRadarr` | boolean | `false` | Enable Bazarr's Radarr synchronization after migration. |
+| `bazarr.useSonarr` | boolean | `false` | Enable Bazarr's Sonarr synchronization after migration. |
+| `lidarr` | submodule | `{ }` | — |
+| `lidarr.rootFolders` | list of string | `[ "/srv/media/music" ]` | Local application library roots managed through the app API. |
+| `lidarr.transmission` | submodule | `{ }` | — |
+| `lidarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for lidarr. |
+| `lidarr.transmission.localPath` | string | `"/srv/media/.arr-staging"` | Local path where the download staging job materializes completed data. |
+| `lidarr.transmission.remotePathFile` | string | `"/run/secrets/ultra-media-stage-download-root"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `lidarr.transmission.rpcPasswordFile` | string | `"/run/secrets/ultra-media-stage-rpc-password"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `lidarr.transmission.rpcUrlFile` | string | `"/run/secrets/ultra-media-stage-rpc-url"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `lidarr.transmission.rpcUsernameFile` | string | `"/run/secrets/ultra-media-stage-rpc-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `radarr` | submodule | `{ }` | — |
+| `radarr.rootFolders` | list of string | `[ "/srv/media/movies" ]` | Local application library roots managed through the app API. |
+| `radarr.transmission` | submodule | `{ }` | — |
+| `radarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for radarr. |
+| `radarr.transmission.localPath` | string | `"/srv/media/.arr-staging"` | Local path where the download staging job materializes completed data. |
+| `radarr.transmission.remotePathFile` | string | `"/run/secrets/ultra-media-stage-download-root"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `radarr.transmission.rpcPasswordFile` | string | `"/run/secrets/ultra-media-stage-rpc-password"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `radarr.transmission.rpcUrlFile` | string | `"/run/secrets/ultra-media-stage-rpc-url"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `radarr.transmission.rpcUsernameFile` | string | `"/run/secrets/ultra-media-stage-rpc-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `sonarr` | submodule | `{ }` | — |
+| `sonarr.rootFolders` | list of string | `[ "/srv/media/shows" ]` | Local application library roots managed through the app API. |
+| `sonarr.transmission` | submodule | `{ }` | — |
+| `sonarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for sonarr. |
+| `sonarr.transmission.localPath` | string | `"/srv/media/.arr-staging"` | Local path where the download staging job materializes completed data. |
+| `sonarr.transmission.remotePathFile` | string | `"/run/secrets/ultra-media-stage-download-root"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `sonarr.transmission.rpcPasswordFile` | string | `"/run/secrets/ultra-media-stage-rpc-password"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `sonarr.transmission.rpcUrlFile` | string | `"/run/secrets/ultra-media-stage-rpc-url"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `sonarr.transmission.rpcUsernameFile` | string | `"/run/secrets/ultra-media-stage-rpc-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+
 ### myConfig.motd
 
 | Option | Type | Default | Description |
