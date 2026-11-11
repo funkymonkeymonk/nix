@@ -417,7 +417,7 @@ else
   constructor=nixosMachine
 fi
 {
-  printf '{ %s, %s }:\n{\n' darwinMachine nixosMachine
+  printf '{ %s, ... }:\n{\n' "$constructor"
   printf '  %s = %s {\n' "$machine_name_nix" "$constructor"
   printf '    secretProfile = %s;\n' "$secret_profile_nix"
   printf '    system = %s;\n' "$platform_nix"

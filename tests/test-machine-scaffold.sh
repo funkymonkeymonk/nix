@@ -389,6 +389,12 @@ assert_file_contains "$fixture/machines/darwin-wizard/default.nix" 'stateVersion
 assert_file_contains "$fixture/machines/darwin-wizard/default.nix" '4'
 assert_file_contains "$fixture/library/machines/generated/darwin-wizard.nix" 'Personal'
 assert_file_contains "$fixture/library/machines/generated/darwin-wizard.nix" 'wizard-host'
+assert_file_contains "$fixture/library/machines/generated/darwin-wizard.nix" '{ darwinMachine, ... }:'
+assert_file_contains "$fixture/library/machines/generated/darwin-wizard.nix" '= darwinMachine {'
+if grep -Fq 'nixosMachine' "$fixture/library/machines/generated/darwin-wizard.nix"; then
+  echo 'Darwin catalog entry unexpectedly binds the unused NixOS constructor' >&2
+  exit 1
+fi
 assert_profile_choices_exclude_nested_defaults darwin-rich
 for summary_value in aarch64-darwin 'Fixture Darwin' developer desktop 'Ada Lovelace' ada@example.test Personal; do
   assert_summary_contains darwin-rich "$summary_value"
@@ -410,6 +416,12 @@ expect_success nixos-arm \
 assert_file_contains "$fixture/machines/nixos-arm/default.nix" 'aarch64-linux'
 assert_file_contains "$fixture/machines/nixos-arm/default.nix" '24.11'
 assert_file_contains "$fixture/library/machines/generated/nixos-arm.nix" 'Opnix'
+assert_file_contains "$fixture/library/machines/generated/nixos-arm.nix" '{ nixosMachine, ... }:'
+assert_file_contains "$fixture/library/machines/generated/nixos-arm.nix" '= nixosMachine {'
+if grep -Fq 'darwinMachine' "$fixture/library/machines/generated/nixos-arm.nix"; then
+  echo 'NixOS catalog entry unexpectedly binds the unused Darwin constructor' >&2
+  exit 1
+fi
 assert_no_disk_configuration nixos-arm
 assert_no_forbidden_commands
 
