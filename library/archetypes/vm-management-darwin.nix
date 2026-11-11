@@ -7,6 +7,7 @@
   imports = [
     ./base-darwin.nix
     ./server-observability-darwin.nix
+    ../../modules/nixos/ghostty-terminfo.nix
     ../../modules/services/lume/darwin.nix
   ];
 

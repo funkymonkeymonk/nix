@@ -209,6 +209,9 @@
           && !(darwinServer.myConfig.caddy.enable or false)
           && pkgs.lib.hasInfix "monkey ALL=(ALL) NOPASSWD: ALL" darwinServer.security.sudo.extraConfig
           && darwinServer.time.timeZone == "America/New_York"
+          && pkgs.lib.hasInfix "ghostty-terminfo" (darwinServer.environment.variables.TERMINFO_DIRS or "")
+          && darwinServer.home-manager.users.monkey.programs.gh.settings.git_protocol == "https"
+          && !((darwinServer.home-manager.users.monkey.programs.git.settings.url or {}) ? "git@github.com:")
           && builtins.hasAttr "newsyslog.d/lume-services.conf" darwinServer.environment.etc
           && builtins.hasAttr "ssh" wweaver.myConfig
           && !wweaver.myConfig.ssh.enable
