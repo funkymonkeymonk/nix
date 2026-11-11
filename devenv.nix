@@ -381,6 +381,7 @@ in {
       pkgs.nix-tree
       pkgs.nvd
       pkgs.nixd
+      pkgs.gum
 
       # Devenv-specific additions for working on this repo
       pkgs.optnix
@@ -739,6 +740,10 @@ in {
 
         exit "$failed"
       '';
+    };
+    "machines:new" = {
+      description = "Interactively scaffold a machine target without applying it";
+      exec = "exec ./scripts/machine-scaffold.sh";
     };
     "machines:build" = machinesTask "build" false;
     "machines:check" = machinesTask "check" false;

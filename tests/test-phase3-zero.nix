@@ -37,6 +37,7 @@
   # once in the machine catalog and projected into the native flake output.
   flakeText = builtins.readFile ../flake.nix;
   machineProjectionText = builtins.readFile ../library/machines/flake-parts.nix;
+  machineConfigurationsText = builtins.readFile ../library/machines/flake-configurations.nix;
   zero = catalog.zero;
   expectedZeroModules = [
     ../library/archetypes/desktop-nixos.nix
@@ -93,10 +94,15 @@
 
     ${
       if
-        lib.hasInfix "catalog = import ./catalog.nix" machineProjectionText
-        && lib.hasInfix "flake.nixosConfigurations = lib.mapAttrs mkNixos nixosMachines" machineProjectionText
-      then ''echo "  flake-parts projects catalog NixOS machines: OK"''
-      else ''echo "  FAIL: flake-parts must project NixOS systems from the catalog"; exit 1''
+        lib.hasInfix "import ./flake-configurations.nix" machineProjectionText
+        && lib.hasInfix "inherit inputs libraryLib;" machineProjectionText
+        && lib.hasInfix "catalog = import ./catalog.nix {inherit inputs;}" machineProjectionText
+        && lib.hasInfix "nixosMachines = lib.filterAttrs (_: machine: machine.kind == \"nixos\") catalog;" machineConfigurationsText
+        && lib.hasInfix "darwinMachines = lib.filterAttrs (_: machine: machine.kind == \"darwin\") catalog;" machineConfigurationsText
+        && lib.hasInfix "flake.nixosConfigurations = lib.mapAttrs mkNixos nixosMachines;" machineConfigurationsText
+        && lib.hasInfix "flake.darwinConfigurations = lib.mapAttrs mkDarwin darwinMachines;" machineConfigurationsText
+      then ''echo "  flake-parts delegates canonical catalog projection for NixOS and Darwin: OK"''
+      else ''echo "  FAIL: flake-parts must delegate catalog NixOS and Darwin projection to the helper"; exit 1''
     }
 
     ${

@@ -62,6 +62,9 @@
   testMachinesFoundation = import ./test-machines-foundation.nix {inherit pkgs inputs;};
   testMachinesInventory = import ./test-machines-inventory.nix {inherit pkgs self inputs;};
   testMachineCatalogConstructor = import ./test-machine-catalog-constructor.nix {inherit pkgs;};
+  testMachineGeneratedCatalog = import ./test-machine-generated-catalog.nix {inherit pkgs;};
+  testMachineWizardOptions = import ./test-machine-wizard-options.nix {inherit pkgs;};
+  testMachineScaffold = import ./test-machine-scaffold.nix {inherit pkgs inputs;};
   testObservabilityInventory = import ./test-observability-inventory.nix {inherit pkgs inputs;};
   testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
@@ -131,6 +134,9 @@ in
     machines-secret-profiles = testMachinesFoundation.machinesSecretProfiles;
     machines-inventory = testMachinesInventory.machinesInventory;
     machine-catalog-constructor = testMachineCatalogConstructor.catalogMachineConstructor;
+    machine-generated-catalog = testMachineGeneratedCatalog.machineGeneratedCatalog;
+    machine-wizard-options = testMachineWizardOptions;
+    machine-scaffold = testMachineScaffold.machineScaffold;
     observability-inventory = testObservabilityInventory.observabilityInventory;
     machines-ops = testMachineOps.machineOps;
     machines-secretspec-empty-profiles = testMachineOps.secretspecEmptyProfiles;

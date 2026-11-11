@@ -1,8 +1,10 @@
-{inputs}: {
+{
+  inputs,
+  catalog ? import ./catalog.nix {inherit inputs;},
+}: {
   machine,
   includeDisko ? false,
 }: let
-  catalog = import ./catalog.nix {inherit inputs;};
   observabilityInventory = import ./observability-inventory.nix {inherit catalog;};
   diskoModules =
     if includeDisko && (machine.disko or false)

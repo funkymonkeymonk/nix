@@ -115,7 +115,7 @@
     ${assertEqual "NixOS catalog/native names" catalogNixosNames nativeNixosNames}
     ${assertEqual "Darwin catalog/native names" catalogDarwinNames nativeDarwinNames}
     ${assertEqual "root devenv imports one Machines projection" 1 (builtins.length machineModules)}
-    ${assertEqual "Catalog/Machines names" catalogNames machinesNames}
+    ${assertEqual "Catalog and Machines projections include the same generated and hand-maintained names" catalogNames machinesNames}
     ${assertEqual "all named machine modules live under machines/" true (builtins.all builtins.pathExists machineConfigPaths)}
     ${assertEqual "machine modules have been removed from hosts/ and targets/" true (builtins.all (path: !(builtins.pathExists path)) legacyMachineConfigPaths)}
     ${assertEqual "Devenv and flake use the same Nixpkgs revision" flakeNixpkgsRev devenvNixpkgsRev}
