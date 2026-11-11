@@ -7,6 +7,7 @@
   inherit (pkgs) lib;
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
   machineProjectionText = builtins.readFile ../library/machines/flake-parts.nix;
+  machineConfigurationsText = builtins.readFile ../library/machines/flake-configurations.nix;
   bootstrap = catalog.bootstrap;
   installerIso = catalog."installer-iso";
   expectedBootstrapModules = [
@@ -50,10 +51,11 @@ in {
 
     ${
       if
-        lib.hasInfix "catalog = import ./catalog.nix" machineProjectionText
-        && lib.hasInfix "flake.nixosConfigurations = lib.mapAttrs mkNixos nixosMachines" machineProjectionText
-      then ''echo "  flake-parts projects NixOS configurations from the catalog: OK"''
-      else ''echo "FAIL: NixOS outputs are not projected from the canonical catalog"; exit 1''
+        lib.hasInfix "import ./flake-configurations.nix {\n  inherit inputs libraryLib;\n  catalog = import ./catalog.nix {inherit inputs;};\n}" machineProjectionText
+        && lib.hasInfix "flake.nixosConfigurations = lib.mapAttrs mkNixos nixosMachines" machineConfigurationsText
+        && lib.hasInfix "flake.darwinConfigurations = lib.mapAttrs mkDarwin darwinMachines" machineConfigurationsText
+      then ''echo "  flake-parts delegates canonical catalog projections to the shared helper: OK"''
+      else ''echo "FAIL: shared configuration helper does not project NixOS and Darwin outputs from the canonical catalog"; exit 1''
     }
 
     ${

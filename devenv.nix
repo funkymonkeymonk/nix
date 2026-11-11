@@ -381,6 +381,7 @@ in {
       pkgs.nix-tree
       pkgs.nvd
       pkgs.nixd
+      pkgs.gum
 
       # Devenv-specific additions for working on this repo
       pkgs.optnix
@@ -465,6 +466,11 @@ in {
     source ./modules/common/scripts/dev-ide
     source ./modules/common/scripts/pr-review
   '';
+
+  scripts.machine-new = {
+    exec = ''exec "$DEVENV_ROOT/scripts/machine-scaffold.sh" "$@"'';
+    description = "Interactively scaffold a machine target without applying it";
+  };
 
   scripts.nix-gc.exec = ''
     set -euo pipefail
