@@ -468,7 +468,7 @@ in {
   '';
 
   scripts.machine-new = {
-    exec = ./scripts/machine-scaffold.sh;
+    exec = ''exec "$DEVENV_ROOT/scripts/machine-scaffold.sh" "$@"'';
     description = "Interactively scaffold a machine target without applying it";
   };
 

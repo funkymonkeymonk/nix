@@ -11,9 +11,9 @@
     if scriptExists
     then builtins.getAttr scriptName devenv.scripts
     else {};
-  expectedScript = toString ../scripts/machine-scaffold.sh;
+  expectedScriptExec = ''exec "$DEVENV_ROOT/scripts/machine-scaffold.sh" "$@"'';
   hasGum = builtins.elem pkgs.gum devenv.packages;
-  scriptUsesScaffold = toString (script.exec or "") == expectedScript;
+  scriptUsesScaffold = script.exec or "" == expectedScriptExec;
   taskRemoved = !(builtins.hasAttr "machines:new" devenv.tasks);
   integrationFailures = builtins.filter (failure: failure != null) [
     (
