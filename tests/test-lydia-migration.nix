@@ -6,7 +6,6 @@
 }: let
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
   inferenceArchetypeSource = builtins.readFile ../library/archetypes/headless-inference-darwin.nix;
-  vmManagementArchetypeSource = builtins.readFile ../library/archetypes/vm-management-darwin.nix;
   hasConfig = name: builtins.hasAttr name self.darwinConfigurations;
   hasCatalogModule = suffix: machine:
     pkgs.lib.any
@@ -15,38 +14,32 @@
       && pkgs.lib.hasSuffix suffix (builtins.toString module))
     machine.modules;
 
-  phase4DarwinServerTest = pkgs.runCommand "test-phase4-darwin-server" {} ''
-    echo "=== Testing Darwin Server Config ==="
+  lydiaMigrationTest = pkgs.runCommand "test-lydia-migration" {} ''
+    echo "=== Testing Lydia Machine Config ==="
     echo ""
 
-    # Test darwin-server config exists and uses modern library pattern
+    # Lydia replaces the obsolete darwin-server identity.
     ${
-      if hasConfig "darwin-server"
+      if !(hasConfig "darwin-server") && hasConfig "Lydia" && !(catalog ? darwin-server) && catalog ? Lydia
       then ""
-      else ''echo "FAIL: darwin-server not found"; exit 1''
+      else ''echo "FAIL: obsolete darwin-server must be replaced by Lydia"; exit 1''
     }
-    echo "  darwin-server: defined ✓"
+    echo "  Lydia replaces darwin-server ✓"
 
     ${
       if
-        hasCatalogModule "/archetypes/vm-management-darwin.nix" catalog.darwin-server
-        && !hasCatalogModule "/hosts/darwin-server" catalog.darwin-server
-        && !hasCatalogModule "/machines/darwin-server" catalog.darwin-server
+        hasCatalogModule "/machines/Lydia" catalog.Lydia
+        && !hasCatalogModule "/archetypes/vm-management-darwin.nix" catalog.Lydia
         && hasCatalogModule "/archetypes/headless-inference-darwin.nix" catalog.MegamanX
         && !hasCatalogModule "/hosts/megamanx" catalog.MegamanX
         && !hasCatalogModule "/machines/megamanx" catalog.MegamanX
         && pkgs.lib.hasInfix "./base-darwin.nix" inferenceArchetypeSource
-        && pkgs.lib.hasInfix "./base-darwin.nix" vmManagementArchetypeSource
-        && pkgs.lib.hasInfix "./server-observability-darwin.nix" inferenceArchetypeSource
-        && pkgs.lib.hasInfix "./server-observability-darwin.nix" vmManagementArchetypeSource
-        && !builtins.pathExists ../hosts/darwin-server
         && !builtins.pathExists ../hosts/megamanx
-        && !builtins.pathExists ../machines/darwin-server
         && !builtins.pathExists ../machines/megamanx
       then ""
       else ''echo "FAIL: Darwin servers must be composed from catalog archetypes without host directories"; exit 1''
     }
-    echo "  Darwin servers use catalog archetypes without host directories ✓"
+    echo "  Lydia uses its workstation machine module ✓"
 
     ${
       if hasConfig "wweaver" && hasConfig "MegamanX"
@@ -63,38 +56,29 @@
     }
     echo "  type-darwin-server: removed ✓"
 
-    # Darwin server archetypes retain collectors but not local backends.
+    # Lydia is a workstation and must retain remote access after activation.
     ${
-      if !(self.darwinConfigurations.darwin-server.config.myConfig.prometheus.enable or false)
-      then ""
-      else ''echo "FAIL: darwin-server must not enable Prometheus"; exit 1''
+      let
+        lydia = self.darwinConfigurations.Lydia.config;
+      in
+        if
+          lydia.myConfig.ssh.enable
+          && lydia.services.openssh.enable
+          && lydia.myConfig.roles.developer.enable
+          && lydia.myConfig.roles.desktop.enable
+          && lydia.myConfig.roles.workstation.enable
+          && lydia.myConfig.roles.pi.enable
+          && !(lydia.myConfig.lume.enable or false)
+          && !(lydia.launchd.daemons ? lume)
+          && !(lydia.myConfig.prometheus.enable or false)
+          && !(lydia.myConfig.loki.enable or false)
+          && !(lydia.myConfig.alertmanager.enable or false)
+          && lydia.system.stateVersion == 4
+          && lydia.system.primaryUser == "monkey"
+        then ""
+        else ''echo "FAIL: Lydia must use the workstation profile and keep SSH available"; exit 1''
     }
-    ${
-      if !(self.darwinConfigurations.darwin-server.config.myConfig.alertmanager.enable or false)
-      then ""
-      else ''echo "FAIL: darwin-server must not enable Alertmanager"; exit 1''
-    }
-    ${
-      if !(self.darwinConfigurations.darwin-server.config.myConfig.loki.enable or false)
-      then ""
-      else ''echo "FAIL: darwin-server must not enable Loki"; exit 1''
-    }
-    ${
-      if !(self.darwinConfigurations.darwin-server.config.launchd.daemons ? grafana)
-      then ""
-      else ''echo "FAIL: darwin-server must not configure a Grafana launchd service"; exit 1''
-    }
-    ${
-      if self.darwinConfigurations.darwin-server.config.myConfig.vector.enable
-      then ""
-      else ''echo "FAIL: darwin-server should retain Vector"; exit 1''
-    }
-    ${
-      if self.darwinConfigurations.darwin-server.config.myConfig.collector.destinationHostname == "drlight"
-      then ""
-      else ''echo "FAIL: Darwin Vector should ship to drlight"; exit 1''
-    }
-    echo "  collector-only observability configuration: ✓"
+    echo "  Lydia workstation profile and SSH access: ✓"
 
     ${
       let
@@ -187,36 +171,33 @@
 
     ${
       let
-        darwinServer = self.darwinConfigurations.darwin-server.config;
+        lydia = self.darwinConfigurations.Lydia.config;
         wweaver = self.darwinConfigurations.wweaver.config;
       in
         if
-          builtins.hasAttr "ssh" darwinServer.myConfig
-          && !darwinServer.myConfig.ssh.enable
-          && !darwinServer.services.openssh.enable
-          && darwinServer.myConfig.lume.enable
-          && darwinServer.myConfig.lume.enableBackgroundService
-          && darwinServer.myConfig.lume.enableAutoUpdater
-          && builtins.elem "macos-tahoe-vanilla:latest" darwinServer.myConfig.lume.prePullImages
-          && darwinServer.launchd.daemons ? lume
-          && darwinServer.myConfig.roles.developer.enable
-          && darwinServer.myConfig.roles.opencode.enable
-          && darwinServer.system.stateVersion == 4
-          && darwinServer.system.primaryUser == "monkey"
-          && !(darwinServer.myConfig.omlx.enable or false)
-          && !(darwinServer.myConfig.bifrost.enable or false)
-          && !(darwinServer.myConfig.searxng.enable or false)
-          && !(darwinServer.myConfig.caddy.enable or false)
-          && pkgs.lib.hasInfix "monkey ALL=(ALL) NOPASSWD: ALL" darwinServer.security.sudo.extraConfig
-          && darwinServer.time.timeZone == "America/New_York"
-          && builtins.hasAttr "newsyslog.d/lume-services.conf" darwinServer.environment.etc
+          builtins.hasAttr "ssh" lydia.myConfig
+          && lydia.myConfig.ssh.enable
+          && lydia.services.openssh.enable
+          && lydia.users.users.monkey.openssh.authorizedKeys.keys != []
+          && lydia.users.users.nixbuilder.isHidden
+          && lydia.myConfig.roles.developer.enable
+          && lydia.myConfig.roles.desktop.enable
+          && lydia.myConfig.roles.workstation.enable
+          && lydia.system.stateVersion == 4
+          && lydia.system.primaryUser == "monkey"
+          && !(lydia.myConfig.lume.enable or false)
+          && !(lydia.launchd.daemons ? lume)
+          && !(lydia.myConfig.omlx.enable or false)
+          && !(lydia.myConfig.bifrost.enable or false)
+          && !(lydia.myConfig.searxng.enable or false)
+          && !(lydia.myConfig.caddy.enable or false)
           && builtins.hasAttr "ssh" wweaver.myConfig
           && !wweaver.myConfig.ssh.enable
           && !wweaver.services.openssh.enable
         then ""
         else ''echo "FAIL: Darwin SSH must default off and only be enabled by explicit host opt-in"; exit 1''
     }
-    echo "  Darwin SSH: disabled by default; MegamanX opts in ✓"
+    echo "  Darwin SSH: Lydia and MegamanX opt in; wweaver remains disabled ✓"
 
     ${
       let
@@ -237,9 +218,9 @@
     echo "  wweaver: pi-jev package and Jev service account configured ✓"
 
     echo ""
-    echo "All darwin-server tests passed"
+    echo "All Lydia machine tests passed"
     touch $out
   '';
 in {
-  inherit phase4DarwinServerTest;
+  inherit lydiaMigrationTest;
 }

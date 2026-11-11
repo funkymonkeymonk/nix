@@ -238,17 +238,6 @@ or changing a `myConfig.*` option.
 | `openFirewallTailscale` | boolean | `false` | Whether to allow Loki's HTTP port on the tailscale0 interface only. Does not open the port globally or on other interfaces. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port Loki listens on for log pushes and queries. |
 
-### myConfig.lume
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Enable Lume macOS VM runtime |
-| `enableAutoUpdater` | boolean | `true` | Enable automatic Lume updates |
-| `enableBackgroundService` | boolean | `true` | Enable Lume background service (lume serve) |
-| `package` | package | `<derivation lume-0.3.9>` | Lume package to use |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7777` | Port for Lume HTTP API |
-| `prePullImages` | list of string | `[ ]` | List of VM images to pre-pull on activation (e.g., macos-tahoe-vanilla:latest) |
-
 ### myConfig.mediaConfig
 
 | Option | Type | Default | Description |
@@ -542,7 +531,7 @@ or changing a `myConfig.*` option.
 | `dataDir` | string | `"/Users/monkey/Library/Application Support/Vector"` | Directory for Vector's file-tailing checkpoint state |
 | `defaultService` | string | `"drlight"` | Fallback value for the Loki "service" label when a journal entry has neither SYSLOG_IDENTIFIER nor _SYSTEMD_UNIT set. |
 | `enable` | boolean | `false` | Enable Vector log shipper (tails local service logs, ships to Loki) |
-| `hostLabel` | string | `"darwin-server"` | Value for the 'host' label attached to all shipped log lines |
+| `hostLabel` | string | `"MegamanX"` | Value for the 'host' label attached to all shipped log lines |
 | `logGlobs` | list of string | `[ "/tmp/*.log" ]` | Glob patterns for log files to tail. Matches this repo's launchd StandardOutPath/StandardErrorPath convention (/tmp/<service>.log, /tmp/<service>.error.log). |
 | `lokiEndpoint` | string | `"http://localhost:3100"` | Base URL of the Loki instance Vector ships logs to. |
 | `lokiPort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port used for the configured collector destination hostname. |

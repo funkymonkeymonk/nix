@@ -36,7 +36,7 @@ select_for_path() {
       add node-exporter- prometheus-
       ;;
     modules/services/node-exporter/*|modules/services/prometheus/*)
-      add node-exporter- prometheus- grafana- phase4-darwin-server type-server-archetypes
+      add node-exporter- prometheus- grafana- lydia-migration type-server-archetypes
       ;;
     tests/test-nixos-observability.nix|modules/nixos/prometheus.nix|modules/nixos/alertmanager.nix)
       add nixos-prometheus- nixos-node-exporter- nixos-alertmanager- type-server-observability type-observability-archetype central-observability
@@ -62,8 +62,8 @@ select_for_path() {
     tests/test-phase3-zero.nix)
       add phase3-zero
       ;;
-    tests/test-phase4-darwin-server.nix)
-      add phase4-darwin-server
+    tests/test-lydia-migration.nix)
+      add lydia-migration
       ;;
     tests/test-ssh-authorized-keys.nix|keys/*.pub)
       add ssh-authorized-keys
@@ -198,10 +198,10 @@ select_for_path() {
       add workspace-switch
       ;;
     library/machines/catalog.nix|library/machines/modules.nix|library/machines/flake-parts.nix)
-      add machines-inventory machines-secret-profiles observability-inventory machines-ops type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype drlight-media- phase4-darwin-server ssh-authorized-keys
+      add machines-inventory machines-secret-profiles observability-inventory machines-ops type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype drlight-media- lydia-migration ssh-authorized-keys
       ;;
     library/archetypes/*)
-      add type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype phase4-darwin-server
+      add type-server-archetypes type-server-observability type-observability-archetype central-observability media-center-archetype lydia-migration
       ;;
     machines/drlight/*)
       add media-center-archetype drlight-media- central-observability type-server-archetypes

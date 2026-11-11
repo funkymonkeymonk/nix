@@ -419,14 +419,16 @@ in {
       builder = lib.findFirst (machine: machine.hostName == "megamanx") null zero.nix.buildMachines;
       builderSecret = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey or {};
       megamanx = self.darwinConfigurations.MegamanX.config;
+      lydia = self.darwinConfigurations.Lydia.config;
       builderUser = megamanx.users.users.nixbuilder or {};
+      lydiaBuilderUser = lydia.users.users.nixbuilder or {};
       remoteBuilderUserTrusted = builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users;
       builderUserConfigured =
         builderUser
         != {}
-        && builtins.isInt builderUser.uid
-        && builderUser.uid > 501
+        && builderUser.uid == 502
         && builderUser.gid == 20
+        && builderUser.createHome == false
         && builderUser.isHidden
         && builtins.toString builderUser.home == "/var/empty"
         && builderUser.shell != null
@@ -434,6 +436,19 @@ in {
         && !(builtins.elem "admin" (builderUser.groups or []))
         && builtins.elem "nixbuilder" megamanx.users.knownUsers;
       builderSshConfig = megamanx.services.openssh.extraConfig;
+      lydiaSshConfig = lydia.services.openssh.extraConfig;
+      lydiaBuilderUserConfigured =
+        lydiaBuilderUser
+        != {}
+        && lydiaBuilderUser.uid == 502
+        && lydiaBuilderUser.gid == 20
+        && lydiaBuilderUser.createHome == false
+        && lydiaBuilderUser.isHidden
+        && builtins.toString lydiaBuilderUser.home == "/var/empty"
+        && lydiaBuilderUser.shell != null
+        && lydiaBuilderUser.shell != "/usr/bin/false"
+        && !(builtins.elem "admin" (lydiaBuilderUser.groups or []))
+        && builtins.elem "nixbuilder" lydia.users.knownUsers;
       builderSshAuthenticationRestricted =
         lib.hasInfix "Match User nixbuilder" builderSshConfig
         && lib.hasInfix "AuthenticationMethods publickey" builderSshConfig
@@ -466,7 +481,22 @@ in {
         && zero.myConfig.onepassword.defaultVault == "Opnix"
         && remoteBuilderUserTrusted
         && builderUserConfigured
-        && builderSshAuthenticationRestricted;
+        && builderSshAuthenticationRestricted
+        && builtins.elem "nixbuilder" lydia.nix.settings.trusted-users
+        && lydia.users.users.nixbuilder.isHidden
+        && lydiaBuilderUserConfigured
+        && lydia.myConfig.ssh.enable
+        && lydia.services.openssh.enable
+        && lib.hasInfix "Match User nixbuilder" lydiaSshConfig
+        && lib.hasInfix "AuthenticationMethods publickey" lydiaSshConfig
+        && lib.hasInfix "PasswordAuthentication no" lydiaSshConfig
+        && lib.hasInfix "KbdInteractiveAuthentication no" lydiaSshConfig
+        && lib.hasInfix "AllowAgentForwarding no" lydiaSshConfig
+        && lib.hasInfix "AllowTcpForwarding no" lydiaSshConfig
+        && lib.hasInfix "PermitTTY no" lydiaSshConfig
+        && lib.hasInfix "X11Forwarding no" lydiaSshConfig
+        && lib.hasInfix "ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio" lydiaSshConfig
+        && lib.hasInfix "Match all" lydiaSshConfig;
     in
       pkgs.runCommand "test-zero-nix-remote-builder" {} ''
         echo "=== Testing Zero's MegamanX remote builder configuration ==="

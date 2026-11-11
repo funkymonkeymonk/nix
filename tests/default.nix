@@ -50,7 +50,7 @@
   testZero = import ./test-zero.nix {inherit pkgs self;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
-  testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self inputs;};
+  testLydiaMigration = import ./test-lydia-migration.nix {inherit pkgs self inputs;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
   testLibrary =
     if self != null
@@ -308,8 +308,7 @@ in
     phase3-zero = testPhase3Zero.phase3ZeroTest;
     phase3-zero-flake-parts = testPhase3Zero.phase3ZeroFlakePartsTest;
 
-    # Phase 4: darwin-server v2 migration
-    phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
+    lydia-migration = testLydiaMigration.lydiaMigrationTest;
 
     # library/lib/mk-system.nix builder tests
     mk-darwin-system =

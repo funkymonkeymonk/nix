@@ -92,7 +92,7 @@ assert_selection \
   "machines/drlight/default.nix"
 assert_selection \
   "Darwin catalog changes select inference and builder access checks" \
-  '["central-observability","drlight-media-","machines-inventory","machines-ops","machines-secret-profiles","media-center-archetype","observability-inventory","phase4-darwin-server","ssh-authorized-keys","type-observability-archetype","type-server-archetypes","type-server-observability"]' \
+  '["central-observability","drlight-media-","lydia-migration","machines-inventory","machines-ops","machines-secret-profiles","media-center-archetype","observability-inventory","ssh-authorized-keys","type-observability-archetype","type-server-archetypes","type-server-observability"]' \
   "library/machines/catalog.nix"
 assert_selection \
   "Remote builder public key changes select SSH coverage" \

@@ -18,7 +18,12 @@
         stubs.vector
         ++ [
           {
+            options.networking.hostName = lib.mkOption {
+              type = lib.types.str;
+              default = "Lydia";
+            };
             config.myConfig.users = [{name = "monkey";}];
+            config.networking.hostName = "Lydia";
             config.myConfig.vector = {
               enable = true;
               lokiPort = 3101;
@@ -35,7 +40,12 @@
         stubs.vector
         ++ [
           {
+            options.networking.hostName = lib.mkOption {
+              type = lib.types.str;
+              default = "Lydia";
+            };
             config.myConfig.users = [{name = "monkey";}];
+            config.networking.hostName = "Lydia";
             config.myConfig.vector = {
               enable = true;
               lokiPort = 3101;
@@ -113,10 +123,10 @@ in {
       echo "  FAIL: file source should glob /tmp/*.log"; exit 1
     fi
 
-    if grep -q '"host":"darwin-server"' "$CONFIG"; then
-      echo "  Loki sink emits the shared host label on Darwin: OK"
+    if grep -q '"host":"Lydia"' "$CONFIG"; then
+      echo "  Loki sink uses the configured Darwin hostname as its host label: OK"
     else
-      echo "  FAIL: Darwin Loki sink must emit a host label"; exit 1
+      echo "  FAIL: Darwin Loki sink must emit the configured host label"; exit 1
     fi
 
     echo "All Vector generated config tests passed"
