@@ -32,6 +32,12 @@ in {
       description = "Enable 1Password SSH agent";
     };
 
+    useSSHForGitHub = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Use SSH instead of HTTPS for GitHub Git operations. Requires the 1Password SSH agent and a configured GitHub key.";
+    };
+
     enableGitSigning = mkOption {
       type = types.bool;
       default = true;
