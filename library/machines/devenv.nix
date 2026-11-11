@@ -1,8 +1,11 @@
-{inputs, ...}: let
+{
+  inputs,
+  catalog ? import ./catalog.nix {inherit inputs;},
+  ...
+}: let
   lib = inputs.nixpkgs.lib;
-  catalog = import ./catalog.nix {inherit inputs;};
   observabilityInventory = import ./observability-inventory.nix {inherit catalog;};
-  projectMachineModules = import ./modules.nix {inherit inputs;};
+  projectMachineModules = import ./modules.nix {inherit inputs catalog;};
   nixpkgsConfig = import ../lib/nixpkgs-config.nix;
   withSpecialArgs = import ./with-special-args.nix {inherit lib;};
   nixosBaseModules = machine: [

@@ -15,6 +15,7 @@ Procedural guides that solve a concrete task. Choose the guide that matches what
 |-------|-------------|
 | [Set Up 1Password SSH Signing](setup-1password.md) | Configure commit signing with 1Password SSH agent |
 | [Create an Installer USB](create-installer-usb.md) | Build and write a bootable NixOS installation image |
+| [Create a Machine Target](create-machine-target.md) | Scaffold and optionally evaluate a registered Darwin or NixOS target |
 
 ## Version Control (jj)
 

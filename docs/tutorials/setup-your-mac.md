@@ -3,7 +3,7 @@ title: "Set Up Your Mac"
 description: "Step-by-step walkthrough for configuring a new macOS machine from this flake"
 type: tutorial
 audience: both
-last-reviewed: 2026-11-07
+last-reviewed: 2026-11-10
 ---
 
 # Set Up Your Mac
@@ -39,89 +39,45 @@ op signin
 
 Follow the browser prompt to authenticate. Once signed in, the CLI caches the session.
 
-## Step 3: Choose Your Roles
+## Step 3: Choose a machine profile and roles
 
-Roles bundle packages by purpose. Common picks for a development Mac:
+The wizard offers compatible archetypes and additional roles separately. An archetype is the base configuration bundle; roles add optional capabilities. Review the [Roles Reference](../reference/roles.md) to choose roles that fit your Mac. Common options include `developer`, `desktop`, `workstation`, `opencode`, and `pi`.
 
-| Role | What You Get |
-|------|-------------|
-| `developer` | emacs, helix, jj, devenv, docker, kubectl |
-| `desktop` | logseq, super-productivity |
-| `workstation` | slack, trippy |
-| `opencode` | OpenCode AI assistant |
-| `pi` | Pi coding agent |
+## Step 4: Create and register the Mac target
 
-For this tutorial we'll enable `developer`, `desktop`, and `opencode`. You can find the full catalogue in the [Roles Reference](../reference/roles.md).
-
-## Step 4: Create the Machine Module
-
-The machine module holds macOS settings that do not belong in reusable roles or archetypes. Create it under the canonical machine configuration path:
+From the repository's devenv environment, run:
 
 ```bash
-mkdir -p machines/my-mac
+devenv shell machine-new
 ```
 
-Create `machines/my-mac/default.nix`:
+Choose **Darwin** and `aarch64-darwin`, then answer the identity, SecretSpec profile, archetype, and role prompts. Confirm the summary to generate the machine module and catalog entry. The wizard can optionally evaluate the new target, but it does not build or apply the configuration.
 
-```nix
-{
-  mkUser,
-  ...
-}: {
-  nixpkgs.hostPlatform = "aarch64-darwin";
-  system.stateVersion = 4;
-  system.primaryUser = "your-username";
+See [Create a Machine Target](../how-to/create-machine-target.md) for supported systems, generated paths, prompt details, and the NixOS follow-up requirements. If you need a target that cannot be expressed by the wizard's choices, an advanced manual configuration can follow the existing machine modules and catalog records.
 
-  myConfig =
-    mkUser "your-username" "you@example.com"
-    // {
-      roles = {
-        developer.enable = true;
-        desktop.enable = true;
-        opencode.enable = true;
-      };
-    };
-}
-```
+## Step 5: Validate the configuration
 
-Replace `your-username` with your macOS username (run `whoami` to find it). Replace the email address too.
-
-## Step 5: Register the Machine
-
-Add a record to `library/machines/catalog.nix`. The catalog supplies the flake output name, platform, hostname, secrets profile, and the machine module path. The shared Darwin builder handles common modules and arguments.
-
-```nix
-my-mac = darwinMachine {
-  secretProfile = "Employee"; # Choose the appropriate configured profile.
-  system = "aarch64-darwin";
-  hostname = "my-mac";
-  modules = [
-    ../../machines/my-mac
-  ];
-};
-```
-
-Keep machine-specific settings in `machines/my-mac/default.nix`; put reusable behavior in a module or archetype. The catalog's `system` and `hostname` are authoritative, so do not repeat them in the machine module.
-
-## Step 6: Validate Before Building
+Review the generated files, then run:
 
 ```bash
 devenv tasks run check:lint
 devenv tasks run test:eval
 ```
 
-Both commands should complete without errors. If lint fails, fix formatting with the suggested commands. If eval fails, check that username and role names are correct.
+Both commands should complete without errors. If evaluation fails, check the user and role names, and ensure the generated files are visible to Nix's flake source.
 
-## Step 7: Build and Apply
+## Step 6: Build and apply
+
+Once validation succeeds, build the Darwin configuration and apply it:
 
 ```bash
 nix build .#darwinConfigurations.my-mac.system
 ./result/sw/bin/darwin-rebuild switch --flake .#my-mac
 ```
 
-The first build downloads many packages and can take 10–30 minutes. Subsequent builds are faster because the Nix store caches them.
+Replace `my-mac` with the machine output name chosen in the wizard. The first build downloads many packages and can take 10–30 minutes. Subsequent builds are faster because the Nix store caches them.
 
-## Step 8: Verify
+## Step 7: Verify
 
 Open a new terminal so that environment variables and shell configuration reload, then check:
 
@@ -129,16 +85,14 @@ Open a new terminal so that environment variables and shell configuration reload
 jj --version          # developer role
 opencode --version    # opencode role
 logseq --version      # desktop role (macOS)
-devenv tasks list     # devenv is available
+devenv tasks list      # devenv is available
 ```
 
 ## What You've Done
 
-- Installed Nix and cloned the flake
-- Signed in to 1Password and registered an SSH key
-- Created a machine module with role selections
-- Registered the machine in `library/machines/catalog.nix`
-- Built and applied the configuration
+- Installed Nix and signed in to 1Password
+- Created a machine module and registered its target with the wizard
+- Validated, built, and applied the configuration
 - Verified tools are installed
 
 ## Next Steps
