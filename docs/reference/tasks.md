@@ -67,11 +67,13 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `system:switch` | Apply configuration to current system (platform-aware) |
 | `system:init` | Initial nix-darwin setup (macOS only) |
 
-### Machines
+### Interactive shell commands
 
-| Task | Description |
-|------|-------------|
-| `machines:new` | Interactively scaffold a registered Darwin or NixOS target; see [Create a Machine Target](../how-to/create-machine-target.md) |
+Interactive Gum workflows run as devenv shell commands, not task-graph jobs, so they inherit terminal input and output.
+
+| Command | Invocation | Description |
+|---------|------------|-------------|
+| `machine-new` | `devenv shell machine-new` | Interactively scaffold a registered Darwin or NixOS target; see [Create a Machine Target](../how-to/create-machine-target.md) |
 
 ### Validation
 

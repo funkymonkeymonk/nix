@@ -2,11 +2,11 @@
 
 > **Note:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add an interactive `machines:new` devenv task that scaffolds registered Darwin or NixOS targets for supported platforms, with archetype and role selection.
+**Goal:** Add an interactive `machine-new` devenv shell command that scaffolds registered Darwin or NixOS targets for supported platforms, with archetype and role selection.
 
-**Architecture:** A Gum-driven shell script gathers and validates input, then atomically writes a machine module and a per-machine catalog entry. A small Nix manifest supplies platform-compatible archetypes and roles, while `catalog.nix` loads generated catalog entries and checks collisions. The task only scaffolds and can optionally evaluate the target; it never installs, deploys, switches, or configures disks.
+**Architecture:** A Gum-driven shell script gathers and validates input, then atomically writes a machine module and a per-machine catalog entry. A small Nix manifest supplies platform-compatible archetypes and roles, while `catalog.nix` loads generated catalog entries and checks collisions. The shell command only scaffolds and can optionally evaluate the target; it never installs, deploys, switches, or configures disks.
 
-**Tech Stack:** Nix modules and flake catalog, devenv tasks, Bash, Gum, Nix evaluation checks, shell test fixtures.
+**Tech Stack:** Nix modules and flake catalog, devenv shell scripts, Bash, Gum, Nix evaluation checks, shell test fixtures.
 
 ---
 
@@ -214,23 +214,24 @@ jj describe -m "feat: load generated machine catalog entries"
 
 ---
 
-### Task 5: Integrate the devenv task and bundle manifest
+### Task 5: Integrate the devenv shell command and bundle manifest
 
 **Files:**
 - Modify: `devenv.nix`
 - Modify: `library/machines/wizard-options.nix`
+- Modify: `tests/default.nix`
 - Modify: `tests/test-machine-scaffold.nix`
 - Modify: `tests/test-machine-wizard-options.nix`
 
 **Step 1: Add integration assertions first**
 
-Extend the Nix wrapper tests to assert `machines:new` is exposed, Gum is present in the devenv package set, the task delegates to the script from the repo root, and it does not run other machine operations implicitly. Add assertions that manifest entries used by each supported system map to existing modules and valid roles.
+Extend the Nix wrapper tests to assert `machine-new` is exposed as a devenv shell script, Gum is present in the devenv package set, the script delegates directly to `scripts/machine-scaffold.sh`, and `machines:new` is not registered as a task. Add assertions that manifest entries used by each supported system map to existing modules and valid roles.
 
 Run the focused checks and confirm RED for the missing task/package integration.
 
 **Step 2: Add Gum and the thin task**
 
-Add `pkgs.gum` to `devenv.nix`'s repository tooling packages. Add a `machines:new` task adjacent to `machines:info`/`machines:chart` which executes the scaffold script and lets errors propagate. Do not add a target input that defaults to an existing host.
+Add `pkgs.gum` to `devenv.nix`'s repository tooling packages. Add `scripts.machine-new` adjacent to existing repository scripts, pointing directly to the scaffold script. Do not register the interactive command as a task or add a target input that defaults to an existing host.
 
 **Step 3: Finalize menu metadata**
 
@@ -245,12 +246,12 @@ CURRENT_SYSTEM=$(nix eval --impure --expr 'builtins.currentSystem' --raw)
 nix build ".#checks.${CURRENT_SYSTEM}.machine-wizard-options" ".#checks.${CURRENT_SYSTEM}.machine-scaffold" --no-link --impure
 ```
 
-Expected: both focused checks pass and devenv evaluation exposes `machines:new`.
+Expected: both focused checks pass, devenv evaluation exposes `machine-new`, and the `machines:new` task is absent.
 
 **Step 5: Commit**
 
 ```bash
-jj describe -m "feat: expose machine creation devenv task"
+jj describe -m "feat: expose interactive machine creation command"
 ```
 
 ---
@@ -261,6 +262,7 @@ jj describe -m "feat: expose machine creation devenv task"
 - Modify: `scripts/machine-scaffold.sh`
 - Modify: `tests/test-machine-scaffold.sh`
 - Modify: `docs/reference/tasks.md`
+- Modify: `docs/how-to/index.md`
 - Modify: `docs/tutorials/setup-your-mac.md`
 - Create or modify: `docs/how-to/create-machine-target.md`
 - Modify: `docs/reference/index.md` if the new guide needs linking
@@ -277,7 +279,7 @@ After files are generated, offer an explicit evaluation prompt. If accepted, eva
 
 **Step 3: Document the task**
 
-Document `devenv tasks run machines:new`, supported systems, archetype/role distinction, the fields requested, generated file locations, the optional eval, and the fact that NixOS disk/facter setup, build, installation, deployment, and switching are intentionally not performed.
+Document `devenv shell machine-new`, supported systems, archetype/role distinction, the fields requested, generated file locations, the optional eval, and the fact that NixOS disk/facter setup, build, installation, deployment, and switching are intentionally not performed.
 
 Update the Mac setup tutorial to point users to this wizard instead of instructing every new Mac owner to edit the catalog by hand. Keep any manual-edit guidance only where it remains useful for advanced/custom configurations.
 

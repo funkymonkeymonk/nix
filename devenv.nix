@@ -467,6 +467,11 @@ in {
     source ./modules/common/scripts/pr-review
   '';
 
+  scripts.machine-new = {
+    exec = ./scripts/machine-scaffold.sh;
+    description = "Interactively scaffold a machine target without applying it";
+  };
+
   scripts.nix-gc.exec = ''
     set -euo pipefail
     ${runWithSudoPassword}
@@ -740,10 +745,6 @@ in {
 
         exit "$failed"
       '';
-    };
-    "machines:new" = {
-      description = "Interactively scaffold a machine target without applying it";
-      exec = "exec ./scripts/machine-scaffold.sh";
     };
     "machines:build" = machinesTask "build" false;
     "machines:check" = machinesTask "check" false;

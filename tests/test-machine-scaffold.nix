@@ -5,22 +5,21 @@
 }: let
   scriptDirectory = ../scripts;
   devenv = import ../devenv.nix {inherit pkgs inputs;};
-  taskName = "machines:new";
-  taskExists = builtins.hasAttr taskName devenv.tasks;
-  task =
-    if taskExists
-    then builtins.getAttr taskName devenv.tasks
+  scriptName = "machine-new";
+  scriptExists = builtins.hasAttr scriptName devenv.scripts;
+  script =
+    if scriptExists
+    then builtins.getAttr scriptName devenv.scripts
     else {};
-  expectedTaskExec = "exec ./scripts/machine-scaffold.sh";
+  expectedScript = toString ../scripts/machine-scaffold.sh;
   hasGum = builtins.elem pkgs.gum devenv.packages;
-  taskUsesRepoRootScript = task.exec or "" == expectedTaskExec;
-  taskHasNoTargetInput = !(task ? input);
-  taskHasNoImplicitDependencies = !(task ? after);
+  scriptUsesScaffold = toString (script.exec or "") == expectedScript;
+  taskRemoved = !(builtins.hasAttr "machines:new" devenv.tasks);
   integrationFailures = builtins.filter (failure: failure != null) [
     (
-      if taskExists
+      if scriptExists
       then null
-      else "devenv does not expose machines:new"
+      else "devenv does not expose the interactive machine-new script"
     )
     (
       if hasGum
@@ -28,19 +27,14 @@
       else "devenv packages do not include Gum"
     )
     (
-      if taskUsesRepoRootScript
+      if scriptUsesScaffold
       then null
-      else "machines:new must execute only ./scripts/machine-scaffold.sh from the repository root"
+      else "machine-new must execute scripts/machine-scaffold.sh directly"
     )
     (
-      if taskHasNoTargetInput
+      if taskRemoved
       then null
-      else "machines:new must not require a machine target input"
-    )
-    (
-      if taskHasNoImplicitDependencies
-      then null
-      else "machines:new must not chain other operations through task dependencies"
+      else "machines:new must not remain a task-runner entry point"
     )
   ];
   integrationTest =
@@ -54,7 +48,7 @@ in {
     } ''
       ${
         if integrationTest
-        then "echo 'machines:new devenv integration: OK'"
+        then "echo 'machine-new devenv shell integration: OK'"
         else "exit 1"
       }
       MACHINE_SCAFFOLD_SCRIPT=${scriptDirectory}/machine-scaffold.sh \

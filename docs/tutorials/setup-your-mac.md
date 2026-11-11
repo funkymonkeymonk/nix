@@ -48,7 +48,7 @@ The wizard offers compatible archetypes and additional roles separately. An arch
 From the repository's devenv environment, run:
 
 ```bash
-devenv tasks run machines:new
+devenv shell machine-new
 ```
 
 Choose **Darwin** and `aarch64-darwin`, then answer the identity, SecretSpec profile, archetype, and role prompts. Confirm the summary to generate the machine module and catalog entry. The wizard can optionally evaluate the new target, but it does not build or apply the configuration.

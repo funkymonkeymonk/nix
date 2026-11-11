@@ -8,15 +8,17 @@ last-reviewed: 2026-11-10
 
 # Create a Machine Target
 
-Use the wizard to create a machine module and register a new Darwin or NixOS target in the machine catalog.
+Use the interactive shell command to create a machine module and register a new Darwin or NixOS target in the machine catalog. It runs directly in your terminal so Gum can receive input.
 
 ## Create the target
 
-1. Run the wizard from the repository's devenv environment:
+1. Run the interactive shell command from the repository root. This launches Gum directly in your terminal so it can receive keyboard input:
 
    ```bash
-   devenv tasks run machines:new
+   devenv shell machine-new
    ```
+
+   You can also enter `devenv shell` first and then run `machine-new`.
 
 2. Choose the target kind and a compatible system. The supported choices are:
 

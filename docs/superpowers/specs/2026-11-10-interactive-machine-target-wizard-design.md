@@ -5,7 +5,7 @@
 
 ## Goal
 
-Add an interactive devenv task that guides an operator through creating a new machine target in this repository. The wizard must support Darwin and NixOS, including the repository's supported platforms `aarch64-darwin`, `x86_64-linux`, and `aarch64-linux`. It must let the operator select one compatible archetype and additional roles, then create a scaffold that is registered in the machine catalog.
+Add an interactive devenv shell command that guides an operator through creating a new machine target in this repository. The wizard must support Darwin and NixOS, including the repository's supported platforms `aarch64-darwin`, `x86_64-linux`, and `aarch64-linux`. It must let the operator select one compatible archetype and additional roles, then create a scaffold that is registered in the machine catalog. Use a shell command rather than a devenv task because Gum needs the terminal's interactive input/output.
 
 The wizard scaffolds configuration only. It does not install, deploy, switch, partition disks, or collect hardware reports.
 
@@ -14,10 +14,10 @@ The wizard scaffolds configuration only. It does not install, deploy, switch, pa
 Run:
 
 ```sh
-devenv tasks run machines:new
+devenv shell machine-new
 ```
 
-The interactive task checks that it is running in a TTY and that the repository is at the expected root. It then prompts in this order:
+The interactive script checks that it is running in a TTY and that the repository is at the expected root. Run it with `devenv shell machine-new` or from an already active devenv shell; do not invoke it through the task runner because the task runner may not preserve the terminal. It then prompts in this order:
 
 1. Target kind: Darwin or NixOS.
 2. Platform/architecture filtered by target kind: Darwin offers `aarch64-darwin`; NixOS offers `x86_64-linux` and `aarch64-linux`.
@@ -51,8 +51,8 @@ Generation must validate names before writing, reject names that already exist i
 
 ## Implementation components
 
-- Add `machines:new` to `devenv.nix` as a thin task wrapper.
-- Add `gum` to the devenv environment so the task has a reproducible interactive dependency, following the repository's existing gum-based installer convention.
+- Add `scripts.machine-new` to `devenv.nix` as a shell command that directly invokes the interactive scaffold script; do not register it as a devenv task.
+- Add `gum` to the devenv environment so the shell command has a reproducible interactive dependency, following the repository's existing gum-based installer convention.
 - Add a shell script under `scripts/` to drive prompts, validate input, render output from templates, stage files, and optionally evaluate the generated target.
 - Add the wizard-options manifest and the catalog loader for generated entries.
 - Add automated shell/Nix tests and document usage and NixOS limitations.
@@ -64,7 +64,7 @@ Generation must validate names before writing, reject names that already exist i
 - Cancelation at any prompt is successful and leaves no output behind.
 - The summary displays every value that will be written; no files are created until confirmation.
 - The optional evaluation reports the exact target and preserves evaluator diagnostics. Failure does not remove or rewrite generated files; the completion message points to the generated paths for correction.
-- The task never calls `machines:install`, `machines:deploy`, `machines:apply`, `system:switch`, or any disk operation.
+- The shell command never calls `machines:install`, `machines:deploy`, `machines:apply`, `system:switch`, or any disk operation.
 
 ## Testing
 
