@@ -27,6 +27,7 @@
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
   testOmlx = import ./test-omlx.nix {inherit pkgs;};
   testUltraMediaCleanup = import ./test-ultra-media-cleanup.nix {inherit pkgs;};
+  testMediaAppReconciliation = import ./test-media-app-reconciliation.nix {inherit pkgs;};
 
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
@@ -288,6 +289,7 @@ in
     zero-nix-remote-builder = testZero.zeroNixRemoteBuilderTest;
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
     drlight-media-management = testMediaCenterArchetype.drlightMediaManagementTest;
+    media-app-api-reconciliation = testMediaAppReconciliation.mediaAppApiReconciliation;
     drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
     drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;
     drlight-root-ssh = testMediaCenterArchetype.drlightRootSshTest;

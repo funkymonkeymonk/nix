@@ -83,6 +83,10 @@
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
         }).config;
+      drlightWithMylarSettingsManagementDisabled =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{services.mylar3.manageSettingsFile = false;}];
+        }).config;
       ultraDownloadStageEnabledTimer = drlightWithDownloadStageEnabled.systemd.timers.ultra-media-download-stage or {};
       drlightWithSyntheticCaddyApp =
         (self.nixosConfigurations.drlight.extendModules {
@@ -150,6 +154,20 @@
         "ultraMediaStageRpcPassword"
       ];
       ultraStageSecrets = map (name: onePasswordSecrets.${name} or {}) ultraStageSecretNames;
+      ultraStagePrivateSecretNames = [
+        "ultraMediaStageHost"
+        "ultraMediaStageUsername"
+        "ultraMediaStageKnownHosts"
+        "ultraMediaStageKey"
+      ];
+      ultraStageSharedSecretNames = [
+        "ultraMediaStageRpcUrl"
+        "ultraMediaStageDownloadRoot"
+        "ultraMediaStageRpcUsername"
+        "ultraMediaStageRpcPassword"
+      ];
+      ultraStagePrivateSecrets = map (name: onePasswordSecrets.${name} or {}) ultraStagePrivateSecretNames;
+      ultraStageSharedSecrets = map (name: onePasswordSecrets.${name} or {}) ultraStageSharedSecretNames;
       ultraStageExpectedReferences = [
         "Ultra Media Sync Config/host"
         "Ultra Media Sync Config/username"
@@ -164,7 +182,8 @@
       ultraStageRpcUsernameSecret = onePasswordSecrets.ultraMediaStageRpcUsername or {};
       ultraStageRpcPasswordSecret = onePasswordSecrets.ultraMediaStageRpcPassword or {};
       opnixSecrets = drlight.services.onepassword-secrets.secrets or {};
-      opnixUltraStageSecrets = map (name: opnixSecrets.${name} or {}) ultraStageSecretNames;
+      opnixUltraStagePrivateSecrets = map (name: opnixSecrets.${name} or {}) ultraStagePrivateSecretNames;
+      opnixUltraStageSharedSecrets = map (name: opnixSecrets.${name} or {}) ultraStageSharedSecretNames;
       opnixUltraStageKeySecret = opnixSecrets.ultraMediaStageKey or {};
       opnixUltraStageRpcUsernameSecret = opnixSecrets.ultraMediaStageRpcUsername or {};
       opnixUltraStageRpcPasswordSecret = opnixSecrets.ultraMediaStageRpcPassword or {};
@@ -343,6 +362,31 @@
         ${checkTrue "media-management module is not selected by other machines" (lib.all (machine: !(hasModule "/modules/nixos/media-management.nix" machine)) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
         ${checkTrue "no Arr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
         ${checkFalse "media-manager apps are not exposed through Caddy" (lib.any (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
+        ${lib.concatMapStringsSep "\n" (app: ''
+          ${checkTrue "${app} has an API reconciliation unit" (builtins.hasAttr "${app}-media-config-sync" drlight.systemd.services)}
+        '') ["radarr" "sonarr" "lidarr" "bazarr"]}
+        ${checkTrue "Arr reconciliation imports its packaged shared Python helpers" (lib.hasInfix "media-app-reconciliation-scripts/servarr_reconcile.py" (drlight.systemd.services.radarr-media-config-sync.serviceConfig.ExecStart or ""))}
+        ${checkTrue "Bazarr reconciliation imports its packaged shared Python helpers" (lib.hasInfix "media-app-reconciliation-scripts/bazarr_reconcile.py" (drlight.systemd.services.bazarr-media-config-sync.serviceConfig.ExecStart or ""))}
+        ${checkTrue "Arr apps clear seedbox reverse-proxy URL bases for direct Tailscale access" (lib.all (app: (drlight.services.${app}.settings.server.urlbase or null) == "") ["radarr" "sonarr" "lidarr"])}
+        ${checkEqual "Radarr's empty URL base is emitted to its migrated runtime config" "" (drlight.systemd.services.radarr.environment.RADARR__SERVER__URLBASE or null)}
+        ${checkEqual "Sonarr's empty URL base is emitted to its migrated runtime config" "" (drlight.systemd.services.sonarr.environment.SONARR__SERVER__URLBASE or null)}
+        ${checkTrue "Arr apps retain form authentication and Nix-managed external updates" (lib.all (app: (drlight.services.${app}.settings.auth.method or null) == "Forms" && (drlight.services.${app}.settings.auth.required or null) == "Enabled" && (drlight.services.${app}.settings.update.mechanism or null) == "external" && (drlight.services.${app}.settings.update.automatically or null) == false) ["radarr" "sonarr" "lidarr"])}
+        ${checkTrue "Radarr reconciles its local library root" (builtins.elem "/srv/media/movies" (((drlight.myConfig.mediaManagement or {}).radarr or {}).rootFolders or []))}
+        ${checkTrue "Sonarr reconciles its local library root" (builtins.elem "/srv/media/shows" (((drlight.myConfig.mediaManagement or {}).sonarr or {}).rootFolders or []))}
+        ${checkTrue "Lidarr reconciles its local library root" (builtins.elem "/srv/media/music" (((drlight.myConfig.mediaManagement or {}).lidarr or {}).rootFolders or []))}
+        ${checkTrue "Arr clients map seedbox downloads to local staging" (lib.all (app: (((((drlight.myConfig.mediaManagement or {}).${app} or {}).transmission or {}).localPath or null) == "/srv/media/.arr-staging")) ["radarr" "sonarr" "lidarr"])}
+        ${checkFalse "Bazarr does not activate source-disabled Arr sync integrations by default" (drlight.myConfig.mediaManagement.bazarr.useSonarr || drlight.myConfig.mediaManagement.bazarr.useRadarr)}
+        ${checkTrue "Mylar3's declarative settings use the local comic root" ((drlight.services.mylar3.settings.General.DESTINATION_DIR or null) == "/srv/media/comics")}
+        ${checkTrue "Mylar3 keeps media organization behavior from the seedbox config" (drlight.services.mylar3.settings.General.CREATE_FOLDERS && !drlight.services.mylar3.settings.General.MOVE_FILES && !drlight.services.mylar3.settings.General.RENAME_FILES)}
+        ${checkFalse "Mylar3 automatic updates stay under Nix package management" drlight.services.mylar3.settings.General.AUTO_UPDATE}
+        ${checkTrue "Mylar3 retains its configured post-processing mode" drlight.services.mylar3.settings.PostProcess.POST_PROCESSING}
+        ${checkEqual "Mylar3 uses a root URL base on Drlight's direct port" "/" (drlight.services.mylar3.settings.Interface.HTTP_ROOT or null)}
+        ${checkEqual "Mylar3 preserves its Forms authentication mode" 2 (drlight.services.mylar3.settings.Interface.AUTHENTICATION or null)}
+        ${checkEqual "Mylar3 retains its non-torrent downloader mode" 0 (drlight.services.mylar3.settings.Client.TORRENT_DOWNLOADER or null)}
+        ${checkFalse "Mylar3 does not enable torrent downloads or search" (drlight.services.mylar3.settings.Torrents.ENABLE_TORRENTS or true || drlight.services.mylar3.settings.Torrents.ENABLE_TORRENT_SEARCH or true)}
+        ${checkEqual "Mylar3 stores its INI beside its persistent database" "/var/lib/mylar3" drlight.services.mylar3.dataDir}
+        ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
+        ${checkFalse "Mylar3 can leave restored INI untouched during one-time root migration" (builtins.hasAttr "ExecStartPre" (drlightWithMylarSettingsManagementDisabled.systemd.services.mylar3.serviceConfig or {}))}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All Drlight media-management tests passed"
@@ -540,7 +584,7 @@
            ${checkFalse "stage rsync never deletes seedbox or local files" (lib.hasInfix "--delete" ultraSyncStagingSource || lib.hasInfix "--remove-source-files" ultraSyncStagingSource)}
            ${checkEqual "Transmission RPC username uses the unqualified OpNix field" "Ultra - Transmission/username" (ultraStageRpcUsernameSecret.reference or null)}
            ${checkEqual "Transmission RPC password uses the unqualified OpNix field" "Ultra - Transmission/password" (ultraStageRpcPasswordSecret.reference or null)}
-           ${checkTrue "Transmission RPC credentials are scoped only to the stage service" ((ultraStageRpcUsernameSecret.services or []) == ["ultra-media-download-stage"] && (ultraStageRpcPasswordSecret.services or []) == ["ultra-media-download-stage"])}
+           ${checkTrue "Transmission RPC credentials are scoped to staging and local Arr reconciliation" ((ultraStageRpcUsernameSecret.services or []) == (["ultra-media-download-stage"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]) && (ultraStageRpcPasswordSecret.services or []) == (["ultra-media-download-stage"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]))}
            ${checkEqual "Transmission RPC username resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/username" (opnixUltraStageRpcUsernameSecret.reference or null)}
            ${checkEqual "Transmission RPC password resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/password" (opnixUltraStageRpcPasswordSecret.reference or null)}
            ${checkTrue "the SSH key is scoped only to staging" ((ultraStageKeySecret.services or []) == ["ultra-media-download-stage"])}
@@ -549,8 +593,11 @@
            ${checkEqual "Drlight Cloudflare secret resolves to the Opnix vault" "op://Opnix/Cloudflare DNS API Token/credential" (opnixSecrets.cloudflareApiToken.reference or null)}
            ${checkEqual "stage SSH private key uses its runtime path" "/run/secrets/ultra-media-stage-key" (ultraStageKeySecret.path or null)}
            ${checkEqual "stage uses the minimal Opnix field contract" ultraStageExpectedReferences (map (secret: secret.reference or null) ultraStageSecrets)}
-           ${checkTrue "stage secrets are restricted to the service account and private mode" (builtins.all (secret: (secret.owner or null) == "ultra-sync" && (secret.group or null) == "users" && (secret.mode or null) == "0400") ultraStageSecrets)}
-           ${checkTrue "OpNix materializes every staging field with service ownership and private mode" (builtins.all (secret: (secret.owner or null) == "ultra-sync" && (secret.group or null) == "users" && (secret.mode or null) == "0400") opnixUltraStageSecrets)}
+           ${checkTrue "SSH staging secrets remain private to the stage account" (builtins.all (secret: (secret.owner or null) == "ultra-sync" && (secret.group or null) == "users" && (secret.mode or null) == "0400") ultraStagePrivateSecrets)}
+           ${checkTrue "Opnix keeps SSH staging secrets private to the stage account" (builtins.all (secret: (secret.owner or null) == "ultra-sync" && (secret.group or null) == "users" && (secret.mode or null) == "0400") opnixUltraStagePrivateSecrets)}
+           ${checkTrue "Transmission and completed-path secrets are readable only by the media secrets group" (builtins.all (secret: (secret.owner or null) == "root" && (secret.group or null) == "media-management-secrets" && (secret.mode or null) == "0440") ultraStageSharedSecrets)}
+           ${checkTrue "Opnix materializes shared RPC values with restricted media-group permissions" (builtins.all (secret: (secret.owner or null) == "root" && (secret.group or null) == "media-management-secrets" && (secret.mode or null) == "0440") opnixUltraStageSharedSecrets)}
+           ${checkTrue "stage and Arr reconcilers receive the dedicated media secrets group" (builtins.elem "media-management-secrets" (ultraDownloadStageServiceConfig.SupplementaryGroups or []) && builtins.all (app: builtins.elem "media-management-secrets" ((builtins.getAttr "${app}-media-config-sync" drlight.systemd.services).serviceConfig.SupplementaryGroups or [])) ["radarr" "sonarr" "lidarr"] && builtins.hasAttr "media-management-secrets" drlight.users.groups)}
            ${checkTrue "staging fields use unqualified references resolved by Opnix" (builtins.all (name: let
             secret = onePasswordSecrets.${name} or {};
             resolved = opnixSecrets.${name} or {};

@@ -16,12 +16,24 @@
   sshPort = 22;
   stageCfg = config.myConfig.ultraMediaDownloadStage;
   stageServices = ["ultra-media-download-stage"];
+  arrSyncServices = [
+    "radarr-media-config-sync"
+    "sonarr-media-config-sync"
+    "lidarr-media-config-sync"
+  ];
   mkSecret = reference: path: {
     inherit reference path;
     mode = "0400";
     owner = "ultra-sync";
     group = "users";
     services = stageServices;
+  };
+  mkSharedSecret = reference: path: {
+    inherit reference path;
+    mode = "0440";
+    owner = "root";
+    group = "media-management-secrets";
+    services = stageServices ++ arrSyncServices;
   };
 in {
   imports = [
@@ -31,9 +43,11 @@ in {
     })
   ];
 
+  users.groups.media-management-secrets = {};
   users.users.ultra-sync = {
     isSystemUser = true;
     group = "users";
+    extraGroups = ["media-management-secrets"];
     description = "Stage completed Ultra downloads for local Arr imports";
   };
 
@@ -42,10 +56,10 @@ in {
     ultraMediaStageUsername = mkSecret "Ultra Media Sync Config/username" usernamePath;
     ultraMediaStageKnownHosts = mkSecret "Ultra Media Sync Config/knownHosts" knownHostsPath;
     ultraMediaStageKey = mkSecret "Ultra Media Sync Key/private key" keyPath;
-    ultraMediaStageRpcUrl = mkSecret "Ultra Media Sync Config/rpcUrl" rpcUrlPath;
-    ultraMediaStageDownloadRoot = mkSecret "Ultra Media Sync Config/completedDownloadsRoot" downloadRootPath;
-    ultraMediaStageRpcUsername = mkSecret "Ultra - Transmission/username" rpcUsernamePath;
-    ultraMediaStageRpcPassword = mkSecret "Ultra - Transmission/password" rpcPasswordPath;
+    ultraMediaStageRpcUrl = mkSharedSecret "Ultra Media Sync Config/rpcUrl" rpcUrlPath;
+    ultraMediaStageDownloadRoot = mkSharedSecret "Ultra Media Sync Config/completedDownloadsRoot" downloadRootPath;
+    ultraMediaStageRpcUsername = mkSharedSecret "Ultra - Transmission/username" rpcUsernamePath;
+    ultraMediaStageRpcPassword = mkSharedSecret "Ultra - Transmission/password" rpcPasswordPath;
   };
 
   systemd.services.ultra-media-download-stage = {
@@ -62,6 +76,7 @@ in {
       Type = "oneshot";
       User = "ultra-sync";
       Group = "users";
+      SupplementaryGroups = ["media-management-secrets"];
       UMask = "0002";
       ProtectSystem = "strict";
       ReadWritePaths = [stagingRoot];
