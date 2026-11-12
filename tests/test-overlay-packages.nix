@@ -51,17 +51,6 @@
       touch $out
     '';
 
-  # Test that the Himalaya CLI builds and can display help.
-  himalayaPackageTest =
-    pkgs.runCommand "test-himalaya-package"
-    {
-      nativeBuildInputs = [pkgs.himalaya];
-    }
-    ''
-      himalaya --help > /dev/null
-      touch $out
-    '';
-
   # Test that jj-hooks is fetched from its current standalone release and
   # provides the jj-hp / jj-hooks binaries used by the Home Manager config.
   jjHooksPackageTest = let

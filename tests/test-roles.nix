@@ -115,7 +115,7 @@
     opencode = ["opencode" "rtk"];
     claude = ["claude-code" "rtk"];
     pi = ["pi-coding-agent" "rtk"];
-    assistant = ["himalaya" "gmailctl"];
+    assistant = ["gmailctl"];
     email-backup = ["isync" "notmuch" "restic"];
   };
 
@@ -231,6 +231,15 @@
           exit 1
         ''
       }
+      ${let
+        packageNames = map (package: package.pname or package.name) evalAllRoles.environment.systemPackages;
+        unwantedPackages =
+          builtins.filter (name: builtins.any (package: lib.hasInfix name package) packageNames)
+          ["himalaya" "himalaya-tui"];
+      in
+        if unwantedPackages == []
+        then ''echo "  Email client packages are not installed by any role: OK"''
+        else ''echo "  FAIL: unwanted email client packages remain: ${builtins.concatStringsSep ", " unwantedPackages}"; exit 1''}
       echo "All roles compose without conflicts"
     '';
 

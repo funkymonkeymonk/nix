@@ -191,7 +191,7 @@
       typeServer = self.nixosConfigurations.type-server.config;
       typeServerArm = self.nixosConfigurations.type-server-arm.config;
       typeNas = self.nixosConfigurations.type-nas.config;
-      darwinServer = self.darwinConfigurations.darwin-server.config;
+      lydia = self.darwinConfigurations.Lydia.config;
       megamanX = self.darwinConfigurations.MegamanX.config;
       scrapeConfig = drlight.services.prometheus.scrapeConfigs;
       nodeScrape = builtins.head (builtins.filter (scrape: scrape.job_name == "node") scrapeConfig);
@@ -310,9 +310,9 @@
           else ''echo "FAIL: type-nas must not run local backends"; exit 1''
         }
         ${
-          if (darwinServer.myConfig.prometheus.enable or false) == false && (darwinServer.myConfig.loki.enable or false) == false && (darwinServer.myConfig.alertmanager.enable or false) == false
-          then ''echo "darwin-server remains collector-only: OK"''
-          else ''echo "FAIL: darwin-server must not run local backends"; exit 1''
+          if (lydia.myConfig.prometheus.enable or false) == false && (lydia.myConfig.loki.enable or false) == false && (lydia.myConfig.alertmanager.enable or false) == false
+          then ''echo "Lydia does not run local observability backends: OK"''
+          else ''echo "FAIL: Lydia must not run local observability backends"; exit 1''
         }
         ${
           if (megamanX.myConfig.prometheus.enable or false) == false && (megamanX.myConfig.loki.enable or false) == false && (megamanX.myConfig.alertmanager.enable or false) == false

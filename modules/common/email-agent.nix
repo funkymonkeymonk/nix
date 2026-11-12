@@ -6,7 +6,7 @@
     enable = lib.mkOption {
       type = lib.types.bool;
       default = false;
-      description = "Enable agent email tools (himalaya CLI, gmailctl filters)";
+      description = "Enable Gmail filter management tools for email agents";
     };
 
     enableGmailctl = lib.mkOption {

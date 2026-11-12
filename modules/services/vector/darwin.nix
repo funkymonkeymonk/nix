@@ -80,7 +80,7 @@ in {
 
     hostLabel = lib.mkOption {
       type = lib.types.str;
-      default = "darwin-server";
+      default = config.networking.hostName;
       description = "Value for the 'host' label attached to all shipped log lines";
     };
 

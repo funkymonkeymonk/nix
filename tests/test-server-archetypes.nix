@@ -31,7 +31,7 @@
       serverArm = self.nixosConfigurations.type-server-arm.config;
       nas = self.nixosConfigurations.type-nas.config;
       mediaServer = self.nixosConfigurations.drlight.config;
-      darwinServer = self.darwinConfigurations.darwin-server.config;
+      lydia = self.darwinConfigurations.Lydia.config;
       omlxServer = self.darwinConfigurations.MegamanX.config;
       armExporterPort = serverArm.myConfig.nodeExporter.port;
       armFirewallInterfacePorts = lib.concatMap (interface: interface.allowedTCPPorts or []) (builtins.attrValues serverArm.networking.firewall.interfaces);
@@ -93,16 +93,11 @@
         ${checkEqual "type-server-arm collector destination is drlight" "drlight" serverArm.myConfig.collector.destinationHostname}
         ${checkEqual "drlight collector destination retains localhost" "localhost" mediaServer.myConfig.collector.destinationHostname}
 
-        ${checkEqual "Darwin server has no Prometheus backend" false (darwinServer.services.prometheus.enable or false)}
-        ${checkEqual "Darwin server has no Alertmanager backend" false (darwinServer.services.prometheus.alertmanager.enable or false)}
-        ${checkEqual "Darwin server has no Loki backend" false (darwinServer.services.loki.enable or false)}
-        ${checkEqual "Darwin server has no Grafana launchd service" false (darwinServer.launchd.daemons ? grafana)}
-        ${checkEqual "Darwin server retains Vector collector" true darwinServer.myConfig.vector.enable}
-        ${checkEqual "Darwin server Vector routes to drlight" "drlight" darwinServer.myConfig.collector.destinationHostname}
-
-        ${checkEqual "Darwin server retains catalog node_exporter" true darwinServer.myConfig.nodeExporter.enable}
-        ${checkEqual "Darwin server exporter remains loopback-only" "127.0.0.1:9100" darwinServer.myConfig.nodeExporter.listenAddress}
-        ${checkEqual "Darwin server exporter remains in scrape inventory" true (builtins.elem "darwin-server" actualInventoryNames)}
+        ${checkEqual "Lydia workstation has no Prometheus backend" false (lydia.services.prometheus.enable or false)}
+        ${checkEqual "Lydia workstation has no Alertmanager backend" false (lydia.services.prometheus.alertmanager.enable or false)}
+        ${checkEqual "Lydia workstation has no Loki backend" false (lydia.services.loki.enable or false)}
+        ${checkEqual "Lydia workstation has no Grafana launchd service" false (lydia.launchd.daemons ? grafana)}
+        ${checkEqual "Lydia is not added to the node-exporter inventory" false (builtins.elem "Lydia" actualInventoryNames)}
         ${checkEqual "oMLX Darwin has no Prometheus backend" false (omlxServer.myConfig.prometheus.enable or false)}
         ${checkEqual "oMLX Darwin has no Prometheus service" false (omlxServer.launchd.daemons ? prometheus)}
         ${checkEqual "oMLX Darwin retains catalog node_exporter" true omlxServer.myConfig.nodeExporter.enable}

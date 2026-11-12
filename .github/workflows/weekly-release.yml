@@ -41,8 +41,6 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           upstream-cache: false
-      - name: Install devenv
-        run: nix profile install --accept-flake-config nixpkgs#devenv
       - name: Close existing flake update PRs
         id: close-existing
         run: |
@@ -89,8 +87,7 @@ jobs:
           rm -f flake.lock.before
       - name: Refresh fixed-output hashes
         if: steps.check-updates.outputs.changes_detected == 'true'
-        run: |
-          devenv tasks run maintenance:refresh-fixed-output-hashes
+        run: bash scripts/refresh-fixed-output-hashes.sh
       - name: Commit refreshed fixed-output hashes
         if: steps.check-updates.outputs.changes_detected == 'true'
         run: |

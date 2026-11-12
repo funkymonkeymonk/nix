@@ -1,15 +1,11 @@
 # email-agent module: Agent tools for Gmail interaction
 #
-# Provides:
-# - email-filters: gmailctl wrapper for declarative Gmail filter management
-# - himalaya: CLI email client (installed by assistant role, configured here)
+# Provides an email-filters wrapper for declarative Gmail filter management.
+# It operates directly on Gmail — no local duplication. For immutable backups,
+# see the email-backup module.
 #
-# These tools operate directly on Gmail — no local duplication.
-# For immutable backups, see the email-backup module.
-#
-# Authentication:
-# - gmailctl: OAuth2 via 'email-filters init' (one-time interactive setup)
-# - himalaya: Uses Gmail App Password or OAuth2 (configured in ~/.config/himalaya/config.toml)
+# Authentication: gmailctl uses OAuth2 via 'email-filters init' (one-time
+# interactive setup).
 {
   config,
   lib,

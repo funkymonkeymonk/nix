@@ -165,29 +165,6 @@
       ];
     };
 
-    darwin-server = darwinMachine {
-      secretProfile = "Personal";
-      system = "aarch64-darwin";
-      hostname = "darwin-server";
-      nodeExporter.enable = true;
-      modules = [
-        ../archetypes/vm-management-darwin.nix
-        {
-          nixpkgs.config.permittedInsecurePackages = [
-            "olm-3.2.16"
-          ];
-          system.stateVersion = 4;
-          system.primaryUser = "monkey";
-        }
-      ];
-      overrides =
-        mkUser "monkey" "me@willweaver.dev"
-        // {
-          skills.superpowersPath = inputs.superpowers;
-          opencode.enable = true;
-        };
-    };
-
     MegamanX = darwinMachine {
       secretProfile = "MegamanX";
       system = "aarch64-darwin";

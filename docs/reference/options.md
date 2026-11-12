@@ -161,7 +161,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enable` | boolean | `false` | Enable agent email tools (himalaya CLI, gmailctl filters) |
+| `enable` | boolean | `false` | Enable Gmail filter management tools for email agents |
 | `enableGmailctl` | boolean | `true` | Enable gmailctl for declarative Gmail filter management. Requires one-time OAuth2 setup via 'email-filters init'. |
 | `gmailctlConfigDir` | string | `".config/gmailctl"` | Path relative to home directory for gmailctl configuration (Jsonnet filter definitions) |
 
@@ -237,17 +237,6 @@ or changing a `myConfig.*` option.
 | `openFirewall` | boolean | `false` | Whether to open the firewall for Loki's HTTP port on all interfaces. Keep disabled unless broad access is explicitly intended. |
 | `openFirewallTailscale` | boolean | `false` | Whether to allow Loki's HTTP port on the tailscale0 interface only. Does not open the port globally or on other interfaces. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port Loki listens on for log pushes and queries. |
-
-### myConfig.lume
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Enable Lume macOS VM runtime |
-| `enableAutoUpdater` | boolean | `true` | Enable automatic Lume updates |
-| `enableBackgroundService` | boolean | `true` | Enable Lume background service (lume serve) |
-| `package` | package | `<derivation lume-0.3.9>` | Lume package to use |
-| `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `7777` | Port for Lume HTTP API |
-| `prePullImages` | list of string | `[ ]` | List of VM images to pre-pull on activation (e.g., macos-tahoe-vanilla:latest) |
 
 ### myConfig.mediaConfig
 
@@ -442,7 +431,7 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `agent-skills.enable` | boolean | `false` | AI agent skills management (auto-enabled by opencode/claude) |
-| `assistant.enable` | boolean | `false` | Agent email tools (himalaya, gmailctl) for reading, moving, and filtering Gmail |
+| `assistant.enable` | boolean | `false` | Gmail filter management tools for email agents |
 | `claude.enable` | boolean | `false` | Claude Code AI assistant with rtk |
 | `creative.enable` | boolean | `false` | Media tools (ffmpeg, imagemagick, pandoc) |
 | `desktop.enable` | boolean | `false` | Desktop applications (logseq, super-productivity, element) |
@@ -543,7 +532,7 @@ or changing a `myConfig.*` option.
 | `dataDir` | string | `"/Users/monkey/Library/Application Support/Vector"` | Directory for Vector's file-tailing checkpoint state |
 | `defaultService` | string | `"drlight"` | Fallback value for the Loki "service" label when a journal entry has neither SYSLOG_IDENTIFIER nor _SYSTEMD_UNIT set. |
 | `enable` | boolean | `false` | Enable Vector log shipper (tails local service logs, ships to Loki) |
-| `hostLabel` | string | `"darwin-server"` | Value for the 'host' label attached to all shipped log lines |
+| `hostLabel` | string | `"MegamanX"` | Value for the 'host' label attached to all shipped log lines |
 | `logGlobs` | list of string | `[ "/tmp/*.log" ]` | Glob patterns for log files to tail. Matches this repo's launchd StandardOutPath/StandardErrorPath convention (/tmp/<service>.log, /tmp/<service>.error.log). |
 | `lokiEndpoint` | string | `"http://localhost:3100"` | Base URL of the Loki instance Vector ships logs to. |
 | `lokiPort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `3100` | HTTP port used for the configured collector destination hostname. |
