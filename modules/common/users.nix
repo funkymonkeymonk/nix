@@ -12,6 +12,7 @@ with lib; let
 
   # Build home-manager user configs only if home-manager is available
   sshAgentEnabled = config.myConfig.onepassword.enable && config.myConfig.onepassword.enableSSHAgent;
+  githubSshEnabled = sshAgentEnabled && config.myConfig.onepassword.useSSHForGitHub;
   sshSigningProgram =
     if isDarwin
     then "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
@@ -56,13 +57,18 @@ with lib; let
               };
               commit.gpgsign = config.myConfig.onepassword.enableGitSigning;
               user.signingkey = config.myConfig.onepassword.signingKey;
+            }
+            // lib.optionalAttrs githubSshEnabled {
               url."git@github.com:".insteadOf = ["https://github.com/"];
             };
         };
 
         programs.gh = {
           enable = true;
-          settings.git_protocol = "ssh";
+          settings.git_protocol =
+            if githubSshEnabled
+            then "ssh"
+            else "https";
         };
 
         xdg.configFile."gh/config.yml".force = true;
