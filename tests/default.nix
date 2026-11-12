@@ -134,6 +134,7 @@ in
     dev-base-migration = testDevBaseMigration.devBaseMigration;
     machines-secret-profiles = testMachinesFoundation.machinesSecretProfiles;
     machines-inventory = testMachinesInventory.machinesInventory;
+    drlight-facter-report = testMachinesInventory.drlightFacterReportTest;
     machine-catalog-constructor = testMachineCatalogConstructor.catalogMachineConstructor;
     machine-generated-catalog = testMachineGeneratedCatalog.machineGeneratedCatalog;
     machine-wizard-options = testMachineWizardOptions;
