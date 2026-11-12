@@ -1,14 +1,9 @@
-{
-  inputs,
-  lib,
-  ...
-}: {
+{lib, ...}: {
   imports = [
     ../../modules/nixos/base.nix
   ];
 
   myConfig = {
-    skills.superpowersPath = inputs.superpowers or null;
   };
 
   nixpkgs.config.allowUnfree = true;

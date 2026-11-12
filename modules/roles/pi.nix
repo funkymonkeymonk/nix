@@ -21,19 +21,15 @@ in {
       rtk
     ];
 
-    # Auto-enable agent-skills
-    myConfig.agent-skills.enable = true;
-
     # Enable pi configuration management via home-manager
     myConfig.pi.enable = true;
     myConfig.pi.npmPackages."pi-jev" = lib.mkDefault "^0.7.0";
     myConfig.pi.settings.defaultModel = lib.mkDefault config.myConfig.llmClient.defaultModel;
 
     # Default plugin selection. pluginsSource (the flake input providing these
-    # plugins) is set at the composition point (archetype/host), not here —
-    # mirrors how myConfig.skills.superpowersPath is wired, since a role module
-    # should not need `inputs` directly. Override per-machine with a direct
-    # assignment.
+    # plugins) is set at the composition point (archetype/host), not here, so
+    # this role module does not need `inputs` directly. Override per-machine
+    # with a direct assignment.
     myConfig.pi.plugins = lib.mkDefault ["pi-plugin-yaks"];
 
     # Use mkDefault so opencode wins if both are enabled

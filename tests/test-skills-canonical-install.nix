@@ -10,7 +10,11 @@
 # those same skill directories under their own per-agent paths
 # (.config/opencode/skills/<name> and .pi/agent/skills/<name>), while
 # preserving opencode's auto-loaded digest and bundled skill commands.
-{pkgs, ...}: let
+{
+  pkgs,
+  skillsRepo,
+  ...
+}: let
   inherit (pkgs) lib;
   stubs = import ./stubs.nix {inherit pkgs;};
   hmLib = import ../modules/home-manager/lib.nix {inherit lib;};
@@ -30,6 +34,7 @@
   # exercise the "install everywhere it's needed, once" happy path.
   osConfigWithSkills = mkOsConfig {
     skills.enabledRoles = ["opencode" "pi"];
+    skills.repository = skillsRepo;
     opencode.enable = true;
     pi.enable = true;
   };
@@ -38,6 +43,16 @@
   # canonical-install.nix must produce zero home.file entries.
   osConfigNoSkills = mkOsConfig {
     skills.enabledRoles = [];
+    skills.repository = skillsRepo;
+  };
+
+  osConfigFoundationOnly = mkOsConfig {
+    skills.enabledRoles = ["foundation" "agent-skills"];
+    skills.repository = skillsRepo;
+  };
+  osConfigDeveloperOnly = mkOsConfig {
+    skills.enabledRoles = ["developer"];
+    skills.repository = skillsRepo;
   };
 
   # ── Home-manager module option stubs ────────────────────────────────────
@@ -94,6 +109,14 @@
     osConfig = osConfigNoSkills;
     module = ../modules/home-manager/skills/canonical-install.nix;
   };
+  canonicalFoundationOnly = mkHomeManagerEval {
+    osConfig = osConfigFoundationOnly;
+    module = ../modules/home-manager/skills/canonical-install.nix;
+  };
+  canonicalDeveloperOnly = mkHomeManagerEval {
+    osConfig = osConfigDeveloperOnly;
+    module = ../modules/home-manager/skills/canonical-install.nix;
+  };
 
   # opencode.nix / pi-coding-agent.nix evaluated with skills enabled
   opencodeHm = mkHomeManagerEval {
@@ -110,7 +133,10 @@
   resolvedSkillNames =
     builtins.attrNames
     (
-      hmLib.mkFullSkillDirs {enabledRoles = ["opencode" "pi"];}
+      hmLib.mkFullSkillDirs {
+        enabledRoles = ["opencode" "pi"];
+        inherit skillsRepo;
+      }
     ).skillDirs;
 
   homeFileKeys = evaluated: builtins.attrNames evaluated.home.file;
@@ -172,7 +198,7 @@ in {
       touch $out
     '';
 
-  # Gated on skills.enabledRoles != [] — not on any single agent's role.enable.
+  # No skill-consuming role means no installed skill links.
   canonicalInstallGatedOnEmptyRolesTest =
     pkgs.runCommand "test-canonical-install-gated-on-empty-roles"
     {}
@@ -188,7 +214,35 @@ in {
         ''
       }
 
-      echo "canonical-install.nix correctly gates on enabledRoles != []"
+      echo "canonical-install.nix correctly gates on empty roles"
+      touch $out
+    '';
+
+  canonicalInstallGatedOnNonConsumerRolesTest =
+    pkgs.runCommand "test-canonical-install-gated-on-non-consumer-roles"
+    {}
+    ''
+      echo "=== Testing non-consumer roles do not receive agent skills ==="
+      ${
+        if canonicalFoundationOnly.home.file == {}
+        then ''echo "  Foundation and skills-helper roles have no skill links: OK"''
+        else ''echo "  Non-consumer roles unexpectedly received skills"; exit 1''
+      }
+      touch $out
+    '';
+
+  canonicalInstallEnabledForDeveloperRoleTest =
+    pkgs.runCommand "test-canonical-install-enabled-for-developer-role"
+    {}
+    ''
+      echo "=== Testing the developer role receives repository skills ==="
+      ${
+        if
+          builtins.hasAttr ".agents/skills/brainstorming" canonicalDeveloperOnly.home.file
+          && builtins.length (homeFileKeys canonicalDeveloperOnly) == builtins.length resolvedSkillNames
+        then ''echo "  Developer role installs all source skills: OK"''
+        else ''echo "  Developer role does not install the complete source skill set"; exit 1''
+      }
       touch $out
     '';
 
@@ -223,39 +277,27 @@ in {
         '')
         resolvedSkillNames}
 
-      # The auto-loaded digest is a distinct opencode feature and must survive.
+      # No current metadata entries request auto-loading.
       ${
-        if builtins.hasAttr ".config/opencode/skills/auto-loaded.md" opencodeHm.home.file
-        then ''echo "  auto-loaded.md digest preserved: OK"''
-        else ''
-          echo "  auto-loaded.md digest should still be written by opencode.nix!"
-          exit 1
-        ''
+        if !(builtins.hasAttr ".config/opencode/skills/auto-loaded.md" opencodeHm.home.file)
+        then ''echo "  no legacy auto-loaded digest is installed: OK"''
+        else ''echo "  unexpected legacy auto-loaded digest is installed"; exit 1''
       }
 
       echo "opencode.nix delegates skill directory installation to canonical-install.nix"
       touch $out
     '';
 
-  # Skill-bundled commands (e.g. jj's /finish /pr /push, yak-shaving's
-  # /shave) are independent of skill DIRECTORY placement — confirm they
-  # keep working unchanged after the move.
-  opencodeSkillCommandsStillWorkTest =
-    pkgs.runCommand "test-opencode-skill-commands-still-work"
+  opencodeLegacySkillCommandsAreRemovedTest =
+    pkgs.runCommand "test-opencode-legacy-skill-commands-removed"
     {}
     ''
-      echo "=== Testing opencode.nix skill-bundled commands survive the move ==="
-
+      echo "=== Testing commands from removed skills are no longer installed ==="
       ${
-        if builtins.hasAttr "shave" opencodeHm.programs.opencode.commands
-        then ''echo "  /shave command still wired: OK"''
-        else ''
-          echo "  /shave command should still be wired via programs.opencode.commands!"
-          exit 1
-        ''
+        if !(builtins.hasAttr "shave" (opencodeHm.programs.opencode.commands or {}))
+        then ''echo "  obsolete /shave command is absent: OK"''
+        else ''echo "  obsolete /shave command remains installed"; exit 1''
       }
-
-      echo "Skill-bundled commands are unaffected by the skill directory move"
       touch $out
     '';
 

@@ -13,8 +13,15 @@
   testCrossPlatformGuards = import ./test-cross-platform-guards.nix {inherit pkgs;};
   testRoles = import ./test-roles.nix {inherit pkgs;};
   testCoverage = import ./test-coverage.nix {inherit pkgs;};
-  testSkills = import ./test-skills.nix {inherit pkgs;};
-  testCanonicalSkillsInstall = import ./test-skills-canonical-install.nix {inherit pkgs;};
+  testSkills = import ./test-skills.nix {
+    inherit pkgs;
+    skillsRepo = inputs.personal-skills;
+  };
+  testSkillsSource = import ./test-skills-source.nix {inherit pkgs;};
+  testCanonicalSkillsInstall = import ./test-skills-canonical-install.nix {
+    inherit pkgs;
+    skillsRepo = inputs.personal-skills;
+  };
   testEmail = import ./test-email.nix {inherit pkgs;};
   testSketchybarRemoved = import ./test-sketchybar-removed.nix {inherit pkgs;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
@@ -135,7 +142,6 @@ in
     dev-base-migration = testDevBaseMigration.devBaseMigration;
     machines-secret-profiles = testMachinesFoundation.machinesSecretProfiles;
     machines-inventory = testMachinesInventory.machinesInventory;
-    drlight-facter-report = testMachinesInventory.drlightFacterReportTest;
     machine-catalog-constructor = testMachineCatalogConstructor.catalogMachineConstructor;
     machine-generated-catalog = testMachineGeneratedCatalog.machineGeneratedCatalog;
     machine-wizard-options = testMachineWizardOptions;
@@ -187,20 +193,19 @@ in
     all-role-tests = testRoles.allRoleTests;
 
     # Skills tests
-    skills-manifest = testSkills.manifestValidationTest;
-    skills-ralph-workflow-removed = testSkills.ralphWorkflowRemovedTest;
-    skills-autoload-filtering = testSkills.autoLoadFilteringTest;
-    skills-autoload-content = testSkills.autoLoadContentTest;
-    skills-role-filtering = testSkills.roleFilteringTest;
-    skills-external-identification = testSkills.externalSkillsIdentificationTest;
-    skills-external-command-generation = testSkills.externalSkillCommandGenerationTest;
-    skills-external-empty-case = testSkills.externalSkillsEmptyTest;
+    skills-public-input = testSkillsSource.publicRepositoryInputIsDeclared;
+    skills-source-installation = testSkillsSource.sourceSkillsReplaceManifestSkills;
+    skills-no-runtime-installer = testSkillsSource.activationInstallerIsRemoved;
+    skills-manifest-metadata = testSkills.manifestValidationTest;
+    skills-all-repository-skills = testSkills.repositoryInstallationTest;
 
     # Canonical skill install location tests (~/.agents/skills/<name>)
     skills-canonical-install-writes-agents-skills = testCanonicalSkillsInstall.canonicalInstallWritesAgentsSkillsTest;
     skills-canonical-install-gated-on-empty-roles = testCanonicalSkillsInstall.canonicalInstallGatedOnEmptyRolesTest;
+    skills-canonical-install-gated-on-non-consumer-roles = testCanonicalSkillsInstall.canonicalInstallGatedOnNonConsumerRolesTest;
+    skills-canonical-install-enabled-for-developer = testCanonicalSkillsInstall.canonicalInstallEnabledForDeveloperRoleTest;
     skills-opencode-no-longer-writes-own-dirs = testCanonicalSkillsInstall.opencodeNoLongerWritesOwnSkillDirsTest;
-    skills-opencode-commands-still-work = testCanonicalSkillsInstall.opencodeSkillCommandsStillWorkTest;
+    skills-opencode-legacy-commands-removed = testCanonicalSkillsInstall.opencodeLegacySkillCommandsAreRemovedTest;
     skills-pi-no-longer-writes-manifest-dirs = testCanonicalSkillsInstall.piNoLongerWritesManifestSkillDirsTest;
     skills-agent-skills-path-canonical = testCanonicalSkillsInstall.agentSkillsPathPointsAtCanonicalLocationTest;
 

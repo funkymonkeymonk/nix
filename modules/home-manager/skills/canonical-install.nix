@@ -5,15 +5,12 @@
 # ~/.agents/skills/<name>/SKILL.md natively with zero additional config
 # (see https://opencode.ai/docs/skills and pi-mono's skills.md docs).
 #
-# This module installs the full internal + superpowers skill set exactly
+# This module installs every skill from the pinned personal skills repository
 # once, regardless of which combination of opencode/claude/pi roles are
-# enabled, closing the gap where each agent's home-manager module used to
-# write its own duplicate copy under a per-agent path
-# (.config/opencode/skills/<name>, .pi/agent/skills/<name>).
+# enabled. Agent integrations use this shared location where supported.
 #
-# Gated on "any skill-consuming role enabled" (skills.enabledRoles != []),
-# not on any single agent's role.enable — the resolved skill set is shared
-# across every agent that consumes it, so it doesn't belong inside
+# Gated on explicit skill-consuming roles, not foundation or shell-helper roles.
+# The resolved skill set is shared across agents, so it does not belong inside
 # opencode.nix, claude-code.nix, or pi-coding-agent.nix.
 {
   osConfig,
@@ -21,17 +18,19 @@
   ...
 }: let
   skillsCfg = osConfig.myConfig.skills or {};
+  skillConsumerRoles = ["developer" "creative" "workstation" "opencode" "claude" "pi"];
+  hasSkillConsumerRole = lib.any (role: lib.elem role skillConsumerRoles) (skillsCfg.enabledRoles or []);
   hmLib = import ../lib.nix {inherit lib;};
 
   inherit
     (hmLib.mkFullSkillDirs {
       enabledRoles = skillsCfg.enabledRoles or [];
-      superpowersPath = skillsCfg.superpowersPath or null;
+      skillsRepo = skillsCfg.repository or null;
     })
     skillDirs
     ;
 in {
-  config = lib.mkIf ((skillsCfg.enabledRoles or []) != []) {
+  config = lib.mkIf hasSkillConsumerRole {
     home.file =
       lib.mapAttrs' (
         name: dir:

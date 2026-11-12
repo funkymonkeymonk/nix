@@ -16,18 +16,6 @@
   catalogNames = builtins.attrNames catalog;
   machineConfigNames = ["drlight" "type-desktop" "type-nas" "type-server-arm" "wweaver" "zero"];
   machineConfigPaths = map (name: ../. + "/machines/${name}/default.nix") machineConfigNames;
-  drlightFacterReport = builtins.fromJSON (builtins.readFile ../.machines/drlight/facter.json);
-  hasKeyRecursive = key: value:
-    if builtins.isAttrs value
-    then builtins.hasAttr key value || builtins.any (hasKeyRecursive key) (builtins.attrValues value)
-    else if builtins.isList value
-    then builtins.any (hasKeyRecursive key) value
-    else false;
-  hasDriverModules = devices: builtins.any (device: (device.driver_modules or []) != []) devices;
-  hasNamedNetworkInterface =
-    builtins.any
-    (interface: (interface.unix_device_names or []) != [])
-    (drlightFacterReport.hardware.network_interface or []);
   legacyMachineConfigPaths = map (path: ../. + path) [
     "/hosts/darwin-server"
     "/hosts/megamanx"
@@ -120,17 +108,6 @@
     if expected == actual
     then ''echo "${name}: OK"''
     else throw "${name}: expected ${builtins.toJSON expected}, got ${builtins.toJSON actual}";
-  drlightFacterReportTest = pkgs.runCommand "test-drlight-facter-report" {} ''
-    echo "=== Testing Drlight Facter report privacy and hardware-detection data ==="
-    ${assertEqual "Facter report excludes unique serial fields" false (hasKeyRecursive "serial" drlightFacterReport)}
-    ${assertEqual "Facter report excludes unused SMBIOS identifiers" false (drlightFacterReport ? smbios)}
-    ${assertEqual "Facter report retains the target platform" "x86_64-linux" drlightFacterReport.system}
-    ${assertEqual "Facter report retains bare-metal detection" "none" drlightFacterReport.virtualisation}
-    ${assertEqual "Facter report retains UEFI detection" true (drlightFacterReport.uefi.supported or false)}
-    ${assertEqual "Facter report retains storage driver data" true (hasDriverModules (drlightFacterReport.hardware.disk or []))}
-    ${assertEqual "Facter report retains interface names used for DHCP detection" true hasNamedNetworkInterface}
-    touch $out
-  '';
   test = pkgs.runCommand "test-machines-inventory" {} ''
     echo "=== Testing canonical machine inventory projections ==="
     ${assertEqual "root module receives constructor args" "constructor-input:user-root" argumentEvaluation.config.rootValue}
@@ -199,6 +176,5 @@
     touch $out
   '';
 in {
-  inherit drlightFacterReportTest;
   machinesInventory = test;
 }

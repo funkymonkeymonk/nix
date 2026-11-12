@@ -55,26 +55,41 @@ with lib; rec {
       })
     (lib.filterAttrs (_: item: item.reference != "") items);
 
-  # Build auto-loaded skills content from the shared skill manifest.
-  #
-  # Filters modules/home-manager/skills/manifest.nix down to skills whose
-  # `roles` intersect `enabledRoles`, then further to skills tagged
-  # `autoLoad = true`, resolving each one's SKILL.md content (internal or
-  # superpowers source), and concatenating them with `---` separators.
-  #
-  # enabledRoles: list of role names, e.g. config.myConfig.skills.enabledRoles
-  # superpowersPath: path to the superpowers skills repo, or null if unset
-  #
-  # Returns { autoLoadSkills, autoLoadContent, hasAutoLoadSkills }.
+  # Find every valid skill directory in the pinned personal skills input.
+  # A directory is a skill only when it contains its required SKILL.md file.
+  mkRepoSkillDirs = {skillsRepo ? null}: let
+    skillsRoot =
+      if skillsRepo == null
+      then null
+      else skillsRepo + "/skills";
+    entries =
+      if skillsRoot == null
+      then {}
+      else builtins.readDir skillsRoot;
+    validEntries =
+      lib.filterAttrs (
+        name: kind:
+          kind
+          == "directory"
+          && builtins.pathExists (skillsRoot + "/${name}/SKILL.md")
+      )
+      entries;
+  in
+    lib.mapAttrs (name: _kind: skillsRoot + "/${name}") validEntries;
+
+  # Build auto-loaded content for metadata entries that still exist in the
+  # repository. Skill content always comes from the pinned repository input.
   mkAutoLoadSkills = {
     enabledRoles,
-    superpowersPath ? null,
+    skillsRepo ? null,
   }: let
     manifest = import ./skills/manifest.nix;
+    skillDirs = mkRepoSkillDirs {inherit skillsRepo;};
     enabledSkills =
       lib.filterAttrs (
-        _name: skill:
-          lib.any (role: lib.elem role skill.roles) enabledRoles
+        name: skill:
+          builtins.hasAttr name skillDirs
+          && lib.any (role: lib.elem role skill.roles) enabledRoles
       )
       manifest;
     autoLoadSkills =
@@ -83,20 +98,7 @@ with lib; rec {
       )
       enabledSkills;
     autoLoadContent = lib.concatStringsSep "\n\n---\n\n" (lib.mapAttrsToList (
-        name: skill: let
-          skillMd =
-            if skill.source.type == "internal"
-            then let
-              skillPath = skill.source.path + "/SKILL.md";
-            in
-              if builtins.pathExists skillPath
-              then builtins.readFile skillPath
-              else "# ${name}\n\n${skill.description}"
-            else if skill.source.type == "superpowers" && superpowersPath != null
-            then builtins.readFile "${superpowersPath}/skills/${skill.source.skillName}/SKILL.md"
-            else "# ${name}\n\n${skill.description}";
-        in
-          skillMd
+        name: _skill: builtins.readFile (skillDirs.${name} + "/SKILL.md")
       )
       autoLoadSkills);
     hasAutoLoadSkills = autoLoadSkills != {};
@@ -104,63 +106,31 @@ with lib; rec {
     inherit autoLoadSkills autoLoadContent hasAutoLoadSkills;
   };
 
-  # Build the full set of internal + superpowers skill directories for a
-  # given set of enabled roles, in the shape expected by home-manager's
-  # native programs.opencode.skills / programs.claude-code.skills options
-  # (an attrset of skill-name -> directory path).
-  #
-  # External skills (source.type == "external") are deliberately excluded:
-  # they are installed at activation time via `npx skills add`
-  # (see modules/home-manager/skills/install.nix), which is a runtime
-  # network fetch and cannot be expressed as a static Nix value.
-  #
-  # Dependencies (skill.deps) are resolved and included even if their own
-  # roles aren't in enabledRoles, matching install.nix's existing behavior.
-  #
-  # enabledRoles: list of role names, e.g. config.myConfig.skills.enabledRoles
-  # superpowersPath: path to the superpowers skills repo, or null if unset
-  #
-  # Returns { skillDirs, allSkills } where skillDirs is ready to assign
-  # directly to programs.<agent>.skills, and allSkills is the resolved
-  # manifest subset (useful for building commands / README content).
+  # Return all skills from the pinned repository for installation by
+  # home-manager. `allSkills` retains optional role metadata for agent
+  # commands and auto-loaded instructions.
   mkFullSkillDirs = {
     enabledRoles,
-    superpowersPath ? null,
+    skillsRepo ? null,
   }: let
     manifest = import ./skills/manifest.nix;
-    enabledSkills =
+    skillDirs = mkRepoSkillDirs {inherit skillsRepo;};
+    enabledMetadata =
       lib.filterAttrs (
-        _name: skill:
-          lib.any (role: lib.elem role skill.roles) enabledRoles
+        name: skill:
+          builtins.hasAttr name skillDirs
+          && lib.any (role: lib.elem role skill.roles) enabledRoles
       )
       manifest;
-    # Resolve deps (include deps even if their roles aren't enabled)
     allSkillNames = lib.concatLists (lib.mapAttrsToList (
         name: skill:
-          [name] ++ skill.deps
+          [name] ++ (skill.deps or [])
       )
-      enabledSkills);
+      enabledMetadata);
     allSkills = lib.listToAttrs (map (name: {
       inherit name;
       value = manifest.${name};
-    }) (lib.unique allSkillNames));
-    # Only internal + superpowers skills can be expressed as static paths.
-    installableSkills =
-      lib.filterAttrs (
-        _name: skill:
-          skill.source.type
-          == "internal"
-          || (skill.source.type == "superpowers" && superpowersPath != null)
-      )
-      allSkills;
-    skillDirs =
-      lib.mapAttrs (
-        _name: skill:
-          if skill.source.type == "internal"
-          then skill.source.path
-          else "${superpowersPath}/skills/${skill.source.skillName}"
-      )
-      installableSkills;
+    }) (lib.unique (lib.filter (name: builtins.hasAttr name skillDirs) allSkillNames)));
   in {
     inherit skillDirs allSkills;
   };

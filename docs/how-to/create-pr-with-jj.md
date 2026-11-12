@@ -1,125 +1,69 @@
 ---
 title: "Create a PR with jj"
-description: "Step-by-step guide to creating a pull request using Jujutsu"
+description: "Create and push a Jujutsu bookmark, then open a GitHub pull request"
 type: how-to
 audience: developer
-last-reviewed: 2026-04-07
+last-reviewed: 2026-11-11
 ---
 
-# How to Create a PR with jj
+# Create a PR with jj
 
-This guide shows you how to create a pull request using Jujutsu (jj) version control.
-
-## Goal
-
-Create and submit a pull request for your code changes using the jj workflow.
+Use native Jujutsu and GitHub CLI commands to create a pull request. The Nix
+flake does not install the former `jj-pr` wrapper.
 
 ## Prerequisites
 
-- You have changes ready to commit
-- You're in a jj repository
-- GitHub CLI (`gh`) is authenticated
+- You are in a Jujutsu repository with a remote.
+- GitHub CLI is authenticated.
+- Your changes are ready to push.
 
-## Steps
+## Create and push the bookmark
 
-### 1. Ensure You're on a New Commit
+1. Describe the current change:
 
-If you haven't already, create a new commit for your work:
+   ```bash
+   jj describe -m "feat: add user authentication"
+   ```
 
-```bash
-jj new
-```
+2. Create a bookmark for the pull request:
 
-### 2. Make and Describe Your Changes
+   ```bash
+   jj bookmark set feat/user-auth -r @
+   ```
 
-Make your code changes, then describe the commit:
+3. Push the bookmark:
 
-```bash
-jj describe -m "feat: Add user authentication"
-```
+   ```bash
+   jj git push --bookmark feat/user-auth
+   ```
 
-### 3. Choose Your Method
+4. Create the pull request:
 
-#### Option A: Using `jj-pr` (Recommended)
+   ```bash
+   gh pr create --head feat/user-auth --fill
+   ```
 
-The `jj-pr` tool handles the entire workflow:
+5. Verify the pull request:
 
-```bash
-jj-pr feat user-auth "Add user authentication flow"
-```
+   ```bash
+   gh pr view feat/user-auth
+   ```
 
-Parameters:
-- `feat` - The type (feat, fix, chore, hotfix, release)
-- `user-auth` - Short description (kebab-case)
-- `"Add user authentication flow"` - Commit message (optional, defaults to description)
-
-#### Option B: Manual Steps
-
-If you prefer manual control:
-
-```bash
-# Create bookmark
-jj bookmark set feat/user-auth -r @
-
-# Push to remote
-jj git push --bookmark feat/user-auth
-
-# Create PR
-g h pr create --head feat/user-auth --fill
-```
-
-### 4. Verify the PR
-
-Check that the PR was created successfully:
-
-```bash
-gh pr view feat/user-auth
-```
-
-## Conventional Branch Naming
-
-Use these prefixes for your bookmarks:
-
-| Prefix | Use For | Example |
-|--------|---------|---------|
-| `feat/` | New features | `feat/user-auth` |
-| `fix/` | Bug fixes | `fix/null-pointer` |
-| `hotfix/` | Urgent fixes | `hotfix/security-patch` |
-| `chore/` | Maintenance | `chore/update-deps` |
-| `release/` | Releases | `release/v1.2.0` |
+Use a bookmark name that follows `<type>/<description>`, such as
+`feat/user-auth`, `fix/null-pointer`, or `chore/update-deps`.
 
 ## Troubleshooting
 
-### "No changes in working copy"
-
-You haven't described your commit yet:
-
-```bash
-jj describe -m "your message"
-```
-
-### "Bookmark already exists"
-
-Use a different name or delete the old bookmark:
+If the bookmark already exists, choose another name or delete the old bookmark:
 
 ```bash
 jj bookmark delete feat/user-auth
 ```
 
-### "Failed to push"
-
-Ensure the remote is configured and you have push access:
+If the push fails, check the remote and your access:
 
 ```bash
 jj git remote list
 ```
 
-## Next Steps
-
-- [Update an existing PR](./update-existing-pr.md)
-- [Create stacked PRs](./create-stacked-prs.md)
-
-## See Also
-
-- [JJ Commands Reference](../reference/jj-commands.md)
-- [JJ Mental Model](../explanation/jj-mental-model.md)
+For native jj commands, see the [JJ Commands Reference](../reference/jj-commands.md).

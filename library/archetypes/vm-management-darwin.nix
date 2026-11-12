@@ -1,9 +1,5 @@
 # Headless Darwin host for managing macOS virtual machines.
-{
-  inputs,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   imports = [
     ./base-darwin.nix
     ./server-observability-darwin.nix
@@ -12,8 +8,6 @@
   ];
 
   myConfig = {
-    skills.superpowersPath = inputs.superpowers or null;
-
     roles = {
       developer.enable = true;
       opencode.enable = true;

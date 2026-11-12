@@ -5,8 +5,8 @@
   stubs = import ./stubs.nix {inherit pkgs;};
 
   # withRoles: base + roles/default.nix + onepassword
-  # (foundation always-on sets myConfig.onepassword.enable; opencode/claude/pi set
-  #  myConfig.agent-skills.enable — both options now live in their owning modules)
+  # (foundation always-on sets myConfig.onepassword.enable; agent skill paths are
+  # provided by the shared personal-skills repository input)
   stubModules = stubs.withRoles;
 
   evalWithRole = roleName:
@@ -70,7 +70,6 @@
                 workstation.enable = true;
                 work.enable = true;
                 entertainment.enable = true;
-                agent-skills.enable = true;
                 opencode.enable = true;
                 claude.enable = true;
                 pi.enable = true;
@@ -124,10 +123,9 @@
     developer = {
       "zellij.enable" = true;
     };
-    opencode = {"agent-skills.enable" = true;};
-    claude = {"agent-skills.enable" = true;};
+    opencode = {};
+    claude = {};
     pi = {
-      "agent-skills.enable" = true;
       "pi.enable" = true;
       "pi.settings.defaultModel" = "gpt-6-luna";
       # Default local model served through Bifrost.

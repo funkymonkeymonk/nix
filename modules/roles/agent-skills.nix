@@ -8,13 +8,7 @@ in {
   options.myConfig.roles.agent-skills.enable = lib.mkOption {
     type = lib.types.bool;
     default = false;
-    description = "AI agent skills management (auto-enabled by opencode/claude)";
-  };
-
-  options.myConfig.agent-skills.enable = lib.mkOption {
-    type = lib.types.bool;
-    default = false;
-    description = "Enable agent skills management";
+    description = "Shell aliases for listing and updating the installed personal skills";
   };
 
   config = lib.mkIf cfg.enable {
@@ -25,7 +19,7 @@ in {
         };
         shellAliases = {
           skills-status = "ls -la $AGENT_SKILLS_PATH";
-          skills-update = "nix flake update --update-input superpowers";
+          skills-update = "nix flake update personal-skills";
           skills-list = "find $AGENT_SKILLS_PATH -name 'SKILL.md' -exec basename {} \\; | sort";
         };
       }

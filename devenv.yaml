@@ -43,8 +43,8 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
-  superpowers:
-    url: github:obra/superpowers/22f0b463e7a5e579904dd6211a520321035526f7
+  personal-skills:
+    url: github:funkymonkeymonk/skills
     flake: false
   zellij-pane-tracker:
     url: github:funkymonkeymonk/zellij-pane-tracker/7c8df56c94ad2a9f80d5a3fbfb0e8bfe5f3e2f89

@@ -24,9 +24,7 @@ Check the collection for the latest MLX-converted models before choosing alterna
 | Run all tests | `devenv tasks run test:all` |
 | Run eval only | `devenv tasks run test:eval` |
 | Run build checks only | `devenv tasks run test:build-checks` |
-| Apply current host config | `devenv tasks run system:switch` |
-| Plan a named machine deployment | `devenv tasks run machines:plan --input machine=<name>` |
-| Apply a reviewed machine plan | `devenv tasks run machines:apply --input machine=<name> --input planId=<plan-id>`
+| Apply config | `devenv tasks run system:switch` |
 
 ---
 
@@ -71,10 +69,7 @@ devenv tasks run <task>        # Run a task
 | `test:eval` | Evaluate all NixOS/Darwin configurations |
 | `test:build-packages` | Build package availability checks |
 | `test:build-checks` | Build all runCommand eval tests |
-| `machines:plan` | Plan changes for one named machine |
-| `machines:apply` | Apply a reviewed plan for one named machine |
-| `machines:deploy` | Explicitly deploy one named machine |
-| `system:switch` | Apply configuration to the current host only |
+| `system:switch` | Apply configuration |
 
 ### Shell Aliases
 
@@ -84,7 +79,7 @@ devenv tasks run <task>        # Run a task
 
 ### JJ Workspace Support
 
-When working in a jj workspace (created with `jj workspace add` or `jj-workspace create`), the switch command is workspace-aware:
+When working in a jj workspace created with `jj workspace add`, the switch command is workspace-aware:
 
 ```bash
 # From any workspace directory - automatically runs from repo root
@@ -393,68 +388,27 @@ Common traps:
 
 ## Agent Skills
 
-Skills auto-install when roles like `developer`, `opencode`, or `claude` are active.
+The public `funkymonkeymonk/skills` repository is the source of standalone
+agent skills. The Nix flake consumes it through the `personal-skills` input,
+with its exact revision pinned in `flake.lock`.
 
-**Location:** `~/.config/opencode/skills/`
+When `developer`, `creative`, `workstation`, `opencode`, `claude`, or `pi` is
+enabled, Home Manager installs complete skill directories under
+`~/.agents/skills/`. OpenCode and Pi discover this location. Claude Code
+receives the same repository-backed directories through its Home Manager module.
 
-### Skill Priority (THIS REPOSITORY)
+The Nix manifest contains optional metadata only. Do not add skill content or
+install logic to this Nix repository. To change a skill, update the skills
+repository, then run `nix flake update personal-skills` here and rebuild.
 
-**Agents: PREFER skills defined in this repo over superpowers.**
-
-Skill resolution priority:
-1. **Project-local repo skills** ← Start here (`modules/home-manager/skills/internal/`)
-2. **Agent global skills** (`~/.config/opencode/skills/`)
-3. **Superpowers** (built-in skills)
-
-**Why:** This repo has a tight feedback loop for skill development. When you refine a skill here, it auto-deploys on `system:switch`. Use superpowers only if the repo doesn't define the skill.
-
-### Repo Skills Structure
-
-All skills defined in this repo are in `modules/home-manager/skills/`:
-
-```
-modules/home-manager/skills/
-├── README.md           ← Full documentation
-├── manifest.nix        ← Skill registry
-├── install.nix
-├── internal/           ← All skills (organized by name)
-│   ├── brainstorming/
-│   ├── debugging/
-│   ├── devenv/         ← Your skills
-│   ├── tdd/
-│   └── ... (30+ skills)
-└── external/           ← Skills fetched from GitHub
-    └── jj/
-```
-
-See `modules/home-manager/skills/README.md` for complete documentation.
-
-### Adding Skills
-
-1. Create `modules/home-manager/skills/internal/skill-name/SKILL.md`
-2. Register in `modules/home-manager/skills/manifest.nix` with roles
-3. Run `system:switch` to deploy
-4. Test: `cat ~/.config/opencode/skills/skill-name/SKILL.md`
-
-Example manifest entry:
-```nix
-"my-skill" = {
-  description = "What this skill does";
-  roles = ["developer" "opencode"];
-  source = {
-    type = "internal";
-    path = ./internal/my-skill;
-  };
-  deps = [];
-};
-```
+See `modules/home-manager/skills/README.md` for the install and update steps.
 
 ---
 
 ## Jujutsu (jj) Version Control
 
 If `.jj/` directory exists:
-1. Use `jj` skill for all version control
+1. Use native Jujutsu commands for version control
 2. Run `jj status` before any operation
 3. Use `jj new` before starting work
 4. Use `jj describe` for commit messages
@@ -462,73 +416,24 @@ If `.jj/` directory exists:
 
 ### Workspace Workflow (Agents Must Use Workspaces)
 
-Workspaces isolate each change in flight. **Agents MUST use workspaces for all non-trivial changes.**
-
-#### Workspace Location
-
-Workspaces live in `~/workspaces/` (not inside the repository as sibling directories):
-
-```
-~/workspaces/
-  feat-auth-20260512-a1b2/     ← workspace directory
-  fix-bug-20260512-c3d4/       ← another workspace
-```
-
-Use `jj-workspace` to create workspaces from any directory:
+Use native Jujutsu workspace commands. Keep workspaces under `~/workspaces/`.
 
 ```bash
-jj-workspace create feat/my-topic              # Create workspace from main
-jj-workspace create fix/bug-name develop       # Create workspace from develop
-jj-workspace list                              # Show all workspaces
-jj-workspace clean                             # Remove all workspaces
+jj workspace add --name feat-my-topic ~/workspaces/feat-my-topic
+cd ~/workspaces/feat-my-topic
+jj workspace list
 ```
 
-#### Agent Workspace Naming
-
-Agent workspace names encode agent identity and purpose:
-
-```
-  feat/agent-<agent-id>-<topic>     # e.g. feat/agent-hostid-fix
-  fix/agent-<agent-id>-<topic>      # e.g. fix/agent-lint-error
-```
-
-This lets humans distinguish agent workspaces from human workspaces at a glance.
-
-#### Example Workflow: Create → Work → Finish → Clean
+Give each agent a separate workspace and bookmark. After work is complete,
+forget the workspace and remove its directory:
 
 ```bash
-# 1. Create workspace (stored in ~/workspaces/, NOT in repo)
-  jj-workspace create feat/agent-my-feature
-
-# 2. cd into the workspace
-  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
-
-# 3. Work and commit (the working copy IS a commit — no git add needed)
-# ... make changes ...
-jj describe -m "feat: add my feature"
-
-# 4. Validate from repo root (devenv tasks require repo root)
-cd /path/to/repo && devenv tasks run check:lint
-
-# 5. Push and create PR (from workspace dir)
-  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
-jj bookmark set feat/my-feature -r @
-jj git push --bookmark feat/my-feature
-gh pr create --head feat/my-feature
-
-# 6. After PR is merged: clean up
-  jj workspace forget feat-agent-my-feature-<date>-<id>
-  rm -rf ~/workspaces/feat-agent-my-feature-<date>-<id>
+jj workspace forget feat-my-topic
+rm -rf ~/workspaces/feat-my-topic
 ```
 
-#### Session TTL
-
-`jj-workspace-session` manages fast sync (every 5 min) during active sessions. Sessions auto-expire after 30 minutes of inactivity. Prune expired sessions with:
-
-```bash
-jj-workspace-session prune
-jj-workspace-session status   # Show active sessions
-```
+This Nix flake does not install the former `jj-workspace` or fast-sync wrapper
+scripts. Use the native `jj workspace`, `jj git`, and `gh` commands.
 
 ### Commit-First Workflow (Required)
 
@@ -694,35 +599,21 @@ CI runs both on separate runners.
 
 ---
 
-## NixOS Machine Deployment Workflow (Required)
+## NixOS Rebuild Commands
 
-Deploy remote or production NixOS machines through the repository's devenv Machines workflow. Do not use a direct `nixos-rebuild` command or SSH activation as a substitute. Machines uses the canonical machine catalog and the repository's pinned Devenv CLI; the wrapper also handles named-target validation, configured endpoints/builders, and machine-specific SecretSpec or Tailscale setup.
-
-For production changes, use the review-first plan/apply flow:
+When deploying to NixOS systems:
 
 ```bash
-# 1. Create a plan for exactly one catalog machine.
-devenv tasks run machines:plan --input machine=drlight
+# Standard rebuild (always use --impure for non-CI environments)
+sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#<hostname> --impure
 
-# 2. Review the plan output. Confirm the target and all planned changes.
-# Stop and report if it contains unexpected broad system/package changes.
-
-# 3. Apply only that reviewed plan, using its returned plan ID.
-devenv tasks run machines:apply \
-  --input machine=drlight \
-  --input planId=plan-<id>
-
-# 4. Check the target and verify the requested service/system health.
-devenv tasks run machines:check --input machine=drlight
+# Example for type-server
+sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impure
 ```
 
-Replace `drlight` with the explicit machine name and use the exact plan ID returned by `machines:plan`. The wrapper rejects a plan that belongs to a different machine. Commit the intended Nix configuration in the Jujutsu workspace before planning or applying so the flake reads the reviewed tree.
+**Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
 
-Use `devenv tasks run machines:deploy --input machine=<name>` only when the user explicitly requests the Machines deploy operation instead of plan/apply. Do not pass `yes=true` unless the user explicitly authorizes a non-interactive confirmation. `devenv tasks run system:switch` applies the configuration for the current host only; it is not a remote deployment command.
-
-Use direct `nixos-rebuild`/SSH activation only as an explicit, user-approved exception when the Machines workflow is unavailable. Explain that this bypasses the repository's target, plan, endpoint, and secret-handling safeguards before proceeding. If the exception is approved, use `--impure` where required by nixos-facter.
-
-**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task uses `op` to fetch sudo passwords for the current host. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI may be waiting for browser-based authorization. Agents cannot complete this step — the user must sign in manually and approve the 1Password prompt.
+**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task uses `op` to fetch sudo passwords. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI is likely waiting for browser-based authorization that requires the user to approve a 1Password prompt. Agents cannot complete this step — the user must sign in manually (e.g., `op signin` and approve the browser prompt). Once signed in, the CLI caches the session and subsequent `op` calls work without interaction.
 
 ---
 

@@ -1,14 +1,9 @@
 # Generic desktop configuration for gaming/workstations.
 # Hardware-specific settings belong in the consuming target module.
-{
-  inputs,
-  lib,
-  ...
-}: let
+{lib, ...}: let
   sshPublicKey = import ../ssh-public-key.nix;
 in {
   myConfig = {
-    skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = lib.mkDefault "github:funkymonkeymonk/nix#type-desktop";
   };
 

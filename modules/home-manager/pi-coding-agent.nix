@@ -91,15 +91,12 @@ with lib; let
     })
   cfg.models;
 
-  # Build auto-loaded skills content from the shared manifest helper.
-  # Full skill DIRECTORY installation (internal + superpowers) lives in
-  # modules/home-manager/skills/canonical-install.nix, under the shared
-  # ~/.agents/skills/<name> location — pi discovers that path natively with
-  # zero config, so it is not duplicated here.
+  # Build optional auto-loaded content from matching repository skill metadata.
+  # Full skill directory installation lives in the shared canonical location.
   inherit
     (hmLib.mkAutoLoadSkills {
       enabledRoles = skillsCfg.enabledRoles or [];
-      superpowersPath = skillsCfg.superpowersPath or null;
+      skillsRepo = skillsCfg.repository or null;
     })
     autoLoadContent
     hasAutoLoadSkills
@@ -154,13 +151,6 @@ with lib; let
       text = content;
     })
   cfg.prompts;
-
-  # Skills
-  skillFiles = lib.mapAttrs' (name: content:
-    lib.nameValuePair ".pi/agent/skills/${name}/SKILL.md" {
-      text = content;
-    })
-  cfg.skills;
 
   # Extensions
   extensionFiles = lib.mapAttrs' (name: content:
@@ -262,7 +252,7 @@ with lib; let
     };
 
   # pi-plugins external source files
-  # When pluginsSource is set, copy selected extensions and all skills from that repo
+  # When pluginsSource is set, copy selected extensions from that repository
   pluginSourceFiles = let
     src = cfg.pluginsSource;
     names = cfg.plugins;
@@ -283,26 +273,11 @@ with lib; let
           }
       )
       names);
-    # Copy all skills from pi-plugins .pi/skills/ (skills are tightly coupled to extensions)
-    skillsDir = src + "/.pi/skills";
-    skillNames =
-      if builtins.pathExists skillsDir
-      then lib.attrNames (lib.filterAttrs (_: t: t == "directory") (builtins.readDir skillsDir))
-      else [];
-    skillEntries =
-      map (name: {
-        name = ".pi/agent/skills/${name}";
-        value = {
-          source = skillsDir + "/${name}";
-          recursive = true;
-        };
-      })
-      skillNames;
   in
-    lib.optionalAttrs hasSource (lib.listToAttrs (extEntries ++ skillEntries));
+    lib.optionalAttrs hasSource (lib.listToAttrs extEntries);
 
   # All files merged together
-  allFiles = coreFiles // promptFiles // skillFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles;
+  allFiles = coreFiles // promptFiles // extensionFiles // themeFiles // npmFiles // bifrostDiscoveryFiles // pluginSourceFiles;
 
   # pi-dev: run pi with local plugin overrides (no special shell needed)
   pi-dev-script = pkgs.writeShellScriptBin "pi-dev" ''
@@ -343,23 +318,13 @@ with lib; let
       fi
     done
 
-    # Merge directories
-    for dir in skills prompts themes sessions; do
+    # Merge non-skill directories from the system Pi configuration.
+    for dir in prompts themes sessions; do
       link_dir "$SYSTEM_AGENT/$dir" "$AGENT_DIR/$dir"
     done
 
-    # Link repo skills
-    if [[ -d "$PLUGINS_DIR/.pi/skills" ]]; then
-      mkdir -p "$AGENT_DIR/skills"
-      for skill in "$PLUGINS_DIR/.pi/skills"/*; do
-        [[ -d "$skill" ]] || continue
-        name=$(basename "$skill")
-        dst="$AGENT_DIR/skills/$name"
-        [[ -e "$dst" ]] && continue
-        ln -sf "$skill" "$dst"
-        echo "  + skill $name"
-      done
-    fi
+    # Link skills from the canonical repository-backed installation.
+    link_dir "$HOME/.agents/skills" "$AGENT_DIR/skills"
 
     # Link repo plugins
     mkdir -p "$AGENT_DIR/extensions"

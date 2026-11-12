@@ -47,27 +47,27 @@ with lib; let
     // (optionalAttrs (cfg.mcpServers != {}) {
       mcpServers = mcpServerConfig;
     });
-  # Full skill directories (internal + superpowers) for programs.claude-code.skills,
-  # and the resolved manifest subset for building bundled commands. This
+  # Full skill directories from the pinned repository for programs.claude-code.skills,
+  # and the matching metadata subset for optional bundled commands. This
   # closes the gap where claude previously only got the autoLoad = true
   # digest — now it gets the same full-directory capability opencode has.
   inherit
     (hmLib.mkFullSkillDirs {
       enabledRoles = skillsCfg.enabledRoles or [];
-      superpowersPath = skillsCfg.superpowersPath or null;
+      skillsRepo = skillsCfg.repository or null;
     })
     skillDirs
     allSkills
     ;
 
-  # Commands bundled with skills (e.g. jj's /finish /pr /push, yak-shaving's /shave)
+  # Optional Claude commands declared by matching skill metadata
   skillCommands = hmLib.mkSkillCommands allSkills;
 
   # Build auto-loaded skills content from the shared manifest helper
   inherit
     (hmLib.mkAutoLoadSkills {
       enabledRoles = skillsCfg.enabledRoles or [];
-      superpowersPath = skillsCfg.superpowersPath or null;
+      skillsRepo = skillsCfg.repository or null;
     })
     autoLoadContent
     hasAutoLoadSkills

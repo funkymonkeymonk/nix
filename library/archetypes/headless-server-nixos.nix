@@ -1,7 +1,6 @@
 {
   pkgs,
   lib,
-  inputs,
   ...
 }: let
   sshPublicKey = import ../ssh-public-key.nix;
@@ -12,7 +11,6 @@ in {
   ];
 
   myConfig = {
-    skills.superpowersPath = inputs.superpowers or null;
     onepassword = {
       tokenFile = "/etc/opnix/token";
       defaultVault = lib.mkDefault "Opnix";

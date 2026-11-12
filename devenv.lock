@@ -1304,6 +1304,22 @@
         "type": "github"
       }
     },
+    "personal-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794242040,
+        "narHash": "sha256-eaWxlE4G513JbSJ6NQBWl+fK+WHP+/rJGV5Zk1BMDjY=",
+        "owner": "funkymonkeymonk",
+        "repo": "skills",
+        "rev": "ccd78c823b2a8813295e3ca7f632dee06ce6c721",
+        "type": "github"
+      },
+      "original": {
+        "owner": "funkymonkeymonk",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "pi-plugins": {
       "inputs": {
         "nixpkgs": [
@@ -1400,8 +1416,8 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-stable": "nixpkgs-stable",
         "opnix": "opnix",
+        "personal-skills": "personal-skills",
         "pi-plugins": "pi-plugins",
-        "superpowers": "superpowers",
         "zellij-pane-tracker": "zellij-pane-tracker"
       }
     },
@@ -1466,23 +1482,6 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "type": "github"
-      }
-    },
-    "superpowers": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1793744227,
-        "narHash": "sha256-rP5YsyGuPd9YSW/Fj3aukrq1bLuV+nwwQMK4JaZQgkI=",
-        "owner": "obra",
-        "repo": "superpowers",
-        "rev": "22f0b463e7a5e579904dd6211a520321035526f7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "obra",
-        "repo": "superpowers",
-        "rev": "22f0b463e7a5e579904dd6211a520321035526f7",
         "type": "github"
       }
     },

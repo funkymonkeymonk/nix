@@ -21,9 +21,6 @@ in {
       rtk
     ];
 
-    # Auto-enable agent-skills
-    myConfig.agent-skills.enable = true;
-
     # Use mkDefault so opencode wins if both are enabled
     myConfig.llmClient = {
       serverHost = lib.mkDefault "127.0.0.1";

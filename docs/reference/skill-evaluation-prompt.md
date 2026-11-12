@@ -29,7 +29,7 @@ This evaluation rubric synthesizes best practices from:
 ```
 You are a prompt engineering evaluator specializing in agent system-prompt quality.
 
-Your task: Read every SKILL.md file under ~/.pi/agent/skills/ and produce a
+Your task: Read every SKILL.md file under ~/.agents/skills/ and produce a
 structured evaluation report. Use the rubric below.
 
 ## Evaluation Rubric
@@ -92,7 +92,7 @@ one-sentence justification per axis.
 
 ## Instructions
 
-1. Read EVERY SKILL.md under ~/.pi/agent/skills/.
+1. Read EVERY SKILL.md under ~/.agents/skills/.
 2. For each skill, score it on all 9 axes.
 3. Compute a WEIGHTED SCORE:
    - Axes 1-6 (Clarity, Specificity, Context Efficiency, Structure,
@@ -199,9 +199,9 @@ After receiving the report:
 
 1. **Review TRIM recommendations** — apply the suggested cuts directly
    to the SKILL.md files.
-2. **Review REMOVE recommendations** — remove the skill from the manifest
-   (`modules/home-manager/skills/manifest.nix`) or disable its roles.
+2. **Review REMOVE recommendations** — remove the skill directory from the
+   personal skills repository if you no longer want Home Manager to install it.
 3. **Re-measure** — re-run the token count after edits to confirm savings.
 4. **Re-evaluate** — run this prompt again after trimming to see scores improve.
 
-See [Skills Reference](skills.md) for manifest format and role mapping.
+See [Skills Reference](skills.md) for the source and installation details.

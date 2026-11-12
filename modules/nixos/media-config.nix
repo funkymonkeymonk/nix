@@ -19,11 +19,6 @@ in {
     services.jellyfin.enable = true;
     services.jellyfin.openFirewall = false;
 
-    networking.firewall = {
-      allowedTCPPorts = [8096];
-      allowedUDPPorts = [7359];
-    };
-
     systemd.services.jellyfin = {
       after = ["zfs-mount.service" "media-library-folders.service"];
       requires = ["media-library-folders.service"];

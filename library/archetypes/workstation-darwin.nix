@@ -10,8 +10,6 @@
   ];
 
   myConfig = {
-    skills.superpowersPath = inputs.superpowers or null;
-
     roles = {
       developer.enable = true;
       desktop.enable = true;
@@ -22,9 +20,8 @@
     };
 
     # pi-plugins flake input, provided here (not in modules/roles/pi.nix) so
-    # the role module itself doesn't need `inputs` directly — mirrors
-    # skills.superpowersPath above. Override per-machine with a direct
-    # assignment, e.g. for a local pi-plugins checkout during development.
+    # the role module itself doesn't need `inputs` directly. Override per-machine
+    # with a direct assignment for a local pi-plugins checkout during development.
     pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
   };
 

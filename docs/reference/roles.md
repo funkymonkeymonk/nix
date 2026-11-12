@@ -6,11 +6,7 @@ Roles are defined as NixOS modules in `modules/roles/`. Each role is gated by `m
 
 ### agent-skills
 
-AI agent skills management.
-
-**Packages:** git, jq
-
-Automatically enabled by `opencode` or `claude` roles.
+Shell aliases for listing and updating the installed personal skills.
 
 ### assistant
 
@@ -20,9 +16,7 @@ Claude Code AI assistant with rtk token optimization.
 
 **Packages:** claude-code, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
-**Enables:** `agent-skills`
 
 ### creative
 
@@ -32,7 +26,6 @@ Media and content creation tools.
 
 **Homebrew Casks (macOS):** elgato-stream-deck
 
-**Agent Skills:** brainstorming, writing-skills, diataxis-docs
 
 ### desktop
 
@@ -46,9 +39,10 @@ Development tools and environment.
 
 **Packages:** emacs, helix, clang, python3, nodejs, yarn, docker, k3d, kubectl, kubernetes-helm, k9s, gh-dash
 
-**Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj
 
 ### developer-packages
+
+### devenv-packages
 
 ### email-backup
 
@@ -76,9 +70,7 @@ OpenCode AI assistant with rtk token optimization.
 
 **Packages:** opencode, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
-**Enables:** `agent-skills`
 
 ### pi
 
@@ -86,9 +78,8 @@ Pi coding agent with rtk token optimization.
 
 **Packages:** pi-coding-agent, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
-**Enables:** `agent-skills`, `pi` config management
+**Enables:** `pi` config management
 
 ### tailscale
 
@@ -100,7 +91,6 @@ Work-related tools.
 
 **Packages:** slack, trippy, unar
 
-**Agent Skills:** receiving-code-review, requesting-code-review
 
 ## Role Combinations
 

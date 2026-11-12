@@ -23,8 +23,8 @@
 
     mac-app-util.url = "github:hraban/mac-app-util";
 
-    superpowers.url = "github:obra/superpowers";
-    superpowers.flake = false;
+    personal-skills.url = "github:funkymonkeymonk/skills";
+    personal-skills.flake = false;
 
     opnix.url = "github:brizzbuzz/opnix";
     opnix.inputs.nixpkgs.follows = "nixpkgs";
@@ -40,10 +40,6 @@
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
     zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
-
-    # External skill repositories (Option 2: Pure Nix approach)
-    vercel-skills.url = "github:vercel-labs/skills";
-    vercel-skills.flake = false;
 
     # Bifrost AI Gateway - high-performance LLM gateway
     bifrost.url = "github:maximhq/bifrost";

@@ -30,11 +30,6 @@
   myConfig =
     mkUser "wweaver" "wweaver@justworks.com"
     // {
-      skills = {
-        externalInputs = {
-          inherit (inputs) vercel-skills;
-        };
-      };
       onepassword.sudoPasswordRef = "op://Employee/wweaver Sudo Password/password";
 
       obsidian.vaults = ["personal"];

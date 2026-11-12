@@ -25,7 +25,7 @@
     "nix-homebrew"
     "nixpkgs-stable"
     "pi-plugins"
-    "superpowers"
+    "personal-skills"
     "zellij-pane-tracker"
   ];
   machineBuildInputsMatchRootLock = builtins.all (name: let

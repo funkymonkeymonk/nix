@@ -3,12 +3,12 @@ title: "JJ Commands Reference"
 description: "Complete reference for Jujutsu (jj) commands used in this repository"
 type: reference
 audience: developer
-last-reviewed: 2026-04-08
+last-reviewed: 2026-11-11
 ---
 
 # JJ Commands Reference
 
-Complete reference for Jujutsu (jj) commands. For workflow context see the [JJ Workflow guide](../how-to/jj-workflow.md) and [how-to guides](../how-to/create-pr-with-jj.md).
+Reference for native Jujutsu (jj) commands. The Nix flake does not install the old skill-bundled jj wrappers. For workflows, see the [JJ Workflow guide](../how-to/jj-workflow.md) and related how-to guides.
 
 ## Core Concepts
 
@@ -100,7 +100,7 @@ Complete reference for Jujutsu (jj) commands. For workflow context see the [JJ W
 | `jj workspace add --name <name> <path>` | Create with explicit name |
 | `jj workspace forget <name>` | Remove a workspace (keeps the directory) |
 
-See [How to Use Workspaces](../how-to/use-workspaces.md) for the full workflow including `jj-workspace` tooling.
+See [How to Use Workspaces](../how-to/use-workspaces.md) for native workspace operations.
 
 ---
 
@@ -152,21 +152,12 @@ Revsets are expressions for selecting commits, used in `-r` arguments.
 
 ---
 
-## Workflow Scripts
+## Workflow Wrappers
 
-These scripts are installed by the `developer` role and wrap common multi-step jj workflows:
-
-| Script | Purpose |
-|--------|---------|
-| `jj-pr <type> <desc>` | Create bookmark, push, open PR |
-| `jj-update [msg]` | Squash and push to update existing PR |
-| `jj-sync [base]` | Fetch and rebase onto main (or `base`) |
-| `jj-finish [--merge]` | End-to-end: push → PR → watch CI → merge |
-| `jj-stack <type> <desc>` | Create stacked PR on current branch |
-| `jj-workspace <cmd>` | Manage named workspaces |
-| `jj-workspace-session <cmd>` | Manage OpenCode workspace sessions with fast-sync |
-
-See [JJ Workflow guide](../how-to/jj-workflow.md) — `jj-finish` for end-to-end automation.
+The Nix flake no longer installs the old `jj` skill, its OpenCode commands, or
+its bundled scripts (`jj-pr`, `jj-update`, `jj-sync`, `jj-finish`, `jj-stack`,
+and `jj-workspace`). Use the native Jujutsu commands in this reference or
+install equivalent tools separately.
 
 ---
 

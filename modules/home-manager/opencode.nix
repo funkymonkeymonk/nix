@@ -9,19 +9,19 @@ with lib; let
   skillsCfg = osConfig.myConfig.skills or {};
   hmLib = import ./lib.nix {inherit lib;};
 
-  # Resolved manifest subset (internal + superpowers skills) used to build
-  # bundled commands below. Skill DIRECTORY installation itself now lives in
+  # Resolved metadata subset for optional auto-loaded instructions and
+  # bundled commands. Skill directory installation itself lives in
   # modules/home-manager/skills/canonical-install.nix, under the shared
   # ~/.agents/skills/<name> location — not duplicated here.
   inherit
     (hmLib.mkFullSkillDirs {
       enabledRoles = skillsCfg.enabledRoles or [];
-      superpowersPath = skillsCfg.superpowersPath or null;
+      skillsRepo = skillsCfg.repository or null;
     })
     allSkills
     ;
 
-  # Commands bundled with skills (e.g. jj's /finish /pr /push, yak-shaving's /shave)
+  # Optional OpenCode commands declared by matching skill metadata
   skillCommands = hmLib.mkSkillCommands allSkills;
 
   # Auto-loaded digest content (subset of skillDirs tagged autoLoad = true,
@@ -31,7 +31,7 @@ with lib; let
   inherit
     (hmLib.mkAutoLoadSkills {
       enabledRoles = skillsCfg.enabledRoles or [];
-      superpowersPath = skillsCfg.superpowersPath or null;
+      skillsRepo = skillsCfg.repository or null;
     })
     autoLoadContent
     hasAutoLoadSkills

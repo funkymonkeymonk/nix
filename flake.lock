@@ -1570,6 +1570,22 @@
         "type": "github"
       }
     },
+    "personal-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794242040,
+        "narHash": "sha256-eaWxlE4G513JbSJ6NQBWl+fK+WHP+/rJGV5Zk1BMDjY=",
+        "owner": "funkymonkeymonk",
+        "repo": "skills",
+        "rev": "ccd78c823b2a8813295e3ca7f632dee06ce6c721",
+        "type": "github"
+      },
+      "original": {
+        "owner": "funkymonkeymonk",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "pi-plugins": {
       "inputs": {
         "nixpkgs": "nixpkgs_9"
@@ -1667,9 +1683,8 @@
         "nixpkgs": "nixpkgs_8",
         "nixpkgs-stable": "nixpkgs-stable",
         "opnix": "opnix",
+        "personal-skills": "personal-skills",
         "pi-plugins": "pi-plugins",
-        "superpowers": "superpowers",
-        "vercel-skills": "vercel-skills",
         "zellij-pane-tracker": "zellij-pane-tracker"
       }
     },
@@ -1734,22 +1749,6 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "type": "github"
-      }
-    },
-    "superpowers": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1793744227,
-        "narHash": "sha256-rP5YsyGuPd9YSW/Fj3aukrq1bLuV+nwwQMK4JaZQgkI=",
-        "owner": "obra",
-        "repo": "superpowers",
-        "rev": "22f0b463e7a5e579904dd6211a520321035526f7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "obra",
-        "repo": "superpowers",
         "type": "github"
       }
     },
@@ -1891,22 +1890,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "vercel-skills": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1793930766,
-        "narHash": "sha256-TDLIerf2DHWDuFfWnzBp5fEEQj3B9jtW4IIrpRXwoHg=",
-        "owner": "vercel-labs",
-        "repo": "skills",
-        "rev": "d3701c11b1101251af14c9d148f026e1a47ebe17",
-        "type": "github"
-      },
-      "original": {
-        "owner": "vercel-labs",
-        "repo": "skills",
         "type": "github"
       }
     },

@@ -20,6 +20,7 @@ in rec {
             networking.hostName = hostname;
             nixpkgs.hostPlatform = system;
             system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
+            myConfig.skills.repository = lib.mkDefault (inputs.personal-skills.outPath or null);
           }
           (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
@@ -52,6 +53,7 @@ in rec {
             networking.hostName = hostname;
             system.configurationRevision = inputs.self.rev or inputs.self.dirtyRev or null;
             nixpkgs.hostPlatform = system;
+            myConfig.skills.repository = lib.mkDefault (inputs.personal-skills.outPath or null);
           }
           (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)

@@ -26,6 +26,6 @@ in {
     ./homebrew.nix
   ];
 
-  # Derive enabledRoles from the roles options so skills/install.nix can use it
+  # Derive enabledRoles for optional role-specific skill metadata
   config.myConfig.skills.enabledRoles = enabledRoles;
 }

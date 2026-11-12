@@ -18,10 +18,11 @@
     }
   ];
 
-  piDefaults =
-    (lib.evalModules {
-      modules = stubModules;
-    }).config.myConfig.pi;
+  piDefaultEval = lib.evalModules {
+    modules = stubModules;
+  };
+  piDefaults = piDefaultEval.config.myConfig.pi;
+  piOptions = piDefaultEval.options.myConfig.pi;
 
   piCustom =
     (lib.evalModules {
@@ -51,9 +52,6 @@
               jevOnePasswordItem = "Opencode/Service Accounts/TestHost";
               prompts = {
                 "explain" = "Explain this";
-              };
-              skills = {
-                "nix" = "Nix skill content";
               };
               extensions = {
                 "my-ext" = "console.log('hello')";
@@ -161,9 +159,9 @@ in {
     }
 
     ${
-      if piDefaults.skills == {}
-      then ''echo "  skills default = {}: OK"''
-      else ''echo "  skills should default to {}!"; exit 1''
+      if !(builtins.hasAttr "skills" piOptions)
+      then ''echo "  Pi skills are sourced from the shared repository, not inline options: OK"''
+      else ''echo "  inline Pi skill content must not override the shared repository"; exit 1''
     }
 
     ${
@@ -263,11 +261,6 @@ in {
       else ''echo "  prompts.explain should be defined!"; exit 1''
     }
 
-    ${
-      if piCustom.skills ? nix
-      then ''echo "  skills.nix defined: OK"''
-      else ''echo "  skills.nix should be defined!"; exit 1''
-    }
 
     ${
       if piCustom.extensions ? my-ext

@@ -16,7 +16,6 @@
   ];
 
   myConfig = {
-    skills.superpowersPath = inputs.superpowers or null;
     pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
 
     roles.pi.enable = true;

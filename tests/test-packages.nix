@@ -255,7 +255,6 @@
                 sshIncludes = [];
               }
             ];
-            agent-skills.enable = false;
             onepassword.enable = false;
             opencode.enable = false;
           };
