@@ -141,8 +141,8 @@
     ${assertEqual "drlight remains a catalog target at its default hostname and port" "drlight:9100" drlightTarget.target}
     ${assertEqual "real catalog exporter enablement is authoritative for every machine" expectedMachineExporterStates effectiveMachineExporterStates}
     ${assertEqual "IPv6 address is bracketed in Prometheus target" "[2001:db8::18]:9100" (builtins.elemAt enabledAddresses 2)}
-    ${assertEqual "real catalog exporters included once" ["MegamanX" "darwin-server" "drlight" "type-nas" "type-server" "type-server-arm"] (map (target: target.name) actualInventory.targets)}
-    ${assertEqual "real catalog contains both NixOS and Darwin exporters" ["darwin" "darwin" "nixos" "nixos" "nixos" "nixos"] (map (target: target.kind) actualInventory.targets)}
+    ${assertEqual "real catalog exporters included once" ["MegamanX" "drlight" "type-nas" "type-server" "type-server-arm"] (map (target: target.name) actualInventory.targets)}
+    ${assertEqual "real catalog contains both NixOS and Darwin exporters" ["darwin" "nixos" "nixos" "nixos" "nixos"] (map (target: target.kind) actualInventory.targets)}
     echo "All catalog-derived node-exporter inventory tests passed"
     touch $out
   '';

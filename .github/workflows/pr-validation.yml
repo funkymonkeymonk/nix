@@ -49,13 +49,18 @@ jobs:
             "$NIXPKGS#deadnix" \
             "$NIXPKGS#statix" \
             "$NIXPKGS#yamllint"
-          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
-          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run lint checks
         run: bash .github/scripts/lint.sh
+  ci-helper-tests:
+    name: CI Helper Regression Tests
+    needs: [changes]
+    if: needs.changes.outputs.ci-helper-files == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Test CI workflow helpers
-        if: needs.changes.outputs.ci-helper-files == 'true'
         run: |
           bash tests/test-ci-workflows.sh
           bash tests/test-ci-overlay-upstream-check.sh
@@ -320,6 +325,7 @@ jobs:
     name: Build Report
     runs-on: ubuntu-latest
     needs:
+      - ci-helper-tests
       - build-darwin
       - build-nixos
       - build-nixos-arm
@@ -338,6 +344,7 @@ jobs:
           NIXOS_RESULT="${{ needs.build-nixos.result }}"
           NIXOS_ARM_RESULT="${{ needs.build-nixos-arm.result }}"
           TEST_AND_VALIDATE_RESULT="${{ needs.test-and-validate.result }}"
+          CI_HELPER_RESULT="${{ needs.ci-helper-tests.result }}"
           DARWIN_CHANGED='${{ needs.discover-targets.outputs.darwin-changed }}'
           NIXOS_CHANGED='${{ needs.discover-targets.outputs.nixos-changed }}'
           NIXOS_ARM_CHANGED='${{ needs.discover-targets.outputs.nixos-arm-changed }}'
@@ -358,6 +365,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           # Report validation results
           echo "### Tests & Validation" >> $GITHUB_STEP_SUMMARY
+          if [ "$CI_HELPER_RESULT" = "success" ]; then
+            echo "✅ CI helper regression tests passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$CI_HELPER_RESULT" = "failure" ]; then
+            echo "❌ CI helper regression tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
           if [ "$TEST_AND_VALIDATE_RESULT" = "success" ]; then
             echo "✅ Tests and validation passed" >> $GITHUB_STEP_SUMMARY
           elif [ "$TEST_AND_VALIDATE_RESULT" = "skipped" ]; then
@@ -366,12 +378,15 @@ jobs:
             echo "❌ Tests and validation failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
+          ALL_SUCCESS=true
+          if [ "$CI_HELPER_RESULT" != "success" ] && [ "$CI_HELPER_RESULT" != "skipped" ]; then
+            ALL_SUCCESS=false
+          fi
           if [ "$DARWIN_CHANGED" = "[]" ] && [ "$NIXOS_CHANGED" = "[]" ]; then
             echo "✅ No configuration changes detected - all builds skipped" >> $GITHUB_STEP_SUMMARY
-            exit 0
+            if [ "$ALL_SUCCESS" = "true" ]; then exit 0; else exit 1; fi
           fi
           # Check all results
-          ALL_SUCCESS=true
           if [ "$DARWIN_RESULT" != "success" ] && [ "$DARWIN_RESULT" != "skipped" ]; then
             echo "❌ Darwin builds failed" >> $GITHUB_STEP_SUMMARY
             ALL_SUCCESS=false
@@ -394,8 +409,8 @@ jobs:
           else
             exit 1
           fi
-  # Discover the check list once. The devenv task emits the matrix consumed by
-  # the bounded-concurrency check jobs below.
+  # Discover the check list once. The standalone Nix helper emits the matrix
+  # consumed by the bounded-concurrency check jobs below.
   discover-checks:
     name: Discover PR Check Matrix
     runs-on: ubuntu-latest
@@ -419,11 +434,6 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Install devenv CLI from the locked project flake
-        run: |
-          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
-          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
-          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Validate Disko configuration
@@ -438,19 +448,15 @@ jobs:
           CHECK_PREFIXES: ${{ needs.changes.outputs.check-prefixes }}
         run: |
           input=$(jq -cn --argjson prefixes "$CHECK_PREFIXES" \
-            '{batchSize:2,checkPrefixes:$prefixes}')
-          devenv tasks run ci:checks:changed-plan --input-json "$input"
+            '{batchSize:3,checkPrefixes:$prefixes}')
+          bash .github/scripts/ci-checks.sh plan non-vm "$input"
 
   # VM checks require KVM and remain independent of the non-VM matrix.
   vm-tests:
     name: NixOS VM Checks
     runs-on: ubuntu-latest
     needs: [lint, changes]
-    if: >
-      ${{
-        needs.changes.outputs.nix-files == 'true' ||
-        needs.changes.outputs.workflows == 'true'
-      }}
+    if: ${{ needs.changes.outputs.nix-files == 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -484,20 +490,15 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Install devenv CLI from the locked project flake
-        run: |
-          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
-          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
-          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Run VM smoke checks
-        run: devenv tasks run ci:checks:vm-pr
+        run: bash .github/scripts/ci-checks.sh build vm-pr '{"maxJobs":2}'
 
-  # Each matrix runner builds four checks with max-jobs=2; only the workflow
+  # Each matrix runner builds three checks with max-jobs=2; only the workflow
   # fans out aggressively, avoiding extra build pressure on individual runners.
   test-and-validate:
     name: Tests & Validation (${{ join(matrix.checks, ', ') }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     needs: [lint, changes, discover-checks]
     if: >
       ${{
@@ -541,12 +542,7 @@ jobs:
         with:
           name: funkymonkeymonk
           skipPush: true
-      - name: Install devenv CLI from the locked project flake
-        run: |
-          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
-          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
-          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build changed check shard
-        run: devenv tasks run ci:checks:changed-shard --input-json '${{ toJSON(matrix) }}'
+        run: bash .github/scripts/ci-checks.sh build non-vm '${{ toJSON(matrix) }}'

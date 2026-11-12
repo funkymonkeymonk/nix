@@ -77,7 +77,7 @@ case "${5:-}" in
   *zero*|*drlight*|*type-nas*|*type-server*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
   *MegamanX*) emit_metadata MegamanX darwin true false aarch64-darwin ;;
   *wweaver*) emit_metadata Employee darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
-  *darwin-server*) emit_metadata Personal darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
+  *Lydia*) emit_metadata Opnix darwin "$secret_status" "$bootstrap_status" aarch64-darwin ;;
   *bootstrap*|*type-desktop*|*installer-iso*) emit_metadata Personal nixos "$secret_status" "$bootstrap_status" x86_64-linux ;;
   *) exit 92 ;;
 esac

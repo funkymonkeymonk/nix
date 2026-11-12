@@ -92,7 +92,7 @@ assert_selection \
   "machines/drlight/default.nix"
 assert_selection \
   "Darwin catalog changes select inference and builder access checks" \
-  '["central-observability","drlight-media-","machines-inventory","machines-ops","machines-secret-profiles","media-center-archetype","observability-inventory","phase4-darwin-server","ssh-authorized-keys","type-observability-archetype","type-server-archetypes","type-server-observability"]' \
+  '["central-observability","drlight-media-","lydia-migration","machines-inventory","machines-ops","machines-secret-profiles","media-center-archetype","observability-inventory","ssh-authorized-keys","type-observability-archetype","type-server-archetypes","type-server-observability"]' \
   "library/machines/catalog.nix"
 assert_selection \
   "Remote builder public key changes select SSH coverage" \
@@ -103,9 +103,17 @@ assert_selection \
   '["ssh-authorized-keys"]' \
   "tests/test-ssh-authorized-keys.nix"
 assert_selection \
-  "Workflow changes select all checks" \
-  '["*"]' \
+  "Workflow-only changes run helper tests without the Nix check matrix" \
+  '[]' \
   ".github/workflows/pr-validation.yml"
+assert_selection \
+  "CI helper script changes run helper tests without the Nix check matrix" \
+  '[]' \
+  ".github/scripts/ci-checks.sh"
+assert_selection \
+  "CI helper test changes run without the Nix check matrix" \
+  '[]' \
+  "tests/test-ci-check-groups.sh"
 
 if ((failures > 0)); then
   echo "Results: $failures failure(s)"

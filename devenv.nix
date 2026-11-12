@@ -4,7 +4,7 @@
   ...
 }: let
   devenvPkgs = pkgs.extend (import ./overlays {inherit inputs;});
-  foundationPackages = (import ./modules/roles/foundation-packages.nix {pkgs = devenvPkgs;}).common;
+  devenvPackages = import ./modules/roles/devenv-packages.nix {pkgs = devenvPkgs;};
   developerPackages = import ./modules/roles/developer-packages.nix {pkgs = devenvPkgs;};
 
   # Benchmarking suites are not in upstream nixpkgs; call them directly from
@@ -39,274 +39,31 @@
       printf '%s\n' "$sudo_password" | sudo -S "$@"
     }
   '';
-  ciCheckFilters = {
-    pr = ''
-      [.[]
-        | select(. == "vm-role-generator" or (startswith("vm-") | not))
-        | select(startswith("overlay-") | not)
-        | select(. != "module-coverage")]
-    '';
-    extended = ''[.[] | select(startswith("overlay-"))]'';
-    "non-vm" = ''[.[] | select(. == "vm-role-generator" or (startswith("vm-") | not))]'';
-    "vm-pr" = ''["vm-users", "vm-ssh", "vm-packages"]'';
-    "vm-extended" = ''["vm-role-foundation", "vm-role-developer"]'';
-    vm = ''[.[] | select(startswith("vm-") and . != "vm-role-generator")]'';
-  };
-  machineChartExpression = ''
-    let
-      flake = builtins.getFlake (toString ./.);
-      lib = flake.inputs.nixpkgs.lib;
-      catalog = import ./library/machines/catalog.nix { inputs = flake.inputs; };
-      action = builtins.getEnv "MACHINE_CHART_ACTION";
-      selectedKind = builtins.getEnv "MACHINE_CHART_KIND";
-      selectedName = builtins.getEnv "MACHINE_CHART_NAME";
-      includePackages = builtins.getEnv "MACHINE_CHART_PACKAGES" != "false";
-      packageError = builtins.getEnv "MACHINE_CHART_PACKAGE_NOTE";
-      rootPath = toString ./.;
-      machineEntries =
-        map (name: {kind = "nixos"; inherit name;}) (builtins.attrNames flake.nixosConfigurations)
-        ++ map (name: {kind = "darwin"; inherit name;}) (builtins.attrNames flake.darwinConfigurations);
-      machine = builtins.getAttr selectedName catalog;
-      configuration = builtins.getAttr selectedName (
-        if selectedKind == "nixos" then flake.nixosConfigurations else flake.darwinConfigurations
-      );
-      config = configuration.config;
-      packageName = package: package.pname or package.name;
-      node = label: children: {inherit label children;};
-      relativeSource = source:
-        let
-          storePath = builtins.match "^/nix/store/[^/]+/(.*)$" source;
-        in
-          if lib.hasPrefix (rootPath + "/") source
-          then lib.removePrefix (rootPath + "/") source
-          else if storePath == null then source else builtins.head storePath;
-      installerLabel = source:
-        if source == "<unknown-file>"
-        then "Inline machine configuration"
-        else if lib.hasPrefix "modules/roles/" source
-        then "Role: " + lib.removeSuffix ".nix" (builtins.baseNameOf source) + " (" + source + ")"
-        else if lib.hasPrefix "library/archetypes/" source
-        then "Archetype module: " + lib.removeSuffix ".nix" (builtins.baseNameOf source)
-        else source;
-      renderNodes = prefix: nodes:
-        lib.concatStringsSep "\n" (lib.imap0 (index: entry:
-          let
-            isLast = index == builtins.length nodes - 1;
-            branch = if isLast then "└── " else "├── ";
-            childPrefix = prefix + (if isLast then "    " else "│   ");
-            children =
-              if entry.children == []
-              then ""
-              else "\n" + renderNodes childPrefix entry.children;
-          in
-            prefix + branch + entry.label + children
-        ) nodes);
-      moduleLabel = module:
-        let
-          path = if builtins.isPath module then relativeSource (toString module) else "<inline module>";
-          isArchetype = lib.hasPrefix "library/archetypes/" path;
-        in
-          if path == "<inline module>"
-          then "Inline catalog module"
-          else if isArchetype
-          then "Archetype: " + lib.removeSuffix ".nix" (builtins.baseNameOf path)
-          else "Module: " + path;
-      compositionNodes = map (module: node (moduleLabel module) []) machine.modules;
-      enabledRoles =
-        lib.sort builtins.lessThan (lib.mapAttrsToList (name: role: name)
-          (lib.filterAttrs (_: role: role.enable) (config.myConfig.roles or {})));
-      roleNodes = map (role: node role []) enabledRoles;
-      packageDefinitions = configuration.options.environment.systemPackages.definitionsWithLocations;
-      packageGroups =
-        if !includePackages
-        then []
-        else let
-          definitions = map (definition: {
-            source = relativeSource (toString definition.file);
-            packages = map packageName definition.value;
-          }) packageDefinitions;
-          sources = lib.filter (source:
-            lib.any (definition: definition.source == source && definition.packages != []) definitions
-          ) (lib.sort builtins.lessThan (lib.unique (map (definition: definition.source) definitions)));
-        in
-          map (source:
-            let
-              packages = lib.unique (lib.concatLists (map (definition: definition.packages)
-                (lib.filter (definition: definition.source == source) definitions)));
-            in
-              node (installerLabel source) (map (package: node package []) (lib.sort builtins.lessThan packages))
-          ) sources;
-      homebrewPackageName = package: if builtins.isString package then package else package.name;
-      homebrewGroups =
-        if selectedKind != "darwin" || !includePackages
-        then []
-        else let
-          homebrewOptions = configuration.options.homebrew or {};
-          collectGroups =
-            label: definitions: getPackages: let
-              normalized = map (definition: {
-                source = relativeSource (toString definition.file);
-                packages = getPackages definition.value;
-              }) definitions;
-              sources = lib.filter (source:
-                lib.any (definition: definition.source == source && definition.packages != []) normalized
-              ) (lib.sort builtins.lessThan (lib.unique (map (definition: definition.source) normalized)));
-            in
-              map (source:
-                let
-                  packages = lib.unique (lib.concatLists (map (definition: definition.packages)
-                    (lib.filter (definition: definition.source == source) normalized)));
-                in
-                  node (label + " (" + source + ")")
-                    (map (package: node package []) (lib.sort builtins.lessThan packages))
-              ) sources;
-          listPackages = value: map homebrewPackageName value;
-          appStorePackages = value: builtins.attrNames value;
-        in
-          collectGroups "Formulae" homebrewOptions.brews.definitionsWithLocations listPackages
-          ++ collectGroups "Casks" homebrewOptions.casks.definitionsWithLocations listPackages
-          ++ collectGroups "Mac App Store apps" homebrewOptions.masApps.definitionsWithLocations appStorePackages;
-      homeUsers = if includePackages then (config.home-manager.users or {}) else {};
-      homeNodes = lib.mapAttrsToList (user: homeConfig:
-        node ("Home Manager (" + user + ")")
-          (map (package: node package []) (lib.sort builtins.lessThan
-            (lib.unique (map packageName (homeConfig.home.packages or [])))))
-      ) homeUsers;
-      serviceOptions = config.services or {};
-      openssh = serviceOptions.openssh or {};
-      tailscale = serviceOptions.tailscale or {};
-      systemServices =
-        (if openssh.enable or false then {openssh = {name = "OpenSSH"; port = 22;};} else {})
-        // (if tailscale.enable or false then {tailscale = {name = "Tailscale"; port = 0;};} else {});
-      serviceRegistry = config.myConfig.serviceRegistry or {};
-      services = systemServices // lib.mapAttrs (_: service: {
-        inherit (service) name port;
-      }) serviceRegistry;
-      serviceNodes = lib.mapAttrsToList (_: service:
-        node (service.name + (if service.port > 0 then " (port " + toString service.port + ")" else "")) []
-      ) services;
-      sections = lib.filter (section: section.children != []) ([
-        (node "Catalog composition" compositionNodes)
-        (node "Enabled roles" roleNodes)
-        (node "System packages (grouped by installer)" packageGroups)
-        (node "Homebrew packages" homebrewGroups)
-        (node "Home Manager packages" homeNodes)
-        (node "Managed services" serviceNodes)
-      ] ++ lib.optional (packageError != "")
-        (node "Package lists unavailable" [(node packageError [])]));
-      chart = selectedName + " (" + (config.networking.hostName or selectedName)
-        + ", " + configuration.pkgs.stdenv.hostPlatform.system + ")"
-        + (if sections == [] then "" else "\n" + renderNodes "" sections);
-    in
-      if action == "names"
-      then builtins.toJSON machineEntries
-      else chart
-  '';
   ciCheckPlanExec = {
-    group,
-    selectCheckPrefixes ? false,
-  }: ''
-    set -euo pipefail
-
-    nix_bin="''${NIX_BIN:-nix}"
-    task_input=''${DEVENV_TASK_INPUT:-'{}'}
-    batch_size=$(jq -er '.batchSize | numbers' <<< "$task_input")
-    if [[ ! "$batch_size" =~ ^[1-9][0-9]*$ ]]; then
-      echo "batchSize must be a positive integer (got '$batch_size')" >&2
-      exit 64
-    fi
-
-    current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
-    all_checks=$("$nix_bin" eval --json ".#checks.''${current_system}" \
-      --apply 'builtins.attrNames' | jq -c '${ciCheckFilters.${group}}')
-    ${
-      if selectCheckPrefixes
-      then ''
-        check_prefixes=$(jq -ce '.checkPrefixes | select(type == "array" and all(.[]; type == "string" and (. == "*" or test("^[A-Za-z0-9_-]+$"))))' <<< "$task_input") || {
-          echo "Task input must contain a valid checkPrefixes array" >&2
-          exit 64
-        }
-        checks=$(jq -cn --argjson available "$all_checks" --argjson prefixes "$check_prefixes" '
-          [$available[]
-            | . as $check
-            | select(any($prefixes[]; . as $prefix
-              | ($prefix == "*" or ($check | startswith($prefix)))))]')
-        if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
-          echo "No checks matched the selected prefixes; falling back to the full '${group}' group" >&2
-          checks="$all_checks"
-        fi
-      ''
-      else ''checks="$all_checks"''
-    }
-    if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
-      echo "No checks selected for group '${group}' on $current_system" >&2
-      exit 1
-    fi
-
-    matrix=$(jq -cn --argjson checks "$checks" --argjson size "$batch_size" \
-      '{include: [range(0; ($checks | length); $size) as $start
-        | {checks: $checks[$start:($start + $size)]}]}')
-    printf '{"matrix":%s}\n' "$matrix" > "$DEVENV_TASK_OUTPUT_FILE"
-    printf 'Selected ${group} check matrix: %s\n' "$matrix"
-    if [[ -n "''${GITHUB_OUTPUT:-}" ]]; then
-      printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
-    fi
-  '';
-  ciCheckBuildExec = {
-    group,
-    useInputChecks ? false,
-  }: ''
-    set -euo pipefail
-
-    nix_bin="''${NIX_BIN:-nix}"
-    task_input=''${DEVENV_TASK_INPUT:-'{}'}
-    max_jobs="''${NIX_MAX_JOBS:-$(jq -r '.maxJobs // 2' <<< "$task_input")}"
-    if [[ ! "$max_jobs" =~ ^[1-9][0-9]*$ ]]; then
-      echo "maxJobs must be a positive integer (got '$max_jobs')" >&2
-      exit 64
-    fi
-
-    current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem')
-    all_checks=$("$nix_bin" eval --json ".#checks.''${current_system}" \
-      --apply 'builtins.attrNames' | jq -c '${ciCheckFilters.${group}}')
-    ${
-      if useInputChecks
-      then ''
-        checks=$(jq -ce '.checks | select(type == "array" and length > 0 and all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' <<< "$task_input") || {
-          echo "Task input must contain a non-empty checks array" >&2
-          exit 64
-        }
-        while IFS= read -r check; do
-          if ! jq -e --arg check "$check" 'index($check) != null' <<< "$all_checks" >/dev/null; then
-            echo "Check '$check' is not selected for the '${group}' group" >&2
-            exit 64
-          fi
-        done < <(jq -r '.[]' <<< "$checks")
-      ''
-      else ''checks="$all_checks"''
-    }
-    if [[ $(jq 'length' <<< "$checks") -eq 0 ]]; then
-      echo "No checks selected for group '${group}' on $current_system" >&2
-      exit 1
-    fi
-
-    mapfile -t check_names < <(jq -r '.[]' <<< "$checks")
-    installables=()
-    for check in "''${check_names[@]}"; do
-      installables+=(".#checks.''${current_system}.''${check}")
-    done
-
-    echo "Building ''${#installables[@]} '${group}' checks on $current_system (max-jobs: $max_jobs)"
-    "$nix_bin" build --no-link --max-jobs "$max_jobs" "''${installables[@]}"
-  '';
-  ciChecksTask = {
     group,
     description,
   }: {
     inherit description;
-    input = {maxJobs = 2;};
-    exec = ciCheckBuildExec {inherit group;};
+    input = {
+      batchSize = 3;
+      checkPrefixes = ["*"];
+    };
+    exec = "bash ./.github/scripts/ci-checks.sh plan ${group}";
   };
+  ciCheckBuildExec = {
+    group,
+    description,
+    useInputChecks ? false,
+  }: {
+    inherit description;
+    input = {maxJobs = 2;} // devenvPkgs.lib.optionalAttrs useInputChecks {checks = [];};
+    exec = "bash ./.github/scripts/ci-checks.sh build ${group}";
+  };
+  ciChecksTask = {
+    group,
+    description,
+  }:
+    ciCheckBuildExec {inherit group description;};
   machinesTask = operation: withPlanId: {
     description = "Run the explicitly named ${operation} machine operation";
     input =
@@ -370,7 +127,7 @@ in {
     );
 
   packages =
-    foundationPackages
+    devenvPackages
     ++ developerPackages
     ++ [
       # Nix tooling specific to developing this repository
@@ -381,7 +138,6 @@ in {
       pkgs.nix-tree
       pkgs.nvd
       pkgs.nixd
-      pkgs.gum
 
       # Devenv-specific additions for working on this repo
       pkgs.optnix
@@ -689,62 +445,7 @@ in {
     "machines:chart" = {
       description = "Render a package and component tree for one machine or all machines";
       input = {machine = "";};
-      exec = ''
-        set -euo pipefail
-
-        selection=$(jq -er '(.machine // "") | if type == "string" then . else error("machine must be a string") end' <<< "$DEVENV_TASK_INPUT")
-        chart_expression=${pkgs.lib.escapeShellArg machineChartExpression}
-        all_machines=$(MACHINE_CHART_ACTION=names nix eval --impure --option builders "" --raw --expr "$chart_expression")
-
-        if [[ -n "$selection" ]]; then
-          machine_rows=$(jq -r --arg selected "$selection" '
-            .[] | select(.name | ascii_downcase == ($selected | ascii_downcase)) | [.kind, .name] | @tsv
-          ' <<< "$all_machines")
-          if [[ -z "$machine_rows" ]]; then
-            available=$(jq -r '[.[].name] | join(", ")' <<< "$all_machines")
-            echo "Unknown machine '$selection'. Available machines: $available" >&2
-            exit 1
-          fi
-          if [[ $(wc -l <<< "$machine_rows") -gt 1 ]]; then
-            echo "Machine name '$selection' is ambiguous across configurations" >&2
-            exit 1
-          fi
-        else
-          machine_rows=$(jq -r '.[] | [.kind, .name] | @tsv' <<< "$all_machines")
-        fi
-
-        failed=0
-        first=true
-        while IFS=$'\t' read -r kind name; do
-          [[ -z "$name" ]] && continue
-          error_file=$(mktemp)
-          if chart=$(MACHINE_CHART_ACTION=chart MACHINE_CHART_KIND="$kind" MACHINE_CHART_NAME="$name" MACHINE_CHART_PACKAGES=true nix eval --impure --option builders "" --raw --expr "$chart_expression" 2>"$error_file"); then
-            :
-          else
-            if grep -qi 'platform mismatch' "$error_file"; then
-              package_note="Nix needs a builder matching this target platform."
-            else
-              package_note="Nix could not evaluate this machine's package list."
-            fi
-            if ! chart=$(MACHINE_CHART_ACTION=chart MACHINE_CHART_KIND="$kind" MACHINE_CHART_NAME="$name" MACHINE_CHART_PACKAGES=false MACHINE_CHART_PACKAGE_NOTE="$package_note" nix eval --impure --option builders "" --raw --expr "$chart_expression" 2>"$error_file"); then
-              echo "$name: unable to evaluate machine chart:" >&2
-              cat "$error_file" >&2
-              rm -f "$error_file"
-              failed=1
-              continue
-            fi
-          fi
-          rm -f "$error_file"
-          if [[ "$first" == true ]]; then
-            first=false
-          else
-            printf '\n'
-          fi
-          printf '%s\n' "$chart"
-        done <<< "$machine_rows"
-
-        exit "$failed"
-      '';
+      exec = "bash scripts/machine-chart.sh";
     };
     "machines:build" = machinesTask "build" false;
     "machines:check" = machinesTask "check" false;
@@ -1086,43 +787,23 @@ in {
     # CI CHECK GROUPS
     # ============================================
 
-    "ci:checks:pr-plan" = {
-      description = "Create a four-check matrix for the legacy pull request check group";
-      input = {batchSize = 4;};
-      exec = ciCheckPlanExec {group = "pr";};
+    "ci:checks:pr-plan" = ciCheckPlanExec {
+      group = "pr";
+      description = "Create a three-check matrix for the legacy pull request check group";
     };
-    "ci:checks:changed-plan" = {
+    "ci:checks:changed-plan" = ciCheckPlanExec {
+      group = "non-vm";
       description = "Create a matrix for non-VM checks affected by changed files";
-      input = {
-        batchSize = 4;
-        checkPrefixes = ["*"];
-      };
-      exec = ciCheckPlanExec {
-        group = "non-vm";
-        selectCheckPrefixes = true;
-      };
     };
-    "ci:checks:pr-shard" = {
+    "ci:checks:pr-shard" = ciCheckBuildExec {
+      group = "pr";
       description = "Build one pull request check shard with conservative runner parallelism";
-      input = {
-        checks = [];
-        maxJobs = 2;
-      };
-      exec = ciCheckBuildExec {
-        group = "pr";
-        useInputChecks = true;
-      };
+      useInputChecks = true;
     };
-    "ci:checks:changed-shard" = {
+    "ci:checks:changed-shard" = ciCheckBuildExec {
+      group = "non-vm";
       description = "Build one changed non-VM pull request check shard";
-      input = {
-        checks = [];
-        maxJobs = 2;
-      };
-      exec = ciCheckBuildExec {
-        group = "non-vm";
-        useInputChecks = true;
-      };
+      useInputChecks = true;
     };
     "ci:checks:pr" = ciChecksTask {
       group = "pr";

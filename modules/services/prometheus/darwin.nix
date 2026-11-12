@@ -17,7 +17,7 @@
   dataDir = cfg.dataDir;
 
   # Not every darwin target imports every LLM-stack service module (e.g.
-  # darwin-server has no bifrost/oMLX). Guard optional scrape targets on
+  # Lydia has no bifrost/oMLX). Guard optional scrape targets on
   # whether the option is even declared, so this module works standalone.
   myConfigOptions = options.myConfig or {};
   hasBifrost = builtins.hasAttr "bifrost" myConfigOptions;

@@ -8,6 +8,7 @@
 }: let
   # Test utilities
   testPackages = import ./test-packages.nix {inherit pkgs;};
+  testDevenvPackages = import ./test-devenv-packages.nix {inherit pkgs;};
   testOverlayPackages = import ./test-overlay-packages.nix {inherit pkgs;};
   testCrossPlatformGuards = import ./test-cross-platform-guards.nix {inherit pkgs;};
   testRoles = import ./test-roles.nix {inherit pkgs;};
@@ -50,7 +51,7 @@
   testZero = import ./test-zero.nix {inherit pkgs self;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
-  testPhase4DarwinServer = import ./test-phase4-darwin-server.nix {inherit pkgs self inputs;};
+  testLydiaMigration = import ./test-lydia-migration.nix {inherit pkgs self inputs;};
   testPhase2Cattle = import ./test-phase2-cattle.nix {inherit pkgs self;};
   testLibrary =
     if self != null
@@ -152,6 +153,7 @@ in
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
 
     # Package availability tests
+    devenv-packages = testDevenvPackages;
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
     ste-linter-package = testPackages.steLinterPackageTest;
@@ -159,7 +161,6 @@ in
     # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
     overlay-qwen38-mxfp4 = testOverlayPackages.qwen38Mxfp4PackageTest;
     overlay-rtk = testOverlayPackages.rtkPackageTest;
-    overlay-himalaya = testOverlayPackages.himalayaPackageTest;
     overlay-jj-hooks = testOverlayPackages.jjHooksPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;
@@ -309,8 +310,7 @@ in
     phase3-zero = testPhase3Zero.phase3ZeroTest;
     phase3-zero-flake-parts = testPhase3Zero.phase3ZeroFlakePartsTest;
 
-    # Phase 4: darwin-server v2 migration
-    phase4-darwin-server = testPhase4DarwinServer.phase4DarwinServerTest;
+    lydia-migration = testLydiaMigration.lydiaMigrationTest;
 
     # library/lib/mk-system.nix builder tests
     mk-darwin-system =

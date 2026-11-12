@@ -32,9 +32,6 @@ with pkgs; {
     docker
     colima
 
-    # Email
-    himalaya
-
     # Shell ecosystem
     zinit
     zsh

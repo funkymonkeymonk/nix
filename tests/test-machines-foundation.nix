@@ -22,7 +22,6 @@
   machineBuildInputs = [
     "bifrost"
     "devenv"
-    "himalaya-tui"
     "nix-homebrew"
     "nixpkgs-stable"
     "pi-plugins"

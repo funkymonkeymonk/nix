@@ -65,8 +65,14 @@
       };
     }
     {
-      name = "darwin-server";
-      accounts = ["monkey"];
+      name = "Lydia";
+      accounts = ["monkey" "nixbuilder"];
+      expectedKeysByAccount = {
+        monkey = [expectedPublicKey];
+        nixbuilder = [
+          ''restrict,command="/nix/var/nix/profiles/default/bin/nix-daemon --stdio" ${nixBuilderPublicKey}''
+        ];
+      };
     }
     {
       name = "wweaver";

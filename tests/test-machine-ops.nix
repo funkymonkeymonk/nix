@@ -16,12 +16,12 @@
     "type-nas"
     "type-server"
     "type-server-arm"
+    "Lydia"
   ];
   personalMachines = [
     "bootstrap"
     "type-desktop"
     "installer-iso"
-    "darwin-server"
     "wweaver"
   ];
   profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Opnix") opnixMachines;

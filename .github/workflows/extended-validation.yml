@@ -32,18 +32,13 @@ jobs:
             sandbox = false
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Install devenv CLI from the locked project flake
-        run: |
-          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
-          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
-          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - name: Build extended package checks
-        run: devenv tasks run ci:checks:extended
+        run: bash .github/scripts/ci-checks.sh build extended '{"maxJobs":2}'
 
   role-package-vm-checks:
     name: Full Role Package VM Checks
@@ -60,15 +55,10 @@ jobs:
             sandbox = false
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
-      - name: Install devenv CLI from the locked project flake
-        run: |
-          DEVENV_REV=$(jq -r '.nodes.devenv.locked.rev' flake.lock)
-          nix profile add --accept-flake-config "github:cachix/devenv/${DEVENV_REV}#devenv"
-          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
       - name: Populate Cachix for deployment machines
         uses: cachix/cachix-action@v15
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - name: Build role package VM checks
-        run: devenv tasks run ci:checks:vm-extended
+        run: bash .github/scripts/ci-checks.sh build vm-extended '{"maxJobs":2}'
