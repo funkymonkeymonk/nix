@@ -28,7 +28,9 @@ workspaces/
 logs
 
 # Generated hardware reports (machine-specific)
+# devenv Machines reports are committed for reproducible builds; keep ad hoc reports local.
 facter.json
+!/.machines/*/facter.json
 hardware-configuration.nix
 
 # Python cache
