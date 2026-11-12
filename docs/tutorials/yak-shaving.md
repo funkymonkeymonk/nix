@@ -173,4 +173,4 @@ yx sync
 
 - **Coordinate with agents**: Read [Yaks + JJ Workspaces](../explanation/yaks-workspaces.md) to understand how multiple agents share yaks across workspaces
 - **Full command reference**: See [Yaks Reference](../reference/yaks.md) for all commands and options
-- **Use the skill**: The `yak-shaving` skill teaches agents how to use yx with jj workspaces -- see [Skills Reference](../reference/skills.md)
+- **Agent guidance**: The Nix flake does not install a separate `yak-shaving` skill. Use this tutorial and the [Yaks Reference](../reference/yaks.md).

@@ -116,7 +116,6 @@ with lib; let
           ++ optional config.myConfig.pi.enable ../../modules/home-manager/pi-coding-agent.nix
           ++ optional config.myConfig.zellij.enable ../../modules/home-manager/zellij.nix
           ++ optional config.myConfig.obsidian.enable ../../modules/home-manager/obsidian.nix
-          ++ optional config.myConfig.agent-skills.enable ../../modules/home-manager/skills/install.nix
           ++ optional config.myConfig.email-agent.enable ../../modules/home-manager/email-agent.nix
           ++ optional config.myConfig.email-backup.enable ../../modules/home-manager/email-backup.nix;
 

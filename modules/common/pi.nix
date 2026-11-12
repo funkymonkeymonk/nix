@@ -134,16 +134,6 @@
       '';
     };
 
-    skills = lib.mkOption {
-      type = lib.types.attrsOf lib.types.lines;
-      default = {};
-      description = ''
-        Skills as attribute set.
-        Each key is the skill name, value is the SKILL.md content.
-        Written to ~/.pi/agent/skills/<name>/SKILL.md
-      '';
-    };
-
     extensions = lib.mkOption {
       type = lib.types.attrsOf lib.types.lines;
       default = {};
@@ -198,8 +188,8 @@
         List of plugin names to install from pluginsSource.
         Each name corresponds to a package in packages/<name>/src/index.ts
         within the pi-plugins repository.
-        The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts
-        and any matching skill in .pi/skills/<name>/ is copied to ~/.pi/agent/skills/.
+        The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts.
+        Standalone skills come from myConfig.skills.repository instead.
       '';
     };
   };

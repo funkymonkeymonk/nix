@@ -1,6 +1,5 @@
 {
   config,
-  inputs,
   lib,
   mkUser,
   ...
@@ -24,7 +23,6 @@ in {
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      skills.superpowersPath = inputs.superpowers;
       roles.developer.enable = true;
       tailscale.enable = true;
       collector.destinationHostname = "localhost";

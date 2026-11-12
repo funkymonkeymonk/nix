@@ -58,17 +58,12 @@ modules/
 
 ### Module Dependency Graph
 
-The diagram below shows the real static import graph rooted at
-`modules/default.nix`, plus the role-gated home-manager module wiring
-in `modules/common/users.nix` (dashed edge). It's regenerated from the
-actual `imports = [...]` lists via `scripts/generate-architecture-diagram.py`
-— run that script after adding/removing a role or a role-gated
-home-manager module, and paste its output back in here. The script
-fails loudly (rather than silently going stale) if the role-gated
-edges it hand-transcribes from `users.nix` no longer match the real
-file — see the script's `check_manual_edges()` for details, and the
-"Fix scripts/docs-update.sh generate_* functions" yak for the cautionary
-tale this script was written to avoid repeating.
+The diagram shows the static import graph rooted at `modules/default.nix`,
+plus the always-on and conditional Home Manager modules in
+`modules/common/users.nix`. Regenerate it with
+`scripts/generate-architecture-diagram.py` after changing those imports. The
+script checks its conditional edges against the real module before it prints
+the diagram.
 
 ```mermaid
 flowchart TD
@@ -95,8 +90,24 @@ flowchart TD
     modules --> __common_syncthing_nix
     __common_zellij_nix["common/zellij.nix"]
     modules --> __common_zellij_nix
+    __common_obsidian_nix["common/obsidian.nix"]
+    modules --> __common_obsidian_nix
     __common_agent_user_nix["common/agent-user.nix"]
     modules --> __common_agent_user_nix
+    __common_skills_nix["common/skills.nix"]
+    modules --> __common_skills_nix
+    __common_email_agent_nix["common/email-agent.nix"]
+    modules --> __common_email_agent_nix
+    __common_email_backup_nix["common/email-backup.nix"]
+    modules --> __common_email_backup_nix
+    __common_opencode_nix["common/opencode.nix"]
+    modules --> __common_opencode_nix
+    __common_claude_code_nix["common/claude-code.nix"]
+    modules --> __common_claude_code_nix
+    __common_pi_nix["common/pi.nix"]
+    modules --> __common_pi_nix
+    __common_service_registry_nix["common/service-registry.nix"]
+    modules --> __common_service_registry_nix
     hm["home-manager/ (shared settings)"]
     modules --> hm
     roles["roles/ (modules/roles/default.nix)"]
@@ -113,6 +124,8 @@ flowchart TD
     roles --> roles_desktop_nix
     roles_workstation_nix["roles/workstation.nix"]
     roles --> roles_workstation_nix
+    roles_work_nix["roles/work.nix"]
+    roles --> roles_work_nix
     roles_entertainment_nix["roles/entertainment.nix"]
     roles --> roles_entertainment_nix
     roles_agent_skills_nix["roles/agent-skills.nix"]
@@ -129,6 +142,8 @@ flowchart TD
     roles --> roles_email_backup_nix
     roles_tailscale_nix["roles/tailscale.nix"]
     roles --> roles_tailscale_nix
+    roles_homebrew_nix["roles/homebrew.nix"]
+    roles --> roles_homebrew_nix
     usersnix["common/users.nix\n(role-gated home-manager imports)"]
     roles -.-> usersnix
     home_manager_themes_nix["home-manager/themes.nix\n(always on)"]
@@ -137,6 +152,8 @@ flowchart TD
     usersnix --> home_manager_shell_nix
     home_manager_foundation_nix["home-manager/foundation.nix\n(always on)"]
     usersnix --> home_manager_foundation_nix
+    home_manager_skills_canonical_install_nix["home-manager/skills/canonical-install.nix\n(always on)"]
+    usersnix --> home_manager_skills_canonical_install_nix
     home_manager_charm_nix["home-manager/charm.nix"]
     usersnix -->|"myConfig.charm.enable"| home_manager_charm_nix
     home_manager_opencode_nix["home-manager/opencode.nix"]
@@ -147,14 +164,10 @@ flowchart TD
     usersnix -->|"myConfig.pi.enable"| home_manager_pi_coding_agent_nix
     home_manager_zellij_nix["home-manager/zellij.nix"]
     usersnix -->|"myConfig.zellij.enable"| home_manager_zellij_nix
-    home_manager_skills_install_nix["home-manager/skills/install.nix"]
-    usersnix -->|"myConfig.agent-skills.enable"| home_manager_skills_install_nix
     home_manager_email_agent_nix["home-manager/email-agent.nix"]
     usersnix -->|"myConfig.email-agent.enable"| home_manager_email_agent_nix
     home_manager_email_backup_nix["home-manager/email-backup.nix"]
     usersnix -->|"myConfig.email-backup.enable"| home_manager_email_backup_nix
-    home_manager_watch_ci_jobs_nix["home-manager/watch-ci-jobs.nix"]
-    usersnix -->|"myConfig.roles.developer.enable"| home_manager_watch_ci_jobs_nix
 ```
 
 ### Roles (What Gets Installed)
@@ -283,14 +296,12 @@ Roles can also specify platform-specific packages using conditional logic within
 
 ## Agent Skills System
 
-Skills are AI assistant instructions managed through Nix:
+Standalone skills come from the pinned `personal-skills` flake input. Home
+Manager installs all valid skill directories under `~/.agents/skills/` when a
+skill-consuming role is enabled. The manifest holds optional metadata only.
 
-1. Skills are defined in `modules/home-manager/skills/manifest.nix`
-2. Each skill is assigned to roles
-3. When a role is enabled, its skills are installed
-4. Skills are symlinked to `~/.config/opencode/skills/`
-
-This ensures consistent skill availability across all your machines.
+The lock file keeps each machine on the same skill revision. Update the input
+and rebuild to deploy a newer version.
 
 ## Why This Design?
 

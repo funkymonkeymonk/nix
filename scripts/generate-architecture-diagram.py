@@ -49,10 +49,8 @@ MANUAL_HM_EDGES = [
     ("myConfig.claude-code.enable", "home-manager/claude-code.nix"),
     ("myConfig.pi.enable", "home-manager/pi-coding-agent.nix"),
     ("myConfig.zellij.enable", "home-manager/zellij.nix"),
-    ("myConfig.agent-skills.enable", "home-manager/skills/install.nix"),
     ("myConfig.email-agent.enable", "home-manager/email-agent.nix"),
     ("myConfig.email-backup.enable", "home-manager/email-backup.nix"),
-    ("myConfig.roles.developer.enable", "home-manager/watch-ci-jobs.nix"),
 ]
 
 # Modules always imported unconditionally (not role-gated) in users.nix.
@@ -60,6 +58,7 @@ ALWAYS_ON_HM_MODULES = [
     "home-manager/themes.nix",
     "home-manager/shell.nix",
     "home-manager/foundation.nix",
+    "home-manager/skills/canonical-install.nix",
 ]
 
 IMPORT_LINE_RE = re.compile(r"^\s*(\.\/[a-zA-Z0-9_./-]+)\s*$")

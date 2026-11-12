@@ -181,7 +181,6 @@ Development tools and environment.
 
 **Packages:** emacs, helix, clang, python3, nodejs, yarn, docker, k3d, kubectl, kubernetes-helm, k9s, gh-dash
 
-**Agent Skills:** debugging, tdd, writing-plans, brainstorming, verification-before-completion, receiving-code-review, requesting-code-review, jj
 
 EOF
                 ;;
@@ -193,7 +192,6 @@ Media and content creation tools.
 
 **Homebrew Casks (macOS):** elgato-stream-deck
 
-**Agent Skills:** brainstorming, writing-skills, diataxis-docs
 
 EOF
                 ;;
@@ -219,7 +217,6 @@ Work-related tools.
 
 **Packages:** slack, trippy, unar
 
-**Agent Skills:** receiving-code-review, requesting-code-review
 
 EOF
                 ;;
@@ -233,11 +230,7 @@ EOF
                 ;;
             agent-skills)
                 cat >> "$output_file" << 'EOF'
-AI agent skills management.
-
-**Packages:** git, jq
-
-Automatically enabled by `opencode` or `claude` roles.
+Shell aliases for listing and updating the installed personal skills.
 
 EOF
                 ;;
@@ -247,9 +240,7 @@ OpenCode AI assistant with rtk token optimization.
 
 **Packages:** opencode, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
-**Enables:** `agent-skills`
 
 EOF
                 ;;
@@ -259,9 +250,7 @@ Claude Code AI assistant with rtk token optimization.
 
 **Packages:** claude-code, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
-**Enables:** `agent-skills`
 
 EOF
                 ;;
@@ -271,9 +260,8 @@ Pi coding agent with rtk token optimization.
 
 **Packages:** pi-coding-agent, rtk
 
-**Agent Skills:** using-superpowers, jj, writing-skills, diataxis-docs
 
-**Enables:** `agent-skills`, `pi` config management
+**Enables:** `pi` config management
 
 EOF
                 ;;
@@ -396,14 +384,6 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `validate:disko` | Validate disko disk configurations |
 | `validate:install-script` | Validate install-machine.sh syntax |
 
-### Agent Skills
-
-| Task | Description |
-|------|-------------|
-| `agent-skills:all` | Status + update + validate |
-| `agent-skills:status` | Check skills installation status |
-| `agent-skills:update` | Update skills from upstream superpowers |
-| `agent-skills:validate` | Validate skills format |
 
 ### LLM / Benchmarking
 
@@ -461,23 +441,31 @@ EOF
 }
 
 generate_skills_reference() {
-    log_info "Generating skills reference from manifest.nix..."
+    log_info "Generating skills reference from the pinned personal-skills input..."
     
     local output_file="$DOCS_DIR/reference/skills.md"
-    local manifest_file="$PROJECT_ROOT/modules/home-manager/skills/manifest.nix"
-    
-    if [[ ! -f "$manifest_file" ]]; then
-        log_error "manifest.nix not found"
+    local skills_root
+    skills_root=$(cd "$PROJECT_ROOT" && nix eval --impure --raw --expr \
+        'let flake = builtins.getFlake (toString ./.); in toString flake.inputs.personal-skills + "/skills"') || {
+        log_error "Could not resolve the personal-skills flake input"
+        return 1
+    }
+    if [[ ! -d "$skills_root" ]]; then
+        log_error "Personal skills directory not found: $skills_root"
         return 1
     fi
     
-    # PARSE: Extract REAL skill names from manifest.nix
-    # Pattern: matches top-level entries only (2 spaces indentation): "skill-name" = { or skill-name = {
+    local skill_files
+    skill_files=$(find "$skills_root" -mindepth 2 -maxdepth 2 -type f -name SKILL.md | sort)
+    if [[ -z "$skill_files" ]]; then
+        log_error "No SKILL.md files found under $skills_root"
+        return 1
+    fi
     local skills
-    skills=$(grep -oP '^\s{2}(?:"[^"]+"|\w+(?:-\w+)*)\s*(?=\s*=\s*\{)' "$manifest_file" | sed 's/"//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sort)
+    skills=$(printf '%s\n' "$skill_files" | while IFS= read -r path; do basename "$(dirname "$path")"; done | sort)
     
     if [[ -z "$skills" ]]; then
-        log_error "No skills found in manifest.nix - parsing failed"
+        log_error "No SKILL.md files found under $skills_root"
         return 1
     fi
     
@@ -485,110 +473,41 @@ generate_skills_reference() {
     cat > "$output_file" << 'EOF'
 # Skills Reference
 
-Agent skills are defined in `modules/home-manager/skills/manifest.nix` and installed to `~/.config/opencode/skills/`.
+Skills come from the pinned public `personal-skills` flake input and install to `~/.agents/skills/`.
 
 ## Available Skills
 
-| Skill | Description | Roles |
-|-------|-------------|-------|
+| Skill | Description |
+|-------|-------------|
 EOF
 
-    # Extract and output each skill with its description and roles
+    # Read each skill's description from its source frontmatter.
     while IFS= read -r skill; do
-        # Extract description and roles using sed (more efficient than awk in a loop)
         local description
-        local roles
-        
-        # Use sed to find the skill section and extract description
-        description=$(sed -n "/^\s*[\"]*$skill[\"]*\s*=\s*{/,/^[[:space:]]*};/p" "$manifest_file" | grep -oP 'description = "\K[^"]+' | head -1)
-        
-        # Use sed to find the skill section and extract roles
-        roles=$(sed -n "/^\s*[\"]*$skill[\"]*\s*=\s*{/,/^[[:space:]]*};/p" "$manifest_file" | grep -oP 'roles = \[\K[^\]]+' | head -1)
-        
-        # Clean up roles - convert from ["role1" "role2"] format to comma-separated
-        if [[ -n "$roles" ]]; then
-            roles=$(echo "$roles" | sed 's/"//g' | sed 's/\s\+/, /g')
+        description=$(sed -n 's/^description:[[:space:]]*//p' "$skills_root/$skill/SKILL.md" | head -1)
+        if [[ "$description" == \"*\" ]]; then
+            description="${description:1:${#description}-2}"
         fi
+        description=$(printf '%s' "$description" | sed 's/|/\\|/g')
         
-        # Clean up description and roles
-        description="${description:-}"
-        roles="${roles:-}"
-        
-        echo "| \`$skill\` | $description | $roles |" >> "$output_file"
+        printf '| `%s` | %s |\n' "$skill" "${description:-See SKILL.md}" >> "$output_file"
     done <<< "$skills"
     
     # Add footer sections
     cat >> "$output_file" << 'EOF'
 
-## Skill Structure
-
-Each skill contains:
-
-```
-skills/<skill-name>/
-└── SKILL.md          # Skill definition with frontmatter
-```
-
-### SKILL.md Format
-
-```markdown
----
-name: skill-name
-description: Brief description of what the skill does
----
-
-# Skill Name
-
-## Overview
-...
-
-## When to Use
-...
-
-## Process
-...
-```
-
 ## Installation
 
-Skills are installed automatically based on enabled roles:
-
-1. `flake.nix` sets `myConfig.skills.enabledRoles`
-2. `skills/install.nix` filters manifest by roles
-3. Matching skills are symlinked via home-manager
-
-## Skill Locations
-
-- **Internal skills**: `modules/home-manager/skills/internal/`
-- **External skills**: `modules/home-manager/skills/external/`
-- **Installed location**: `~/.config/opencode/skills/`
-
-## Manifest Entry Format
-
-```nix
-"skill-name" = {
-  description = "Brief description";
-  roles = ["developer" "creative"];
-  source = {
-    type = "internal";       # or "external" or "superpowers"
-    path = ./internal/skill-name;
-  };
-  deps = [];                 # Skill dependencies
-};
-```
-
-## Commands
+When `developer`, `creative`, `workstation`, `opencode`, `claude`, or `pi` is
+enabled, Home Manager links complete skill directories to `~/.agents/skills/`.
+The flake lock file pins the source revision. Update it with:
 
 ```bash
-# Check installation status
-devenv tasks run agent-skills:status
-
-# Validate skill format
-devenv tasks run agent-skills:validate
-
-# List installed skills
-skills-list
+nix flake update personal-skills
 ```
+
+Run `find ~/.agents/skills -name SKILL.md -print` to list installed skills.
+Add or edit skills in the source repository, update this input, and rebuild.
 EOF
 
     log_success "Generated $output_file"

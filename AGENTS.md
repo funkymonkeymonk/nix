@@ -84,7 +84,7 @@ devenv tasks run <task>        # Run a task
 
 ### JJ Workspace Support
 
-When working in a jj workspace (created with `jj workspace add` or `jj-workspace create`), the switch command is workspace-aware:
+When working in a jj workspace created with `jj workspace add`, the switch command is workspace-aware:
 
 ```bash
 # From any workspace directory - automatically runs from repo root
@@ -393,68 +393,27 @@ Common traps:
 
 ## Agent Skills
 
-Skills auto-install when roles like `developer`, `opencode`, or `claude` are active.
+The public `funkymonkeymonk/skills` repository is the source of standalone
+agent skills. The Nix flake consumes it through the `personal-skills` input,
+with its exact revision pinned in `flake.lock`.
 
-**Location:** `~/.config/opencode/skills/`
+When `developer`, `creative`, `workstation`, `opencode`, `claude`, or `pi` is
+enabled, Home Manager installs complete skill directories under
+`~/.agents/skills/`. OpenCode and Pi discover this location. Claude Code
+receives the same repository-backed directories through its Home Manager module.
 
-### Skill Priority (THIS REPOSITORY)
+The Nix manifest contains optional metadata only. Do not add skill content or
+install logic to this Nix repository. To change a skill, update the skills
+repository, then run `nix flake update personal-skills` here and rebuild.
 
-**Agents: PREFER skills defined in this repo over superpowers.**
-
-Skill resolution priority:
-1. **Project-local repo skills** ← Start here (`modules/home-manager/skills/internal/`)
-2. **Agent global skills** (`~/.config/opencode/skills/`)
-3. **Superpowers** (built-in skills)
-
-**Why:** This repo has a tight feedback loop for skill development. When you refine a skill here, it auto-deploys on `system:switch`. Use superpowers only if the repo doesn't define the skill.
-
-### Repo Skills Structure
-
-All skills defined in this repo are in `modules/home-manager/skills/`:
-
-```
-modules/home-manager/skills/
-├── README.md           ← Full documentation
-├── manifest.nix        ← Skill registry
-├── install.nix
-├── internal/           ← All skills (organized by name)
-│   ├── brainstorming/
-│   ├── debugging/
-│   ├── devenv/         ← Your skills
-│   ├── tdd/
-│   └── ... (30+ skills)
-└── external/           ← Skills fetched from GitHub
-    └── jj/
-```
-
-See `modules/home-manager/skills/README.md` for complete documentation.
-
-### Adding Skills
-
-1. Create `modules/home-manager/skills/internal/skill-name/SKILL.md`
-2. Register in `modules/home-manager/skills/manifest.nix` with roles
-3. Run `system:switch` to deploy
-4. Test: `cat ~/.config/opencode/skills/skill-name/SKILL.md`
-
-Example manifest entry:
-```nix
-"my-skill" = {
-  description = "What this skill does";
-  roles = ["developer" "opencode"];
-  source = {
-    type = "internal";
-    path = ./internal/my-skill;
-  };
-  deps = [];
-};
-```
+See `modules/home-manager/skills/README.md` for the install and update steps.
 
 ---
 
 ## Jujutsu (jj) Version Control
 
 If `.jj/` directory exists:
-1. Use `jj` skill for all version control
+1. Use native Jujutsu commands for version control
 2. Run `jj status` before any operation
 3. Use `jj new` before starting work
 4. Use `jj describe` for commit messages
@@ -462,73 +421,24 @@ If `.jj/` directory exists:
 
 ### Workspace Workflow (Agents Must Use Workspaces)
 
-Workspaces isolate each change in flight. **Agents MUST use workspaces for all non-trivial changes.**
-
-#### Workspace Location
-
-Workspaces live in `~/workspaces/` (not inside the repository as sibling directories):
-
-```
-~/workspaces/
-  feat-auth-20260512-a1b2/     ← workspace directory
-  fix-bug-20260512-c3d4/       ← another workspace
-```
-
-Use `jj-workspace` to create workspaces from any directory:
+Use native Jujutsu workspace commands. Keep workspaces under `~/workspaces/`.
 
 ```bash
-jj-workspace create feat/my-topic              # Create workspace from main
-jj-workspace create fix/bug-name develop       # Create workspace from develop
-jj-workspace list                              # Show all workspaces
-jj-workspace clean                             # Remove all workspaces
+jj workspace add --name feat-my-topic ~/workspaces/feat-my-topic
+cd ~/workspaces/feat-my-topic
+jj workspace list
 ```
 
-#### Agent Workspace Naming
-
-Agent workspace names encode agent identity and purpose:
-
-```
-  feat/agent-<agent-id>-<topic>     # e.g. feat/agent-hostid-fix
-  fix/agent-<agent-id>-<topic>      # e.g. fix/agent-lint-error
-```
-
-This lets humans distinguish agent workspaces from human workspaces at a glance.
-
-#### Example Workflow: Create → Work → Finish → Clean
+Give each agent a separate workspace and bookmark. After work is complete,
+forget the workspace and remove its directory:
 
 ```bash
-# 1. Create workspace (stored in ~/workspaces/, NOT in repo)
-  jj-workspace create feat/agent-my-feature
-
-# 2. cd into the workspace
-  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
-
-# 3. Work and commit (the working copy IS a commit — no git add needed)
-# ... make changes ...
-jj describe -m "feat: add my feature"
-
-# 4. Validate from repo root (devenv tasks require repo root)
-cd /path/to/repo && devenv tasks run check:lint
-
-# 5. Push and create PR (from workspace dir)
-  cd ~/workspaces/feat-agent-my-feature-<date>-<id>
-jj bookmark set feat/my-feature -r @
-jj git push --bookmark feat/my-feature
-gh pr create --head feat/my-feature
-
-# 6. After PR is merged: clean up
-  jj workspace forget feat-agent-my-feature-<date>-<id>
-  rm -rf ~/workspaces/feat-agent-my-feature-<date>-<id>
+jj workspace forget feat-my-topic
+rm -rf ~/workspaces/feat-my-topic
 ```
 
-#### Session TTL
-
-`jj-workspace-session` manages fast sync (every 5 min) during active sessions. Sessions auto-expire after 30 minutes of inactivity. Prune expired sessions with:
-
-```bash
-jj-workspace-session prune
-jj-workspace-session status   # Show active sessions
-```
+This Nix flake does not install the former `jj-workspace` or fast-sync wrapper
+scripts. Use native `jj workspace`, `jj git`, and `gh` commands.
 
 ### Commit-First Workflow (Required)
 

@@ -21,8 +21,6 @@ in {
       rtk
     ];
 
-    # Auto-enable agent-skills
-    myConfig.agent-skills.enable = true;
     myConfig.opencode.enable = true;
 
     myConfig.llmClient = {

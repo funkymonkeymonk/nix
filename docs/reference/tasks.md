@@ -67,14 +67,6 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `system:switch` | Apply configuration to current system (platform-aware) |
 | `system:init` | Initial nix-darwin setup (macOS only) |
 
-### Interactive shell commands
-
-Interactive Gum workflows run as devenv shell commands, not task-graph jobs, so they inherit terminal input and output.
-
-| Command | Invocation | Description |
-|---------|------------|-------------|
-| `machine-new` | `devenv shell machine-new` | Interactively scaffold a registered Darwin or NixOS target; see [Create a Machine Target](../how-to/create-machine-target.md) |
-
 ### Validation
 
 | Task | Description |
@@ -83,14 +75,6 @@ Interactive Gum workflows run as devenv shell commands, not task-graph jobs, so 
 | `validate:disko` | Validate disko disk configurations |
 | `validate:install-script` | Validate install-machine.sh syntax |
 
-### Agent Skills
-
-| Task | Description |
-|------|-------------|
-| `agent-skills:all` | Status + update + validate |
-| `agent-skills:status` | Check skills installation status |
-| `agent-skills:update` | Update skills from upstream superpowers |
-| `agent-skills:validate` | Validate skills format |
 
 ### LLM / Benchmarking
 

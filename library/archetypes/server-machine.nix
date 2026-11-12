@@ -2,13 +2,11 @@
 {
   pkgs,
   lib,
-  inputs,
   ...
 }: let
   sshPublicKey = import ../ssh-public-key.nix;
 in {
   myConfig = {
-    skills.superpowersPath = inputs.superpowers;
     autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
     onepassword = {
       tokenFile = "/etc/opnix/token";

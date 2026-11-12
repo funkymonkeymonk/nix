@@ -32,12 +32,6 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `externalMonitor` | null or string | `null` | External monitor identifier for aerospace workspace assignment (e.g., 'PHL'). Set to null to disable monitor-specific workspace assignment. |
 
-### myConfig.agent-skills
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enable` | boolean | `false` | Enable agent skills management |
-
 ### myConfig.agentUser
 
 | Option | Type | Default | Description |
@@ -409,11 +403,10 @@ or changing a `myConfig.*` option.
 | `models.<name>.reasoning` | boolean | `false` | Whether the model supports extended thinking/reasoning |
 | `npmPackages` | attribute set of string | `{ }` | NPM packages to install for pi extensions. Each key is the package name, value is the version constraint. Written to ~/.pi/agent/npm/package.json and installed on activation. Example: { "pi-web-access" = "^0.10.7"; "pi-jev" = "^0.7.0"; } |
 | `opencodeGoOnePasswordItem` | string | `""` | Optional 1Password item reference for Pi's OpenCode Go API key; empty disables OpenCode Go for Pi |
-| `plugins` | list of string | `[ ]` | List of plugin names to install from pluginsSource. Each name corresponds to a package in packages/<name>/src/index.ts within the pi-plugins repository. The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts and any matching skill in .pi/skills/<name>/ is copied to ~/.pi/agent/skills/. |
+| `plugins` | list of string | `[ ]` | List of plugin names to install from pluginsSource. Each name corresponds to a package in packages/<name>/src/index.ts within the pi-plugins repository. The plugin's extension is copied to ~/.pi/agent/extensions/<name>.ts. Standalone skills come from myConfig.skills.repository instead. |
 | `pluginsSource` | null or absolute path | `null` | Path to the pi-plugins repository. Set to inputs.pi-plugins for the locked flake version, or an absolute local path (e.g., /home/user/src/pi-plugins) for development. When null, no plugins are copied from an external source. |
 | `prompts` | attribute set of strings concatenated with "\n" | `{ }` | Prompt templates as attribute set. Each key is the prompt name, value is the template content. Written to ~/.pi/agent/prompts/<name>.md |
 | `settings` | attribute set of anything | `{ }` | Pi settings.json configuration. See https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/settings.md for available options. |
-| `skills` | attribute set of strings concatenated with "\n" | `{ }` | Skills as attribute set. Each key is the skill name, value is the SKILL.md content. Written to ~/.pi/agent/skills/<name>/SKILL.md |
 | `systemMd` | strings concatenated with "\n" | `""` | Custom system prompt content. Written to ~/.pi/agent/SYSTEM.md. Replaces the default system prompt. Use APPEND_SYSTEM.md to append instead. |
 | `themes` | attribute set of attribute set of anything | `{ }` | Custom themes as attribute set. Each key is the theme name, value is a theme attribute set. Written to ~/.pi/agent/themes/<name>.json |
 
@@ -430,7 +423,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `agent-skills.enable` | boolean | `false` | AI agent skills management (auto-enabled by opencode/claude) |
+| `agent-skills.enable` | boolean | `false` | Shell aliases for listing and updating the installed personal skills |
 | `assistant.enable` | boolean | `false` | Gmail filter management tools for email agents |
 | `claude.enable` | boolean | `false` | Claude Code AI assistant with rtk |
 | `creative.enable` | boolean | `false` | Media tools (ffmpeg, imagemagick, pandoc) |
@@ -474,10 +467,8 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enabledRoles` | list of string | `[ ]` | List of enabled roles for skills filtering (set automatically by bundle configuration) |
-| `externalInputs` | attribute set of absolute path | `{ }` | Attribute set of external skill repository flake inputs (e.g., vercel-skills = inputs.vercel-skills) |
-| `skillsPath` | string | `".config/opencode/skills"` | Path relative to home directory where skills are installed |
-| `superpowersPath` | null or absolute path | `null` | Path to the superpowers flake input (set automatically from flake inputs) |
+| `enabledRoles` | list of string | `[ ]` | List of enabled roles for skill installation and optional metadata filtering (set automatically by bundle configuration) |
+| `repository` | null or absolute path | `null` | Pinned repository that contains the skills/<name>/SKILL.md directories |
 
 ### myConfig.ssh
 

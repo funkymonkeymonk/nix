@@ -84,8 +84,7 @@ in {
       jj-hooks.advance-bookmarks = true;
       # Treat pushed commits as immutable. Prevents `jj squash`, `jj describe`,
       # `jj rebase`, etc. from rewriting any commit reachable from a remote
-      # bookmark. See modules/home-manager/skills/external/jj/SKILL.md
-      # "Pushed commits are immutable" for the design rationale.
+      # bookmark. This follows the repository's Jujutsu workflow.
       revset-aliases."immutable_heads()" = "present(trunk()) | remote_bookmarks()";
     };
   };

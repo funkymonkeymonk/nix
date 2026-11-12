@@ -38,7 +38,6 @@ let
                 workstation.enable = true;
                 work.enable = true;
                 entertainment.enable = true;
-                agent-skills.enable = true;
                 opencode.enable = true;
                 claude.enable = true;
                 pi.enable = true;
@@ -224,8 +223,8 @@ in {
   };
 
   # ── Options: agent-skills ─────────────────────────────────────
-  testSkillsDefaults = {
-    expr = evalAgentSkillsBase.myConfig.agent-skills.enable;
+  testAgentSkillsRoleDefaults = {
+    expr = evalAgentSkillsBase.myConfig.roles.agent-skills.enable;
     expected = false;
   };
 

@@ -204,7 +204,7 @@ This lets you work in isolation while still being able to test your changes with
 ## What's Next
 
 - **[JJ Mental Model](../explanation/jj-mental-model.md)** — why jj works this way, change IDs vs commit IDs, conflicts as first-class objects
-- **[How to Create a PR](../how-to/create-pr-with-jj.md)** — the full PR workflow with `jj-pr`
+- **[How to Create a PR](../how-to/create-pr-with-jj.md)** — the native bookmark, push, and GitHub CLI workflow
 - **[How to Update a PR](../how-to/update-existing-pr.md)** — handling review iterations
 - **[How to Use Workspaces](../how-to/use-workspaces.md)** — work on multiple features simultaneously
 - **[JJ Commands Reference](../reference/jj-commands.md)** — every command with options

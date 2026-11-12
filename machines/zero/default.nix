@@ -36,7 +36,6 @@
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
-      skills.superpowersPath = inputs.superpowers;
       autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
       roles = {
         developer.enable = true;

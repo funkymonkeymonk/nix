@@ -741,9 +741,8 @@ in {
     # ============================================
     # AGENT SKILLS
     # ============================================
-    # Skills are Nix-managed via modules/home-manager/skills/manifest.nix.
-    # Superpowers-sourced skills come from the `superpowers` flake input —
-    # update it with: nix flake update --update-input superpowers
+    # Skills come from the pinned personal-skills input; update it with:
+    # nix flake update personal-skills
 
     # ============================================
     # CHECK TASKS (fast, no derivation builds)
