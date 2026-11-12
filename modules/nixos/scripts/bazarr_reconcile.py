@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import pathlib
 import sys
@@ -12,16 +14,16 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from media_api_reconcile import ReconciliationError
+from media_api_reconcile import ReconciliationError, open_local_url
 
 
 def read_secret(path: str) -> str:
     try:
         value = pathlib.Path(path).read_text(encoding="utf-8").strip()
     except OSError as error:
-        raise ReconciliationError("A configured runtime API-key file is unavailable") from error
+        raise ReconciliationError("A configured runtime secret file is unavailable") from error
     if not value:
-        raise ReconciliationError("A configured runtime API-key file is empty")
+        raise ReconciliationError("A configured runtime secret file is empty")
     return value
 
 
@@ -29,10 +31,12 @@ def read_settings(base_url: str, api_key: str) -> dict[str, Any]:
     url = f"{base_url.rstrip('/')}/api/system/settings"
     request = urllib.request.Request(url, headers={"X-API-KEY": api_key, "Accept": "application/json"})
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with open_local_url(request) as response:
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
-        raise ReconciliationError(f"Bazarr API request failed with HTTP {error.code}") from error
+        status = error.code
+        error.close()
+        raise ReconciliationError(f"Bazarr API request failed with HTTP {status}") from error
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         raise ReconciliationError("Bazarr API request could not reach the local service") from error
     except json.JSONDecodeError as error:
@@ -66,10 +70,12 @@ def request_settings(base_url: str, api_key: str, settings: dict[str, str]) -> N
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=20):
+        with open_local_url(request):
             return
     except urllib.error.HTTPError as error:
-        raise ReconciliationError(f"Bazarr API request failed with HTTP {error.code}") from error
+        status = error.code
+        error.close()
+        raise ReconciliationError(f"Bazarr API request failed with HTTP {status}") from error
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         raise ReconciliationError("Bazarr API request could not reach the local service") from error
 
@@ -77,6 +83,9 @@ def request_settings(base_url: str, api_key: str, settings: dict[str, str]) -> N
 def _same_value(current: Any, wanted: str, field: str) -> bool:
     if field == "base_url":
         return str(current or "").strip("/") == wanted.strip("/")
+    if field == "password":
+        expected_hash = hashlib.md5(wanted.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(str(current or ""), expected_hash)
     if wanted in {"true", "false"}:
         return str(current).lower() == wanted
     return str(current) == wanted
@@ -106,6 +115,16 @@ def reconcile(config: dict[str, Any]) -> None:
         "settings-general-use_sonarr": str(config.get("useSonarr", False)).lower(),
         "settings-general-use_radarr": str(config.get("useRadarr", False)).lower(),
     }
+
+    auth = config.get("auth")
+    if auth is not None:
+        desired.update(
+            {
+                "settings-auth-type": "form",
+                "settings-auth-username": read_secret(auth["usernameFile"]),
+                "settings-auth-password": read_secret(auth["passwordFile"]),
+            }
+        )
 
     for service in ("sonarr", "radarr"):
         service_config = config.get(service)

@@ -11,6 +11,7 @@ in {
       python "$scripts/bazarr_reconcile.py" --help >/dev/null
       python "$scripts/extract_media_api_key.py" --help >/dev/null
       python "$scripts/mylar3_config.py" --help >/dev/null
+      python "$scripts/jellyfin_admin_auth.py" --help >/dev/null
       python "$tests" "$scripts"
       touch $out
     '';

@@ -246,6 +246,10 @@ or changing a `myConfig.*` option.
 | `bazarr.useRadarr` | boolean | `false` | Enable Bazarr's Radarr synchronization after migration. |
 | `bazarr.useSonarr` | boolean | `false` | Enable Bazarr's Sonarr synchronization after migration. |
 | `lidarr` | submodule | `{ }` | — |
+| `lidarr.adminAuth` | submodule | `{ }` | Runtime-only administrator credentials reconciled through the local Arr API. |
+| `lidarr.adminAuth.enable` | boolean | `false` | Whether to enable declarative lidarr Forms-auth credentials. |
+| `lidarr.adminAuth.passwordFile` | string | `"/run/secrets/lidarr-admin-password"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `lidarr.adminAuth.usernameFile` | string | `"/run/secrets/lidarr-admin-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `lidarr.rootFolders` | list of string | `[ "/srv/media/music" ]` | Local application library roots managed through the app API. |
 | `lidarr.transmission` | submodule | `{ }` | — |
 | `lidarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for lidarr. |
@@ -255,6 +259,10 @@ or changing a `myConfig.*` option.
 | `lidarr.transmission.rpcUrlFile` | string | `"/run/secrets/ultra-media-stage-rpc-url"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `lidarr.transmission.rpcUsernameFile` | string | `"/run/secrets/ultra-media-stage-rpc-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `radarr` | submodule | `{ }` | — |
+| `radarr.adminAuth` | submodule | `{ }` | Runtime-only administrator credentials reconciled through the local Arr API. |
+| `radarr.adminAuth.enable` | boolean | `false` | Whether to enable declarative radarr Forms-auth credentials. |
+| `radarr.adminAuth.passwordFile` | string | `"/run/secrets/radarr-admin-password"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `radarr.adminAuth.usernameFile` | string | `"/run/secrets/radarr-admin-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `radarr.rootFolders` | list of string | `[ "/srv/media/movies" ]` | Local application library roots managed through the app API. |
 | `radarr.transmission` | submodule | `{ }` | — |
 | `radarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for radarr. |
@@ -264,6 +272,10 @@ or changing a `myConfig.*` option.
 | `radarr.transmission.rpcUrlFile` | string | `"/run/secrets/ultra-media-stage-rpc-url"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `radarr.transmission.rpcUsernameFile` | string | `"/run/secrets/ultra-media-stage-rpc-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `sonarr` | submodule | `{ }` | — |
+| `sonarr.adminAuth` | submodule | `{ }` | Runtime-only administrator credentials reconciled through the local Arr API. |
+| `sonarr.adminAuth.enable` | boolean | `false` | Whether to enable declarative sonarr Forms-auth credentials. |
+| `sonarr.adminAuth.passwordFile` | string | `"/run/secrets/sonarr-admin-password"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
+| `sonarr.adminAuth.usernameFile` | string | `"/run/secrets/sonarr-admin-username"` | Runtime file containing a secret or remote path; its contents are never evaluated by Nix. |
 | `sonarr.rootFolders` | list of string | `[ "/srv/media/shows" ]` | Local application library roots managed through the app API. |
 | `sonarr.transmission` | submodule | `{ }` | — |
 | `sonarr.transmission.enable` | boolean | `false` | Whether to enable managed remote Transmission client for sonarr. |

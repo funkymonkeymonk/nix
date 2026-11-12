@@ -1,12 +1,16 @@
 import configparser
 import contextlib
+import hashlib
 import http.server
 import json
+import os
 import pathlib
+import subprocess
 import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 import urllib.parse
 
 
@@ -22,8 +26,32 @@ class ApiState:
         self.download_clients = []
         self.schemas = []
         self.root_folders = []
+        self.quality_profiles = [{"id": 3, "name": "Lossless"}]
+        self.metadata_profiles = [{"id": 7, "name": "Standard"}]
+        self.lidarr_rootfolder_requirements = False
         self.remote_path_mappings = []
+        self.remote_path_mapping_get_calls = 0
+        self.hide_remote_path_mappings_once = False
         self.bazarr_settings = {}
+        self.host_config = {
+            "id": 42,
+            "authenticationMethod": "Forms",
+            "authenticationRequired": "Enabled",
+            "username": "old-admin",
+            "password": "old-password-hash",
+            "urlBase": "",
+            "unmanagedSetting": "preserve",
+        }
+        self.host_config_status = 202
+        self.jellyfin_username = "jellyfin-admin"
+        self.jellyfin_password = "jellyfin-secret"
+        self.jellyfin_auth_status = 200
+        self.jellyfin_user = {"Policy": {"IsAdministrator": True}}
+        self.jellyfin_ready_after = 0
+        self.jellyfin_ready_requests = 0
+        self.jellyfin_auth_ready_after = 0
+        self.jellyfin_auth_requests = 0
+        self.redirect_url = "http://127.0.0.1:1/capture"
         self.requests = []
         self.next_id = 1
 
@@ -46,8 +74,12 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(encoded)
 
     def do_GET(self):
-        self.state.requests.append(("GET", self.path, self.headers.get("X-Api-Key")))
-        if self.path.endswith("/system/status"):
+        self.state.requests.append(("GET", self.path, self.headers.get("Authorization") or self.headers.get("X-Api-Key")))
+        if self.path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", self.state.redirect_url)
+            self.end_headers()
+        elif self.path.endswith("/system/status"):
             self._write_json({"status": "OK"})
         elif self.path.endswith("/downloadclient/schema"):
             self._write_json(self.state.schemas)
@@ -55,14 +87,44 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             self._write_json(self.state.download_clients)
         elif self.path.endswith("/rootfolder"):
             self._write_json(self.state.root_folders)
+        elif self.path.endswith("/qualityprofile"):
+            self._write_json(self.state.quality_profiles)
+        elif self.path.endswith("/metadataprofile"):
+            self._write_json(self.state.metadata_profiles)
         elif self.path.endswith("/remotePathMapping"):
-            self._write_json(self.state.remote_path_mappings)
+            self.state.remote_path_mapping_get_calls += 1
+            if self.state.hide_remote_path_mappings_once and self.state.remote_path_mapping_get_calls == 1:
+                self._write_json([])
+            else:
+                self._write_json(self.state.remote_path_mappings)
+        elif self.path.endswith("/config/host"):
+            self._write_json(self.state.host_config)
         elif self.path == "/bazarr/api/system/settings":
             self._write_json(self.state.bazarr_settings)
+        elif self.path.endswith("/System/Info/Public"):
+            self.state.jellyfin_ready_requests += 1
+            if self.state.jellyfin_ready_requests <= self.state.jellyfin_ready_after:
+                self._write_json({"error": "starting"}, 503)
+            else:
+                self._write_json({"ServerName": "Jellyfin"})
+        elif self.path.endswith("/Users/Me"):
+            self._write_json(self.state.jellyfin_user)
         else:
             self._write_json({"error": "not found"}, 404)
 
     def do_POST(self):
+        if self.path.endswith("/Users/AuthenticateByName"):
+            body = self._read_json()
+            self.state.requests.append(("POST", self.path, self.headers.get("Authorization"), body))
+            self.state.jellyfin_auth_requests += 1
+            if self.state.jellyfin_auth_requests <= self.state.jellyfin_auth_ready_after:
+                self._write_json({"error": "starting"}, 503)
+                return
+            if body.get("Username") != self.state.jellyfin_username or body.get("Pw") != self.state.jellyfin_password:
+                self._write_json({"error": "authentication failed"}, 401)
+                return
+            self._write_json({"AccessToken": "jellyfin-admin-token"}, self.state.jellyfin_auth_status)
+            return
         if self.path == "/bazarr/api/system/settings":
             body_bytes = self.rfile.read(int(self.headers.get("Content-Length", "0")))
             body = {key: values[-1] for key, values in urllib.parse.parse_qs(body_bytes.decode(), keep_blank_values=True).items()}
@@ -70,6 +132,8 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             for key, value in body.items():
                 parts = key.split("-", 2)
                 if len(parts) == 3 and parts[0] == "settings":
+                    if parts[1] == "auth" and parts[2] == "password":
+                        value = hashlib.md5(value.encode("utf-8")).hexdigest()
                     self.state.bazarr_settings.setdefault(parts[1], {})[parts[2]] = value
             self._write_json(self.state.bazarr_settings)
             return
@@ -81,11 +145,24 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
             self.state.download_clients.append(body)
             self._write_json(body, 201)
         elif self.path.endswith("/rootfolder"):
+            if self.state.lidarr_rootfolder_requirements and any(
+                not body.get(field)
+                for field in ("name", "defaultMetadataProfileId", "defaultQualityProfileId")
+            ):
+                self._write_json({"error": "Lidarr root folder defaults are required"}, 400)
+                return
             body["id"] = self.state.next_id
             self.state.next_id += 1
             self.state.root_folders.append(body)
             self._write_json(body, 201)
         elif self.path.endswith("/remotePathMapping"):
+            if any(
+                item.get("host") == body.get("host")
+                and item.get("remotePath") == body.get("remotePath")
+                for item in self.state.remote_path_mappings
+            ):
+                self._write_json({"error": "RemotePath already configured"}, 400)
+                return
             body["id"] = self.state.next_id
             self.state.next_id += 1
             self.state.remote_path_mappings.append(body)
@@ -96,6 +173,13 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
     def do_PUT(self):
         body = self._read_json()
         self.state.requests.append(("PUT", self.path, self.headers.get("X-Api-Key"), body))
+        if "/config/host" in self.path:
+            if self.state.host_config_status >= 400:
+                self._write_json({"error": "host configuration update failed"}, self.state.host_config_status)
+                return
+            self.state.host_config = body
+            self._write_json(body, self.state.host_config_status)
+            return
         item_id = int(self.path.rsplit("/", 1)[1])
         collection = (
             self.state.download_clients
@@ -192,9 +276,37 @@ class ServarrReconciliationTests(unittest.TestCase):
         self.assertEqual(fields["unmanaged"], "schema-default")
         self.assertEqual(self.state.root_folders[0]["path"], "/srv/media/movies")
         self.assertEqual(self.state.remote_path_mappings[0]["host"], "seed.example")
-        self.assertEqual(self.state.remote_path_mappings[0]["remotePath"], "/downloads/complete")
-        self.assertEqual(self.state.remote_path_mappings[0]["localPath"], "/srv/media/.arr-staging")
+        self.assertEqual(self.state.remote_path_mappings[0]["remotePath"], "/downloads/complete/")
+        self.assertEqual(self.state.remote_path_mappings[0]["localPath"], "/srv/media/.arr-staging/")
         self.assertTrue(all(request[2] == "arr-api-key" for request in self.state.requests))
+
+    def test_lidarr_root_folder_uses_available_default_profiles(self):
+        from servarr_reconcile import reconcile
+
+        self.state.lidarr_rootfolder_requirements = True
+        with running_api(self.state) as server:
+            reconcile(
+                {
+                    "application": "lidarr",
+                    "baseUrl": f"{server}/api/v1",
+                    "configXml": str(self.config_xml),
+                    "rootFolders": ["/srv/media/music"],
+                }
+            )
+
+        self.assertEqual(
+            self.state.root_folders[0],
+            {
+                "path": "/srv/media/music",
+                "name": "music",
+                "defaultMetadataProfileId": 7,
+                "defaultQualityProfileId": 3,
+                "id": 1,
+            },
+        )
+        requested = [request[1] for request in self.state.requests]
+        self.assertIn("/api/v1/metadataprofile", requested)
+        self.assertIn("/api/v1/qualityprofile", requested)
 
     def test_reconciliation_is_idempotent_and_never_deletes(self):
         from servarr_reconcile import reconcile
@@ -254,6 +366,161 @@ class ServarrReconciliationTests(unittest.TestCase):
         self.assertEqual(fields["unmanaged"], "keep-me")
         self.assertTrue(any(request[0] == "PUT" for request in self.state.requests))
 
+    def test_authentication_reconciliation_sets_forms_admin_credentials_and_preserves_other_host_settings(self):
+        from servarr_reconcile import reconcile
+
+        username = write_secret(self.directory, "admin-username", "radarr-admin")
+        password = write_secret(self.directory, "admin-password", "radarr-secret")
+        with running_api(self.state) as server:
+            reconcile(
+                {
+                    "baseUrl": f"{server}/api/v3",
+                    "configXml": str(self.config_xml),
+                    "rootFolders": [],
+                    "transmission": self.transmission,
+                    "auth": {
+                        "username": {"secret": username},
+                        "password": {"secret": password},
+                    },
+                }
+            )
+
+        self.assertEqual(self.state.host_config["authenticationMethod"], "Forms")
+        self.assertEqual(self.state.host_config["authenticationRequired"], "Enabled")
+        self.assertEqual(self.state.host_config["username"], "radarr-admin")
+        self.assertEqual(self.state.host_config["password"], "radarr-secret")
+        self.assertEqual(self.state.host_config["passwordConfirmation"], "radarr-secret")
+        self.assertEqual(self.state.host_config["unmanagedSetting"], "preserve")
+        self.assertTrue(any(request[0] == "PUT" and request[1] == "/api/v3/config/host/42" for request in self.state.requests))
+
+    def test_lidarr_v1_authentication_update_uses_host_config_id_route(self):
+        from servarr_reconcile import reconcile
+
+        username = write_secret(self.directory, "lidarr-admin-username", "lidarr-admin")
+        password = write_secret(self.directory, "lidarr-admin-password", "lidarr-secret")
+        with running_api(self.state) as server:
+            reconcile(
+                {
+                    "baseUrl": f"{server}/api/v1",
+                    "apiVersion": 1,
+                    "configXml": str(self.config_xml),
+                    "rootFolders": [],
+                    "auth": {
+                        "username": {"secret": username},
+                        "password": {"secret": password},
+                    },
+                }
+            )
+
+        updates = [request for request in self.state.requests if request[0] == "PUT"]
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(updates[0][1], "/api/v1/config/host/42")
+        self.assertEqual(self.state.host_config["username"], "lidarr-admin")
+
+    def test_remote_path_mapping_recovers_from_a_duplicate_created_after_initial_get(self):
+        from media_api_reconcile import ReconciliationError
+        from servarr_reconcile import reconcile
+
+        self.state.remote_path_mappings = [
+            {
+                "id": 42,
+                "host": "seed.example",
+                "remotePath": "/downloads/complete/",
+                "localPath": "/srv/media/.arr-staging/",
+            }
+        ]
+        self.state.hide_remote_path_mappings_once = True
+        with running_api(self.state) as server:
+            try:
+                reconcile(
+                    {
+                        "baseUrl": f"{server}/api/v3",
+                        "configXml": str(self.config_xml),
+                        "rootFolders": [],
+                        "transmission": self.transmission,
+                    }
+                )
+            except ReconciliationError as error:
+                self.fail(f"Reconciliation failed despite a server-reported duplicate mapping: {error}")
+
+        self.assertEqual(len(self.state.remote_path_mappings), 1)
+        self.assertEqual(self.state.remote_path_mappings[0]["id"], 42)
+
+    def test_remote_path_mapping_matches_servarr_directory_normalization(self):
+        from servarr_reconcile import reconcile
+
+        self.state.remote_path_mappings = [
+            {
+                "id": 42,
+                "host": "seed.example",
+                "remotePath": "/downloads/complete",
+                "localPath": "/old/staging",
+            }
+        ]
+        with running_api(self.state) as server:
+            reconcile(
+                {
+                    "baseUrl": f"{server}/api/v3",
+                    "configXml": str(self.config_xml),
+                    "rootFolders": [],
+                    "transmission": self.transmission,
+                }
+            )
+
+        self.assertEqual(len(self.state.remote_path_mappings), 1)
+        self.assertEqual(self.state.remote_path_mappings[0]["id"], 42)
+        self.assertEqual(self.state.remote_path_mappings[0]["remotePath"], "/downloads/complete/")
+        self.assertEqual(self.state.remote_path_mappings[0]["localPath"], "/srv/media/.arr-staging/")
+
+    def test_authentication_reconciliation_does_not_require_transmission(self):
+        from servarr_reconcile import reconcile
+
+        username = write_secret(self.directory, "admin-only-username", "radarr-admin")
+        password = write_secret(self.directory, "admin-only-password", "radarr-secret")
+        with running_api(self.state) as server:
+            try:
+                reconcile(
+                    {
+                        "baseUrl": f"{server}/api/v3",
+                        "configXml": str(self.config_xml),
+                        "rootFolders": [],
+                        "auth": {
+                            "username": {"secret": username},
+                            "password": {"secret": password},
+                        },
+                    }
+                )
+            except KeyError as error:
+                self.fail(f"Auth-only reconciliation required an unrelated Transmission config: {error}")
+
+        self.assertEqual(self.state.host_config["username"], "radarr-admin")
+        self.assertFalse(any("downloadclient" in request[1] or "remotePathMapping" in request[1] for request in self.state.requests))
+
+    def test_authentication_api_failure_does_not_echo_configured_password(self):
+        from media_api_reconcile import ReconciliationError
+        from servarr_reconcile import reconcile
+
+        password = "do-not-log-this-password"
+        self.state.host_config_status = 500
+        with tempfile.TemporaryDirectory() as temporary, running_api(self.state) as server:
+            directory = pathlib.Path(temporary)
+            auth = {
+                "username": {"secret": write_secret(directory, "username", "radarr-admin")},
+                "password": {"secret": write_secret(directory, "password", password)},
+            }
+            with self.assertRaises(ReconciliationError) as raised:
+                reconcile(
+                    {
+                        "baseUrl": f"{server}/api/v3",
+                        "configXml": str(self.config_xml),
+                        "rootFolders": [],
+                        "transmission": self.transmission,
+                        "auth": auth,
+                    }
+                )
+
+        self.assertNotIn(password, str(raised.exception))
+
     def test_ambiguous_existing_client_fails_without_mutation(self):
         from servarr_reconcile import reconcile
 
@@ -283,6 +550,43 @@ class ServarrReconciliationTests(unittest.TestCase):
 
 
 class BazarrReconciliationTests(unittest.TestCase):
+    def test_bazarr_admin_credentials_are_reconciled_idempotently(self):
+        from bazarr_reconcile import reconcile
+
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            username_file = write_secret(directory, "admin-username", "bazarr-admin")
+            password_file = write_secret(directory, "admin-password", "bazarr-secret")
+            api_key_file = write_secret(directory, "bazarr-api-key", "bazarr-api-key")
+            state = ApiState()
+            state.bazarr_settings = {
+                "auth": {
+                    "type": "form",
+                    "username": "old-admin",
+                    "password": hashlib.md5(b"old-password").hexdigest(),
+                },
+                "general": {"base_url": "", "use_sonarr": False, "use_radarr": False},
+                "unmanaged-setting": "preserve",
+            }
+            config = {
+                "bazarrBaseUrl": "http://127.0.0.1",
+                "bazarrApiKeyFile": api_key_file,
+                "useSonarr": False,
+                "useRadarr": False,
+                "auth": {"usernameFile": username_file, "passwordFile": password_file},
+            }
+            with running_api(state) as server:
+                config["bazarrBaseUrl"] = f"{server}/bazarr"
+                reconcile(config)
+                writes_after_first_sync = sum(request[0] == "POST" for request in state.requests)
+                reconcile(config)
+
+        self.assertEqual(state.bazarr_settings["auth"]["type"], "form")
+        self.assertEqual(state.bazarr_settings["auth"]["username"], "bazarr-admin")
+        self.assertEqual(state.bazarr_settings["auth"]["password"], hashlib.md5(b"bazarr-secret").hexdigest())
+        self.assertEqual(state.bazarr_settings["unmanaged-setting"], "preserve")
+        self.assertEqual(sum(request[0] == "POST" for request in state.requests), writes_after_first_sync)
+
     def test_bazarr_connections_update_without_replacing_other_settings(self):
         from bazarr_reconcile import reconcile
 
@@ -335,6 +639,125 @@ class BazarrReconciliationTests(unittest.TestCase):
         self.assertTrue(all(request[4] == "application/x-www-form-urlencoded" for request in form_posts))
 
 
+class JellyfinAdminAuthTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.directory = pathlib.Path(self.temporary.name)
+        self.state = ApiState()
+        self.username = "jellyfin-admin"
+        self.password = "jellyfin-secret"
+        self.config = {
+            "baseUrl": "http://127.0.0.1",
+            "usernameFile": write_secret(self.directory, "username", self.username),
+            "passwordFile": write_secret(self.directory, "password", self.password),
+        }
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def test_declared_jellyfin_admin_is_authenticated_and_verified(self):
+        from jellyfin_admin_auth import verify_admin
+
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            verify_admin(self.config)
+
+        login_requests = [request for request in self.state.requests if request[0] == "POST"]
+        self.assertEqual(len(login_requests), 1)
+        login = login_requests[0]
+        self.assertEqual(login[1], "/jellyfin/Users/AuthenticateByName")
+        self.assertIn('Client="Drlight', login[2])
+        self.assertEqual(login[3], {"Username": self.username, "Pw": self.password})
+        current_user_requests = [request for request in self.state.requests if request[0] == "GET" and request[1].endswith("/Users/Me")]
+        self.assertEqual(len(current_user_requests), 1)
+        self.assertIn('Token="jellyfin-admin-token"', current_user_requests[0][2])
+
+    def test_jellyfin_verifier_waits_for_the_api_to_become_ready(self):
+        import jellyfin_admin_auth
+
+        self.state.jellyfin_ready_after = 2
+        with running_api(self.state) as server, patch.object(jellyfin_admin_auth.time, "sleep", return_value=None):
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            jellyfin_admin_auth.verify_admin(self.config)
+
+        self.assertEqual(self.state.jellyfin_ready_requests, 3)
+
+    def test_jellyfin_verifier_retries_authentication_while_server_is_starting(self):
+        import jellyfin_admin_auth
+
+        self.state.jellyfin_auth_ready_after = 1
+        with running_api(self.state) as server, patch.object(jellyfin_admin_auth.time, "sleep", return_value=None):
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            jellyfin_admin_auth.verify_admin(self.config)
+
+        self.assertEqual(self.state.jellyfin_auth_requests, 2)
+
+    def test_non_admin_jellyfin_account_is_rejected_without_disclosing_password(self):
+        from jellyfin_admin_auth import verify_admin
+        from media_api_reconcile import ReconciliationError
+
+        self.state.jellyfin_user = {"Policy": {"IsAdministrator": False}}
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            with self.assertRaises(ReconciliationError) as raised:
+                verify_admin(self.config)
+
+        self.assertNotIn(self.password, str(raised.exception))
+
+    def test_rejected_jellyfin_login_does_not_disclose_password(self):
+        from jellyfin_admin_auth import verify_admin
+        from media_api_reconcile import ReconciliationError
+
+        self.state.jellyfin_password = "different-current-password"
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            with self.assertRaises(ReconciliationError) as raised:
+                verify_admin(self.config)
+
+        self.assertNotIn(self.password, str(raised.exception))
+
+    def test_jellyfin_credentials_do_not_follow_configured_http_proxy(self):
+        config_file = self.directory / "jellyfin-admin-auth.json"
+        config_file.write_text(json.dumps(self.config))
+        proxy_environment = os.environ.copy()
+        proxy_environment.update(
+            {
+                "HTTP_PROXY": "http://127.0.0.1:1",
+                "http_proxy": "http://127.0.0.1:1",
+                "NO_PROXY": "",
+                "no_proxy": "",
+            }
+        )
+        proxy_environment.pop("ALL_PROXY", None)
+        proxy_environment.pop("all_proxy", None)
+
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            config_file.write_text(json.dumps(self.config))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT_DIR / "jellyfin_admin_auth.py"), "--config", str(config_file)],
+                capture_output=True,
+                check=False,
+                env=proxy_environment,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(any(request[0] == "POST" for request in self.state.requests))
+
+    def test_empty_jellyfin_secret_fails_before_authentication_request(self):
+        from jellyfin_admin_auth import verify_admin
+        from media_api_reconcile import ReconciliationError
+
+        self.config["usernameFile"] = write_secret(self.directory, "empty-username", "")
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            with self.assertRaises(ReconciliationError):
+                verify_admin(self.config)
+
+        self.assertEqual(self.state.requests, [])
+
+
 class MylarConfigTests(unittest.TestCase):
     def test_runtime_ini_expands_secrets_and_preserves_typed_settings(self):
         from mylar3_config import render_ini, write_config
@@ -365,6 +788,23 @@ class MylarConfigTests(unittest.TestCase):
 
 
 class RuntimeApiKeyTests(unittest.TestCase):
+    def test_local_api_helper_rejects_redirects(self):
+        from media_api_reconcile import open_local_url
+        from urllib.error import HTTPError
+        from urllib.request import Request
+
+        with running_api(ApiState()) as server:
+            request = Request(f"{server}/redirect", headers={"Authorization": "synthetic-token"})
+            try:
+                open_local_url(request)
+            except HTTPError as error:
+                self.assertEqual(error.code, 302)
+                error.close()
+            except OSError as error:
+                self.fail(f"Local API helper followed the redirect to its destination: {error}")
+            else:
+                self.fail("Local API helper did not reject the redirect response")
+
     def test_api_key_extractor_reads_xml_and_yaml_without_printing_key(self):
         from extract_media_api_key import extract_key, write_key
 

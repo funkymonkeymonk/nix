@@ -83,10 +83,16 @@
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
         }).config;
+      drlightWithRadarrAuthOnly =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.mediaManagement.radarr.transmission.enable = lib.mkForce false;}];
+        }).config;
       drlightWithMylarSettingsManagementDisabled =
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{services.mylar3.manageSettingsFile = false;}];
         }).config;
+      arrReconcileConfigPath = machine: app:
+        lib.last (lib.splitString "--config " (machine.systemd.services.${app + "-media-config-sync"}.serviceConfig.ExecStart or ""));
       ultraDownloadStageEnabledTimer = drlightWithDownloadStageEnabled.systemd.timers.ultra-media-download-stage or {};
       drlightWithSyntheticCaddyApp =
         (self.nixosConfigurations.drlight.extendModules {
@@ -187,6 +193,62 @@
       opnixUltraStageKeySecret = opnixSecrets.ultraMediaStageKey or {};
       opnixUltraStageRpcUsernameSecret = opnixSecrets.ultraMediaStageRpcUsername or {};
       opnixUltraStageRpcPasswordSecret = opnixSecrets.ultraMediaStageRpcPassword or {};
+      mediaAuthSecretNames = [
+        "radarrAdminUsername"
+        "radarrAdminPassword"
+        "sonarrAdminUsername"
+        "sonarrAdminPassword"
+        "lidarrAdminUsername"
+        "lidarrAdminPassword"
+        "bazarrAdminUsername"
+        "bazarrAdminPassword"
+        "mylar3AdminUsername"
+        "mylar3AdminPassword"
+        "jellyfinAdminUsername"
+        "jellyfinAdminPassword"
+      ];
+      mediaAuthExpectedReferences = [
+        "Radarr/username"
+        "Radarr/password"
+        "Sonarr/username"
+        "Sonarr/password"
+        "Lidarr/username"
+        "Lidarr/password"
+        "Bazaar/username"
+        "Bazaar/password"
+        "Mylar3/username"
+        "Mylar3/password"
+        "Jellyfin/username"
+        "Jellyfin/password"
+      ];
+      mediaAuthSecrets = map (name: onePasswordSecrets.${name} or {}) mediaAuthSecretNames;
+      opnixMediaAuthSecrets = map (name: opnixSecrets.${name} or {}) mediaAuthSecretNames;
+      mediaAuthApps = [
+        {
+          name = "radarr";
+          sync = "radarr-media-config-sync";
+        }
+        {
+          name = "sonarr";
+          sync = "sonarr-media-config-sync";
+        }
+        {
+          name = "lidarr";
+          sync = "lidarr-media-config-sync";
+        }
+        {
+          name = "bazarr";
+          sync = "bazarr-media-config-sync";
+        }
+        {
+          name = "mylar3";
+          sync = "mylar3";
+        }
+        {
+          name = "jellyfin";
+          sync = "jellyfin-admin-auth";
+        }
+      ];
       cacheOnlyDiskConfig = import ../disk-configs/drlight-cache.nix;
       cacheOnlyDisks = cacheOnlyDiskConfig.disko.devices.disk or {};
       cacheDisks = diskoDevices.disk or {};
@@ -313,9 +375,21 @@
           && !(machine.config.services.bazarr.enable or false))
         (builtins.attrValues nonDrlightMachines);
     in {
-      drlightMediaManagementTest = pkgs.runCommand "test-drlight-media-management" {} ''
+      drlightMediaManagementTest = pkgs.runCommand "test-drlight-media-management" {nativeBuildInputs = [pkgs.jq];} ''
         failures=0
         echo "=== Evaluating Drlight media-manager ownership, permissions, and network policy ==="
+        if ${pkgs.jq}/bin/jq -e '.application == "lidarr" and (.baseUrl | endswith("/api/v1")) and .auth.username.secret == "/run/secrets/lidarr-admin-username" and .auth.password.secret == "/run/secrets/lidarr-admin-password"' ${lib.escapeShellArg (arrReconcileConfigPath drlight "lidarr")} >/dev/null; then
+          echo "  Lidarr runtime config identifies the app and uses its v1 URL and Opnix file references: OK"
+        else
+          echo "FAIL: Lidarr runtime config is missing app identification, its v1 API version, or login secret file references"
+          failures=1
+        fi
+        if ${pkgs.jq}/bin/jq -e '.auth.username.secret == "/run/secrets/radarr-admin-username" and .auth.password.secret == "/run/secrets/radarr-admin-password" and .transmission == {}' ${lib.escapeShellArg (arrReconcileConfigPath drlightWithRadarrAuthOnly "radarr")} >/dev/null; then
+          echo "  auth-only Arr config contains no Transmission settings: OK"
+        else
+          echo "FAIL: auth-only Arr config contains missing credentials or unnecessary Transmission settings"
+          failures=1
+        fi
 
         ${checkTrue "Drlight selects the media-management module" (hasModule "/modules/nixos/media-management.nix" drlightMachine)}
         ${lib.concatMapStringsSep "\n" (app: ''
@@ -366,6 +440,8 @@
           ${checkTrue "${app} has an API reconciliation unit" (builtins.hasAttr "${app}-media-config-sync" drlight.systemd.services)}
         '') ["radarr" "sonarr" "lidarr" "bazarr"]}
         ${checkTrue "Arr reconciliation imports its packaged shared Python helpers" (lib.hasInfix "media-app-reconciliation-scripts/servarr_reconcile.py" (drlight.systemd.services.radarr-media-config-sync.serviceConfig.ExecStart or ""))}
+        ${checkTrue "Radarr admin auth reconciliation remains enabled without its Transmission client" (drlightWithRadarrAuthOnly.systemd.services ? radarr-media-config-sync)}
+        ${checkTrue "auth-only Radarr reconciliation cannot read Transmission secrets" (builtins.elem "media-auth-radarr" (drlightWithRadarrAuthOnly.systemd.services.radarr-media-config-sync.serviceConfig.SupplementaryGroups or []) && !(builtins.elem "media-management-secrets" (drlightWithRadarrAuthOnly.systemd.services.radarr-media-config-sync.serviceConfig.SupplementaryGroups or [])))}
         ${checkTrue "Bazarr reconciliation imports its packaged shared Python helpers" (lib.hasInfix "media-app-reconciliation-scripts/bazarr_reconcile.py" (drlight.systemd.services.bazarr-media-config-sync.serviceConfig.ExecStart or ""))}
         ${checkTrue "Arr apps clear seedbox reverse-proxy URL bases for direct Tailscale access" (lib.all (app: (drlight.services.${app}.settings.server.urlbase or null) == "") ["radarr" "sonarr" "lidarr"])}
         ${checkEqual "Radarr's empty URL base is emitted to its migrated runtime config" "" (drlight.systemd.services.radarr.environment.RADARR__SERVER__URLBASE or null)}
@@ -382,11 +458,52 @@
         ${checkTrue "Mylar3 retains its configured post-processing mode" drlight.services.mylar3.settings.PostProcess.POST_PROCESSING}
         ${checkEqual "Mylar3 uses a root URL base on Drlight's direct port" "/" (drlight.services.mylar3.settings.Interface.HTTP_ROOT or null)}
         ${checkEqual "Mylar3 preserves its Forms authentication mode" 2 (drlight.services.mylar3.settings.Interface.AUTHENTICATION or null)}
+        ${checkEqual "Mylar3 admin username comes from its runtime Opnix file" "/run/secrets/mylar3-admin-username" (drlight.services.mylar3.settings.Interface.HTTP_USERNAME.secret or null)}
+        ${checkEqual "Mylar3 admin password comes from its runtime Opnix file" "/run/secrets/mylar3-admin-password" (drlight.services.mylar3.settings.Interface.HTTP_PASSWORD.secret or null)}
+        ${checkTrue "Mylar3 waits for Opnix secrets before rendering its protected config" (builtins.elem "opnix-secrets.service" ((mediaManagementService "mylar3").after or []) && builtins.elem "opnix-secrets.service" ((mediaManagementService "mylar3").requires or []))}
         ${checkEqual "Mylar3 retains its non-torrent downloader mode" 0 (drlight.services.mylar3.settings.Client.TORRENT_DOWNLOADER or null)}
         ${checkFalse "Mylar3 does not enable torrent downloads or search" (drlight.services.mylar3.settings.Torrents.ENABLE_TORRENTS or true || drlight.services.mylar3.settings.Torrents.ENABLE_TORRENT_SEARCH or true)}
         ${checkEqual "Mylar3 stores its INI beside its persistent database" "/var/lib/mylar3" drlight.services.mylar3.dataDir}
         ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
         ${checkFalse "Mylar3 can leave restored INI untouched during one-time root migration" (builtins.hasAttr "ExecStartPre" (drlightWithMylarSettingsManagementDisabled.systemd.services.mylar3.serviceConfig or {}))}
+        ${checkEqual "media app login secrets use the expected Opnix fields" mediaAuthExpectedReferences (map (secret: secret.reference or null) mediaAuthSecrets)}
+        ${checkEqual "media app login references resolve through the Opnix default vault" (map (reference: "op://Opnix/${reference}") mediaAuthExpectedReferences) (map (secret: secret.reference or null) opnixMediaAuthSecrets)}
+        ${checkEqual "media app login secrets use restricted runtime paths" [
+          "/run/secrets/radarr-admin-username"
+          "/run/secrets/radarr-admin-password"
+          "/run/secrets/sonarr-admin-username"
+          "/run/secrets/sonarr-admin-password"
+          "/run/secrets/lidarr-admin-username"
+          "/run/secrets/lidarr-admin-password"
+          "/run/secrets/bazarr-admin-username"
+          "/run/secrets/bazarr-admin-password"
+          "/run/secrets/mylar3-admin-username"
+          "/run/secrets/mylar3-admin-password"
+          "/run/secrets/jellyfin-admin-username"
+          "/run/secrets/jellyfin-admin-password"
+        ] (map (secret: secret.path or null) mediaAuthSecrets)}
+        ${checkEqual "media app login secrets are root-owned and readable only by their app-specific groups" [
+          "media-auth-radarr"
+          "media-auth-radarr"
+          "media-auth-sonarr"
+          "media-auth-sonarr"
+          "media-auth-lidarr"
+          "media-auth-lidarr"
+          "media-auth-bazarr"
+          "media-auth-bazarr"
+          "media-auth-mylar3"
+          "media-auth-mylar3"
+          "media-auth-jellyfin"
+          "media-auth-jellyfin"
+        ] (map (secret: secret.group or null) mediaAuthSecrets)}
+        ${checkTrue "media app login secrets are owned by root with mode 0440" (builtins.all (secret: (secret.owner or null) == "root" && (secret.mode or null) == "0440") mediaAuthSecrets)}
+        ${checkEqual "media app login secrets trigger only their owning app" (builtins.concatLists (map (app: [[app] [app]]) ["radarr" "sonarr" "lidarr" "bazarr" "mylar3" "jellyfin"])) (map (secret: secret.services or []) mediaAuthSecrets)}
+        ${checkTrue "each media app account can read only its own login secret group" (builtins.all (app: builtins.elem "media-auth-${app.name}" (drlight.users.users.${app.name}.extraGroups or [])) mediaAuthApps)}
+        ${checkTrue "media credential reconciliation waits for Opnix and its app" (builtins.all (app: let
+          after = drlight.systemd.services.${app.sync}.after or [];
+        in
+          builtins.elem "opnix-secrets.service" after && (app.sync == app.name || builtins.elem "${app.name}.service" after))
+        mediaAuthApps)}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All Drlight media-management tests passed"
@@ -614,7 +731,11 @@
            ${checkFalse "Nix does not create a Podcasts folder" (lib.hasInfix "/srv/media/podcasts" mediaLibraryFoldersScript)}
            ${checkTrue "Nix prepares media folders after ZFS mount and before Jellyfin" (builtins.elem "zfs-mount.service" (mediaLibraryFoldersService.after or []) && builtins.elem "jellyfin.service" (mediaLibraryFoldersService.before or []) && builtins.elem "media-library-folders.service" (jellyfinService.after or []))}
            ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
-           ${checkFalse "drlight no longer fetches a Jellyfin admin password for API sync" (onePasswordSecrets ? jellyfinAdminPassword)}
+           ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
+           ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
+           ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
+           ${checkTrue "Jellyfin admin auth verifier runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (drlight.systemd.services.jellyfin-admin-auth.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (drlight.systemd.services.jellyfin-admin-auth.wantedBy or []))}
+           ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
 
            if ${pkgs.fakeroot}/bin/fakeroot ${pkgs.bash}/bin/bash <<'EOF'
           set -e
