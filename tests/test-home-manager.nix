@@ -157,7 +157,10 @@
           ../modules/common/users.nix
           {
             config.myConfig = {
-              onepassword.enableSSHAgent = true;
+              onepassword = {
+                enableSSHAgent = true;
+                useSSHForGitHub = true;
+              };
               users = [
                 {
                   name = "ssh-test";
@@ -169,6 +172,37 @@
         ];
     }).config;
   sshAgentUser = sshAgentEval.home-manager.users.ssh-test;
+  httpsGitEval =
+    (lib.evalModules {
+      modules =
+        stubModules
+        ++ [
+          ../modules/roles/agent-skills.nix
+          ../modules/common/onepassword.nix
+          {
+            options.assertions = lib.mkOption {
+              type = lib.types.listOf lib.types.anything;
+              default = [];
+            };
+            options.home-manager.users = lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
+              default = {};
+            };
+          }
+          ../modules/common/users.nix
+          {
+            config.myConfig = {
+              users = [
+                {
+                  name = "https-test";
+                  email = "https-test@example.invalid";
+                }
+              ];
+            };
+          }
+        ];
+    }).config;
+  httpsGitUser = httpsGitEval.home-manager.users.https-test;
   expectedSshAgentSocket =
     if sshAgentEval.myConfig.isDarwin
     then "/Users/ssh-test/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
@@ -576,8 +610,26 @@ in {
 
       ${
         if sshAgentUser.programs.gh.settings.git_protocol == "ssh"
-        then ''echo "  GitHub CLI uses SSH: OK"''
-        else ''echo "  GitHub CLI does not use SSH!"; exit 1''
+        then ''echo "  GitHub CLI uses SSH with explicit transport opt-in: OK"''
+        else ''echo "  GitHub CLI should use SSH with explicit transport opt-in!"; exit 1''
+      }
+
+      ${
+        if httpsGitEval.myConfig.onepassword.enableSSHAgent
+        then ''echo "  Default 1Password SSH agent remains enabled: OK"''
+        else ''echo "  The default SSH-agent test scenario is no longer exercising an enabled agent!"; exit 1''
+      }
+
+      ${
+        if httpsGitUser.programs.gh.settings.git_protocol == "https"
+        then ''echo "  GitHub CLI defaults to HTTPS without explicit SSH transport opt-in: OK"''
+        else ''echo "  GitHub CLI should default to HTTPS without explicit SSH transport opt-in!"; exit 1''
+      }
+
+      ${
+        if !((httpsGitUser.programs.git.settings.url or {}) ? "git@github.com:")
+        then ''echo "  Git URLs are not rewritten to SSH without explicit transport opt-in: OK"''
+        else ''echo "  Git URLs must not be rewritten to SSH without explicit transport opt-in!"; exit 1''
       }
 
       ${
