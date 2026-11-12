@@ -11,10 +11,9 @@
 # and an allowUnfreePredicate not present in the other two).
 #
 # Usage: `(mkNixpkgsConfigModule {inherit inputs;})` as a module in a
-# darwinSystem/nixosSystem modules list. Extra overlays specific to one
-# call site (e.g. flake.nix's himalaya-tui) can be appended by the caller
-# via a normal `nixpkgs.overlays = [...]` module alongside this one --
-# NixOS module merging concatenates overlay lists automatically.
+# darwinSystem/nixosSystem modules list. Additional overlays can be appended
+# by a caller with a normal `nixpkgs.overlays = [...]` module alongside this
+# one; NixOS module merging concatenates overlay lists automatically.
 {inputs}: let
   config = import ./nixpkgs-config-values.nix;
 in
@@ -39,10 +38,6 @@ in
         # zellij-pane-tracker WASM plugin from its own flake
         (final: _prev: {
           zellij-pane-tracker = inputs.zellij-pane-tracker.packages.${final.stdenv.hostPlatform.system}.default;
-        })
-        # himalaya-tui from upstream Pimalaya flake
-        (final: _prev: {
-          himalaya-tui = inputs.himalaya-tui.packages.${final.stdenv.hostPlatform.system}.default;
         })
         (import ../../overlays {inherit inputs;})
       ];

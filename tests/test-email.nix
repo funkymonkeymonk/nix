@@ -296,9 +296,9 @@ in {
         hasRestic = builtins.any (n: lib.hasInfix "restic" n) pkgNames;
         hasGmailctl = builtins.any (n: lib.hasInfix "gmailctl" n) pkgNames;
       in
-        if hasHimalaya && hasIsync && hasRestic && hasGmailctl
-        then ''echo "  All expected packages present (himalaya, isync, restic, gmailctl): OK"''
-        else ''echo "  FAIL: missing expected packages in [${builtins.concatStringsSep ", " pkgNames}]"; exit 1''}
+        if !hasHimalaya && hasIsync && hasRestic && hasGmailctl
+        then ''echo "  Email roles include backup and Gmail-filter tools without an email client: OK"''
+        else ''echo "  FAIL: unexpected email role packages in [${builtins.concatStringsSep ", " pkgNames}]"; exit 1''}
 
       echo "All composition tests passed"
       touch $out

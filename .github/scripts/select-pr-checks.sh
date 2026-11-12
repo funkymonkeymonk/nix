@@ -13,8 +13,12 @@ select_for_path() {
   local path="$1"
 
   case "$path" in
-    flake.nix|flake.lock|devenv.nix|devenv.lock|devenv.yaml|tests/stubs.nix|tests/nix-unit-tests.nix|modules/common/options.nix|.github/workflows/*|.github/scripts/*)
+    flake.nix|flake.lock|devenv.nix|devenv.lock|devenv.yaml|tests/stubs.nix|tests/nix-unit-tests.nix|modules/common/options.nix)
       select_all=true
+      ;;
+    .github/workflows/*|.github/scripts/*|tests/test-ci-*.sh)
+      # Dedicated shell regression tests cover CI-only changes; they do not
+      # require rebuilding the Nix configuration check matrix.
       ;;
     tests/default.nix)
       # Registry-only edits still need validation; companion test/source paths

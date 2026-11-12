@@ -24,8 +24,6 @@ inputs:
         follows: nixpkgs
   devenv:
     url: github:cachix/devenv/v2.4.0
-  himalaya-tui:
-    url: github:pimalaya/himalaya-tui/4c2af0f0caea64beda66ebd230387da1434ff9d7
   nix-darwin:
     url: github:nix-darwin/nix-darwin/ff0e21a414d4547183396da1b44a66f2577b65e9
     inputs:

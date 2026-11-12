@@ -8,6 +8,7 @@
 }: let
   # Test utilities
   testPackages = import ./test-packages.nix {inherit pkgs;};
+  testDevenvPackages = import ./test-devenv-packages.nix {inherit pkgs;};
   testOverlayPackages = import ./test-overlay-packages.nix {inherit pkgs;};
   testCrossPlatformGuards = import ./test-cross-platform-guards.nix {inherit pkgs;};
   testRoles = import ./test-roles.nix {inherit pkgs;};
@@ -151,6 +152,7 @@ in
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
 
     # Package availability tests
+    devenv-packages = testDevenvPackages;
     core-packages = testPackages.corePackagesTest;
     foundation-packages = testPackages.foundationPackagesTest;
     ste-linter-package = testPackages.steLinterPackageTest;
@@ -158,7 +160,6 @@ in
     # Overlay package build tests (rtk, yaks, pi-coding-agent, bigcodebench, evalscope)
     overlay-qwen38-mxfp4 = testOverlayPackages.qwen38Mxfp4PackageTest;
     overlay-rtk = testOverlayPackages.rtkPackageTest;
-    overlay-himalaya = testOverlayPackages.himalayaPackageTest;
     overlay-jj-hooks = testOverlayPackages.jjHooksPackageTest;
     overlay-yaks = testOverlayPackages.yaksPackageTest;
     overlay-pi-coding-agent = testOverlayPackages.piCodingAgentPackageTest;

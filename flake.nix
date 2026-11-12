@@ -57,9 +57,6 @@
     # nix-unit: Eval-time unit testing framework
     nix-unit.url = "github:nix-community/nix-unit";
     nix-unit.flake = false;
-
-    # Himalaya TUI - terminal UI for email (companion to himalaya CLI)
-    himalaya-tui.url = "github:pimalaya/himalaya-tui";
   };
 
   outputs = inputs @ {flake-parts, ...}:

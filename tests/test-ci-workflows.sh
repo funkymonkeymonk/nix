@@ -67,17 +67,15 @@ assert "main-build calls facter stub script (not inline)" \
   "grep -q 'bash .github/scripts/create-facter-stub.sh' \
   '$REPO_ROOT/.github/workflows/main-build.yml'"
 
-# Test: PR checks are sharded by devenv tasks and parallelized across runners.
-assert "PR workflow generates a changed-check matrix through devenv" \
-  "grep -q 'devenv tasks run ci:checks:changed-plan' \
+# Test: CI check planning and builds bypass the full Devenv package profile.
+assert "PR workflow plans changed checks with the standalone Nix helper" \
+  "grep -q 'bash .github/scripts/ci-checks.sh plan non-vm' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR workflow builds changed-check shards through devenv" \
-  "grep -q 'devenv tasks run ci:checks:changed-shard' \
+assert "PR workflow builds check shards with the standalone Nix helper" \
+  "grep -q 'bash .github/scripts/ci-checks.sh build non-vm' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR check discovery selects checks from changed files" \
-  "grep -q 'devenv tasks run ci:checks:changed-plan' \
-    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
-    && grep -q 'select-pr-checks.sh' \
+  "grep -q 'select-pr-checks.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "non-VM PR checks run when selected prefixes are non-empty" \
   "grep -Fq \"check-prefixes != '[]'\" \
@@ -93,26 +91,37 @@ assert "CI helper tests run only when CI tooling changes" \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \
     && grep -q \"if: needs.changes.outputs.ci-helper-files == 'true'\" \
       '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "CI helper regression tests run independently from lint" \
+  "awk '/^  ci-helper-tests:/,/^  changes:/' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+    | grep -q 'needs: \[changes\]' \
+    && ! awk '/^  ci-helper-tests:/,/^  changes:/' \
+      '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+      | grep -q 'needs:.*lint'"
+assert "CI helper regression tests do not install Devenv" \
+  "! awk '/^  ci-helper-tests:/,/^  changes:/' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
+    | grep -q 'devenv'"
 assert "overlay source checker changes trigger its CI regression test" \
   "grep -q 'scripts/check-overlay-upstream-urls.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \
     && grep -q 'scripts/overlay-source-urls.nix' \
       '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow keeps VM smoke checks independent" \
-  "grep -q 'devenv tasks run ci:checks:vm-pr' \
+  "grep -q 'bash .github/scripts/ci-checks.sh build vm-pr' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR check matrix is capped at eight concurrent runners" \
   "grep -q 'max-parallel: 8' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check shards contain at most two checks" \
-  "grep -q 'batchSize:2' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "each PR check shard has a twenty-minute budget" \
-  "grep -q 'timeout-minutes: 20' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR workflow runs smoke VM checks through devenv" \
-  "grep -q 'devenv tasks run ci:checks:vm-pr' \
-  '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR check shards contain at most three checks" \
+  "grep -q 'batchSize:3' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "three-check PR shards have a twenty-five-minute budget" \
+  "grep -q 'timeout-minutes: 25' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow omits full role-package VM tests" \
   "! grep -Eq 'vm-role-(foundation|developer)' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR validation does not install Devenv for lint or check jobs" \
+  "! grep -q 'github:cachix/devenv' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflows do not invoke the external build-checks script" \
   "! grep -R -q 'build-checks.sh' \\
     '$REPO_ROOT/.github/workflows' '$REPO_ROOT/devenv.nix'"
@@ -173,28 +182,34 @@ assert "PR workflow runs CI check selector tests" \
 assert "PR workflow runs derivation cache regression tests" \
   "grep -q 'bash tests/test-ci-config-cache.sh' \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR lint remains fast and installs the locked devenv CLI" \
+assert "PR lint remains fast and does not install the full devenv CLI" \
   "grep -q 'run: bash .github/scripts/lint.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
-    && grep -q '.nodes.devenv.locked.rev' \\
-    '$REPO_ROOT/.github/workflows/pr-validation.yml' \\
-    && grep -q 'github:cachix/devenv/.*#devenv' \\
-    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+    && ! grep -q 'github:cachix/devenv/.*#devenv' \\
+      '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 
-# Test: expensive package and role checks remain manually available on main.
-assert "extended package workflow uses its devenv task" \
-  "grep -q 'devenv tasks run ci:checks:extended' \\
+# Test: extended package and role checks use direct Nix calls without Devenv.
+assert "extended package workflow uses the standalone check helper" \
+  "grep -q 'bash .github/scripts/ci-checks.sh build extended' \\
     '$REPO_ROOT/.github/workflows/extended-validation.yml'"
-assert "extended VM workflow uses its devenv task" \
-  "grep -q 'devenv tasks run ci:checks:vm-extended' \\
+assert "extended VM workflow uses the standalone check helper" \
+  "grep -q 'bash .github/scripts/ci-checks.sh build vm-extended' \\
     '$REPO_ROOT/.github/workflows/extended-validation.yml'"
-assert "extended package task selects the extended check group" \
+assert "extended CI workflow does not install or run Devenv" \
+  "! grep -q 'devenv' '$REPO_ROOT/.github/workflows/extended-validation.yml'"
+assert "flake update workflow does not install Devenv unnecessarily" \
+  "! grep -q 'devenv' '$REPO_ROOT/.github/workflows/flake-update.yml'"
+assert "weekly release refreshes hashes without Devenv" \
+  "grep -q 'bash scripts/refresh-fixed-output-hashes.sh' \\
+    '$REPO_ROOT/.github/workflows/weekly-release.yml' \\
+    && ! grep -q 'devenv' '$REPO_ROOT/.github/workflows/weekly-release.yml'"
+assert "local extended package task selects the extended check group" \
   "grep -q '\"ci:checks:extended\" = ciChecksTask' '$REPO_ROOT/devenv.nix' \\
     && grep -q 'group = \"extended\";' '$REPO_ROOT/devenv.nix'"
-assert "extended VM task selects full role-package checks" \
+assert "local extended VM task selects full role-package checks" \
   "grep -q '\"ci:checks:vm-extended\" = ciChecksTask' '$REPO_ROOT/devenv.nix' \\
     && grep -q 'group = \"vm-extended\";' '$REPO_ROOT/devenv.nix' \\
-    && grep -q 'vm-role-foundation.*vm-role-developer' '$REPO_ROOT/devenv.nix'"
+    && grep -q 'vm-role-foundation.*vm-role-developer' '$REPO_ROOT/.github/scripts/ci-checks.sh'"
 assert "extended validation is manually dispatchable, main-only, and cancellable" \
   "grep -q '^  workflow_dispatch:' '$REPO_ROOT/.github/workflows/extended-validation.yml' \\
     && ! grep -q '^  schedule:' '$REPO_ROOT/.github/workflows/extended-validation.yml' \\
@@ -227,18 +242,25 @@ assert "cache save is skipped when derivation discovery failed" \
   "grep -q \"steps.check-changes.outcome == 'success'\" \\
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 
-# Test: full validation runs only on the newest main workflow run.
+# Test: full validation runs only on the newest main workflow run without
+# realizing the complete Devenv package profile.
 assert "main workflow cancels superseded runs" \
   "grep -q 'cancel-in-progress: true' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
-assert "main workflow runs the canonical test:all task" \
-  "grep -q 'devenv tasks run test:all' \
+assert "main workflow runs all Nix checks directly" \
+  "grep -q 'nix flake check --max-jobs auto' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
-assert "main workflow runs all non-VM check groups" \
-  "grep -q 'devenv tasks run ci:checks:non-vm' \
+assert "main workflow keeps platform deprecation checks" \
+  "grep -q 'bash tests/test-platform-deprecation-warnings.sh' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
-assert "main workflow runs all VM check groups" \
-  "grep -q 'devenv tasks run ci:checks:vm' \
+assert "main workflow tests the machine chart without Devenv" \
+  "grep -q 'bash tests/test-machine-chart.sh' \
+    '$REPO_ROOT/.github/workflows/main-build.yml'"
+assert "main full test suite does not invoke Devenv tasks" \
+  "! grep -q 'devenv tasks run' \
+    '$REPO_ROOT/.github/workflows/main-build.yml'"
+assert "main workflow does not install Devenv for the full test suite" \
+  "! grep -q 'github:cachix/devenv/.*#devenv' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "full test suite is restricted to main" \
   "grep -q \"if: github.ref == 'refs/heads/main'\" \

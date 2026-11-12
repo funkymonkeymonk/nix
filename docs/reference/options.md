@@ -161,7 +161,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enable` | boolean | `false` | Enable agent email tools (himalaya CLI, gmailctl filters) |
+| `enable` | boolean | `false` | Enable Gmail filter management tools for email agents |
 | `enableGmailctl` | boolean | `true` | Enable gmailctl for declarative Gmail filter management. Requires one-time OAuth2 setup via 'email-filters init'. |
 | `gmailctlConfigDir` | string | `".config/gmailctl"` | Path relative to home directory for gmailctl configuration (Jsonnet filter definitions) |
 
@@ -430,7 +430,7 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `agent-skills.enable` | boolean | `false` | AI agent skills management (auto-enabled by opencode/claude) |
-| `assistant.enable` | boolean | `false` | Agent email tools (himalaya, gmailctl) for reading, moving, and filtering Gmail |
+| `assistant.enable` | boolean | `false` | Gmail filter management tools for email agents |
 | `claude.enable` | boolean | `false` | Claude Code AI assistant with rtk |
 | `creative.enable` | boolean | `false` | Media tools (ffmpeg, imagemagick, pandoc) |
 | `desktop.enable` | boolean | `false` | Desktop applications (logseq, super-productivity, element) |

@@ -1,6 +1,7 @@
 {pkgs, ...}: let
   devenvSource = builtins.readFile ../devenv.nix;
   devenvYaml = builtins.readFile ../devenv.yaml;
+  usesDevenvPackages = pkgs.lib.hasInfix "devenv-packages.nix" devenvSource;
   usesFoundationPackages = pkgs.lib.hasInfix "foundation-packages.nix" devenvSource;
   usesDeveloperPackages = pkgs.lib.hasInfix "developer-packages.nix" devenvSource;
   usesLegacyDevBase = pkgs.lib.hasInfix "library/dev-base.nix" devenvSource;
@@ -9,9 +10,9 @@ in {
   devBaseMigration = pkgs.runCommand "test-dev-base-migration" {} ''
     echo "=== Testing canonical devenv package sources ==="
     ${
-      if usesFoundationPackages
-      then ''echo "  devenv consumes foundation-packages.nix: OK"''
-      else ''echo "  FAIL: devenv must consume foundation-packages.nix"; exit 1''
+      if usesDevenvPackages && !usesFoundationPackages
+      then ''echo "  devenv uses its curated package list instead of machine foundation packages: OK"''
+      else ''echo "  FAIL: devenv must use devenv-packages.nix without foundation-packages.nix"; exit 1''
     }
     ${
       if usesDeveloperPackages
