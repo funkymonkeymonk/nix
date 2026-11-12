@@ -405,6 +405,10 @@
         ${checkTrue "media-center retains node_exporter" (drlight.services.prometheus.exporters.node.enable or false)}
         ${checkTrue "drlight routes local collector to localhost" (drlight.myConfig.collector.destinationHostname == "localhost")}
         ${checkTrue "Jellyfin is active on drlight" (drlight.services.jellyfin.enable or false)}
+        ${checkTrue "Jellyfin streaming port is open" (builtins.elem 8096 drlight.networking.firewall.allowedTCPPorts)}
+        ${checkFalse "Jellyfin HTTPS port is not opened" (builtins.elem 8920 drlight.networking.firewall.allowedTCPPorts)}
+        ${checkTrue "Jellyfin discovery port is open" (builtins.elem 7359 drlight.networking.firewall.allowedUDPPorts)}
+        ${checkFalse "DLNA discovery port is not opened" (builtins.elem 1900 drlight.networking.firewall.allowedUDPPorts)}
         ${checkTrue "Homepage is active on drlight" (drlight.services.homepage-dashboard.enable or false)}
 
         ${checkTrue "separate type-observability selection enables Prometheus" (hasModule "/archetypes/type-observability.nix" drlightMachine && drlight.services.prometheus.enable)}

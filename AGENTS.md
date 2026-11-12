@@ -24,7 +24,9 @@ Check the collection for the latest MLX-converted models before choosing alterna
 | Run all tests | `devenv tasks run test:all` |
 | Run eval only | `devenv tasks run test:eval` |
 | Run build checks only | `devenv tasks run test:build-checks` |
-| Apply config | `devenv tasks run system:switch` |
+| Apply current host config | `devenv tasks run system:switch` |
+| Plan a named machine deployment | `devenv tasks run machines:plan --input machine=<name>` |
+| Apply a reviewed machine plan | `devenv tasks run machines:apply --input machine=<name> --input planId=<plan-id>`
 
 ---
 
@@ -69,7 +71,10 @@ devenv tasks run <task>        # Run a task
 | `test:eval` | Evaluate all NixOS/Darwin configurations |
 | `test:build-packages` | Build package availability checks |
 | `test:build-checks` | Build all runCommand eval tests |
-| `system:switch` | Apply configuration |
+| `machines:plan` | Plan changes for one named machine |
+| `machines:apply` | Apply a reviewed plan for one named machine |
+| `machines:deploy` | Explicitly deploy one named machine |
+| `system:switch` | Apply configuration to the current host only |
 
 ### Shell Aliases
 
@@ -689,21 +694,35 @@ CI runs both on separate runners.
 
 ---
 
-## NixOS Rebuild Commands
+## NixOS Machine Deployment Workflow (Required)
 
-When deploying to NixOS systems:
+Deploy remote or production NixOS machines through the repository's devenv Machines workflow. Do not use a direct `nixos-rebuild` command or SSH activation as a substitute. Machines uses the canonical machine catalog and the repository's pinned Devenv CLI; the wrapper also handles named-target validation, configured endpoints/builders, and machine-specific SecretSpec or Tailscale setup.
+
+For production changes, use the review-first plan/apply flow:
 
 ```bash
-# Standard rebuild (always use --impure for non-CI environments)
-sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#<hostname> --impure
+# 1. Create a plan for exactly one catalog machine.
+devenv tasks run machines:plan --input machine=drlight
 
-# Example for type-server
-sudo nixos-rebuild switch --flake github:funkymonkeymonk/nix#type-server --impure
+# 2. Review the plan output. Confirm the target and all planned changes.
+# Stop and report if it contains unexpected broad system/package changes.
+
+# 3. Apply only that reviewed plan, using its returned plan ID.
+devenv tasks run machines:apply \
+  --input machine=drlight \
+  --input planId=plan-<id>
+
+# 4. Check the target and verify the requested service/system health.
+devenv tasks run machines:check --input machine=drlight
 ```
 
-**Important**: Always use `--impure` flag for manual deployments. This repository uses nixos-facter for hardware detection and disposable environments that require impure evaluation. Only CI uses pure evaluation.
+Replace `drlight` with the explicit machine name and use the exact plan ID returned by `machines:plan`. The wrapper rejects a plan that belongs to a different machine. Commit the intended Nix configuration in the Jujutsu workspace before planning or applying so the flake reads the reviewed tree.
 
-**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task uses `op` to fetch sudo passwords. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI is likely waiting for browser-based authorization that requires the user to approve a 1Password prompt. Agents cannot complete this step — the user must sign in manually (e.g., `op signin` and approve the browser prompt). Once signed in, the CLI caches the session and subsequent `op` calls work without interaction.
+Use `devenv tasks run machines:deploy --input machine=<name>` only when the user explicitly requests the Machines deploy operation instead of plan/apply. Do not pass `yes=true` unless the user explicitly authorizes a non-interactive confirmation. `devenv tasks run system:switch` applies the configuration for the current host only; it is not a remote deployment command.
+
+Use direct `nixos-rebuild`/SSH activation only as an explicit, user-approved exception when the Machines workflow is unavailable. Explain that this bypasses the repository's target, plan, endpoint, and secret-handling safeguards before proceeding. If the exception is approved, use `--impure` where required by nixos-facter.
+
+**Troubleshooting `op` (1Password CLI) hangs**: The `system:switch` task uses `op` to fetch sudo passwords for the current host. If `op signin`, `op read`, or `op whoami` hang indefinitely, the CLI may be waiting for browser-based authorization. Agents cannot complete this step — the user must sign in manually and approve the 1Password prompt.
 
 ---
 
