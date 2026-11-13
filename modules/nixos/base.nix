@@ -69,7 +69,9 @@ in {
           unitConfig.ConditionPathExists = "!/var/lib/nixos-upgrade.disabled";
           serviceConfig.Type = "oneshot";
           script = ''
-            exec ${pkgs.systemd}/bin/systemctl start nixos-upgrade.service
+            # A switch can restart this guard while nixos-upgrade is driving it.
+            # Do not block activation waiting for the in-progress upgrade to finish.
+            exec ${pkgs.systemd}/bin/systemctl start --no-block nixos-upgrade.service
           '';
         };
         timers.nixos-upgrade.timerConfig.Unit = "nixos-upgrade-scheduled.service";

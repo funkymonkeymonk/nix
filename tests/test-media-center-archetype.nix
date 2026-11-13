@@ -629,6 +629,7 @@
           }
           echo "  Homepage Caddy hostnames resolve to Drlight in split DNS: OK"
           ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
+          ${checkTrue "scheduled upgrade guard does not block system activation on an in-progress upgrade" (lib.hasInfix "systemctl start --no-block nixos-upgrade.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
           ${checkEqual "scheduled upgrades run through the sentinel guard" "nixos-upgrade-scheduled.service" (drlight.systemd.timers.nixos-upgrade.timerConfig.Unit or null)}
           ${checkEqual "disable sentinel skips scheduled upgrades at runtime" "!/var/lib/nixos-upgrade.disabled" (drlight.systemd.services.nixos-upgrade-scheduled.unitConfig.ConditionPathExists or null)}
           ${checkFalse "manual upgrades are not gated by the scheduled sentinel" (drlight.systemd.services.nixos-upgrade.unitConfig ? ConditionPathExists)}
