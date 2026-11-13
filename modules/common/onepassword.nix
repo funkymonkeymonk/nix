@@ -54,10 +54,10 @@ in {
       type = types.str;
       default = "";
       description = ''
-        1Password reference for the sudo password used by the system:switch task.
-        If empty (default), falls back to op://Opnix/<hostname> Sudo Password/password.
-        Override this for machines with different vault or item names,
-        e.g. "op://Employee/wweaver Sudo Password/password".
+        1Password reference for the sudo password used by system:switch and nix-gc tasks.
+        An unqualified Item/field reference is resolved through defaultVault.
+        If empty, falls back to <defaultVault>/<hostname> Sudo Password/password.
+        Fully qualified op:// references remain supported for existing machine-specific overrides.
       '';
     };
 

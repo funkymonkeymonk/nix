@@ -17,6 +17,17 @@
   openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
   runWithSudoPassword = ''
+    resolve_sudo_password_ref() {
+      local reference="$1"
+      local default_vault="$2"
+
+      if [[ "$reference" == op://* ]]; then
+        printf '%s' "$reference"
+      else
+        printf 'op://%s/%s' "$default_vault" "$reference"
+      fi
+    }
+
     run_with_sudo_password() {
       local password_path="$1"
       shift
@@ -262,12 +273,11 @@ in {
       CONFIG_SET="nixosConfigurations"
     fi
     CUSTOM_REF=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-    if [[ -n "$CUSTOM_REF" ]]; then
-      PASSWORD_PATH="$CUSTOM_REF"
-    else
-      DEFAULT_VAULT=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
-      PASSWORD_PATH="op://''${DEFAULT_VAULT}/''${HOSTNAME} Sudo Password/password"
+    DEFAULT_VAULT=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+    if [[ -z "$CUSTOM_REF" ]]; then
+      CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
     fi
+    PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
     run_with_sudo_password "$PASSWORD_PATH" \
       nix-collect-garbage --delete-older-than "''${KEEP_DAYS}d"
   '';
@@ -559,12 +569,11 @@ in {
           # Get sudo password from 1Password
           # Check if config defines a custom sudoPasswordRef, otherwise use default pattern
           CUSTOM_REF=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-          if [[ -n "$CUSTOM_REF" ]]; then
-            PASSWORD_PATH="$CUSTOM_REF"
-          else
-            DEFAULT_VAULT=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
-            PASSWORD_PATH="op://''${DEFAULT_VAULT}/''${HOSTNAME} Sudo Password/password"
+          DEFAULT_VAULT=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+          if [[ -z "$CUSTOM_REF" ]]; then
+            CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
           fi
+          PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
           # Build and switch with output logging
           SWITCH_LOG="/tmp/system-switch-$(date +%Y%m%d-%H%M%S).log"
           echo "Build log: $SWITCH_LOG"
@@ -597,12 +606,11 @@ in {
           # devenv tasks do not guarantee an interactive terminal, so provide
           # sudo with the configured password just as the Darwin path does.
           CUSTOM_REF=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-          if [[ -n "$CUSTOM_REF" ]]; then
-            PASSWORD_PATH="$CUSTOM_REF"
-          else
-            DEFAULT_VAULT=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
-            PASSWORD_PATH="op://''${DEFAULT_VAULT}/''${HOSTNAME} Sudo Password/password"
+          DEFAULT_VAULT=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+          if [[ -z "$CUSTOM_REF" ]]; then
+            CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
           fi
+          PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
           echo "--- Building Configuration ---"
           echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"
           echo ""

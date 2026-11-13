@@ -266,7 +266,7 @@
         // {
           onepassword = {
             defaultVault = "Opnix";
-            sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
+            sudoPasswordRef = "MegamanX Sudo Password/password";
           };
           ssh.enable = true;
           tailscale = {

@@ -18,6 +18,11 @@
       grep -q 'sudo -S' "$devenv"
       grep -q 'op read' "$devenv"
 
+      # Custom unqualified sudo references resolve against the machine's default vault.
+      grep -q 'resolve_sudo_password_ref()' "$devenv"
+      grep -q 'op://.*default_vault' "$devenv"
+      [ "$(grep -c 'PASSWORD_PATH=$(resolve_sudo_password_ref' "$devenv")" -eq 3 ]
+
       # system:switch includes the shared helper in its task body.
       linux_task=$(sed -n '/"system:switch" = {/,/^[[:space:]]*};/p' "$devenv")
       grep -q 'runWithSudoPassword' <<< "$linux_task"
