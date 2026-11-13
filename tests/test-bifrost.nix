@@ -9,24 +9,23 @@
       modules = stubs.bifrost;
     }).config.myConfig.bifrost;
 
-  bifrostTailscaleServe =
-    (lib.evalModules {
-      modules =
-        stubs.bifrost
-        ++ [
-          {
-            config.myConfig.users = [{name = "monkey";}];
-            config.myConfig.bifrost = {
-              enable = true;
-              exposeViaTailscaleServe = true;
-              host = "127.0.0.1";
-              port = 8081;
-            };
-          }
-        ];
-    }).config;
-
-  bifrostTailscaleServeDaemon = bifrostTailscaleServe.launchd.daemons.bifrost-tailscale-serve or {};
+  bifrostWithoutTailscaleEval = lib.evalModules {
+    modules =
+      stubs.bifrost
+      ++ [
+        {
+          config.myConfig.users = [{name = "monkey";}];
+          config.myConfig.bifrost = {
+            enable = true;
+            host = "127.0.0.1";
+            port = 8081;
+          };
+        }
+      ];
+  };
+  bifrostWithoutTailscale = bifrostWithoutTailscaleEval.config;
+  bifrostStandaloneDaemon = bifrostWithoutTailscale.launchd.daemons.bifrost or {};
+  bifrostOptions = bifrostWithoutTailscaleEval.options.myConfig.bifrost or {};
 
   bifrostCustom =
     (lib.evalModules {
@@ -181,30 +180,23 @@ in {
   '';
 
   bifrostTailscaleServeTest = pkgs.runCommand "test-bifrost-tailscale-serve" {} ''
-    echo "=== Testing Bifrost tailnet-only exposure ==="
-    ${
-      if bifrostTailscaleServe ? launchd && bifrostTailscaleServe.launchd.daemons ? bifrost-tailscale-serve
-      then ''echo "Tailscale Serve LaunchDaemon is defined: OK"''
-      else ''echo "FAIL: Bifrost tailnet exposure must have a boot daemon"; exit 1''
-    }
-    SCRIPT=${bifrostTailscaleServeDaemon.command or ""}
-    BIFROST_SCRIPT=${bifrostTailscaleServe.launchd.daemons.bifrost.command}
+    echo "=== Testing Tailscale Serve ownership ==="
+    BIFROST_SCRIPT=${bifrostStandaloneDaemon.command or ""}
     ${pkgs.bash}/bin/bash -n "$BIFROST_SCRIPT"
-    ${pkgs.bash}/bin/bash -n "$SCRIPT"
-    if sed -n '2p' "$BIFROST_SCRIPT" | grep -Fxq 'set -euo pipefail'; then
-      echo "Bifrost daemon starts with the intended shell script: OK"
+    if ${lib.boolToString (!(builtins.hasAttr "bifrost-tailscale-serve" bifrostWithoutTailscale.launchd.daemons))}; then
+      echo "Bifrost no longer owns a Tailscale Serve daemon: OK"
     else
-      echo "FAIL: Bifrost launcher script must be valid and executable"; exit 1
+      echo "FAIL: Tailscale Serve must be configured centrally, not by Bifrost"; exit 1
     fi
-    if grep -q 'tailscale ip -4' "$SCRIPT" && grep -q '/v1/models' "$SCRIPT"; then
-      echo "Serve waits for Tailscale and Bifrost readiness: OK"
+    if ${lib.boolToString (!(builtins.hasAttr "exposeViaTailscaleServe" bifrostOptions) && !(builtins.hasAttr "tailscaleServePort" bifrostOptions))}; then
+      echo "Bifrost has no Tailscale-owned options: OK"
     else
-      echo "FAIL: Serve must wait for the tailnet and the local API"; exit 1
+      echo "FAIL: Tailscale Serve options must be moved out of Bifrost"; exit 1
     fi
-    if grep -q 'tailscale serve --bg' "$SCRIPT" && grep -q -- '--http=8081' "$SCRIPT" && grep -q 'http://127.0.0.1:8081' "$SCRIPT"; then
-      echo "Bifrost is exposed over Tailscale Serve only: OK"
+    if ! grep -qi 'tailscale' "$BIFROST_SCRIPT"; then
+      echo "Bifrost launcher contains no Tailscale CLI setup: OK"
     else
-      echo "FAIL: Tailscale Serve must proxy the loopback Bifrost endpoint"; exit 1
+      echo "FAIL: Bifrost launcher must not configure Tailscale"; exit 1
     fi
     touch $out
   '';

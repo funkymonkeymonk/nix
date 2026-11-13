@@ -10,6 +10,8 @@
 with lib; let
   hasSystemd = builtins.hasAttr "systemd" options;
 in {
+  imports = [./tailscale.nix];
+
   options.myConfig.autoUpgrade.flakeUrl = mkOption {
     type = types.str;
     default = "";

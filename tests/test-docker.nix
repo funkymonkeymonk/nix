@@ -7,7 +7,7 @@
     (lib.evalModules {
       modules =
         stubs.base
-        ++ stubs.nixosServices
+        ++ stubs.nixosService
         ++ [
           {
             options.system.autoUpgrade = lib.mkOption {
@@ -16,6 +16,14 @@
             };
             options.virtualisation = lib.mkOption {
               type = lib.types.anything;
+              default = {};
+            };
+            options.assertions = lib.mkOption {
+              type = lib.types.listOf lib.types.anything;
+              default = [];
+            };
+            options.systemd.timers = lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
               default = {};
             };
             config.myConfig.users = [

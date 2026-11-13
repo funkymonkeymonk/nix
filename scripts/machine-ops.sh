@@ -80,7 +80,7 @@ machine_metadata() {
   # Machine names are restricted above before being interpolated into this
   # expression. Metadata is public catalog data; no SecretSpec provider is
   # loaded while resolving it.
-  expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; tailscale = (machine.overrides or {}).tailscale or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; hasTailscaleOAuth = builtins.hasAttr \"TAILSCALE_OAUTH_CLIENT_ID\" profile && builtins.hasAttr \"TAILSCALE_OAUTH_CLIENT_SECRET\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\") + \"\\t\" + machine.system + \"\\t\" + (tailscale.authKeyMode or \"opnix\") + \"\\t\" + (if hasTailscaleOAuth then \"true\" else \"false\") + \"\\t\" + builtins.toJSON (tailscale.authKeyTags or [])"
+  expression="let catalog = import ${catalog_path} { inputs = {}; }; machine = builtins.getAttr \"${machine}\" catalog; manifest = builtins.fromTOML (builtins.readFile ${repo_root}/secretspec.toml); profile = manifest.profiles.\${machine.secretProfile} or {}; tailscale = (machine.overrides or {}).tailscale or {}; hasSecrets = builtins.any (name: name != \"defaults\") (builtins.attrNames profile); hasBootstrapSecret = builtins.hasAttr \"OPNIX_SERVICE_ACCOUNT_TOKEN\" profile; hasTailscaleOAuth = builtins.hasAttr \"TAILSCALE_OAUTH_CLIENT_ID\" profile && builtins.hasAttr \"TAILSCALE_OAUTH_CLIENT_SECRET\" profile; in machine.secretProfile + \"\\t\" + (if machine.kind == \"nixos\" then \"nixos\" else \"darwin\") + \"\\t\" + (if hasSecrets then \"true\" else \"false\") + \"\\t\" + (if hasBootstrapSecret then \"true\" else \"false\") + \"\\t\" + machine.system + \"\\t\" + (builtins.toJSON (tailscale.enable or false)) + \"\\t\" + (if hasTailscaleOAuth then \"true\" else \"false\") + \"\\t\" + builtins.toJSON (tailscale.authKeyTags or [])"
   "$nix_bin" eval --impure --raw --expr "$expression"
 }
 
@@ -113,18 +113,97 @@ machine_target_host() {
   printf '%s' "$target_host"
 }
 
+TAILSCALE_CLEANUP_TARGET=""
+TAILSCALE_CLEANUP_SSH=""
+TAILSCALE_CLEANUP_COMMAND=""
+
+cleanup_staged_tailscale_key() {
+  [[ -n "$TAILSCALE_CLEANUP_TARGET" ]] || return 0
+  if ! "$TAILSCALE_CLEANUP_SSH" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+      "$TAILSCALE_CLEANUP_TARGET" "$TAILSCALE_CLEANUP_COMMAND" >/dev/null 2>&1; then
+    printf 'WARNING: unable to remove the temporary Tailscale auth-key file from the named target\n' >&2
+  fi
+  TAILSCALE_CLEANUP_TARGET=""
+  TAILSCALE_CLEANUP_SSH=""
+  TAILSCALE_CLEANUP_COMMAND=""
+}
+trap cleanup_staged_tailscale_key EXIT
+
+tailscale_backend_state() {
+  local target_host=$1
+  local ssh_bin=$2
+  local jq_bin=$3
+  local status_json
+
+  status_json=$("$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
+    '/run/current-system/sw/bin/tailscale status --json 2>/dev/null') || return 1
+  printf '%s' "$status_json" \
+    | "$jq_bin" -er '.BackendState | select(type == "string" and length > 0)' 2>/dev/null
+}
+
+stage_tailscale_auth_key() {
+  local target_kind=$1
+  local target_host=$2
+  local ssh_bin=$3
+  local auth_key=$4
+  local stage_command cleanup_command
+
+  case "$target_kind" in
+    nixos)
+      stage_command='set -eu; umask 077; mkdir -p /run/devenv; chmod 0700 /run/devenv; cat > /run/devenv/tailscale-auth-key; chmod 0600 /run/devenv/tailscale-auth-key'
+      cleanup_command='rm -f -- /run/devenv/tailscale-auth-key'
+      ;;
+    darwin)
+      stage_command="set -eu; umask 077; tmp=\$(mktemp /tmp/devenv-tailscale-auth-key.XXXXXX); trap 'rm -f -- \"\$tmp\"' EXIT; cat > \"\$tmp\"; chmod 0600 \"\$tmp\"; mv -f -- \"\$tmp\" /tmp/devenv-tailscale-auth-key; trap - EXIT"
+      cleanup_command='rm -f -- /tmp/devenv-tailscale-auth-key'
+      ;;
+    *)
+      printf 'ERROR: unsupported Tailscale target platform: %s\n' "$target_kind" >&2
+      return 1
+      ;;
+  esac
+
+  if ! printf '%s' "$auth_key" \
+      | "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" "$stage_command"; then
+    unset auth_key
+    "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" "$cleanup_command" >/dev/null 2>&1 || true
+    return 1
+  fi
+  unset auth_key
+
+  TAILSCALE_CLEANUP_TARGET=$target_host
+  TAILSCALE_CLEANUP_SSH=$ssh_bin
+  TAILSCALE_CLEANUP_COMMAND=$cleanup_command
+}
+
+wait_for_tailscale_running() {
+  local target_host=$1
+  local ssh_bin=$2
+  local jq_bin=$3
+  local backend_state
+
+  for ((attempt = 1; attempt <= 30; attempt += 1)); do
+    if backend_state=$(tailscale_backend_state "$target_host" "$ssh_bin" "$jq_bin") \
+        && [[ "$backend_state" == Running ]]; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 run_scoped_machine_operation() {
   local operation=$1
   local machine=$2
   shift 2
-  local metadata profile kind has_secrets has_bootstrap_secret target_system tailscale_auth_mode has_tailscale_oauth tailscale_auth_tags
+  local metadata profile kind has_secrets has_bootstrap_secret target_system tailscale_enabled has_tailscale_oauth tailscale_auth_tags
   local devenv_bin secretspec_bin devenv_store_path
 
   metadata=$(machine_metadata "$machine") || {
     printf 'ERROR: machine %s is not in the catalog or has no deployment metadata\n' "$machine" >&2
     exit 64
   }
-  IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret target_system tailscale_auth_mode has_tailscale_oauth tailscale_auth_tags <<< "$metadata"
+  IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret target_system tailscale_enabled has_tailscale_oauth tailscale_auth_tags <<< "$metadata"
   case "$profile" in
     Opnix|Personal|MegamanX|Employee) ;;
     *) printf 'ERROR: unsupported SecretSpec profile for machine %s\n' "$machine" >&2; exit 64 ;;
@@ -144,26 +223,21 @@ run_scoped_machine_operation() {
     "$devenv_bin" machines install "$@" --secretspec-profile "$profile"
     return
   fi
-  if [[ "$operation" == deploy && "$tailscale_auth_mode" == "devenv-oauth" ]]; then
-    [[ "$kind" == nixos ]] || {
-      printf 'ERROR: OAuth-generated Tailscale keys are only supported for NixOS machines\n' >&2
-      exit 69
-    }
-    local target_host ssh_bin jq_bin remote_status backend_state tailscale_auth_key authkey_script key_staged=false deploy_status
+  if [[ ( "$operation" == deploy || "$operation" == apply ) && "$tailscale_enabled" == true ]]; then
+    local target_host ssh_bin jq_bin backend_state tailscale_auth_key authkey_script key_staged=false deploy_status=0
     local tailscale_auth_tags_array
     target_host=$(machine_target_host "$machine" "$devenv_bin") || exit $?
     ssh_bin=${SSH_BIN:-ssh}
     jq_bin=${JQ_BIN:-jq}
-    remote_status=$(
-      "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
-        '/run/current-system/sw/bin/tailscale status --json 2>/dev/null || true'
-    ) || {
-      printf 'ERROR: unable to inspect Tailscale state on %s\n' "$machine" >&2
+    if ! backend_state=$(tailscale_backend_state "$target_host" "$ssh_bin" "$jq_bin"); then
+      printf 'ERROR: unable to inspect a valid Tailscale backend state on %s; refusing OAuth enrollment\n' "$machine" >&2
       exit 69
-    }
-    backend_state=$(printf '%s' "$remote_status" | "$jq_bin" -r '.BackendState // empty' 2>/dev/null || true)
+    fi
 
-    if [[ "$backend_state" != Running ]]; then
+    case "$backend_state" in
+      Running)
+        ;;
+      NeedsLogin)
       [[ "$has_tailscale_oauth" == true ]] || {
         printf 'ERROR: %s uses OAuth-generated Tailscale keys but its SecretSpec profile lacks the OAuth client ID and secret\n' "$machine" >&2
         exit 69
@@ -191,26 +265,46 @@ run_scoped_machine_operation() {
         printf 'ERROR: Tailscale OAuth helper returned an empty auth key for %s\n' "$machine" >&2
         exit 69
       }
-      if ! printf '%s' "$tailscale_auth_key" | "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
-        'umask 077; mkdir -p /run/devenv; chmod 0700 /run/devenv; cat > /run/devenv/tailscale-auth-key; chmod 0600 /run/devenv/tailscale-auth-key'; then
+        if ! stage_tailscale_auth_key "$kind" "$target_host" "$ssh_bin" "$tailscale_auth_key"; then
+          unset tailscale_auth_key
+          printf 'ERROR: failed to stage the one-time Tailscale auth key on %s\n' "$machine" >&2
+          exit 69
+        fi
         unset tailscale_auth_key
-        printf 'ERROR: failed to stage the one-time Tailscale auth key on %s\n' "$machine" >&2
+        key_staged=true
+        ;;
+      *)
+        printf 'ERROR: Tailscale backend state on %s is unsupported (%s); refusing OAuth enrollment\n' "$machine" "$backend_state" >&2
         exit 69
-      fi
-      unset tailscale_auth_key
-      key_staged=true
-    fi
+        ;;
+    esac
 
-    if "$devenv_bin" machines "$operation" "$@"; then
+    devenv_store_path=${devenv_bin%/bin/devenv}
+    secretspec_bin=${SECRETSPEC_BIN:-$devenv_store_path/bin/secretspec}
+    if [[ "$operation" == apply && "$has_secrets" == true ]]; then
+      [[ -x "$secretspec_bin" ]] || {
+        printf 'ERROR: SecretSpec CLI not found; refusing to apply %s without its scoped profile\n' "$machine" >&2
+        exit 69
+      }
+      if "$secretspec_bin" run --profile "$profile" -- "$devenv_bin" machines "$operation" "$@"; then
+        deploy_status=0
+      else
+        deploy_status=$?
+      fi
+    elif "$devenv_bin" machines "$operation" "$@"; then
       deploy_status=0
     else
       deploy_status=$?
     fi
+
+    if [[ "$key_staged" == true && "$deploy_status" -eq 0 ]]; then
+      if ! wait_for_tailscale_running "$target_host" "$ssh_bin" "$jq_bin"; then
+        printf 'ERROR: %s did not reach Tailscale BackendState=Running after activation\n' "$machine" >&2
+        deploy_status=69
+      fi
+    fi
     if [[ "$key_staged" == true ]]; then
-      "$ssh_bin" -o BatchMode=yes -o StrictHostKeyChecking=yes "$target_host" \
-        'rm -f -- /run/devenv/tailscale-auth-key' >/dev/null 2>&1 || {
-        printf 'WARNING: unable to remove the temporary Tailscale auth-key file from %s\n' "$machine" >&2
-      }
+      cleanup_staged_tailscale_key
     fi
     return "$deploy_status"
   fi
@@ -247,7 +341,7 @@ case "$operation" in
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
-    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret _target_system _tailscale_auth_mode _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
+    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret _target_system _tailscale_enabled _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
     case "$kind" in
       nixos) build_role=nixos ;;
       darwin) build_role=nix-darwin ;;
@@ -282,7 +376,7 @@ case "$operation" in
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
-    IFS=$'\t' read -r _profile _kind _has_secrets _has_bootstrap_secret target_system _tailscale_auth_mode _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
+    IFS=$'\t' read -r _profile _kind _has_secrets _has_bootstrap_secret target_system _tailscale_enabled _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
     nix_bin=${NIX_BIN:-nix}
     current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem') || {
       printf 'ERROR: unable to determine the current Nix system\n' >&2

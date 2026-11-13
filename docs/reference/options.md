@@ -62,11 +62,9 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `appDir` | string | `"$HOME/.config/bifrost"` | Directory for Bifrost data (config.json, SQLite DB, request logs) |
 | `enable` | boolean | `false` | Enable Bifrost AI gateway for unified LLM access across all local inference servers |
-| `exposeViaTailscaleServe` | boolean | `false` | Publish a loopback-bound Bifrost API to the tailnet with Tailscale Serve. |
 | `host` | string | `"0.0.0.0"` | Host to bind Bifrost to |
 | `logLevel` | one of "debug", "info", "warn", "error" | `"info"` | Bifrost log level |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8081` | Port for Bifrost HTTP gateway |
-| `tailscaleServePort` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8081` | Tailnet-only HTTP port used by Tailscale Serve for Bifrost. |
 | `upstreams` | attribute set of (submodule) | `{ }` | Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b') |
 | `upstreams.<name>.allowPrivateNetwork` | boolean | `true` | Allow connecting to private network IPs (localhost, 192.168.x.x, 10.x.x.x) |
 | `upstreams.<name>.apiKey` | string | `"dummy"` | API key for the upstream (dummy for local servers) |
@@ -505,11 +503,13 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `advertiseRoutes` | list of string | `[ ]` | Additional routes to advertise (CIDR notation, e.g. ["10.0.0.0/24"]) |
-| `authKeyMode` | one of "opnix", "devenv-oauth" | `"opnix"` | How NixOS obtains an auth key: from OpNix or from a one-time key provisioned by the Devenv deployment task. |
-| `authKeyOpnixItem` | string | `"Tailscale/auth-key"` | 1Password item reference for static Tailscale auth keys. If the value does not start with 'op://', the default vault is prepended. |
-| `authKeyTags` | list of string | `[ ]` | Tailscale tags assigned to devices authenticated with deployment-generated OAuth auth keys. |
-| `enable` | boolean | `false` | Tailscale VPN with auto-connect via 1Password secrets |
+| `authKeyTags` | list of string | `[ "tag:home-lab" ]` | Tags assigned to devices authenticated with deployment-generated OAuth auth keys. |
+| `enable` | boolean | `false` | Tailscale VPN with deployment-generated OAuth authentication |
 | `exitNode` | boolean | `false` | Advertise this machine as a Tailscale exit node |
+| `serve` | attribute set of (submodule) | `{ }` | Local services published through Tailscale Serve; mappings are tailnet-only. |
+| `serve.<name>.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | *required* | Tailnet-only HTTP port to publish for this local service. |
+| `serve.<name>.readinessUrl` | string | *required* | Local URL that must be healthy before Tailscale Serve publishes the service. |
+| `serve.<name>.target` | string | *required* | Local HTTP service URL proxied by Tailscale Serve. |
 
 ### myConfig.ultraMediaDownloadStage
 
