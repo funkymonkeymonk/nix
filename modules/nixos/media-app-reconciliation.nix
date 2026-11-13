@@ -11,6 +11,76 @@
   mediaSecretsGroup = "media-management-secrets";
   apiKeyDirectory = "/run/media-app-api-keys";
   stageRoot = "/srv/media/.arr-staging";
+  mediaAuthApps = [
+    {
+      name = "radarr";
+      item = "Radarr";
+      passwordField = "password";
+    }
+    {
+      name = "sonarr";
+      item = "Sonarr";
+      passwordField = "password";
+    }
+    {
+      name = "lidarr";
+      item = "Lidarr";
+      passwordField = "password";
+    }
+    {
+      name = "bazarr";
+      item = "Bazaar";
+      passwordField = "password";
+    }
+    {
+      name = "mylar3";
+      item = "Mylar3";
+      passwordField = "password";
+    }
+    {
+      name = "jellyfin";
+      item = "Jellyfin";
+      passwordField = "password";
+    }
+  ];
+  mediaAuthSecretPath = app: field: "/run/secrets/${app}-admin-${field}";
+  mkMediaAuthSecret = app: field: referenceField: {
+    reference = "${app.item}/${referenceField}";
+    path = mediaAuthSecretPath app.name field;
+    owner = "root";
+    group = "media-auth-${app.name}";
+    mode = "0440";
+    services = [app.name];
+  };
+  mediaAuthSecrets = lib.listToAttrs (lib.concatMap (app: [
+      (lib.nameValuePair "${app.name}AdminUsername" (mkMediaAuthSecret app "username" "username"))
+      (lib.nameValuePair "${app.name}AdminPassword" (mkMediaAuthSecret app "password" app.passwordField))
+    ])
+    mediaAuthApps);
+  jellyfinAuthConfig = pkgs.writeText "jellyfin-admin-auth.json" (builtins.toJSON {
+    baseUrl = "http://127.0.0.1:8096";
+    usernameFile = mediaAuthSecretPath "jellyfin" "username";
+    passwordFile = mediaAuthSecretPath "jellyfin" "password";
+  });
+  jellyfinAuthService = {
+    description = "Verify the declared Jellyfin administrator credentials";
+    after = ["jellyfin.service" "opnix-secrets.service"];
+    wants = ["jellyfin.service" "opnix-secrets.service"];
+    requires = ["jellyfin.service" "opnix-secrets.service"];
+    wantedBy = ["jellyfin.service"];
+    serviceConfig = {
+      Type = "oneshot";
+      User = "jellyfin";
+      Group = "jellyfin";
+      SupplementaryGroups = ["media-auth-jellyfin"];
+      UMask = "0077";
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      NoNewPrivileges = true;
+      RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+      ExecStart = "${pkgs.python3}/bin/python ${scriptsDir}/jellyfin_admin_auth.py --config ${jellyfinAuthConfig}";
+    };
+  };
 
   secretFileOption = default:
     mkOption {
@@ -37,6 +107,17 @@
       type = types.listOf types.str;
       default = [root];
       description = "Local application library roots managed through the app API.";
+    };
+    adminAuth = mkOption {
+      type = types.submodule {
+        options = {
+          enable = lib.mkEnableOption "declarative ${app} Forms-auth credentials";
+          usernameFile = secretFileOption (mediaAuthSecretPath app "username");
+          passwordFile = secretFileOption (mediaAuthSecretPath app "password");
+        };
+      };
+      default = {};
+      description = "Runtime-only administrator credentials reconciled through the local Arr API.";
     };
     transmission = mkOption {
       type = types.submodule {options = transmissionOptions app;};
@@ -101,10 +182,15 @@
     appCfg = mediaCfg.${app};
     transmission = appCfg.transmission;
     configFile = pkgs.writeText "${app}-media-reconcile.json" (builtins.toJSON {
+      application = app;
       baseUrl = "http://127.0.0.1:${toString service.port}/api/v${toString service.apiVersion}";
       configXml = service.configFile;
       rootFolders = appCfg.rootFolders;
-      transmission = {
+      auth = lib.optionalAttrs appCfg.adminAuth.enable {
+        username.secret = appCfg.adminAuth.usernameFile;
+        password.secret = appCfg.adminAuth.passwordFile;
+      };
+      transmission = lib.optionalAttrs transmission.enable {
         name = "Transmission";
         localPath = transmission.localPath;
         rpcUrl.secret = transmission.rpcUrlFile;
@@ -123,7 +209,7 @@
       Type = "oneshot";
       User = app;
       Group = "${app}-api";
-      SupplementaryGroups = [mediaSecretsGroup];
+      SupplementaryGroups = ["media-auth-${app}"] ++ lib.optionals transmission.enable [mediaSecretsGroup];
       UMask = "0077";
       ProtectSystem = "strict";
       ProtectHome = true;
@@ -141,6 +227,10 @@
     sonarr = {
       baseUrl = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}";
       apiKeyFile = apiKeyFile "sonarr";
+    };
+    auth = {
+      usernameFile = mediaAuthSecretPath "bazarr" "username";
+      passwordFile = mediaAuthSecretPath "bazarr" "password";
     };
     radarr = {
       baseUrl = "http://127.0.0.1:${toString config.services.radarr.settings.server.port}";
@@ -161,9 +251,13 @@
     lib.nameValuePair "${name}-media-config-sync" (arrServiceConfig name service))
   arrServices;
 
-  groups = lib.genAttrs (map (name: "${name}-api") (builtins.attrNames arrServices) ++ ["bazarr-api" mediaSecretsGroup]) (_: {});
+  groups = lib.genAttrs (
+    map (name: "${name}-api") (builtins.attrNames arrServices)
+    ++ ["bazarr-api" mediaSecretsGroup]
+    ++ map (app: "media-auth-${app.name}") mediaAuthApps
+  ) (_: {});
 
-  hasArrSync = app: config.services.${app}.enable && mediaCfg.${app}.transmission.enable;
+  hasArrSync = app: config.services.${app}.enable && (mediaCfg.${app}.transmission.enable || mediaCfg.${app}.adminAuth.enable);
   enabledArrApps = builtins.filter hasArrSync (builtins.attrNames arrServices);
 
   bazarrEnabled = config.services.bazarr.enable;
@@ -184,7 +278,7 @@
       Type = "oneshot";
       User = "bazarr";
       Group = "bazarr-api";
-      SupplementaryGroups = ["radarr-api" "sonarr-api"];
+      SupplementaryGroups = ["radarr-api" "sonarr-api" "media-auth-bazarr"];
       UMask = "0077";
       ProtectSystem = "strict";
       ProtectHome = true;
@@ -234,7 +328,12 @@ in {
   };
 
   config = {
+    myConfig.onepassword.secrets = mediaAuthSecrets;
+
     users.groups = groups;
+    users.users = lib.genAttrs (map (app: app.name) mediaAuthApps) (app: {
+      extraGroups = ["media-auth-${app}"] ++ lib.optionals (app == "bazarr" && bazarrEnabled) ["bazarr-api" "radarr-api" "sonarr-api"];
+    });
     systemd.tmpfiles.rules = ["d ${apiKeyDirectory} 0755 root root - -"];
 
     systemd.services = lib.mkMerge [
@@ -245,11 +344,20 @@ in {
         bazarr-media-api-key = bazarrKeyService;
         bazarr-media-config-sync = bazarrSyncService;
       })
-      {
-        mylar3.serviceConfig.ExecStartPre = lib.mkIf (config.services.mylar3.enable && config.services.mylar3.manageSettingsFile) mylarConfigRenderer;
-      }
+      (lib.mkIf config.services.mylar3.enable {
+        mylar3 = {
+          after = ["opnix-secrets.service"];
+          wants = ["opnix-secrets.service"];
+          requires = ["opnix-secrets.service"];
+          serviceConfig = {
+            SupplementaryGroups = ["media-auth-mylar3"];
+            ExecStartPre = lib.mkIf config.services.mylar3.manageSettingsFile mylarConfigRenderer;
+          };
+        };
+      })
+      (lib.mkIf config.services.jellyfin.enable {
+        jellyfin-admin-auth = jellyfinAuthService;
+      })
     ];
-
-    users.users.bazarr.extraGroups = lib.mkIf bazarrEnabled ["bazarr-api" "radarr-api" "sonarr-api"];
   };
 }

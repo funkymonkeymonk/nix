@@ -15,6 +15,7 @@ from media_api_reconcile import (
     ensure_root_folder,
     expand_runtime_secrets,
     read_arr_api_key,
+    request_json,
     upsert_download_client,
     wait_for_arr_api,
 )
@@ -55,35 +56,71 @@ def transmission_fields(config: dict[str, Any]) -> tuple[dict[str, Any], str]:
     return fields, remote_path
 
 
+def reconcile_authentication(base_url: str, api_key: str, auth: dict[str, Any]) -> None:
+    username = expand_runtime_secrets(auth["username"])
+    password = expand_runtime_secrets(auth["password"])
+    if not isinstance(username, str) or not username or not isinstance(password, str) or not password:
+        raise ReconciliationError("Arr administrator username or password is empty")
+
+    current = request_json(base_url, api_key, "config/host")
+    if not isinstance(current, dict):
+        raise ReconciliationError("Arr host configuration has an unsupported format")
+
+    host_id = current.get("id")
+    if not isinstance(host_id, (str, int)) or not str(host_id).isdigit():
+        raise ReconciliationError("Arr host configuration is missing its resource ID")
+    endpoint = f"config/host/{host_id}"
+
+    desired = dict(current)
+    desired.update(
+        {
+            "authenticationMethod": "Forms",
+            "authenticationRequired": "Enabled",
+            "username": username,
+            "password": password,
+            "passwordConfirmation": password,
+        }
+    )
+    if desired != current:
+        request_json(base_url, api_key, endpoint, "PUT", desired)
+
+
 def reconcile(config: dict[str, Any]) -> None:
     base_url = config["baseUrl"].rstrip("/")
     api_key = read_arr_api_key(config["configXml"])
     wait_for_arr_api(base_url, api_key)
-    transmission = expand_runtime_secrets(config["transmission"])
-    fields, remote_path = transmission_fields(transmission)
+    transmission = config.get("transmission")
+    if transmission:
+        transmission = expand_runtime_secrets(transmission)
+        fields, remote_path = transmission_fields(transmission)
 
-    # The RPC endpoint itself is read at runtime from the secret file. Keep the
-    # rest of the Transmission config in a simple JSON-friendly structure.
-    downloader = {
-        "name": transmission.get("name", "Transmission"),
-        "implementation": "Transmission",
-        "enable": True,
-        "fields": fields,
-    }
-    upsert_download_client(base_url, api_key, downloader)
+        # The RPC endpoint itself is read at runtime from the secret file. Keep
+        # the rest of the Transmission config in a JSON-friendly structure.
+        downloader = {
+            "name": transmission.get("name", "Transmission"),
+            "implementation": "Transmission",
+            "enable": True,
+            "fields": fields,
+        }
+        upsert_download_client(base_url, api_key, downloader)
 
     for path in config.get("rootFolders", []):
-        ensure_root_folder(base_url, api_key, path)
+        ensure_root_folder(base_url, api_key, path, config.get("application", ""))
 
-    ensure_remote_path_mapping(
-        base_url,
-        api_key,
-        {
-            "host": urllib.parse.urlsplit(expand_runtime_secrets(transmission["rpcUrl"])).hostname,
-            "remotePath": remote_path,
-            "localPath": transmission["localPath"],
-        },
-    )
+    if transmission:
+        ensure_remote_path_mapping(
+            base_url,
+            api_key,
+            {
+                "host": urllib.parse.urlsplit(expand_runtime_secrets(transmission["rpcUrl"])).hostname,
+                "remotePath": remote_path,
+                "localPath": transmission["localPath"],
+            },
+        )
+
+    auth = config.get("auth")
+    if auth is not None:
+        reconcile_authentication(base_url, api_key, auth)
 
 
 def main(argv: list[str] | None = None) -> int:

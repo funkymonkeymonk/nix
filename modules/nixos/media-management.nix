@@ -157,14 +157,25 @@ in {
         HTTP_PORT = 8090;
         HTTP_ROOT = "/";
         AUTHENTICATION = 2;
+        HTTP_USERNAME.secret = "/run/secrets/mylar3-admin-username";
+        HTTP_PASSWORD.secret = "/run/secrets/mylar3-admin-password";
       };
     };
   };
 
   myConfig.mediaManagement = {
-    radarr.transmission.enable = true;
-    sonarr.transmission.enable = true;
-    lidarr.transmission.enable = true;
+    radarr = {
+      adminAuth.enable = true;
+      transmission.enable = true;
+    };
+    sonarr = {
+      adminAuth.enable = true;
+      transmission.enable = true;
+    };
+    lidarr = {
+      adminAuth.enable = true;
+      transmission.enable = true;
+    };
   };
 
   myConfig.homepage.directLinks = [

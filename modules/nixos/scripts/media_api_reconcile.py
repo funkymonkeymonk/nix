@@ -15,6 +15,20 @@ class ReconciliationError(RuntimeError):
     """A safe-to-log reconciliation failure."""
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, file, code, message, headers, new_url):
+        return None
+
+
+def open_local_url(request: urllib.request.Request, timeout: int = 20):
+    """Open a local application request without proxies or cross-host redirects."""
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({}),
+        _NoRedirectHandler(),
+    )
+    return opener.open(request, timeout=timeout)
+
+
 def expand_runtime_secrets(value: Any) -> Any:
     """Replace {"secret": "/absolute/path"} values at runtime only."""
     if isinstance(value, dict):
@@ -62,10 +76,12 @@ def request_json(
 
     request = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with open_local_url(request) as response:
             body = response.read()
     except urllib.error.HTTPError as error:
-        raise ReconciliationError(f"Arr API request failed with HTTP {error.code}") from error
+        status = error.code
+        error.close()
+        raise ReconciliationError(f"Arr API request failed with HTTP {status}") from error
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         raise ReconciliationError("Arr API request could not reach the local service") from error
 
@@ -161,11 +177,49 @@ def upsert_download_client(
         request_json(base_url, api_key, f"{endpoint}/{existing['id']}", "PUT", desired)
 
 
-def ensure_root_folder(base_url: str, api_key: str, path: str) -> None:
+def _first_profile_id(base_url: str, api_key: str, endpoint: str) -> int:
+    profiles = request_json(base_url, api_key, endpoint)
+    if not isinstance(profiles, list):
+        raise ReconciliationError("Lidarr returned an unsupported profile list")
+
+    profile_ids = [
+        profile.get("id")
+        for profile in profiles
+        if isinstance(profile, dict)
+        and isinstance(profile.get("id"), int)
+        and not isinstance(profile.get("id"), bool)
+        and profile["id"] > 0
+    ]
+    if not profile_ids:
+        raise ReconciliationError(f"Lidarr has no usable {endpoint} entries for a root folder")
+    return min(profile_ids)
+
+
+def ensure_root_folder(base_url: str, api_key: str, path: str, application: str = "") -> None:
     roots = request_json(base_url, api_key, "rootfolder")
     existing = unique_match(roots, lambda item: item.get("path") == path, f"root folder '{path}'")
     if existing is None:
-        request_json(base_url, api_key, "rootfolder", "POST", {"path": path})
+        payload = {"path": path}
+        if application == "lidarr":
+            payload.update(
+                {
+                    "name": pathlib.PurePosixPath(path).name,
+                    "defaultMetadataProfileId": _first_profile_id(base_url, api_key, "metadataprofile"),
+                    "defaultQualityProfileId": _first_profile_id(base_url, api_key, "qualityprofile"),
+                }
+            )
+        request_json(base_url, api_key, "rootfolder", "POST", payload)
+
+
+def _normalize_directory_path(path: str, name: str) -> str:
+    if not isinstance(path, str) or not path.startswith("/"):
+        raise ReconciliationError(f"Arr {name} must be an absolute path")
+
+    normalized = path.replace("\\", "/")
+    while "//" in normalized:
+        normalized = normalized.replace("//", "/")
+    normalized = normalized.rstrip("/")
+    return f"{normalized}/" if normalized else "/"
 
 
 def ensure_remote_path_mapping(
@@ -173,17 +227,37 @@ def ensure_remote_path_mapping(
     api_key: str,
     mapping: dict[str, str],
 ) -> None:
+    mapping = dict(mapping)
+    mapping["remotePath"] = _normalize_directory_path(mapping["remotePath"], "remote path")
+    mapping["localPath"] = _normalize_directory_path(mapping["localPath"], "local path")
+
     endpoint = "remotePathMapping"
     mappings = request_json(base_url, api_key, endpoint)
     existing = unique_match(
         mappings,
         lambda item: item.get("host", "").casefold() == mapping["host"].casefold()
-        and item.get("remotePath") == mapping["remotePath"],
+        and _normalize_directory_path(item.get("remotePath", ""), "remote path") == mapping["remotePath"],
         "remote-path mapping",
     )
     if existing is None:
-        request_json(base_url, api_key, endpoint, "POST", mapping)
-        return
+        try:
+            request_json(base_url, api_key, endpoint, "POST", mapping)
+            return
+        except ReconciliationError as create_error:
+            # Another settings sync can create the same mapping between our GET
+            # and POST. Re-read before failing so startup races remain safe.
+            try:
+                mappings = request_json(base_url, api_key, endpoint)
+                existing = unique_match(
+                    mappings,
+                    lambda item: item.get("host", "").casefold() == mapping["host"].casefold()
+                    and _normalize_directory_path(item.get("remotePath", ""), "remote path") == mapping["remotePath"],
+                    "remote-path mapping",
+                )
+            except ReconciliationError:
+                raise create_error
+            if existing is None:
+                raise create_error
 
     desired = dict(existing)
     desired.update(mapping)
