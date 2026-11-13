@@ -18,6 +18,7 @@
 in {
   imports = [
     ../../modules
+    ../../modules/services/tailscale/darwin.nix
     ../../os/darwin.nix
     inputs.home-manager.darwinModules.home-manager
   ];

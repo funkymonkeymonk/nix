@@ -112,6 +112,10 @@
           && megamanx.launchd.daemons ? omlx
           && !(megamanx.launchd.user.agents ? omlx)
           && megamanx.services.tailscale.enable
+          && megamanx.myConfig.tailscale.authKeyTags == ["tag:home-lab"]
+          && !(megamanx.myConfig.tailscale ? authKeyMode)
+          && !(megamanx.myConfig.tailscale ? authKeyOpnixItem)
+          && !(megamanx.myConfig.onepassword.secrets ? tailscaleAuthKey)
           && megamanx.launchd.daemons ? tailscaled
           && megamanx.launchd.daemons.tailscaled.serviceConfig.KeepAlive
           && (megamanx.myConfig.nodeExporter.listenOnTailscale or false)
@@ -121,8 +125,11 @@
           && builtins.elem "/Users/monkey/Library/Logs/omlx/*.log" (megamanx.myConfig.vector.logGlobs or [])
           && megamanx.myConfig.bifrost.enable
           && megamanx.myConfig.bifrost.host == "127.0.0.1"
-          && (megamanx.myConfig.bifrost.exposeViaTailscaleServe or false)
-          && megamanx.launchd.daemons ? bifrost-tailscale-serve
+          && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).port or null) == 8081
+          && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).target or null) == "http://127.0.0.1:8081"
+          && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).readinessUrl or null) == "http://127.0.0.1:8081/v1/models"
+          && builtins.hasAttr "tailscale-serve-bifrost" megamanx.launchd.daemons
+          && !(builtins.hasAttr "bifrost-tailscale-serve" megamanx.launchd.daemons)
           && !(megamanx.myConfig.prometheus.enable or false)
           && !(megamanx.launchd.daemons ? prometheus)
           && megamanx.myConfig.nodeExporter.enable

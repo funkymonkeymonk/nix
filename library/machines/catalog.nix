@@ -37,7 +37,13 @@
         ../../targets/hardware-facter.nix
         ../../machines/type-nas
       ];
-      overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
+      overrides = {
+        autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
+        tailscale = {
+          enable = true;
+          authKeyTags = ["tag:home-lab"];
+        };
+      };
     };
 
     type-server = nixosMachine {
@@ -51,7 +57,13 @@
         ../../disk-configs/single-disk-ext4.nix
         ../../targets/hardware-facter.nix
       ];
-      overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+      overrides = {
+        autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
+        tailscale = {
+          enable = true;
+          authKeyTags = ["tag:home-lab"];
+        };
+      };
     };
 
     type-server-arm = nixosMachine {
@@ -120,7 +132,13 @@
         ../../machines/zero
       ];
       extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
-      overrides.autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
+      overrides = {
+        autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
+        tailscale = {
+          enable = true;
+          authKeyTags = ["tag:home-lab"];
+        };
+      };
     };
 
     drlight = nixosMachine {
@@ -148,8 +166,10 @@
       };
       overrides = {
         autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#drlight";
-        tailscale.authKeyMode = "devenv-oauth";
-        tailscale.authKeyTags = ["tag:home-lab" "tag:media-center"];
+        tailscale = {
+          enable = true;
+          authKeyTags = ["tag:home-lab" "tag:media-center"];
+        };
       };
     };
 
@@ -201,9 +221,6 @@
             openssh.authorizedKeys.keys = [nixBuilderAuthorizedKey];
           };
 
-          services.tailscale.enable = true;
-          launchd.daemons.tailscaled.serviceConfig.KeepAlive = true;
-
           services.openssh.extraConfig = lib.mkForce ''
             PermitRootLogin no
             PubkeyAuthentication yes
@@ -252,7 +269,15 @@
             sudoPasswordRef = "op://Private/MegamanX Sudo Password/password";
           };
           ssh.enable = true;
-          tailscale.enable = true;
+          tailscale = {
+            enable = true;
+            authKeyTags = ["tag:home-lab"];
+            serve.bifrost = {
+              port = 8081;
+              target = "http://127.0.0.1:8081";
+              readinessUrl = "http://127.0.0.1:8081/v1/models";
+            };
+          };
           nodeExporter.listenOnTailscale = true;
           collector.destinationHostname = "drlight";
           vector = {
@@ -292,7 +317,6 @@
           bifrost = {
             enable = true;
             host = "127.0.0.1";
-            exposeViaTailscaleServe = true;
             logLevel = "debug";
             upstreams = {
               omlx = {

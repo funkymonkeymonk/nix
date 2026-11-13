@@ -46,7 +46,7 @@
   assert tailscaleOAuthClientSecret.ref.item == "Tailscale Oauth";
   assert tailscaleOAuthClientSecret.ref.field == "Client secret";
   assert tailscaleOAuthClientSecret.providers == ["opnix"];
-  assert drlightTailscaleOverrides.authKeyMode == "devenv-oauth";
+  assert drlightTailscaleOverrides.enable == true;
   assert drlightTailscaleOverrides.authKeyTags == ["tag:home-lab" "tag:media-center"]; true;
 in {
   machineOps = assert profileChecks;

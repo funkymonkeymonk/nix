@@ -43,10 +43,6 @@
         opencode.enable = true;
         pi.enable = true;
       };
-      tailscale = {
-        enable = true;
-        authKeyOpnixItem = "Tailscale Auth Key/credential";
-      };
       desktop = {
         enable = true;
         autoLoginUser = "monkey";

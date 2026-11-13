@@ -15,10 +15,6 @@ in {
       tokenFile = "/etc/opnix/token";
       defaultVault = lib.mkDefault "Opnix";
     };
-    tailscale = {
-      enable = true;
-      authKeyOpnixItem = "Tailscale Auth Key/credential";
-    };
   };
 
   users.mutableUsers = false;

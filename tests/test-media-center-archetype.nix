@@ -636,7 +636,7 @@
           ${checkEqual "scheduled upgrades run through the sentinel guard" "nixos-upgrade-scheduled.service" (drlight.systemd.timers.nixos-upgrade.timerConfig.Unit or null)}
           ${checkEqual "disable sentinel skips scheduled upgrades at runtime" "!/var/lib/nixos-upgrade.disabled" (drlight.systemd.services.nixos-upgrade-scheduled.unitConfig.ConditionPathExists or null)}
           ${checkFalse "manual upgrades are not gated by the scheduled sentinel" (drlight.systemd.services.nixos-upgrade.unitConfig ? ConditionPathExists)}
-          ${checkEqual "drlight mints Tailscale auth keys through the deployment task" "devenv-oauth" (drlight.myConfig.tailscale.authKeyMode or null)}
+          ${checkFalse "drlight has no legacy per-host Tailscale auth mode" (drlight.myConfig.tailscale ? authKeyMode || drlight.myConfig.tailscale ? authKeyOpnixItem)}
           ${checkEqual "drlight uses the approved homelab and media-center tags" ["tag:home-lab" "tag:media-center"] (drlight.myConfig.tailscale.authKeyTags or [])}
           ${checkFalse "drlight does not store a static Tailscale auth key in OpNix" (drlight.myConfig.onepassword.secrets ? tailscaleAuthKey)}
           ${checkTrue "drlight Tailscale service consumes a transient deployment key file" (lib.hasInfix "/run/devenv/tailscale-auth-key" (drlight.systemd.services.tailscale-autoconnect.script or ""))}

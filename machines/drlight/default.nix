@@ -24,7 +24,6 @@ in {
     mkUser "monkey" "me@willweaver.dev"
     // {
       roles.developer.enable = true;
-      tailscale.enable = true;
       collector.destinationHostname = "localhost";
       caddy = {
         enable = true;

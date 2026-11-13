@@ -12,10 +12,6 @@ in {
       tokenFile = "/etc/opnix/token";
       defaultVault = "Opnix";
     };
-    tailscale = {
-      enable = true;
-      authKeyOpnixItem = "Tailscale Auth Key/credential";
-    };
   };
 
   users.users.root.openssh.authorizedKeys.keys = [];

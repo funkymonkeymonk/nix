@@ -1,6 +1,5 @@
 # Zero machine configuration tests
-# Tests that the tailscale-autoconnect service uses opnix secrets
-# instead of the fragile TAILSCALE_AUTH_KEY environment variable
+# Tests that Tailscale enrollment uses deployment-generated OAuth auth keys.
 #
 # Uses builtins.readFile + Nix string operations to check file content
 # without requiring derivation builds or shell grep commands.
@@ -58,19 +57,32 @@ in {
         touch $out
       '';
 
-  # Test: zero config should set defaultVault and override authKeyOpnixItem
-  zeroTailscaleSecretConfigTest =
-    pkgs.runCommand "test-zero-tailscale-secret-config"
-    {}
-    ''
-      echo "=== Testing Zero Tailscale opnix secret config ==="
-
-      ${assertContainsStr "default vault" ''"Opnix"'' zeroConfigText}
-      ${assertContainsStr "auth key item" "Tailscale Auth Key/credential" zeroConfigText}
-
-      echo "Tailscale opnix secret config test passed"
-      touch $out
-    '';
+  # Test: Zero remains enabled for the shared OAuth enrollment policy without
+  # configuring a static Tailscale auth key in its machine module.
+  zeroTailscaleOAuthConfigTest =
+    if self == null
+    then
+      pkgs.runCommand "test-zero-tailscale-oauth-config-skipped" {} ''
+        echo "Skipped: self not provided"
+        touch $out
+      ''
+    else let
+      zero = self.nixosConfigurations.zero.config;
+    in
+      pkgs.runCommand "test-zero-tailscale-oauth-config" {} ''
+        echo "=== Testing Zero Tailscale OAuth configuration ==="
+        ${
+          if zero.myConfig.tailscale.enable && zero.myConfig.tailscale.authKeyTags == ["tag:home-lab"]
+          then ''echo "Zero uses the catalogued home-lab OAuth policy: OK"''
+          else ''echo "FAIL: Zero must use the catalogued home-lab OAuth policy"; exit 1''
+        }
+        ${
+          if !(zero.myConfig.tailscale ? authKeyOpnixItem) && !(zero.myConfig.tailscale ? authKeyMode) && !(zero.myConfig.onepassword.secrets ? tailscaleAuthKey)
+          then ''echo "Zero has no static Tailscale auth-key configuration: OK"''
+          else ''echo "FAIL: Zero must not configure a static Tailscale auth key"; exit 1''
+        }
+        touch $out
+      '';
 
   # Test: the gaming module should disable SDL's HIDAPI joystick driver for
   # Steam so xpadneo Bluetooth controllers work. Steam/SDL2 reads Xbox
@@ -94,20 +106,21 @@ in {
       touch $out
     '';
 
-  # Test: tailscale-autoconnect service should depend on onepassword-secrets
-  # Read the tailscale role module since that's where the service is defined
-  zeroTailscaleOpnixDepTest = let
-    tailscaleModuleText = builtins.readFile ../modules/roles/tailscale.nix;
+  # Test: Tailscale auto-connect consumes the temporary deployment auth-key
+  # file and has no dependency on the static Opnix auth-key secret.
+  zeroTailscaleNoOpnixDepTest = let
+    tailscaleRoleText = builtins.readFile ../modules/roles/tailscale.nix;
+    tailscaleNixosText = builtins.readFile ../modules/nixos/tailscale.nix;
   in
-    pkgs.runCommand "test-zero-tailscale-opnix-dep"
+    pkgs.runCommand "test-zero-tailscale-no-opnix-dep"
     {}
     ''
-      echo "=== Testing Zero Tailscale opnix dependency ==="
+      echo "=== Testing Zero Tailscale deployment-key dependency ==="
 
-      ${assertContainsStr "opnix-secrets dep" "opnix-secrets.service" tailscaleModuleText}
-      ${assertContainsStr "tailscale auth key name" "tailscale-auth-key" tailscaleModuleText}
+      ${assertNotContainsStr "no static opnix service dependency" "opnix-secrets.service" tailscaleRoleText}
+      ${assertContainsStr "deployment auth key file" "/run/devenv/tailscale-auth-key" tailscaleNixosText}
 
-      echo "Tailscale opnix dependency test passed"
+      echo "Tailscale deployment-key dependency test passed"
       touch $out
     '';
 
@@ -128,34 +141,35 @@ in {
 
   # Test: tailscale-autoconnect service should reference opnix secrets file
   zeroTailscaleSecretFileTest = let
-    tailscaleModuleText = builtins.readFile ../modules/roles/tailscale.nix;
+    tailscaleModuleText = builtins.readFile ../modules/nixos/tailscale.nix;
   in
     pkgs.runCommand "test-zero-tailscale-secret-file"
     {}
     ''
       echo "=== Testing Zero Tailscale secret file reference ==="
 
-      ${assertContainsStr "secret file path" "/run/secrets/tailscale-auth-key" tailscaleModuleText}
+      ${assertContainsStr "deployment secret file path" "/run/devenv/tailscale-auth-key" tailscaleModuleText}
 
       echo "Tailscale secret file reference test passed"
       touch $out
     '';
 
-  # Test: tailscale-autoconnect service should fail loudly (exit 1) if key missing
-  # This checks that the old "Warning: TAILSCALE_AUTH_KEY not set" silent-skip is gone
-  # and replaced with an explicit error and exit 1
-  zeroTailscaleFailLoudTest = let
-    tailscaleModuleText = builtins.readFile ../modules/roles/tailscale.nix;
+  # Test: missing deployment keys must not trigger an interactive/static-key
+  # fallback; an explicit deployment provides the one-time auth key.
+  zeroTailscaleMissingOAuthKeyTest = let
+    tailscaleRoleText = builtins.readFile ../modules/roles/tailscale.nix;
+    tailscaleNixosText = builtins.readFile ../modules/nixos/tailscale.nix;
   in
-    pkgs.runCommand "test-zero-tailscale-fail-loud"
+    pkgs.runCommand "test-zero-tailscale-missing-oauth-key"
     {}
     ''
-      echo "=== Testing Zero Tailscale fails loudly if key missing ==="
+      echo "=== Testing Zero Tailscale missing OAuth key behavior ==="
 
-      ${assertNotContainsStr "no silent warning" "Warning: TAILSCALE_AUTH_KEY not set" tailscaleModuleText}
-      ${assertContainsStr "exit 1 present" "exit 1" tailscaleModuleText}
+      ${assertNotContainsStr "no static auth-key fallback" "authKeyOpnixItem" tailscaleRoleText}
+      ${assertNotContainsStr "no environment auth-key fallback" "TAILSCALE_AUTH_KEY" tailscaleRoleText}
+      ${assertContainsStr "deployment auth key message" "deployment auth key" tailscaleNixosText}
 
-      echo "Tailscale fail-loud test passed"
+      echo "Tailscale missing OAuth key test passed"
       touch $out
     '';
 

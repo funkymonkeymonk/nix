@@ -76,6 +76,7 @@
   testMachineScaffold = import ./test-machine-scaffold.nix {inherit pkgs inputs;};
   testObservabilityInventory = import ./test-observability-inventory.nix {inherit pkgs inputs;};
   testMachineOps = import ./test-machine-ops.nix {inherit pkgs inputs;};
+  testTailscaleConfig = import ./test-tailscale-config.nix {inherit pkgs self inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
   testSshAuthorizedKeys = import ./test-ssh-authorized-keys.nix {inherit pkgs self;};
   testSshHostKeyFingerprint = import ./test-ssh-host-key-fingerprint.nix {inherit pkgs self;};
@@ -155,6 +156,8 @@ in
     ssh-authorized-keys = testSshAuthorizedKeys;
     ssh-host-key-fingerprint = testSshHostKeyFingerprint.sshHostKeyFingerprint;
     tailscale-oauth-auth-key = testTailscaleOauthAuthKey.tailscaleOauthAuthKey;
+    tailscale-darwin-autoconnect = testTailscaleConfig.tailscaleDarwinAutoconnect;
+    tailscale-enrollment-policy = testTailscaleConfig.tailscaleEnrollmentPolicy;
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
@@ -288,11 +291,11 @@ in
 
     # Zero target tests
     zero-steam-sdl-hidapi-env = testZero.zeroSteamSdlHidapiEnvTest;
-    zero-tailscale-opnix-dep = testZero.zeroTailscaleOpnixDepTest;
+    zero-tailscale-no-opnix-dep = testZero.zeroTailscaleNoOpnixDepTest;
     zero-tailscale-no-env-var = testZero.zeroTailscaleNoEnvVarTest;
     zero-tailscale-secret-file = testZero.zeroTailscaleSecretFileTest;
-    zero-tailscale-fail-loud = testZero.zeroTailscaleFailLoudTest;
-    zero-tailscale-secret-config = testZero.zeroTailscaleSecretConfigTest;
+    zero-tailscale-missing-oauth-key = testZero.zeroTailscaleMissingOAuthKeyTest;
+    zero-tailscale-oauth-config = testZero.zeroTailscaleOAuthConfigTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
     zero-media-config-not-enabled = testZero.zeroNoMediaConfigTest;
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
