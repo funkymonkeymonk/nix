@@ -629,8 +629,9 @@
           }
           echo "  Homepage Caddy hostnames resolve to Drlight in split DNS: OK"
           ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
-          ${checkTrue "scheduled upgrade guard checks the upgrade unit state" (lib.hasInfix "systemctl show --property=ActiveState --value nixos-upgrade.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
-          ${checkTrue "scheduled upgrade guard skips an upgrade already in progress" (lib.hasInfix "active|activating|deactivating|reloading" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
+          ${checkTrue "scheduled upgrade guard checks systemd unit state" (lib.hasInfix "systemctl show --property=ActiveState --value \"$unit\"" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
+          ${checkTrue "scheduled upgrade guard checks the upgrade and switch units" (lib.hasInfix "nixos-upgrade.service nixos-rebuild-switch-to-configuration.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
+          ${checkTrue "scheduled upgrade guard skips an upgrade or switch already in progress" (lib.hasInfix "active|activating|deactivating|reloading" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
           ${checkTrue "scheduled upgrade guard waits for a newly started upgrade" (lib.hasInfix "systemctl start nixos-upgrade.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or "") && !(lib.hasInfix "systemctl start --no-block nixos-upgrade.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or "")))}
           ${checkEqual "scheduled upgrades run through the sentinel guard" "nixos-upgrade-scheduled.service" (drlight.systemd.timers.nixos-upgrade.timerConfig.Unit or null)}
           ${checkEqual "disable sentinel skips scheduled upgrades at runtime" "!/var/lib/nixos-upgrade.disabled" (drlight.systemd.services.nixos-upgrade-scheduled.unitConfig.ConditionPathExists or null)}

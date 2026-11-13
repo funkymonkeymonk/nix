@@ -69,17 +69,18 @@ in {
           unitConfig.ConditionPathExists = "!/var/lib/nixos-upgrade.disabled";
           serviceConfig.Type = "oneshot";
           script = ''
-            # A switch can start this guard while an auto-upgrade is activating.
-            # Skip that duplicate request so activation does not wait on itself.
-            upgrade_state=$(${pkgs.systemd}/bin/systemctl show --property=ActiveState --value nixos-upgrade.service)
-            case "$upgrade_state" in
-              active|activating|deactivating|reloading)
-                echo "Skipping scheduled upgrade; nixos-upgrade.service is $upgrade_state"
-                ;;
-              *)
-                exec ${pkgs.systemd}/bin/systemctl start nixos-upgrade.service
-                ;;
-            esac
+            # A switch can start this guard while an upgrade or another switch is running.
+            # Skip duplicate work so activation does not wait on itself or launch a competing rebuild.
+            for unit in nixos-upgrade.service nixos-rebuild-switch-to-configuration.service; do
+              unit_state=$(${pkgs.systemd}/bin/systemctl show --property=ActiveState --value "$unit")
+              case "$unit_state" in
+                active|activating|deactivating|reloading)
+                  echo "Skipping scheduled upgrade; $unit is $unit_state"
+                  exit 0
+                  ;;
+              esac
+            done
+            exec ${pkgs.systemd}/bin/systemctl start nixos-upgrade.service
           '';
         };
         timers.nixos-upgrade.timerConfig.Unit = "nixos-upgrade-scheduled.service";
