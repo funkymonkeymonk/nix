@@ -329,6 +329,7 @@ in {
 
   config = {
     myConfig.onepassword.secrets = mediaAuthSecrets;
+    services.onepassword-secrets.enable = true;
 
     users.groups = groups;
     users.users = lib.genAttrs (map (app: app.name) mediaAuthApps) (app: {
