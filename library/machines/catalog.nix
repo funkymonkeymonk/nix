@@ -136,7 +136,6 @@
       install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../archetypes/desktop-nixos.nix
-        ../../modules/nixos/base.nix
         ../../modules/nixos/desktop.nix
         ../../modules/nixos/gaming.nix
         ../../modules/nixos/streaming.nix
