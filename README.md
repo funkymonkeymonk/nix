@@ -38,7 +38,7 @@ darwin-rebuild switch --flake .#<hostname>
 
 ### Common Tasks
 
-- [Add a new machine](docs/how-to/add-machine.md)
+- [Add a new machine](docs/how-to/create-machine-target.md)
 - [Add a new role](docs/how-to/add-role.md)
 - [Run CI locally](docs/how-to/run-ci-locally.md)
 - [Set up 1Password signing](docs/how-to/setup-1password.md)

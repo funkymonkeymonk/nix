@@ -364,6 +364,5 @@ sudo journalctl -u opnix-secrets
 
 ## See Also
 
-- [Set up 1Password service account](../how-to/setup-opnix-service-account.md) - How-to guide
 - [Getting started with opnix](../tutorials/getting-started-opnix.md) - Tutorial
 - [opnix security architecture](../explanation/opnix-security.md) - Explanation
