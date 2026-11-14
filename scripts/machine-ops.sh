@@ -84,6 +84,102 @@ machine_metadata() {
   "$nix_bin" eval --impure --raw --expr "$expression"
 }
 
+megamanx_builder_metadata() {
+  local nix_bin=${NIX_BIN:-nix}
+  local flake_ref="path:$repo_root"
+  local expression
+
+  expression="let
+    zero = (builtins.getFlake \"$flake_ref\").nixosConfigurations.zero.config;
+    builders = builtins.filter (builder: builder.hostName == \"megamanx\") zero.nix.buildMachines;
+  in builtins.toJSON {
+    builders = map (builder: {
+      inherit (builder) hostName system protocol sshUser publicHostKey;
+    }) builders;
+    defaultVault = zero.myConfig.onepassword.defaultVault;
+    keyReference = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey.reference;
+  }"
+  "$nix_bin" eval --impure --raw --expr "$expression"
+}
+
+build_with_megamanx() {
+  local devenv_bin=$1
+  local build_attribute=$2
+  local builder_json builder_count builder host_name builder_system protocol ssh_user public_host_key
+  local default_vault key_reference key_uri old_umask encoded_ssh_key encoded_host_key store_uri
+  local nix_bin=${NIX_BIN:-nix}
+
+  builder_json=$(megamanx_builder_metadata) || {
+    printf 'ERROR: unable to evaluate the canonical MegamanX remote builder configuration\n' >&2
+    exit 69
+  }
+  builder_count=$(jq -er 'if (.builders | type) == "array" then (.builders | length) else error("builders must be an array") end' <<< "$builder_json") || {
+    printf 'ERROR: canonical MegamanX builder metadata is malformed\n' >&2
+    exit 69
+  }
+  [[ "$builder_count" == 1 ]] || {
+    printf 'ERROR: expected exactly one configured MegamanX remote builder, found %s\n' "$builder_count" >&2
+    exit 69
+  }
+  builder=$(jq -ce '.builders[0]' <<< "$builder_json") || {
+    printf 'ERROR: canonical MegamanX builder metadata is malformed\n' >&2
+    exit 69
+  }
+  host_name=$(jq -er '.hostName | select(type == "string" and length > 0)' <<< "$builder") || exit 69
+  builder_system=$(jq -er '.system | select(type == "string" and length > 0)' <<< "$builder") || exit 69
+  protocol=$(jq -er '.protocol | select(type == "string" and length > 0)' <<< "$builder") || exit 69
+  ssh_user=$(jq -er '.sshUser | select(type == "string" and length > 0)' <<< "$builder") || exit 69
+  public_host_key=$(jq -er '.publicHostKey | select(type == "string" and test("^[A-Za-z0-9+/]+=*$"))' <<< "$builder") || exit 69
+  default_vault=$(jq -er '.defaultVault | select(type == "string" and length > 0 and (contains("/") | not) and (contains("\n") | not))' <<< "$builder_json") || exit 69
+  key_reference=$(jq -er '.keyReference | select(type == "string" and length > 0) | select(startswith("op://") | not)' <<< "$builder_json") || exit 69
+
+  [[ "$host_name" == megamanx && "$builder_system" == aarch64-darwin && "$protocol" == ssh-ng && "$ssh_user" == nixbuilder ]] || {
+    printf 'ERROR: configured MegamanX builder does not match the supported aarch64-darwin ssh-ng target\n' >&2
+    exit 69
+  }
+  [[ "$key_reference" != /* && "$key_reference" != *$'\n'* ]] || {
+    printf 'ERROR: configured MegamanX builder key reference must be an unqualified Item/field reference\n' >&2
+    exit 69
+  }
+  command -v "$nix_bin" >/dev/null 2>&1 || {
+    printf 'ERROR: Nix CLI not found while preparing the MegamanX remote build\n' >&2
+    exit 69
+  }
+  command -v op >/dev/null 2>&1 || {
+    printf 'ERROR: 1Password CLI (op) is required for a MegamanX remote build\n' >&2
+    exit 69
+  }
+
+  key_uri="op://$default_vault/$key_reference"
+  old_umask=$(umask)
+  umask 077
+  BUILDER_KEY_FILE=$(mktemp "${TMPDIR:-/tmp}/nix-remote-builder.XXXXXX") || {
+    umask "$old_umask"
+    printf 'ERROR: unable to create a temporary MegamanX builder key file\n' >&2
+    exit 69
+  }
+  umask "$old_umask"
+  chmod 0600 "$BUILDER_KEY_FILE" || {
+    printf 'ERROR: unable to secure the temporary MegamanX builder key file\n' >&2
+    exit 69
+  }
+  if ! op read "$key_uri" > "$BUILDER_KEY_FILE"; then
+    printf 'ERROR: failed to read the MegamanX remote builder key from 1Password\n' >&2
+    exit 69
+  fi
+  [[ -s "$BUILDER_KEY_FILE" ]] || {
+    printf 'ERROR: 1Password returned an empty MegamanX remote builder key\n' >&2
+    exit 69
+  }
+
+  encoded_ssh_key=$(jq -rn --arg value "$BUILDER_KEY_FILE" '$value | @uri') || exit 69
+  encoded_host_key=$(jq -rn --arg value "$public_host_key" '$value | @uri') || exit 69
+  store_uri="$protocol://$ssh_user@$host_name?ssh-key=$encoded_ssh_key&base64-ssh-public-host-key=$encoded_host_key"
+  "$devenv_bin" build "$build_attribute" \
+    --nix-option store "$store_uri" \
+    --nix-option max-jobs 0
+}
+
 machine_target_host() {
   local machine=$1
   local devenv_bin=$2
@@ -116,6 +212,7 @@ machine_target_host() {
 TAILSCALE_CLEANUP_TARGET=""
 TAILSCALE_CLEANUP_SSH=""
 TAILSCALE_CLEANUP_COMMAND=""
+BUILDER_KEY_FILE=""
 
 cleanup_staged_tailscale_key() {
   [[ -n "$TAILSCALE_CLEANUP_TARGET" ]] || return 0
@@ -127,7 +224,18 @@ cleanup_staged_tailscale_key() {
   TAILSCALE_CLEANUP_SSH=""
   TAILSCALE_CLEANUP_COMMAND=""
 }
-trap cleanup_staged_tailscale_key EXIT
+
+cleanup_builder_key() {
+  [[ -n "$BUILDER_KEY_FILE" ]] || return 0
+  rm -f "$BUILDER_KEY_FILE"
+  BUILDER_KEY_FILE=""
+}
+
+cleanup_machine_ops_artifacts() {
+  cleanup_staged_tailscale_key
+  cleanup_builder_key
+}
+trap cleanup_machine_ops_artifacts EXIT
 
 tailscale_backend_state() {
   local target_host=$1
@@ -341,14 +449,31 @@ case "$operation" in
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
     metadata=$(machine_metadata "$machine") || fail "unknown machine: $machine"
-    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret _target_system _tailscale_enabled _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
+    IFS=$'\t' read -r _profile kind _has_secrets _has_bootstrap_secret target_system _tailscale_enabled _has_tailscale_oauth _tailscale_auth_tags <<< "$metadata"
     case "$kind" in
       nixos) build_role=nixos ;;
       darwin) build_role=nix-darwin ;;
       *) fail "machine $machine has an unsupported build role" ;;
     esac
     devenv_bin=$(resolve_devenv_bin) || fail 'unable to resolve the pinned devenv CLI'
-    "$devenv_bin" build "machines.${machine}.build.${build_role}"
+    nix_bin=${NIX_BIN:-nix}
+    current_system=$("$nix_bin" eval --impure --raw --expr 'builtins.currentSystem') || {
+      printf 'ERROR: unable to determine the current Nix system for machine build\n' >&2
+      exit 69
+    }
+    valid_nix_system "$current_system" && valid_nix_system "$target_system" || {
+      printf 'ERROR: invalid current or target Nix system for machine build\n' >&2
+      exit 69
+    }
+    build_attribute="machines.${machine}.build.${build_role}"
+    if [[ "$current_system" == "$target_system" ]]; then
+      "$devenv_bin" build "$build_attribute"
+    elif [[ "$target_system" == aarch64-darwin ]]; then
+      build_with_megamanx "$devenv_bin" "$build_attribute"
+    else
+      printf 'ERROR: no compatible remote builder is configured for cross target %s (%s -> %s)\n' "$machine" "$current_system" "$target_system" >&2
+      exit 69
+    fi
     ;;
   check|plan)
     [[ $# -eq 1 ]] || fail "$operation requires exactly one machine name"

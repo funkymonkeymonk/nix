@@ -95,6 +95,13 @@ devenv tasks run machines:check --input machine=zero
 devenv tasks run machines:plan --input machine=zero
 ```
 
+`machines:build` builds matching systems locally. For a non-local
+`aarch64-darwin` target it uses MegamanX's pinned `ssh-ng` remote Nix store,
+retrieving its key with `op read` into a temporary mode-`0600` file and
+removing it after the build. The 1Password CLI must be available and signed
+in. Cross-build outputs reside in MegamanX's store. Other cross-system targets
+are rejected because MegamanX only builds `aarch64-darwin`.
+
 `machines:info` is the only operation that intentionally lists the full
 inventory. Remote operation smoke tests must use disposable VMs; do not run
 `deploy` or `install` against production machines as part of local CI checks.

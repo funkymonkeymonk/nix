@@ -466,6 +466,7 @@
         ${checkEqual "Mylar3 stores its INI beside its persistent database" "/var/lib/mylar3" drlight.services.mylar3.dataDir}
         ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
         ${checkFalse "Mylar3 can leave restored INI untouched during one-time root migration" (builtins.hasAttr "ExecStartPre" (drlightWithMylarSettingsManagementDisabled.systemd.services.mylar3.serviceConfig or {}))}
+        ${checkTrue "Drlight enables Opnix runtime secrets for declared media credentials" drlight.services.onepassword-secrets.enable}
         ${checkEqual "media app login secrets use the expected Opnix fields" mediaAuthExpectedReferences (map (secret: secret.reference or null) mediaAuthSecrets)}
         ${checkEqual "media app login references resolve through the Opnix default vault" (map (reference: "op://Opnix/${reference}") mediaAuthExpectedReferences) (map (secret: secret.reference or null) opnixMediaAuthSecrets)}
         ${checkEqual "media app login secrets use restricted runtime paths" [

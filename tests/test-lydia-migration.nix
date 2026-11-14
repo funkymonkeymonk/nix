@@ -157,7 +157,7 @@
           && megamanx.users.users.nixbuilder.isHidden
           && megamanx.users.users.nixbuilder.openssh.authorizedKeys.keys != []
           && megamanx.myConfig.onepassword.defaultVault == "Opnix"
-          && megamanx.myConfig.onepassword.sudoPasswordRef == "op://Private/MegamanX Sudo Password/password"
+          && megamanx.myConfig.onepassword.sudoPasswordRef == "MegamanX Sudo Password/password"
           && !pkgs.lib.hasInfix "NOPASSWD" megamanx.security.sudo.extraConfig
           && pkgs.lib.hasInfix "PasswordAuthentication yes" sshConfig
           && pkgs.lib.hasInfix "Match User nixbuilder" sshConfig
