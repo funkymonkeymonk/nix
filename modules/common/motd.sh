@@ -136,7 +136,7 @@ fi
 # Fetch new random image if needed
 if [ $NEEDS_FETCH -eq 1 ]; then
   # Try to fetch a random image from Picsum
-  if curl -sL "https://picsum.photos/200/200" -o "$IMAGE_FILE.tmp" 2>/dev/null; then
+  if curl --fail --silent --location --max-time 5 "https://picsum.photos/200/200" -o "$IMAGE_FILE.tmp" 2>/dev/null; then
     mv "$IMAGE_FILE.tmp" "$IMAGE_FILE"
     date +%Y%m%d > "$STAMP_FILE"
   else
