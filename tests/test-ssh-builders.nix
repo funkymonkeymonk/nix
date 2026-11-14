@@ -238,7 +238,7 @@ in {
             tmp=$(mktemp)
             if printf '%s' '${pin.value}' | base64 -d > "$tmp"; then
               pin_fingerprint=$(ssh-keygen -lf "$tmp" | awk '{print $2}')
-              source_fingerprint=$(ssh-keygen -lf ${lib.escapeShellArg (toString pin.publicKeyFile)} | awk '{print $2}')
+              source_fingerprint=$(ssh-keygen -lf ${pin.publicKeyFile} | awk '{print $2}')
             else
               pin_fingerprint=invalid
               source_fingerprint=unavailable
