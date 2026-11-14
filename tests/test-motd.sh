@@ -7,8 +7,8 @@ tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 mkdir -p "$tmp_dir/bin" "$tmp_dir/home"
 
-cat > "$tmp_dir/bin/curl" <<'MOCK_CURL'
-#!/usr/bin/env bash
+printf '#!%s\n' "${MOTD_TEST_BASH:-/usr/bin/env bash}" > "$tmp_dir/bin/curl"
+cat >> "$tmp_dir/bin/curl" <<'MOCK_CURL'
 printf '%s\n' "$*" >> "$CURL_LOG"
 
 output=""
@@ -48,8 +48,8 @@ RSS
 esac
 MOCK_CURL
 chmod +x "$tmp_dir/bin/curl"
-cat > "$tmp_dir/bin/hostname" <<'MOCK_HOSTNAME'
-#!/usr/bin/env bash
+printf '#!%s\n' "${MOTD_TEST_BASH:-/usr/bin/env bash}" > "$tmp_dir/bin/hostname"
+cat >> "$tmp_dir/bin/hostname" <<'MOCK_HOSTNAME'
 printf 'motd-test-host\n'
 MOCK_HOSTNAME
 chmod +x "$tmp_dir/bin/hostname"
