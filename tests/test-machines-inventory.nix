@@ -102,7 +102,13 @@
     inherit (representativeNixos) system;
     specialArgs = {inherit inputs self;};
     # devenv 2.4 imports the disko module before each Machines NixOS module.
-    modules = [inputs.disko.nixosModules.disko projectedZero];
+    modules = [
+      inputs.disko.nixosModules.disko
+      projectedZero
+      ({lib, ...}: {
+        hardware.facter.reportPath = lib.mkForce null;
+      })
+    ];
   };
   machinesBootstrap = inputs.nixpkgs.lib.nixosSystem {
     inherit (catalog.bootstrap) system;
@@ -169,6 +175,7 @@
       mode = "0600";
     } (machinesProjection.machines.drlight.install.secrets."/etc/opnix/token" or {})}
     ${assertEqual "Machines zero evaluates its NixOS module stack" "zero" machinesZero.config.networking.hostName}
+    ${assertEqual "Machines zero projection evaluates a complete system derivation" true (builtins.isString machinesZero.config.system.build.toplevel.drvPath)}
     ${assertEqual "Machines zero has disko devices from the automatic module" true (builtins.attrNames machinesZero.config.disko.devices != [])}
     ${assertEqual "Machines bootstrap evaluates its NixOS module stack" "nixos-bootstrap" machinesBootstrap.config.networking.hostName}
     ${assertEqual "Machines installer ISO evaluates its NixOS module stack" "nixos-installer" machinesInstallerIso.config.networking.hostName}
