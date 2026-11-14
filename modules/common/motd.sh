@@ -115,17 +115,20 @@ if command -v uptime &>/dev/null; then
   fi
 fi
 
-# Image handling
+# APOD image handling
 CACHE_DIR="$HOME/.cache/motd"
 IMAGE_FILE="$CACHE_DIR/daily.jpg"
 STAMP_FILE="$CACHE_DIR/timestamp"
+TITLE_FILE="$CACHE_DIR/title"
+FULL_SIZE_URL_FILE="$CACHE_DIR/full-size-url"
+APOD_FEED_URL="https://science.nasa.gov/feed/apod-basic/"
 
 # Create cache directory
 mkdir -p "$CACHE_DIR"
 
-# Check if we need a new image (once per day)
+# Check if we need fresh APOD data (once per day)
 NEEDS_FETCH=1
-if [ -f "$STAMP_FILE" ] && [ -f "$IMAGE_FILE" ]; then
+if [ -f "$STAMP_FILE" ] && [ -f "$IMAGE_FILE" ] && [ -f "$TITLE_FILE" ] && [ -f "$FULL_SIZE_URL_FILE" ]; then
   LAST_FETCH=$(cat "$STAMP_FILE" 2>/dev/null || echo 0)
   CURRENT_DAY=$(date +%Y%m%d)
   if [ "$LAST_FETCH" = "$CURRENT_DAY" ]; then
@@ -133,16 +136,42 @@ if [ -f "$STAMP_FILE" ] && [ -f "$IMAGE_FILE" ]; then
   fi
 fi
 
-# Fetch new random image if needed
-if [ $NEEDS_FETCH -eq 1 ]; then
-  # Try to fetch a random image from Picsum
-  if curl -sL "https://picsum.photos/200/200" -o "$IMAGE_FILE.tmp" 2>/dev/null; then
-    mv "$IMAGE_FILE.tmp" "$IMAGE_FILE"
-    date +%Y%m%d > "$STAMP_FILE"
-  else
-    # If fetch fails, keep old image or continue without image
-    rm -f "$IMAGE_FILE.tmp"
+# Fetch today's APOD feed and thumbnail if needed
+if [ "$NEEDS_FETCH" -eq 1 ]; then
+  FEED_TMP="$CACHE_DIR/apod-feed.xml.tmp"
+  IMAGE_TMP="$IMAGE_FILE.tmp"
+  TITLE_TMP="$TITLE_FILE.tmp"
+  FULL_SIZE_URL_TMP="$FULL_SIZE_URL_FILE.tmp"
+
+  if curl --fail --silent --location --max-time 5 "$APOD_FEED_URL" -o "$FEED_TMP" 2>/dev/null; then
+    APOD_TITLE=$(xmllint --nonet --xpath "string((//*[local-name()='item'])[1]/*[local-name()='title'])" "$FEED_TMP" 2>/dev/null || true)
+    APOD_FULL_URL=$(xmllint --nonet --xpath "string((//*[local-name()='item'])[1]/*[local-name()='hdurl'])" "$FEED_TMP" 2>/dev/null || true)
+
+    if [ -n "$APOD_TITLE" ] && [[ "$APOD_FULL_URL" == https://* ]]; then
+      APOD_IMAGE_BASE="${APOD_FULL_URL%%\?*}"
+      APOD_THUMBNAIL_URL="${APOD_IMAGE_BASE}?w=200&h=200&fit=crop"
+
+      if curl --fail --silent --location --max-time 5 "$APOD_THUMBNAIL_URL" -o "$IMAGE_TMP" 2>/dev/null; then
+        printf '%s\n' "$APOD_TITLE" > "$TITLE_TMP"
+        printf '%s\n' "$APOD_FULL_URL" > "$FULL_SIZE_URL_TMP"
+        mv "$IMAGE_TMP" "$IMAGE_FILE"
+        mv "$TITLE_TMP" "$TITLE_FILE"
+        mv "$FULL_SIZE_URL_TMP" "$FULL_SIZE_URL_FILE"
+        date +%Y%m%d > "$STAMP_FILE"
+      fi
+    fi
   fi
+
+  rm -f "$FEED_TMP" "$IMAGE_TMP" "$TITLE_TMP" "$FULL_SIZE_URL_TMP"
+fi
+
+APOD_TITLE=""
+APOD_FULL_URL=""
+if [ -f "$TITLE_FILE" ]; then
+  APOD_TITLE=$(cat "$TITLE_FILE")
+fi
+if [ -f "$FULL_SIZE_URL_FILE" ]; then
+  APOD_FULL_URL=$(cat "$FULL_SIZE_URL_FILE")
 fi
 
 WIDTH=50
@@ -270,6 +299,21 @@ if [ -n "$DAD_JOKE" ]; then
     printf "%b\n" "$TEXT"
   fi
   START_ROW=$((START_ROW + 1))
+fi
+
+# APOD title links directly to the full-size image
+if [ -n "$APOD_TITLE" ] && [ -n "$APOD_FULL_URL" ]; then
+  APOD_LINK="${ESC}]8;;${APOD_FULL_URL}${ESC}\\${APOD_TITLE}${ESC}]8;;${ESC}\\"
+  TEXT="  ${MAGENTA}🌌${RESET} ${APOD_LINK}"
+
+  if [ "$SHOWING_IMAGE" = "1" ]; then
+    APOD_ROW=$((START_ROW > IMAGE_ROWS ? START_ROW : IMAGE_ROWS + 1))
+    print_at "$APOD_ROW" 2 "$TEXT"
+    START_ROW=$((APOD_ROW + 1))
+  else
+    printf '%s\n' "$TEXT"
+    START_ROW=$((START_ROW + 1))
+  fi
 fi
 
 # Extra message block (conditional)

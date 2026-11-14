@@ -9,7 +9,7 @@ with lib; let
 
   motdScript = pkgs.writeShellApplication {
     name = "motd";
-    runtimeInputs = [pkgs.chafa pkgs.curl];
+    runtimeInputs = [pkgs.chafa pkgs.curl pkgs.libxml2];
     text = ''
       export MOTD_SHOW_HOSTNAME="${
         if cfg.showHostname
