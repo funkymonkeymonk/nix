@@ -41,12 +41,18 @@
       hostName = "zero";
       system = "x86_64-linux";
       publicKeyFile = ../keys/hosts/zero.pub;
+      maxJobs = 4;
+      speedFactor = 1;
+      supportedFeatures = ["big-parallel"];
     }
     {
       name = "MegamanX";
       hostName = "megamanx";
       system = "aarch64-darwin";
       publicKeyFile = ../keys/hosts/megamanx.pub;
+      maxJobs = 4;
+      speedFactor = 1;
+      supportedFeatures = ["big-parallel"];
     }
   ];
   configurations =
@@ -65,6 +71,17 @@
     && (token.mode or null) == "0600";
   expectedBuildersFor = client: builtins.filter (builder: builder.name != client) builders;
   machineMatches = machine: builder: machine.hostName == builder.hostName && machine.system == builder.system;
+  builderLine = keyPath: builder:
+    lib.concatStringsSep " " [
+      "ssh-ng://nixbuilder@${builder.hostName}"
+      builder.system
+      keyPath
+      (toString builder.maxJobs)
+      (toString builder.speedFactor)
+      (lib.concatStringsSep "," builder.supportedFeatures)
+      "-"
+      (hostPinFor builder.name)
+    ];
   pinForBuilder = builder: let
     clients = builtins.filter (client: client != builder.name) clientNames;
     clientConfig = configFor (builtins.head clients);
@@ -77,29 +94,42 @@
       else ((builtins.head matches).publicHostKey or "");
   };
   builderPins = map pinForBuilder builders;
+  hostPinFor = name: (builtins.findFirst (pin: pin.name == name) {value = "";} builderPins).value;
   clientTopologyValid = client: let
     config = configFor client;
-    actual = config.nix.buildMachines or [];
     expected = expectedBuildersFor client;
-    exactPeerSet =
-      builtins.length actual
-      == builtins.length expected
-      && builtins.all (builder: builtins.any (machine: machineMatches machine builder) actual) expected
-      && builtins.all (machine: builtins.any (builder: machineMatches machine builder) expected) actual;
-    allEntriesSecure = builtins.all (machine:
-      machine.protocol
-      == "ssh-ng"
+    isDarwin = config.myConfig.isDarwin or false;
+    actualNixos = config.nix.buildMachines or [];
+    expectedDarwinLines = map (builder: builderLine "/var/run/nix-builder-client" builder) expected;
+    darwinMachinesFile = config.environment.etc."nix/machines".text or "";
+    darwinCustomConf = config.environment.etc."nix/nix.custom.conf".text or "";
+    actualDarwinLines = lib.filter (line: line != "") (lib.splitString "\n" darwinMachinesFile);
+    exactNixosPeerSet =
+      builtins.length actualNixos == builtins.length expected
+      && builtins.all (builder: builtins.any (machine: machineMatches machine builder) actualNixos) expected
+      && builtins.all (machine: builtins.any (builder: machineMatches machine builder) expected) actualNixos;
+    exactDarwinPeerSet =
+      builtins.length actualDarwinLines == builtins.length expectedDarwinLines
+      && builtins.all (line: builtins.elem line actualDarwinLines) expectedDarwinLines;
+    nixosEntriesSecure = builtins.all (machine:
+      machine.protocol == "ssh-ng"
       && machine.sshUser == "nixbuilder"
       && builtins.isString (machine.sshKey or null)
       && !(lib.hasPrefix "/nix/store/" (machine.sshKey or ""))
       && builtins.isString (machine.publicHostKey or null)
-      && (machine.publicHostKey or "") != "")
-    actual;
+      && (machine.publicHostKey or "") != "") actualNixos;
   in
-    config.nix.distributedBuilds
-    && (config.nix.settings.builders-use-substitutes or false)
-    && exactPeerSet
-    && allEntriesSecure;
+    if isDarwin
+    then
+      !(config.nix.enable)
+      && exactDarwinPeerSet
+      && lib.hasInfix "builders = @/etc/nix/machines" darwinCustomConf
+      && lib.hasInfix "builders-use-substitutes = true" darwinCustomConf
+    else
+      config.nix.distributedBuilds
+      && (config.nix.settings.builders-use-substitutes or false)
+      && exactNixosPeerSet
+      && nixosEntriesSecure;
   expectedSecretReference = name:
     if name == "zero"
     then "Nix Remote Builder Zero to MegamanX/private key"
@@ -111,7 +141,9 @@
       if (config.myConfig.isDarwin or false)
       then "/var/run/nix-builder-client"
       else "/run/secrets/nix-builder-client";
-    buildMachines = config.nix.buildMachines or [];
+    isDarwin = config.myConfig.isDarwin or false;
+    buildMachines = if isDarwin then [] else (config.nix.buildMachines or []);
+    darwinMachinesFile = config.environment.etc."nix/machines".text or "";
   in
     (secret.reference or null)
     == expectedSecretReference client
@@ -119,7 +151,7 @@
     && (secret.owner or null) == "root"
     && (secret.group or null) == "root"
     && (secret.mode or null) == "0400"
-    && builtins.all (machine: machine.sshKey == expectedPath) buildMachines
+    && (if isDarwin then lib.hasInfix expectedPath darwinMachinesFile else builtins.all (machine: machine.sshKey == expectedPath) buildMachines)
     && ((config.services.onepassword-secrets or {}).enable or false);
   expectedAuthorizedKeys = builderName:
     map publicKeyFor (builtins.filter (client: client != builderName) clientNames);
@@ -128,8 +160,12 @@
   restrictedNixbuilderSsh = name: let
     config = configFor name;
     sshConfig = config.services.openssh.extraConfig or "";
+    trustedUsersConfigured =
+      if (config.myConfig.isDarwin or false)
+      then lib.hasInfix "trusted-users = root monkey nixbuilder" (config.environment.etc."nix/nix.custom.conf".text or "")
+      else builtins.elem "nixbuilder" (config.nix.settings.trusted-users or []);
   in
-    builtins.elem "nixbuilder" (config.nix.settings.trusted-users or [])
+    trustedUsersConfigured
     && lib.hasInfix "Match User nixbuilder" sshConfig
     && lib.hasInfix "AuthenticationMethods publickey" sshConfig
     && lib.hasInfix "PasswordAuthentication no" sshConfig
@@ -170,7 +206,7 @@
       name = "Lydia is a client only and does not expose a Nix builder account";
       passed =
         !(builtins.hasAttr "nixbuilder" (configFor "Lydia").users.users)
-        && !(builtins.elem "nixbuilder" ((configFor "Lydia").nix.settings.trusted-users or []));
+        && !(lib.hasInfix "nixbuilder" ((configFor "Lydia").environment.etc."nix/nix.custom.conf".text or ""));
     }
   ];
 in {

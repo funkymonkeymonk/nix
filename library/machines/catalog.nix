@@ -216,8 +216,6 @@
           system.stateVersion = 4;
           system.primaryUser = "monkey";
 
-          nix.settings.trusted-users = ["root" "monkey" "nixbuilder"];
-
           # This hidden account exposes only the Nix daemon protocol to registered builder clients.
           users.knownUsers = ["nixbuilder"];
           users.users.nixbuilder = {

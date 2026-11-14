@@ -435,7 +435,7 @@ in {
       megamanx = self.darwinConfigurations.MegamanX.config;
       lydia = self.darwinConfigurations.Lydia.config;
       builderUser = megamanx.users.users.nixbuilder or {};
-      remoteBuilderUserTrusted = builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users;
+      remoteBuilderUserTrusted = lib.hasInfix "trusted-users = root monkey nixbuilder" megamanx.environment.etc."nix/nix.custom.conf".text;
       builderUserConfigured =
         builderUser
         != {}
@@ -483,7 +483,7 @@ in {
         && remoteBuilderUserTrusted
         && builderUserConfigured
         && builderSshAuthenticationRestricted
-        && !(builtins.elem "nixbuilder" (lydia.nix.settings.trusted-users or []))
+        && !(lib.hasInfix "nixbuilder" (lydia.environment.etc."nix/nix.custom.conf".text or ""))
         && !(lydia.users.users ? nixbuilder)
         && !(lib.hasInfix "Match User nixbuilder" lydiaSshConfig);
     in

@@ -16,11 +16,13 @@ Create one unique Ed25519 Nix-builder client key pair per long-lived system (nin
 
 A named public-only registry maps client system names to their public keys and maps builder names to platform, endpoint, and pinned host public key. Existing `monkey-ssh.pub` remains the user-login key and the current Git/Jujutsu signing key. The Ultra Media service key remains independent.
 
+Darwin machines use Determinate Nix, and `os/darwin.nix` deliberately sets `nix.enable = false`. Do not enable nix-darwin Nix management. For Darwin clients and builders, write the machine list to `/etc/nix/machines` and builder settings to `/etc/nix/nix.custom.conf`. For NixOS, use `nix.buildMachines` and `nix.distributedBuilds`.
+
 ## Secret and host-key lifecycle
 
 Store each private builder key in an unqualified 1Password reference resolved through the machine's configured default vault. Opnix materializes only that machine's configured client key to a root-owned mode `0400` local file; `nix.buildMachines.*.sshKey` remains a string path to that file, never a Nix path or Nix-store value. SecretSpec supplies the Opnix service-account token at provisioning time. The shared Opnix token's vault-level permissions may allow a host to retrieve more than its own key; this is an accepted operational tradeoff for this design and must be documented.
 
-Import the pinned Opnix nix-darwin system module and enable the system secret service for participating systems. NixOS has the module available but its system service is disabled by default, so enablement and token provisioning must be explicit. Host private keys remain generated and persisted on each host. Public host-key pins are separate registry data; Zero's pin must be independently verified from a trusted existing record or local console before it is added. Never trust an unverified `ssh-keyscan` result.
+Import the pinned Opnix nix-darwin system module through the canonical system builders and enable the system secret service for participating systems. NixOS has the module available but its system service is disabled by default, so enablement and token provisioning must be explicit. Host private keys remain generated and persisted on each host. Public host-key pins are separate registry data; Zero's pin must be independently verified from a trusted existing record or local console before it is added. Never trust an unverified `ssh-keyscan` result.
 
 ## Network and builder selection
 

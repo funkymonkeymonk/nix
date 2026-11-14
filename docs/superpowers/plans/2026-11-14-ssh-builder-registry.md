@@ -16,7 +16,8 @@
 - Zero supports `x86_64-linux`; MegamanX supports `aarch64-darwin`; do not claim native `aarch64-linux` support.
 - One distinct Ed25519 client key pair per long-lived system; each builder authorizes the other eight and never itself.
 - Private keys stay in the configured 1Password default vault and are materialized by Opnix to root-owned mode `0400` files outside the Nix store.
-- `nix.buildMachines.*.sshKey` must be a string path to a local file, not a Nix path.
+- On NixOS, `nix.buildMachines.*.sshKey` must be a string path to a local file, not a Nix path.
+- Preserve Determinate Nix on Darwin: do not change `nix.enable = false`; write `/etc/nix/machines` and `/etc/nix/nix.custom.conf` with `environment.etc` instead of reading or setting managed `nix.*` options.
 - Host private keys remain local; host public pins are separate and independently verified. Never trust unverified `ssh-keyscan` output.
 - Preserve the user-login/signing key and Ultra Media service key. Do not glob all `.pub` files into bootstrap accounts.
 
@@ -85,6 +86,7 @@
 **Files:**
 - Create: `library/machines/remote-builders.nix`
 - Modify: `library/machines/devenv.nix`
+- Modify: `library/lib/mk-system.nix`
 - Modify: `library/machines/catalog.nix`
 - Modify: `library/machines/generated/Lydia.nix`
 - Modify: `machines/zero/default.nix`
@@ -103,10 +105,10 @@
   Evaluate the focused test and confirm missing Darwin Opnix, reciprocal builder entries, and secret provisioning fail as expected.
 
 - [ ] **Step 3: Add the shared registry-driven module**
-  Configure all nine long-lived clients to use the other builder(s), with Zero `x86_64-linux` and MegamanX `aarch64-darwin`. Exclude self. Leave native `aarch64-linux` work local. Add each client's private key as an Opnix reference at a platform-appropriate local runtime path; keep private values out of module expressions.
+  Configure all nine long-lived clients to use the other builder(s), with Zero `x86_64-linux` and MegamanX `aarch64-darwin`. Exclude self. On NixOS use `nix.buildMachines`; on Darwin preserve `nix.enable = false`, render `/etc/nix/machines`, and set `builders` plus `builders-use-substitutes` in `/etc/nix/nix.custom.conf`. Leave native `aarch64-linux` work local. Add each client's private key as an Opnix reference at a platform-appropriate local runtime path; keep private values out of module expressions.
 
 - [ ] **Step 4: Configure Zero and MegamanX as restricted builders**
-  Authorize all other registered clients on each host's `nixbuilder` account; trust that account only on builder hosts; retain forced Nix daemon command and disable interactive/forwarding features. Remove the obsolete Lydia builder account/key/trust configuration.
+  Authorize all other registered clients on each host's `nixbuilder` account; trust that account only on builder hosts; retain forced Nix daemon command and disable interactive/forwarding features. On MegamanX put the Nix trust and builder settings in `nix.custom.conf`, not `nix.settings`, because nix-darwin Nix management is disabled. Remove the obsolete Lydia builder account/key/trust configuration.
 
 - [ ] **Step 5: Enable Opnix system modules and provision its token**
   Import `opnix.darwinModules.default` for Darwin systems; enable the NixOS/Darwin system secret service on participating clients; provision `OPNIX_SERVICE_ACCOUNT_TOKEN` with SecretSpec using the documented provider route and root-only permissions. Add a narrow `BuilderClients` SecretSpec profile for `type-desktop` and `wweaver`; keep `Personal` reserved for bootstrap/installer systems, and add the token to MegamanX's custom profile.
