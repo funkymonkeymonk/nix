@@ -23,6 +23,7 @@
     skillsRepo = inputs.personal-skills;
   };
   testEmail = import ./test-email.nix {inherit pkgs;};
+  testMotd = import ./test-motd.nix {inherit pkgs;};
   testSketchybarRemoved = import ./test-sketchybar-removed.nix {inherit pkgs;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
   testJjWorkspaceAccess = import ./test-jj-workspace-access.nix {inherit pkgs;};
@@ -215,6 +216,9 @@ in
 
     # Coverage tracking
     module-coverage = testCoverage.moduleCoverageTest;
+
+    # MOTD shell script tests
+    motd-image-fetch = testMotd.motdImageFetch;
 
     # Email module tests
     email-agent-options = testEmail.emailAgentOptionsTest;
