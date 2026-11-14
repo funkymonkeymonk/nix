@@ -54,7 +54,8 @@
       extraGroups = [ "networkmanager" ];
       shell = pkgs.zsh;
       openssh.authorizedKeys.keys = [];
-    };'' installerScript;
+    };''
+  installerScript;
   hosts = [
     {
       name = "bootstrap";

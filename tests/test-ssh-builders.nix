@@ -58,16 +58,19 @@
     actual = config.nix.buildMachines or [];
     expected = expectedBuildersFor client;
     exactPeerSet =
-      builtins.length actual == builtins.length expected
+      builtins.length actual
+      == builtins.length expected
       && builtins.all (builder: builtins.any (machine: machineMatches machine builder) actual) expected
       && builtins.all (machine: builtins.any (builder: machineMatches machine builder) expected) actual;
     allEntriesSecure = builtins.all (machine:
-      machine.protocol == "ssh-ng"
+      machine.protocol
+      == "ssh-ng"
       && machine.sshUser == "nixbuilder"
       && builtins.isString (machine.sshKey or null)
       && !(lib.hasPrefix "/nix/store/" (machine.sshKey or ""))
       && builtins.isString (machine.publicHostKey or null)
-      && (machine.publicHostKey or "") != "") actual;
+      && (machine.publicHostKey or "") != "")
+    actual;
   in
     config.nix.distributedBuilds
     && (config.nix.settings.builders-use-substitutes or false)
@@ -80,10 +83,14 @@
   clientSecretValid = client: let
     config = configFor client;
     secret = config.myConfig.onepassword.secrets.nixBuilderClientKey or {};
-    expectedPath = if (config.myConfig.isDarwin or false) then "/var/run/nix-builder-client" else "/run/secrets/nix-builder-client";
+    expectedPath =
+      if (config.myConfig.isDarwin or false)
+      then "/var/run/nix-builder-client"
+      else "/run/secrets/nix-builder-client";
     buildMachines = config.nix.buildMachines or [];
   in
-    (secret.reference or null) == expectedSecretReference client
+    (secret.reference or null)
+    == expectedSecretReference client
     && (secret.path or null) == expectedPath
     && (secret.owner or null) == "root"
     && (secret.group or null) == "root"
@@ -133,7 +140,8 @@
     }
     {
       name = "Lydia is a client only and does not expose a Nix builder account";
-      passed = !(builtins.hasAttr "nixbuilder" (configFor "Lydia").users.users)
+      passed =
+        !(builtins.hasAttr "nixbuilder" (configFor "Lydia").users.users)
         && !(builtins.elem "nixbuilder" ((configFor "Lydia").nix.settings.trusted-users or []));
     }
   ];
@@ -156,7 +164,8 @@ in {
               echo "  FAIL: ${check.name}"
               failures=1
             fi
-          '') testResults)}
+          '')
+          testResults)}
         if [ "$failures" -ne 0 ]; then exit 1; fi
         touch $out
       '';
