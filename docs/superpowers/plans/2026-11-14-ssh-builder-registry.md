@@ -39,13 +39,14 @@
 - Modify: `tests/default.nix`
 - Modify: `tests/test-machines-foundation.nix`
 - Modify: `tests/test-machine-ops.nix`
+- Modify: `tests/test-machine-ops.sh`
 
 **Interfaces:**
 - Consumes: current NixOS and Darwin configuration outputs.
 - Produces: failing assertions for the exact client list, reciprocal peer topology, restricted builder users, Opnix token/key settings, and no builder-key authorization in bootstrap accounts.
 
 - [ ] **Step 1: Write failing tests**
-  Assert the exact nine client names; unique Ed25519 fingerprints; each of Zero and MegamanX authorizes the other eight identities; each client's remote builder list omits itself and pins the opposite builder's supported system; both builders have the restricted `nixbuilder` account; and SecretSpec/Opnix metadata is reference-only.
+  Assert the exact nine client names; unique Ed25519 public keys; each of Zero and MegamanX authorizes the other eight identities; each client's remote builder list omits itself and pins the opposite builder's supported system; both builders have the restricted `nixbuilder` account; and SecretSpec/Opnix metadata is reference-only.
   Update existing authorized-key expectations to remove Lydia's accidental builder account. Add an installer regression assertion that only `monkey-ssh.pub` is copied to bootstrap `admin` and no key is copied to `guest` by default.
 
 - [ ] **Step 2: Verify RED**
@@ -106,7 +107,7 @@
   Authorize all other registered clients on each host's `nixbuilder` account; trust that account only on builder hosts; retain forced Nix daemon command and disable interactive/forwarding features. Remove the obsolete Lydia builder account/key/trust configuration.
 
 - [ ] **Step 5: Enable Opnix system modules and provision its token**
-  Import `opnix.darwinModules.default` for Darwin systems; enable the NixOS/Darwin system secret service on participating clients; provision `OPNIX_SERVICE_ACCOUNT_TOKEN` with SecretSpec using the documented default-vault route and root-only permissions. Ensure custom `MegamanX` and `Personal` profile cases explicitly declare what is required.
+  Import `opnix.darwinModules.default` for Darwin systems; enable the NixOS/Darwin system secret service on participating clients; provision `OPNIX_SERVICE_ACCOUNT_TOKEN` with SecretSpec using the documented provider route and root-only permissions. Add a narrow `BuilderClients` SecretSpec profile for `type-desktop` and `wweaver`; keep `Personal` reserved for bootstrap/installer systems, and add the token to MegamanX's custom profile.
 
 - [ ] **Step 6: Verify green**
   Run focused builder topology, authorized-key, Zero builder, Lydia migration, machine inventory, and SecretSpec tests.

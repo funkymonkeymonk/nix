@@ -80,6 +80,7 @@
   testTailscaleConfig = import ./test-tailscale-config.nix {inherit pkgs self inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
   testSshAuthorizedKeys = import ./test-ssh-authorized-keys.nix {inherit pkgs self;};
+  testSshBuilders = import ./test-ssh-builders.nix {inherit pkgs self;};
   testSshHostKeyFingerprint = import ./test-ssh-host-key-fingerprint.nix {inherit pkgs self;};
   testTailscaleOauthAuthKey = import ./test-tailscale-oauth-authkey.nix {inherit pkgs;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
@@ -155,6 +156,7 @@ in
     installer-ready = testInstallerReady.installerReady;
     installer-source = installerSourceTest;
     ssh-authorized-keys = testSshAuthorizedKeys;
+    ssh-builders = testSshBuilders.sshBuilders;
     ssh-host-key-fingerprint = testSshHostKeyFingerprint.sshHostKeyFingerprint;
     tailscale-oauth-auth-key = testTailscaleOauthAuthKey.tailscaleOauthAuthKey;
     tailscale-darwin-autoconnect = testTailscaleConfig.tailscaleDarwinAutoconnect;

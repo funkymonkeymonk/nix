@@ -10,15 +10,51 @@
     builtins.filter
     (name: builtins.match ".*\\.pub" name != null)
     (builtins.attrNames (builtins.readDir ../keys));
-  nixBuilderPublicKeyPath = ../keys/nix-remote-builder-megamanx.pub;
-  nixBuilderPublicKey =
-    if builtins.pathExists nixBuilderPublicKeyPath
-    then builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile nixBuilderPublicKeyPath)
+  clientKeyFiles = {
+    zero = ../keys/nix-remote-builder-megamanx.pub;
+    drlight = ../keys/nix-builder-client-drlight.pub;
+    type-nas = ../keys/nix-builder-client-type-nas.pub;
+    type-server = ../keys/nix-builder-client-type-server.pub;
+    type-server-arm = ../keys/nix-builder-client-type-server-arm.pub;
+    type-desktop = ../keys/nix-builder-client-type-desktop.pub;
+    Lydia = ../keys/nix-builder-client-lydia.pub;
+    MegamanX = ../keys/nix-builder-client-megamanx.pub;
+    wweaver = ../keys/nix-builder-client-wweaver.pub;
+  };
+  clientNames = ["zero" "drlight" "type-nas" "type-server" "type-server-arm" "type-desktop" "Lydia" "MegamanX" "wweaver"];
+  clientKey = name: let
+    path = clientKeyFiles.${name};
+  in
+    if builtins.pathExists path
+    then builtins.replaceStrings ["\n" "\r"] ["" ""] (builtins.readFile path)
     else "";
+  builderKeysFor = builderName: map clientKey (builtins.filter (name: name != builderName) clientNames);
+  expectedPublicKeyFiles = [
+    "monkey-ssh.pub"
+    "nix-builder-client-drlight.pub"
+    "nix-builder-client-lydia.pub"
+    "nix-builder-client-megamanx.pub"
+    "nix-builder-client-type-desktop.pub"
+    "nix-builder-client-type-nas.pub"
+    "nix-builder-client-type-server-arm.pub"
+    "nix-builder-client-type-server.pub"
+    "nix-builder-client-wweaver.pub"
+    "nix-remote-builder-megamanx.pub"
+  ];
   installerScript = builtins.readFile ../scripts/nixos-install.sh;
   installerUsesCanonicalKey =
     pkgs.lib.hasInfix "keys/monkey-ssh.pub" installerScript
-    && !(pkgs.lib.hasInfix "username@hostname.pub" installerScript);
+    && !(pkgs.lib.hasInfix "username@hostname.pub" installerScript)
+    && !(pkgs.lib.hasInfix "find \"$KEYS_DIR\" -name \"*.pub\"" installerScript)
+    && !(pkgs.lib.hasInfix "for keyfile in \"$KEYS_DIR\"/*.pub" installerScript);
+  installerLeavesGuestWithoutKeys = pkgs.lib.hasInfix ''
+    users.users.guest = {
+      isNormalUser = true;
+      description = "Guest User";
+      extraGroups = [ "networkmanager" ];
+      shell = pkgs.zsh;
+      openssh.authorizedKeys.keys = [];
+    };'' installerScript;
   hosts = [
     {
       name = "bootstrap";
@@ -50,7 +86,8 @@
     }
     {
       name = "zero";
-      accounts = ["root"];
+      accounts = ["root" "nixbuilder"];
+      expectedKeysByAccount.nixbuilder = builderKeysFor "zero";
     }
   ];
   darwinHosts = [
@@ -59,19 +96,14 @@
       accounts = ["monkey" "nixbuilder"];
       expectedKeysByAccount = {
         monkey = [expectedPublicKey];
-        nixbuilder = [
-          ''restrict,command="/nix/var/nix/profiles/default/bin/nix-daemon --stdio" ${nixBuilderPublicKey}''
-        ];
+        nixbuilder = builderKeysFor "MegamanX";
       };
     }
     {
       name = "Lydia";
-      accounts = ["monkey" "nixbuilder"];
+      accounts = ["monkey"];
       expectedKeysByAccount = {
         monkey = [expectedPublicKey];
-        nixbuilder = [
-          ''restrict,command="/nix/var/nix/profiles/default/bin/nix-daemon --stdio" ${nixBuilderPublicKey}''
-        ];
       };
     }
     {
@@ -114,9 +146,9 @@ in
       )
       checks)}
     ${
-      if publicKeyFiles == ["monkey-ssh.pub" "nix-remote-builder-megamanx.pub"] && installerUsesCanonicalKey && nixBuilderPublicKey != ""
-      then ''echo "Installer and key directory contain the approved and remote-builder public keys: OK"''
-      else ''echo "FAIL: installer and key directory must use only the canonical SSH public key"; exit 1''
+      if publicKeyFiles == expectedPublicKeyFiles && installerUsesCanonicalKey && installerLeavesGuestWithoutKeys && builtins.all (name: clientKey name != "") clientNames
+      then ''echo "The key registry is complete and the legacy installer scopes login access: OK"''
+      else ''echo "FAIL: public keys must be explicitly registered and the installer must not grant builder keys to login accounts"; exit 1''
     }
     touch $out
   ''
