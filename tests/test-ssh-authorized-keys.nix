@@ -47,15 +47,12 @@
     && !(pkgs.lib.hasInfix "username@hostname.pub" installerScript)
     && !(pkgs.lib.hasInfix "find \"$KEYS_DIR\" -name \"*.pub\"" installerScript)
     && !(pkgs.lib.hasInfix "for keyfile in \"$KEYS_DIR\"/*.pub" installerScript);
-  installerLeavesGuestWithoutKeys = pkgs.lib.hasInfix ''
-    users.users.guest = {
-      isNormalUser = true;
-      description = "Guest User";
-      extraGroups = [ "networkmanager" ];
-      shell = pkgs.zsh;
-      openssh.authorizedKeys.keys = [];
-    };''
-  installerScript;
+  guestBlocks = pkgs.lib.splitString "users.users.guest = {" installerScript;
+  guestConfig =
+    if builtins.length guestBlocks > 1
+    then builtins.head (pkgs.lib.splitString "  };" (builtins.elemAt guestBlocks 1))
+    else "";
+  installerLeavesGuestWithoutKeys = pkgs.lib.hasInfix "openssh.authorizedKeys.keys = [];" guestConfig;
   hosts = [
     {
       name = "bootstrap";
