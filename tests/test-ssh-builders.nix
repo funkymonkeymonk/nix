@@ -70,7 +70,8 @@
     tokenPath = opnixTokenFileFor name;
     token = installSecrets.${tokenPath} or {};
   in
-    (token.secret or null) == "OPNIX_SERVICE_ACCOUNT_TOKEN"
+    (token.secret or null)
+    == "OPNIX_SERVICE_ACCOUNT_TOKEN"
     && (token.owner or null) == "0:0"
     && (token.mode or null) == "0600"
     && builtins.toString (configFor name).myConfig.onepassword.tokenFile == tokenPath;
