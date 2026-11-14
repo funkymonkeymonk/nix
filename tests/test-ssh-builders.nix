@@ -61,14 +61,19 @@
     else self.nixosConfigurations // self.darwinConfigurations;
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
   configFor = name: configurations.${name}.config;
+  opnixTokenFileFor = name:
+    if builtins.elem name ["zero" "type-desktop" "Lydia" "MegamanX" "wweaver"]
+    then "/etc/opnix-token"
+    else "/etc/opnix/token";
   opnixTokenInstallValid = name: let
     installSecrets = (catalog.${name}.install or {}).secrets or {};
-    token = installSecrets."/etc/opnix/token" or {};
+    tokenPath = opnixTokenFileFor name;
+    token = installSecrets.${tokenPath} or {};
   in
-    (token.secret or null)
-    == "OPNIX_SERVICE_ACCOUNT_TOKEN"
+    (token.secret or null) == "OPNIX_SERVICE_ACCOUNT_TOKEN"
     && (token.owner or null) == "0:0"
-    && (token.mode or null) == "0600";
+    && (token.mode or null) == "0600"
+    && builtins.toString (configFor name).myConfig.onepassword.tokenFile == tokenPath;
   expectedBuildersFor = client: builtins.filter (builder: builder.name != client) builders;
   machineMatches = machine: builder: machine.hostName == builder.hostName && machine.system == builder.system;
   builderLine = keyPath: builder:
