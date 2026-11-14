@@ -1,6 +1,6 @@
 # SSH Builder Registry Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Configure nine long-lived Nix systems with unique client SSH identities so Zero and MegamanX can serve each other and the rest of the fleet as platform-specific remote builders.
 
@@ -48,14 +48,14 @@
 - Consumes: current NixOS and Darwin configuration outputs.
 - Produces: failing assertions for the exact client list, reciprocal peer topology, restricted builder users, Opnix token/key settings, and no builder-key authorization in bootstrap accounts.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
   Assert the exact nine client names; unique Ed25519 public keys; each of Zero and MegamanX authorizes the other eight identities; each client's remote builder list omits itself and pins the opposite builder's supported system; both builders have the restricted `nixbuilder` account; and SecretSpec/Opnix metadata is reference-only.
   Update existing authorized-key expectations to remove Lydia's accidental builder account. Add an installer regression assertion that only `monkey-ssh.pub` is copied to bootstrap `admin` and no key is copied to `guest` by default.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
   Run the focused SSH builder test derivation and observe expected missing topology/registry failures, not evaluation syntax errors.
 
-- [ ] **Step 3: Commit tests before implementation**
+- [x] **Step 3: Commit tests before implementation**
   Use `jj describe -m "test: specify reciprocal ssh builder topology"` after tracking any new test file.
 
 ### Task 2: Provision and register nine client identities
@@ -70,16 +70,16 @@
 - Consumes: approved client inventory, the existing Zero private-key item `Nix Remote Builder Zero to MegamanX/private key`, and new Opnix items named `Nix Builder Client <system>/private key` for the other eight systems.
 - Produces: `registry.clients.<system>.publicKey`, `registry.clients.<system>.secretReference`, `registry.builders.zero`, and `registry.builders.MegamanX` public metadata.
 
-- [ ] **Step 1: Reuse Zero's existing client pair and generate eight new Ed25519 pairs**
+- [x] **Step 1: Reuse Zero's existing client pair and generate eight new Ed25519 pairs**
   Keep the current Zero→MegamanX key pair as Zero's unique client identity; do not rotate it. Store each other private key in its matching Opnix SSH-key item in that machine's configured default vault; only commit its `.pub` file. Do not print or log private material. Record public fingerprints only.
 
-- [ ] **Step 2: Obtain and verify Zero's host public key**
+- [x] **Step 2: Obtain and verify Zero's host public key**
   Compare against an existing trusted `known_hosts` entry or the Zero local console. Do not use an unverified scan. Keep the existing MegamanX pin and represent both pins as named registry data with readable public-key files and required Nix base64 values.
 
-- [ ] **Step 3: Implement the registry and verify RED-to-GREEN**
+- [x] **Step 3: Implement the registry and verify RED-to-GREEN**
   Load public keys from fixed files, map each machine to its unqualified Opnix private-key reference, and define builder system/hostname/host pin. Run the focused registry tests.
 
-- [ ] **Step 4: Commit public registry data**
+- [x] **Step 4: Commit public registry data**
   Confirm no private key or resolved SecretSpec value is tracked, then describe the change conventionally.
 
 ### Task 3: Configure shared clients and reciprocal restricted builders
@@ -99,25 +99,25 @@
 - Consumes: registry from Task 2 and catalog machine name/platform.
 - Produces: per-client `nix.buildMachines`, `nix.distributedBuilds`, builder substitute setting, Opnix client-key runtime secret, and restricted builder-account authorization lists.
 
-- [ ] **Step 1: Write tests for cross-platform Opnix and builder behavior**
+- [x] **Step 1: Write tests for cross-platform Opnix and builder behavior**
   Extend Task 1 tests to require the pinned `opnix.darwinModules.default` import; enabled Opnix system secret service wherever a builder client key is required; an appropriate token path; and mode `0400`, root ownership, and a string `sshKey` path.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
   Evaluate the focused test and confirm missing Darwin Opnix, reciprocal builder entries, and secret provisioning fail as expected.
 
-- [ ] **Step 3: Add the shared registry-driven module**
+- [x] **Step 3: Add the shared registry-driven module**
   Configure all nine long-lived clients to use the other builder(s), with Zero `x86_64-linux` and MegamanX `aarch64-darwin`. Exclude self. On NixOS use `nix.buildMachines`; on Darwin preserve `nix.enable = false`, render `/etc/nix/machines`, and set `builders` plus `builders-use-substitutes` in `/etc/nix/nix.custom.conf`. Leave native `aarch64-linux` work local. Add each client's private key as an Opnix reference at a platform-appropriate local runtime path; keep private values out of module expressions.
 
-- [ ] **Step 4: Configure Zero and MegamanX as restricted builders**
+- [x] **Step 4: Configure Zero and MegamanX as restricted builders**
   Authorize all other registered clients on each host's `nixbuilder` account; trust that account only on builder hosts; retain forced Nix daemon command and disable interactive/forwarding features. On MegamanX put the Nix trust and builder settings in `nix.custom.conf`, not `nix.settings`, because nix-darwin Nix management is disabled. Remove the obsolete Lydia builder account/key/trust configuration.
 
-- [ ] **Step 5: Enable Opnix system modules and provision its token**
+- [x] **Step 5: Enable Opnix system modules and provision its token**
   Import `opnix.darwinModules.default` for Darwin systems; enable the NixOS/Darwin system secret service on participating clients; provision `OPNIX_SERVICE_ACCOUNT_TOKEN` with SecretSpec using the documented provider route and root-only permissions. Add a narrow `BuilderClients` SecretSpec profile for `type-desktop` and `wweaver`; keep `Personal` reserved for bootstrap/installer systems, and add the token to MegamanX's custom profile.
 
-- [ ] **Step 6: Verify green**
+- [x] **Step 6: Verify green**
   Run focused builder topology, authorized-key, Zero builder, Lydia migration, machine inventory, and SecretSpec tests.
 
-- [ ] **Step 7: Commit reciprocal builder configuration**
+- [x] **Step 7: Commit reciprocal builder configuration**
   Commit only after all named tests pass.
 
 ### Task 4: Fix legacy installer key selection and document operations
@@ -132,25 +132,25 @@
 - Consumes: `monkey-ssh.pub` as the explicit bootstrap-login key.
 - Produces: bootstrap config that never authorizes builder identities as login keys; operator instructions for network access, key rotation, builder platforms, and host-pin verification.
 
-- [ ] **Step 1: Add failing installer-scope test**
+- [x] **Step 1: Add failing installer-scope test**
   Assert local and remote installer paths authorize only the explicit user key to the admin account and authorize no keys to `guest`; builder `.pub` files are never globbed.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
   Run the focused shell/Nix test and confirm it fails because of the existing `.pub` glob and guest authorization.
 
-- [ ] **Step 3: Implement explicit bootstrap key selection**
+- [x] **Step 3: Implement explicit bootstrap key selection**
   Remove automatic enumeration of `keys/*.pub`; load only the canonical user key and do not grant it to `guest`.
 
-- [ ] **Step 4: Document platform/network/rotation behavior**
+- [x] **Step 4: Document platform/network/rotation behavior**
   Describe the nine-client registry, two builder platforms, LAN/Tailscale hostname requirement, the `aarch64-linux` limitation, private-key rotation, Opnix token scope, and independently verified host-key pins.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
   Run installer key-scope tests and the builder docs checks.
 
 ### Task 5: Full verification
 
-- [ ] Run `devenv tasks run check:lint`.
-- [ ] Run `devenv tasks run test:build-checks`.
-- [ ] Run `devenv tasks run test:eval` because NixOS and Darwin configurations change.
-- [ ] Review `jj diff` for private key material, unintended profile/vault changes, and builder self-loops.
-- [ ] Confirm working copy status and report any verification blocked by live 1Password or host-key access.
+- [x] Run `devenv tasks run check:lint`.
+- [x] Run `devenv tasks run test:build-checks`.
+- [x] Run `devenv tasks run test:eval` because NixOS and Darwin configurations change.
+- [x] Review `jj diff` for private key material, unintended profile/vault changes, and builder self-loops.
+- [x] Confirm working copy status and report any verification blocked by live 1Password or host-key access.
