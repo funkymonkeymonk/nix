@@ -4,18 +4,23 @@
   _lib,
   ...
 }:
-# Per-machine NixOS module template for this repository.
+# Per-machine module template for this repository.
 #
 # Usage:
-# - Copy this file to `nix/<machine>.nix` and reference it from `flake.nix`
-#   (add to the machine's `modules` list in `nixosConfigurations`).
-# - Use `${pkgs.<pkg>}` when embedding Nix package paths into files managed
-#   by Nix (these are resolved at evaluation time). Use `$HOME` (not
-#   `${HOME}`) inside shell/text literals when you need the runtime user's
-#   home directory.
+# - Prefer the interactive scaffolder: `devenv shell machine-new` from the
+#   repository root. It writes the machine module, its catalog record, and the
+#   matching machine metadata in one step (see docs/how-to/create-machine-target.md).
+# - If hand-rolling, copy this file to `machines/<machine>/default.nix`, import an
+#   archetype (e.g. `../../library/archetypes/desktop-nixos.nix`), and register the
+#   machine in the catalog (`library/machines/generated/<machine>.nix` plus its
+#   entry in `library/machines/catalog.nix`). Do NOT add it to `nixosConfigurations`
+#   in `flake.nix` — machines are composed from the catalog, not the flake.
+# - Use `${pkgs.<pkg>}` when embedding Nix package paths into files managed by
+#   Nix (these are resolved at evaluation time). Use `$HOME` (not `${HOME}`)
+#   inside shell/text literals when you need the runtime user's home directory.
 #
-# Common gotcha: `${HOME}` inside a Nix string will be interpreted by the
-# Nix evaluator and typically causes errors. Prefer `$HOME` in runtime
+# Common gotcha: `${HOME}` inside a Nix string will be interpreted by the Nix
+# evaluator and typically causes errors. Prefer `$HOME` in runtime
 # shells/scripts and `${pkgs.<pkg>}` for Nix package paths.
 {
   # Example user entry — replace <username> and the fields below.
