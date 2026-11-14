@@ -39,11 +39,13 @@
       name = "zero";
       hostName = "zero";
       system = "x86_64-linux";
+      publicKeyFile = ../keys/hosts/zero.pub;
     }
     {
       name = "MegamanX";
       hostName = "megamanx";
       system = "aarch64-darwin";
+      publicKeyFile = ../keys/hosts/megamanx.pub;
     }
   ];
   configurations =
@@ -53,6 +55,18 @@
   configFor = name: configurations.${name}.config;
   expectedBuildersFor = client: builtins.filter (builder: builder.name != client) builders;
   machineMatches = machine: builder: machine.hostName == builder.hostName && machine.system == builder.system;
+  pinForBuilder = builder: let
+    clients = builtins.filter (client: client != builder.name) clientNames;
+    clientConfig = configFor (builtins.head clients);
+    matches = builtins.filter (machine: machine.hostName == builder.hostName) (clientConfig.nix.buildMachines or []);
+  in {
+    inherit (builder) name publicKeyFile;
+    value =
+      if matches == []
+      then ""
+      else ((builtins.head matches).publicHostKey or "");
+  };
+  builderPins = map pinForBuilder builders;
   clientTopologyValid = client: let
     config = configFor client;
     actual = config.nix.buildMachines or [];
@@ -154,9 +168,22 @@ in {
         touch $out
       ''
     else
-      pkgs.runCommand "test-ssh-builders" {} ''
+      pkgs.runCommand "test-ssh-builders" {
+        nativeBuildInputs = [pkgs.coreutils];
+      } ''
         failures=0
         echo "=== Testing the reciprocal SSH builder registry ==="
+        ${builtins.concatStringsSep "\n" (map (pin: ''
+            tmp=$(mktemp)
+            if printf '%s' '${pin.value}' | base64 -d > "$tmp" && cmp -s "$tmp" ${lib.escapeShellArg (toString pin.publicKeyFile)}; then
+              echo "  ${pin.name} host-key pin matches its public key: OK"
+            else
+              echo "  FAIL: ${pin.name} host-key pin does not match its public-key source"
+              failures=1
+            fi
+            rm -f "$tmp"
+          '')
+          builderPins)}
         ${builtins.concatStringsSep "\n" (map (check: ''
             if ${lib.boolToString check.passed}; then
               echo "  ${check.name}: OK"

@@ -186,7 +186,8 @@
           && lydia.myConfig.ssh.enable
           && lydia.services.openssh.enable
           && lydia.users.users.monkey.openssh.authorizedKeys.keys != []
-          && lydia.users.users.nixbuilder.isHidden
+          && !(lydia.users.users ? nixbuilder)
+          && !(builtins.elem "nixbuilder" (lydia.nix.settings.trusted-users or []))
           && lydia.myConfig.roles.developer.enable
           && lydia.myConfig.roles.desktop.enable
           && lydia.myConfig.roles.workstation.enable

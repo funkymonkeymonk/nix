@@ -35,6 +35,7 @@
 **Files:**
 - Modify: `tests/test-ssh-authorized-keys.nix`
 - Modify: `tests/test-zero.nix`
+- Modify: `tests/test-lydia-migration.nix`
 - Create: `tests/test-ssh-builders.nix`
 - Modify: `tests/default.nix`
 - Modify: `tests/test-machines-foundation.nix`
