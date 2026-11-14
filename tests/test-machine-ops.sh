@@ -8,6 +8,8 @@ trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/dotfile/machine-plans/plan-123" "$tmp/dotfile/machine-plans/plan-fleet" "$tmp/dotfile/machine-plans/plan-malformed"
 export DEVENV_DOTFILE="$tmp/dotfile"
 export MACHINE_OPS_TEST_LOG="$tmp/devenv.log"
+export MACHINE_OPS_OP_LOG="$tmp/op.log"
+export MACHINE_OPS_BUILDER_KEY_CAPTURE="$tmp/builder-key-path"
 export MACHINE_OPS_SECRETSPEC_LOG="$tmp/secretspec.log"
 export MACHINE_OPS_SSH_LOG="$tmp/ssh.log"
 export MACHINE_OPS_AUTHKEY_LOG="$tmp/authkey.log"
@@ -18,8 +20,12 @@ export MACHINE_OPS_STAGE_SANDBOX="$tmp/remote-stage"
 export MACHINE_OPS_STAGE_FAIL_BIN="$tmp/stage-fail-bin"
 export MACHINE_OPS_TEST_ACTIVATION_MARKER="$tmp/activation-complete"
 export MACHINE_OPS_TEST_TARGET_HOST="root@192.0.2.23"
+export MACHINE_OPS_TEST_BUILDER_KEY="fake-nix-builder-private-key"
+export TMPDIR="$tmp/build-temp"
+mkdir -p "$TMPDIR"
 export PATH="$tmp/bin:$PATH"
 : > "$MACHINE_OPS_TEST_LOG"
+: > "$MACHINE_OPS_OP_LOG"
 : > "$MACHINE_OPS_SECRETSPEC_LOG"
 : > "$MACHINE_OPS_SSH_LOG"
 : > "$MACHINE_OPS_AUTHKEY_LOG"
@@ -40,7 +46,52 @@ if [[ "${1:-}" == machines && "${2:-}" == info && -n "${3:-}" ]]; then
   printf 'devenv|%s\n' "$*" >> "$MACHINE_OPS_TEST_LOG"
   exit 0
 fi
-printf 'devenv|%s\n' "$*" >> "$MACHINE_OPS_TEST_LOG"
+devenv_call=$*
+printf 'devenv|%s\n' "$devenv_call" >> "$MACHINE_OPS_TEST_LOG"
+if [[ "${1:-}" == build ]]; then
+  store_uri=''
+  max_jobs=''
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == --nix-option && $# -ge 3 ]]; then
+      case "$2" in
+        store) store_uri=$3 ;;
+        max-jobs) max_jobs=$3 ;;
+      esac
+      shift 3
+    else
+      shift
+    fi
+  done
+
+  if [[ "${MACHINE_OPS_EXPECT_REMOTE_BUILD:-false}" == true ]]; then
+    [[ "$store_uri" == ssh-ng://nixbuilder@megamanx\?ssh-key=* && "$max_jobs" == 0 ]] || {
+      echo 'cross build did not select the MegamanX SSH store and disable local jobs' >&2
+      exit 88
+    }
+    store_query=${store_uri#*\?}
+    encoded_key_path=${store_query#ssh-key=}
+    encoded_key_path=${encoded_key_path%%&*}
+    builder_key=${encoded_key_path//%2F//}
+    encoded_host_key=${store_query#*&base64-ssh-public-host-key=}
+    [[ "$encoded_host_key" == c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK ]] || {
+      echo 'cross build did not preserve the pinned MegamanX host key' >&2
+      exit 88
+    }
+    [[ -f "$builder_key" && "$(stat -c '%a' "$builder_key")" == 600 ]] || {
+      echo 'cross build key was not available with mode 0600 during the build' >&2
+      exit 88
+    }
+    [[ "$(cat "$builder_key")" == "$MACHINE_OPS_TEST_BUILDER_KEY" ]] || {
+      echo 'cross build did not pass the resolved builder key to Nix' >&2
+      exit 88
+    }
+    printf '%s' "$builder_key" > "$MACHINE_OPS_BUILDER_KEY_CAPTURE"
+  elif [[ -n "$store_uri" || -n "$max_jobs" ]]; then
+    echo 'local build unexpectedly selected a remote store' >&2
+    exit 88
+  fi
+  [[ "${MACHINE_OPS_TEST_BUILD_FAILURE:-false}" != true ]] || exit 42
+fi
 if [[ "${1:-}" == machines && ( "${2:-}" == deploy || "${2:-}" == apply ) ]]; then
   if [[ "${MACHINE_OPS_TEST_ACTIVATION_FAIL:-false}" == true ]]; then
     exit 42
@@ -62,15 +113,24 @@ MOCK
 
 printf '#!%s\n' "$BASH" > "$tmp/bin/nix"
 cat >> "$tmp/bin/nix" <<'MOCK'
-# Only the catalog profile lookup used by the wrapper is mocked. No Nix build,
-# network operation, devenv execution, or SecretSpec provider is run here.
-[[ "${1:-}" == eval ]] || exit 91
-[[ "${2:-}" == --impure && "${3:-}" == --raw && "${4:-}" == --expr ]] || {
-  echo 'catalog metadata evaluation must allow the explicit local catalog path' >&2
+# Catalog, current-system, and builder metadata are mocked. No Nix build,
+# network operation, devenv task, or SecretSpec provider is run here.
+[[ "${1:-}" == eval && "${2:-}" == --impure ]] || exit 91
+[[ "${3:-}" == --raw || "${3:-}" == --json ]] || {
+  echo 'catalog metadata evaluation must select raw or JSON output' >&2
   exit 94
 }
-if [[ "${5:-}" == 'builtins.currentSystem' ]]; then
+[[ "${4:-}" == --expr ]] || {
+  echo 'catalog metadata evaluation must allow the explicit local catalog expression' >&2
+  exit 94
+}
+query=${5:-}
+if [[ "$query" == 'builtins.currentSystem' ]]; then
   printf '%s' "${MACHINE_OPS_TEST_CURRENT_SYSTEM:-x86_64-linux}"
+  exit
+fi
+if [[ "$query" == *nixosConfigurations.zero.config* ]]; then
+  printf '%s' '{"builders":[{"hostName":"megamanx","system":"aarch64-darwin","protocol":"ssh-ng","sshUser":"nixbuilder","maxJobs":4,"speedFactor":1,"supportedFeatures":["big-parallel"],"mandatoryFeatures":[],"publicHostKey":"c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK","sshKey":"/run/secrets/nix-remote-builder-megamanx"}],"defaultVault":"Opnix","keyReference":"Nix Remote Builder Zero to MegamanX/private key"}'
   exit
 fi
 secret_mode=${MACHINE_OPS_TEST_SECRET_MODE:-none}
@@ -87,7 +147,7 @@ emit_metadata() {
     "${MACHINE_OPS_TEST_HAS_TAILSCALE_OAUTH:-false}" \
     "${MACHINE_OPS_TEST_TAILSCALE_TAGS_JSON:-$7}"
 }
-case "${5:-}" in
+case "$query" in
   *type-server-arm*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" aarch64-linux false '[]' ;;
   *drlight*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" x86_64-linux true '["tag:home-lab","tag:media-center"]' ;;
   *zero*|*type-nas*|*type-server*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" x86_64-linux true '["tag:home-lab"]' ;;
@@ -98,7 +158,17 @@ case "${5:-}" in
   *) exit 92 ;;
 esac
 MOCK
-chmod +x "$tmp/bin/devenv" "$tmp/bin/secretspec" "$tmp/bin/nix"
+printf '#!%s\n' "$BASH" > "$tmp/bin/op"
+cat >> "$tmp/bin/op" <<'MOCK'
+printf 'op|%s\n' "$*" >> "$MACHINE_OPS_OP_LOG"
+[[ "${1:-}" == read && "${2:-}" == 'op://Opnix/Nix Remote Builder Zero to MegamanX/private key' ]] || {
+  echo "unexpected 1Password read request: $*" >&2
+  exit 89
+}
+[[ "${MACHINE_OPS_TEST_OP_FAILURE:-false}" != true ]] || exit 87
+printf '%s' "$MACHINE_OPS_TEST_BUILDER_KEY"
+MOCK
+chmod +x "$tmp/bin/devenv" "$tmp/bin/secretspec" "$tmp/bin/nix" "$tmp/bin/op"
 
 printf '#!%s\n' "$BASH" > "$tmp/bin/ssh"
 cat >> "$tmp/bin/ssh" <<'MOCK'
@@ -176,6 +246,8 @@ JSON
 
 run() {
   : > "$MACHINE_OPS_TEST_LOG"
+  : > "$MACHINE_OPS_OP_LOG"
+  rm -f "$MACHINE_OPS_BUILDER_KEY_CAPTURE"
   : > "$MACHINE_OPS_SECRETSPEC_LOG"
   : > "$MACHINE_OPS_SSH_LOG"
   : > "$MACHINE_OPS_AUTHKEY_LOG"
@@ -293,9 +365,49 @@ expect_log 'devenv|machines info'
 # Local builds use the documented build role path and are machine-specific.
 run build zero
 expect_log 'devenv|build machines.zero.build.nixos'
-[[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
-run build wweaver
+[[ ! -s "$MACHINE_OPS_OP_LOG" && ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+MACHINE_OPS_TEST_CURRENT_SYSTEM=aarch64-darwin run build wweaver
 expect_log 'devenv|build machines.wweaver.build.nix-darwin'
+[[ ! -s "$MACHINE_OPS_OP_LOG" && ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
+MACHINE_OPS_EXPECT_REMOTE_BUILD=true run build MegamanX
+grep -F 'devenv|build machines.MegamanX.build.nix-darwin --nix-option store ssh-ng://nixbuilder@megamanx?ssh-key=' "$MACHINE_OPS_TEST_LOG" >/dev/null
+grep -F ' --nix-option max-jobs 0' "$MACHINE_OPS_TEST_LOG" >/dev/null
+grep -Fx 'op|read op://Opnix/Nix Remote Builder Zero to MegamanX/private key' "$MACHINE_OPS_OP_LOG" >/dev/null
+builder_key_path=$(cat "$MACHINE_OPS_BUILDER_KEY_CAPTURE")
+[[ ! -e "$builder_key_path" ]]
+if grep -F "$MACHINE_OPS_TEST_BUILDER_KEY" "$MACHINE_OPS_TEST_LOG" "$MACHINE_OPS_OP_LOG"; then
+  echo 'remote builder key leaked to command logs' >&2
+  exit 1
+fi
+
+if MACHINE_OPS_TEST_TARGET_SYSTEM_OVERRIDE=aarch64-linux run build type-server-arm >"$tmp/unsupported-cross-build" 2>&1; then
+  echo 'unsupported cross build unexpectedly succeeded' >&2
+  exit 1
+fi
+grep -F 'no compatible remote builder' "$tmp/unsupported-cross-build" >/dev/null
+[[ ! -s "$MACHINE_OPS_TEST_LOG" && ! -s "$MACHINE_OPS_OP_LOG" ]]
+
+if MACHINE_OPS_TEST_OP_FAILURE=true run build MegamanX >"$tmp/builder-key-failure" 2>&1; then
+  echo 'cross build with a failed 1Password read unexpectedly succeeded' >&2
+  exit 1
+fi
+grep -F 'failed to read the MegamanX remote builder key' "$tmp/builder-key-failure" >/dev/null
+[[ ! -s "$MACHINE_OPS_TEST_LOG" ]]
+if compgen -G "$TMPDIR/nix-remote-builder.*" >/dev/null; then
+  echo 'temporary builder key remained after 1Password read failure' >&2
+  exit 1
+fi
+
+if MACHINE_OPS_EXPECT_REMOTE_BUILD=true MACHINE_OPS_TEST_BUILD_FAILURE=true run build MegamanX >"$tmp/builder-build-failure" 2>&1; then
+  echo 'failed remote build unexpectedly succeeded' >&2
+  exit 1
+fi
+builder_key_path=$(cat "$MACHINE_OPS_BUILDER_KEY_CAPTURE")
+[[ ! -e "$builder_key_path" ]]
+if compgen -G "$TMPDIR/nix-remote-builder.*" >/dev/null; then
+  echo 'temporary builder key remained after remote build failure' >&2
+  exit 1
+fi
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 
 # Every remote operation forwards exactly one explicit machine name and scopes
