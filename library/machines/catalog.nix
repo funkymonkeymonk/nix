@@ -13,8 +13,8 @@
   nixBuilderKeysFor = builderName:
     map (clientName: sshKeyRegistry.clients.${clientName}.publicKey)
     (builtins.filter (clientName: clientName != builderName) sshKeyRegistry.clientNames);
-  opnixTokenInstall = {
-    secrets."/etc/opnix/token" = {
+  opnixTokenInstallAt = tokenPath: {
+    secrets.${tokenPath} = {
       secret = "OPNIX_SERVICE_ACCOUNT_TOKEN";
       owner = "0:0";
       mode = "0600";
@@ -41,7 +41,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "type-nas";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/headless-server-nixos.nix
@@ -63,7 +63,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "type-server";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/type-server.nix
@@ -84,7 +84,7 @@
       disko = true;
       system = "aarch64-linux";
       hostname = "type-server-arm";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/type-server.nix
@@ -103,7 +103,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "type-desktop";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../archetypes/desktop-nixos.nix
         ../../modules/nixos/desktop.nix
@@ -133,7 +133,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "zero";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../archetypes/desktop-nixos.nix
         ../../modules/nixos/base.nix
@@ -162,7 +162,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "drlight";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/type-media-center.nix
@@ -189,7 +189,7 @@
       secretProfile = "BuilderClients";
       system = "aarch64-darwin";
       hostname = "wweaver";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../../modules/services/bifrost/darwin.nix
         ../../modules/services/omlx/darwin.nix
@@ -202,7 +202,7 @@
       secretProfile = "MegamanX";
       system = "aarch64-darwin";
       hostname = "MegamanX";
-      install = opnixTokenInstall;
+      install = opnixTokenInstallAt "/etc/opnix-token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/headless-inference-darwin.nix

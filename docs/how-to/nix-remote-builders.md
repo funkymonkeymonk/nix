@@ -42,7 +42,7 @@ Nix needs a local, unencrypted private-key file for unattended remote builds. Th
 | NixOS | `/run/secrets/nix-builder-client` |
 | Darwin | `/var/run/nix-builder-client` |
 
-Opnix fetches the machine's key from its configured default vault and writes a root-owned mode `0400` file. SecretSpec provisions the Opnix service-account token at `/etc/opnix/token` with root-only permissions. The token can read any item that its vault permissions allow. A host can therefore retrieve other builder-key items in the Opnix vault. Keep the token on trusted systems only.
+Opnix fetches the machine's key from its configured default vault and writes a root-owned mode `0400` file. SecretSpec provisions the Opnix service-account token at each machine's configured `tokenFile` with root-only permissions. Zero, desktop, and Darwin hosts use `/etc/opnix-token`. Headless server archetypes, including Drlight, use `/etc/opnix/token`. The token can read any item that its vault permissions allow. A host can therefore retrieve other builder-key items in the Opnix vault. Keep the token on trusted systems only.
 
 On Darwin, `os/darwin.nix` sets `nix.enable = false` because Determinate Nix manages the installation. Keep this setting. The flake writes builder records to `/etc/nix/machines` and builder settings to `/etc/nix/nix.custom.conf`. It does not ask nix-darwin to manage the Nix daemon.
 

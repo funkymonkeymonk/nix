@@ -30,14 +30,11 @@
 in {
   config = lib.mkMerge [
     (lib.mkIf (client != null) {
-      myConfig.onepassword = {
-        tokenFile = lib.mkDefault "/etc/opnix/token";
-        secrets.nixBuilderClientKey = {
-          reference = client.secretReference;
-          mode = "0400";
-          owner = "root";
-          group = "root";
-        };
+      myConfig.onepassword.secrets.nixBuilderClientKey = {
+        reference = client.secretReference;
+        mode = "0400";
+        owner = "root";
+        group = "root";
       };
 
       services.onepassword-secrets.enable = true;
