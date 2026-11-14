@@ -18,7 +18,7 @@ Zero and MegamanX can build for other Nix systems. Each long-lived system has it
 | Zero | `x86_64-linux` | `zero` |
 | MegamanX | `aarch64-darwin` | `megamanx` |
 
-Clients can use either builder for derivations that match its system. The fleet's `type-server-arm` system is `aarch64-linux`; it builds that platform locally. Neither configured builder provides native `aarch64-linux` builds.
+Clients can use either builder when a derivation matches its platform. `type-server-arm` uses `aarch64-linux` and builds that platform locally. Neither builder can build native `aarch64-linux` derivations.
 
 The host names must resolve and be reachable over the local network or Tailscale. Each client uses pinned public host keys. Do not replace a pin with an unverified `ssh-keyscan` result.
 
@@ -42,16 +42,16 @@ Nix needs a local, unencrypted private-key file for unattended remote builds. Th
 | NixOS | `/run/secrets/nix-builder-client` |
 | Darwin | `/var/run/nix-builder-client` |
 
-Opnix fetches the machine's key from its configured default vault and writes a root-owned mode `0400` file. SecretSpec provisions the Opnix service-account token at `/etc/opnix/token` with root-only permissions. The token is vault-scoped, so a host may be able to retrieve other builder-key items in the Opnix vault. Keep the token on trusted systems only.
+Opnix fetches the machine's key from its configured default vault and writes a root-owned mode `0400` file. SecretSpec provisions the Opnix service-account token at `/etc/opnix/token` with root-only permissions. The token can read any item that its vault permissions allow. A host can therefore retrieve other builder-key items in the Opnix vault. Keep the token on trusted systems only.
 
-On Darwin, `os/darwin.nix` sets `nix.enable = false` because Determinate Nix manages the Nix installation. Keep that setting. The flake writes builder records to `/etc/nix/machines` and builder settings to `/etc/nix/nix.custom.conf`; it does not ask nix-darwin to manage the Nix daemon.
+On Darwin, `os/darwin.nix` sets `nix.enable = false` because Determinate Nix manages the installation. Keep this setting. The flake writes builder records to `/etc/nix/machines` and builder settings to `/etc/nix/nix.custom.conf`. It does not ask nix-darwin to manage the Nix daemon.
 
 ## Add or rotate a client identity
 
 1. Create or replace the client's Ed25519 SSH Key item in the `Opnix` vault.
 2. Keep the private key in 1Password. Do not put it in Git, Nix expressions, command logs, or the Nix store.
 3. Add only the matching public key to `keys/` and update that client's entry in `library/ssh-key-registry.nix`.
-4. Confirm the private-key reference is unqualified so Opnix uses the machine's default vault.
+4. Use an unqualified Opnix reference. Opnix then uses the machine's default vault.
 5. Run `devenv tasks run check:lint` and `devenv tasks run test:build-checks`.
 6. Create and review Machines plans for both builders and each client that needs the new identity. Apply only the reviewed plans.
 

@@ -143,10 +143,24 @@ in
           else ''echo "FAIL: ${check.name} must authorize approved SSH public keys only on their intended accounts"; exit 1''
       )
       checks)}
-    ${
-      if publicKeyFiles == expectedPublicKeyFiles && installerUsesCanonicalKey && installerLeavesGuestWithoutKeys && builtins.all (name: clientKey name != "") clientNames
-      then ''echo "The key registry is complete and the legacy installer scopes login access: OK"''
-      else ''echo "FAIL: public keys must be explicitly registered and the installer must not grant builder keys to login accounts"; exit 1''
-    }
+    ${builtins.concatStringsSep "\n" (map (
+        check:
+          if check.passed
+          then ''echo "  ${check.name}: OK"''
+          else ''echo "  FAIL: ${check.name}"; exit 1''
+      ) [
+        {
+          name = "key directory contains the user key and all nine builder-client keys";
+          passed = publicKeyFiles == expectedPublicKeyFiles && builtins.all (name: clientKey name != "") clientNames;
+        }
+        {
+          name = "legacy installer selects only the canonical human login key";
+          passed = installerUsesCanonicalKey;
+        }
+        {
+          name = "legacy installer leaves the guest account without SSH keys";
+          passed = installerLeavesGuestWithoutKeys;
+        }
+      ])}
     touch $out
   ''
