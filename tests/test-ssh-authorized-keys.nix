@@ -43,7 +43,7 @@
   ];
   installerScript = builtins.readFile ../scripts/nixos-install.sh;
   installerUsesCanonicalKey =
-    pkgs.lib.hasInfix "keys/monkey-ssh.pub" installerScript
+    pkgs.lib.hasInfix "monkey-ssh.pub" installerScript
     && !(pkgs.lib.hasInfix "username@hostname.pub" installerScript)
     && !(pkgs.lib.hasInfix "find \"$KEYS_DIR\" -name \"*.pub\"" installerScript)
     && !(pkgs.lib.hasInfix "for keyfile in \"$KEYS_DIR\"/*.pub" installerScript);
