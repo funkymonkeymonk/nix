@@ -94,7 +94,7 @@
       else ((builtins.head matches).publicHostKey or "");
   };
   builderPins = map pinForBuilder builders;
-  hostPinFor = name: (builtins.findFirst (pin: pin.name == name) {value = "";} builderPins).value;
+  hostPinFor = name: (lib.findFirst (pin: pin.name == name) {value = "";} builderPins).value;
   clientTopologyValid = client: let
     config = configFor client;
     expected = expectedBuildersFor client;
