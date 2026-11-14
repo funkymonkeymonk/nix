@@ -85,11 +85,12 @@
 **Files:**
 - Create: `library/machines/remote-builders.nix`
 - Modify: `library/machines/devenv.nix`
-- Modify: `library/archetypes/base-darwin.nix`
 - Modify: `library/machines/catalog.nix`
+- Modify: `library/machines/generated/Lydia.nix`
 - Modify: `machines/zero/default.nix`
 - Modify: `machines/Lydia/default.nix`
-- Modify: `modules/common/onepassword.nix` only if needed for system Opnix wiring
+- Modify: `secretspec.toml`
+- Modify: `scripts/machine-ops.sh`
 
 **Interfaces:**
 - Consumes: registry from Task 2 and catalog machine name/platform.

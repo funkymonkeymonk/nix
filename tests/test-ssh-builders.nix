@@ -1,6 +1,7 @@
 {
   pkgs,
   self ? null,
+  inputs ? {},
   ...
 }: let
   lib = pkgs.lib;
@@ -52,7 +53,16 @@
     if self == null
     then {}
     else self.nixosConfigurations // self.darwinConfigurations;
+  catalog = import ../library/machines/catalog.nix {inherit inputs;};
   configFor = name: configurations.${name}.config;
+  opnixTokenInstallValid = name: let
+    installSecrets = (catalog.${name}.install or {}).secrets or {};
+    token = installSecrets."/etc/opnix/token" or {};
+  in
+    (token.secret or null)
+    == "OPNIX_SERVICE_ACCOUNT_TOKEN"
+    && (token.owner or null) == "0:0"
+    && (token.mode or null) == "0600";
   expectedBuildersFor = client: builtins.filter (builder: builder.name != client) builders;
   machineMatches = machine: builder: machine.hostName == builder.hostName && machine.system == builder.system;
   pinForBuilder = builder: let
@@ -143,6 +153,10 @@
     {
       name = "all clients use the compatible remote builder peers, pinned host keys, and local secret-file paths";
       passed = builtins.all clientTopologyValid clientNames && builtins.all clientSecretValid clientNames;
+    }
+    {
+      name = "every client has a SecretSpec Opnix token install with root-only permissions";
+      passed = builtins.all opnixTokenInstallValid clientNames;
     }
     {
       name = "Zero authorizes every other client, not its own key";
