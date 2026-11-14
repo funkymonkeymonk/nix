@@ -230,16 +230,23 @@ in {
       ''
     else
       pkgs.runCommand "test-ssh-builders" {
-        nativeBuildInputs = [pkgs.coreutils];
+        nativeBuildInputs = [pkgs.coreutils pkgs.openssh];
       } ''
         failures=0
         echo "=== Testing the reciprocal SSH builder registry ==="
         ${builtins.concatStringsSep "\n" (map (pin: ''
             tmp=$(mktemp)
-            if printf '%s' '${pin.value}' | base64 -d > "$tmp" && cmp -s "$tmp" ${lib.escapeShellArg (toString pin.publicKeyFile)}; then
-              echo "  ${pin.name} host-key pin matches its public key: OK"
+            if printf '%s' '${pin.value}' | base64 -d > "$tmp"; then
+              pin_fingerprint=$(ssh-keygen -lf "$tmp" | awk '{print $2}')
+              source_fingerprint=$(ssh-keygen -lf ${lib.escapeShellArg (toString pin.publicKeyFile)} | awk '{print $2}')
             else
-              echo "  FAIL: ${pin.name} host-key pin does not match its public-key source"
+              pin_fingerprint=invalid
+              source_fingerprint=unavailable
+            fi
+            if [ "$pin_fingerprint" = "$source_fingerprint" ] && [ "$pin_fingerprint" != invalid ]; then
+              echo "  ${pin.name} host-key pin fingerprint matches its public key: OK"
+            else
+              echo "  FAIL: ${pin.name} host-key pin fingerprint $pin_fingerprint does not match source $source_fingerprint"
               failures=1
             fi
             rm -f "$tmp"
