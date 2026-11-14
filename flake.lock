@@ -607,7 +607,6 @@
     "flake-utils": {
       "inputs": {
         "systems": [
-          "mac-app-util",
           "systems"
         ]
       },
@@ -936,79 +935,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "home-manager",
-        "type": "github"
-      }
-    },
-    "homebrew-cask": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1794189033,
-        "narHash": "sha256-+iU8OMddD1m/N9Bfyfu3R2rT2oVlm9JGw8MRXT8bZNo=",
-        "owner": "homebrew",
-        "repo": "homebrew-cask",
-        "rev": "c4b2efddc27fd6ca16c932f3916eb9bc2bf727f1",
-        "type": "github"
-      },
-      "original": {
-        "owner": "homebrew",
-        "repo": "homebrew-cask",
-        "type": "github"
-      }
-    },
-    "homebrew-core": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1794186817,
-        "narHash": "sha256-H6zaZviRRlOunWz2wQSDKgqFwvZzcyLGr06JYRlR40M=",
-        "owner": "homebrew",
-        "repo": "homebrew-core",
-        "rev": "0270ff3708451b37a058af83280cdbf54d0d1b5e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "homebrew",
-        "repo": "homebrew-core",
-        "type": "github"
-      }
-    },
-    "inference-worker": {
-      "inputs": {
-        "nixpkgs": "nixpkgs_3"
-      },
-      "locked": {
-        "lastModified": 1789337808,
-        "narHash": "sha256-EBSV4411X39FAWg2hSfny47kifD5FIU+0iiXFqq0gwE=",
-        "owner": "funkymonkeymonk",
-        "repo": "inference-worker",
-        "rev": "def32a9ffa5eb6861221673f9424839b53243a91",
-        "type": "github"
-      },
-      "original": {
-        "owner": "funkymonkeymonk",
-        "repo": "inference-worker",
-        "type": "github"
-      }
-    },
-    "mac-app-util": {
-      "inputs": {
-        "cl-nix-lite": "cl-nix-lite",
-        "flake-compat": "flake-compat_2",
-        "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs_6",
-        "systems": "systems_2",
-        "treefmt-nix": "treefmt-nix_3"
-      },
-      "locked": {
-        "lastModified": 1783182903,
-        "narHash": "sha256-7IteXipJZfFepi5zakxe0jQ5i3vRBQguk0+Gtte1Fu4=",
-        "owner": "hraban",
-        "repo": "mac-app-util",
-        "rev": "039f33deef21782d4db97087f426504951239887",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hraban",
-        "repo": "mac-app-util",
         "type": "github"
       }
     },
@@ -1673,10 +1599,6 @@
         "disko": "disko",
         "flake-parts": "flake-parts_2",
         "home-manager": "home-manager",
-        "homebrew-cask": "homebrew-cask",
-        "homebrew-core": "homebrew-core",
-        "inference-worker": "inference-worker",
-        "mac-app-util": "mac-app-util",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",
         "nix-unit": "nix-unit",

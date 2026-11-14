@@ -16,12 +16,6 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
-    homebrew-core.url = "github:homebrew/homebrew-core";
-    homebrew-core.flake = false;
-    homebrew-cask.url = "github:homebrew/homebrew-cask";
-    homebrew-cask.flake = false;
-
-    mac-app-util.url = "github:hraban/mac-app-util";
 
     personal-skills.url = "github:funkymonkeymonk/skills";
     personal-skills.flake = false;
@@ -46,7 +40,6 @@
 
     # Pi plugins - extensions and skills for pi coding agent
     pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
-    inference-worker.url = "github:funkymonkeymonk/inference-worker";
     # Flake-parts (incremental migration — used for testing infrastructure first)
     flake-parts.url = "github:hercules-ci/flake-parts";
 
