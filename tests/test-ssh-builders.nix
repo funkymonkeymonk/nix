@@ -105,19 +105,23 @@
     darwinCustomConf = config.environment.etc."nix/nix.custom.conf".text or "";
     actualDarwinLines = lib.filter (line: line != "") (lib.splitString "\n" darwinMachinesFile);
     exactNixosPeerSet =
-      builtins.length actualNixos == builtins.length expected
+      builtins.length actualNixos
+      == builtins.length expected
       && builtins.all (builder: builtins.any (machine: machineMatches machine builder) actualNixos) expected
       && builtins.all (machine: builtins.any (builder: machineMatches machine builder) expected) actualNixos;
     exactDarwinPeerSet =
-      builtins.length actualDarwinLines == builtins.length expectedDarwinLines
+      builtins.length actualDarwinLines
+      == builtins.length expectedDarwinLines
       && builtins.all (line: builtins.elem line actualDarwinLines) expectedDarwinLines;
     nixosEntriesSecure = builtins.all (machine:
-      machine.protocol == "ssh-ng"
+      machine.protocol
+      == "ssh-ng"
       && machine.sshUser == "nixbuilder"
       && builtins.isString (machine.sshKey or null)
       && !(lib.hasPrefix "/nix/store/" (machine.sshKey or ""))
       && builtins.isString (machine.publicHostKey or null)
-      && (machine.publicHostKey or "") != "") actualNixos;
+      && (machine.publicHostKey or "") != "")
+    actualNixos;
   in
     if isDarwin
     then
@@ -142,7 +146,10 @@
       then "/var/run/nix-builder-client"
       else "/run/secrets/nix-builder-client";
     isDarwin = config.myConfig.isDarwin or false;
-    buildMachines = if isDarwin then [] else (config.nix.buildMachines or []);
+    buildMachines =
+      if isDarwin
+      then []
+      else (config.nix.buildMachines or []);
     darwinMachinesFile = config.environment.etc."nix/machines".text or "";
   in
     (secret.reference or null)
@@ -151,7 +158,11 @@
     && (secret.owner or null) == "root"
     && (secret.group or null) == "root"
     && (secret.mode or null) == "0400"
-    && (if isDarwin then lib.hasInfix expectedPath darwinMachinesFile else builtins.all (machine: machine.sshKey == expectedPath) buildMachines)
+    && (
+      if isDarwin
+      then lib.hasInfix expectedPath darwinMachinesFile
+      else builtins.all (machine: machine.sshKey == expectedPath) buildMachines
+    )
     && ((config.services.onepassword-secrets or {}).enable or false);
   expectedAuthorizedKeys = builderName:
     map publicKeyFor (builtins.filter (client: client != builderName) clientNames);
