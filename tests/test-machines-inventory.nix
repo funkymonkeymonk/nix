@@ -155,7 +155,7 @@
     ${assertEqual "headless machine modules do not duplicate monkey SSH key wiring" true (builtins.all (source: !(lib.hasInfix "users.users.monkey.openssh.authorizedKeys.keys" source)) headlessMachineModuleSources)}
     ${assertEqual "zero system" "x86_64-linux" representativeNixos.system}
     ${assertEqual "zero hostname" "zero" representativeNixos.hostname}
-    ${assertEqual "zero module count" 11 (builtins.length representativeNixos.modules)}
+    ${assertEqual "zero module count" 10 (builtins.length representativeNixos.modules)}
     ${assertEqual "catalog records explicit disko metadata for zero" true (representativeNixos.disko or false)}
     ${assertEqual "native projection explicitly imports disko once" 1 (builtins.length (explicitDiskoModules nativeZeroModules))}
     ${assertEqual "Machines projection omits the catalog disko module" 0 (builtins.length (explicitDiskoModules devenvZeroModules))}
