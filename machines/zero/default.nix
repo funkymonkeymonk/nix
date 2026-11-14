@@ -7,7 +7,12 @@
   inputs,
   modulesPath,
   ...
-}: {
+}: let
+  sshPublicKey = import ../../library/ssh-public-key.nix;
+in {
+  # Key-only root SSH access, same approved key as the other desktop targets.
+  users.users.root.openssh.authorizedKeys.keys = [sshPublicKey];
+
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
