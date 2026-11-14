@@ -176,48 +176,17 @@ detect_mode() {
   echo "unknown"
 }
 
-# Select SSH keys from keys/ directory
+# Select only the approved human login key. Builder and host keys are not login keys.
 select_ssh_keys() {
-  log_info "Scanning for SSH keys in $KEYS_DIR..."
+  local key_file="$KEYS_DIR/monkey-ssh.pub"
 
-  if [[ ! -d "$KEYS_DIR" ]]; then
-    log_error "Keys directory not found: $KEYS_DIR"
-    exit 1
+  if [[ ! -r "$key_file" ]]; then
+    log_error "Canonical SSH public key not found: $key_file" >&2
+    return 1
   fi
 
-  local keys=()
-  while IFS= read -r -d '' keyfile; do
-    keys+=("$(basename "$keyfile" .pub)")
-  done < <(find "$KEYS_DIR" -name "*.pub" -print0 2>/dev/null || true)
-
-  if [[ ${#keys[@]} -eq 0 ]]; then
-    log_error "No SSH keys found in $KEYS_DIR"
-    log_info "Ensure keys/monkey-ssh.pub is available in the installer source"
-    exit 1
-  fi
-
-  echo ""
-  echo "Available SSH keys:"
-  echo "-------------------"
-  local i=1
-  for key in "${keys[@]}"; do
-    echo "  $i. $key"
-    ((i++))
-  done
-  echo ""
-
-  # For now, select all keys (can be made interactive if needed)
-  log_info "Using all available SSH keys for authorized access"
-
-  # Read all key contents
-  local authorized_keys=""
-  for keyfile in "$KEYS_DIR"/*.pub; do
-    if [[ -f "$keyfile" ]]; then
-      authorized_keys+="$(cat "$keyfile")"$'\n'
-    fi
-  done
-
-  echo "$authorized_keys"
+  log_info "Using the canonical monkey SSH key for the admin account" >&2
+  tr -d '\r\n' < "$key_file"
 }
 
 # Get available users from flake
@@ -418,9 +387,7 @@ SSH_KEYS_PLACEHOLDER
     description = "Guest User";
     extraGroups = [ "networkmanager" ];
     shell = pkgs.zsh;
-    openssh.authorizedKeys.keys = [
-SSH_KEYS_PLACEHOLDER
-    ];
+    openssh.authorizedKeys.keys = [];
   };
 
   programs.zsh.enable = true;
