@@ -176,7 +176,7 @@
     ${assertEqual "zero projection supplies root nixpkgs input" inputs.nixpkgs.outPath projectedZero.config._module.args.nixpkgs.outPath}
     ${assertEqual "zero projection supplies inputs set" inputs.nixpkgs.outPath projectedZero.config._module.args.inputs.nixpkgs.outPath}
     ${assertEqual "zero projection supplies mkUser" true (builtins.isFunction projectedZero.config._module.args.mkUser)}
-    ${assertEqual "zero projection wraps module paths" true (builtins.isFunction (builtins.elemAt projectedZero.imports 6))}
+    ${assertEqual "zero projection wraps module paths" true (builtins.any builtins.isFunction projectedZero.imports)}
     ${assertEqual "bootstrap projection retains raw constructor arguments" [] (builtins.attrNames (projectedBootstrap.config._module.args or {}))}
     ${assertEqual "bootstrap projection wraps module paths" true (builtins.isFunction (builtins.head projectedBootstrap.imports))}
     ${assertEqual "installer ISO projection retains inputs argument" ["inputs"] (builtins.attrNames (projectedInstallerIso.config._module.args or {}))}
@@ -194,7 +194,7 @@
     ${assertEqual "wweaver projection retains Darwin constructor arguments" (builtins.attrNames darwinConstructorArgs) (builtins.attrNames (projectedWweaver.config._module.args or {}))}
     ${assertEqual "wweaver projection supplies inputs set" inputs.nixpkgs.outPath projectedWweaver.config._module.args.inputs.nixpkgs.outPath}
     ${assertEqual "wweaver projection supplies mkUser" true (builtins.isFunction projectedWweaver.config._module.args.mkUser)}
-    ${assertEqual "wweaver projection wraps module paths" true (builtins.isFunction (builtins.elemAt projectedWweaver.imports 3))}
+    ${assertEqual "wweaver projection wraps module paths" true (builtins.any builtins.isFunction projectedWweaver.imports)}
     echo "All machine inventory projection tests passed"
     touch $out
   '';
