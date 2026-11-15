@@ -8,6 +8,12 @@
   inherit (config.myConfig) isDarwin;
   foundationPkgs = import ./foundation-packages.nix {inherit pkgs;};
 in {
+  options.myConfig.roles.foundation.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    description = "Foundation role — always-on base tools (1Password CLI, git, helix, zsh, etc.)";
+  };
+
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       {
