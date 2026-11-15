@@ -212,6 +212,10 @@
         ../modules/common/zellij.nix
         ../modules/common/llm-client.nix
         ../modules/common/opencode.nix
+        # Role enable options now live in the role modules (not central options.nix);
+        # import the two roles this test references so they resolve here.
+        ../modules/roles/foundation.nix
+        ../modules/roles/developer.nix
         ../modules/roles/agent-skills.nix
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
