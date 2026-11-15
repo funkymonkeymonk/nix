@@ -102,7 +102,7 @@ b
 **Requirements:**
 - Commit changes with `jj describe` before switching
 - The switch uses your current jj commit
-- Uncommitted changes are NOT included (use `scripts/switch-workspace-override` to test them)
+- Uncommitted changes are NOT included by the switch
 
 This solves the Nix flake "untracked files" error when running from workspaces.
 
@@ -369,14 +369,18 @@ Common traps:
 
 | Role | Description |
 |------|-------------|
-| `base` | Essential packages and shell |
-| `developer` | Development tools |
-| `creative` | Media tools |
-| `desktop` | Desktop applications |
-| `workstation` | Work tools |
-| `entertainment` | Entertainment apps |
-| `gaming` | Gaming tools |
+| `foundation` | Foundation role — always-on base tools (1Password CLI, git, helix, zsh, etc.) |
+| `developer` | Development tools (clang, python, node, k8s, gh-dash) |
+| `creative` | Media tools (ffmpeg, imagemagick, pandoc) |
+| `desktop` | Desktop applications (logseq, super-productivity, element) |
+| `workstation` | Developer workstation/desktop tools (slack, trippy, unar) |
+| `work` | Machine used in an employer/work context (orthogonal to `workstation`) |
+| `entertainment` | Entertainment apps — macOS homebrew casks (steam, obs, discord) |
+| `gaming` | Gaming tools (moonlight-qt) |
+| `homebrew` | Homebrew integration for macOS (requires Homebrew installed) |
 | `agent-skills` | AI skills management |
+| `assistant` | Agent email tools (direct Gmail access) |
+| `email-backup` | Immutable encrypted email backups with search |
 | `opencode` | OpenCode + rtk |
 | `claude` | Claude Code + rtk |
 | `pi` | Pi coding agent + rtk |
@@ -579,7 +583,7 @@ launchd.daemons.myapp = {
 
 ### Activation Scripts
 
-**Do not** add per-service `launchctl list` status checks in `system.activationScripts`. nix-darwin already diffs plists, unloads old services, and loads new ones. If a custom bootstrap sequence is required (e.g., macOS Tahoe `launchctl load -w` workaround), centralize it in `modules/common/launchd-services.nix` rather than duplicating it across modules.
+**Do not** add per-service `launchctl list` status checks in `system.activationScripts`. nix-darwin already diffs plists, unloads old services, and loads new ones. If a custom bootstrap sequence is required (e.g., macOS Tahoe `launchctl load -w` workaround), centralize it in a shared common module under `modules/common/` rather than duplicating it across modules.
 
 ### Full Reference
 

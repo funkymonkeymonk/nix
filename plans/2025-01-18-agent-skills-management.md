@@ -869,7 +869,8 @@ Agent skills are automatically enabled when either `opencode` or `claude` bundle
 - `~/.config/opencode/skills/` - Primary skills directory
 - `~/.config/opencode/superpowers/skills/` - Superpowers compatibility
 
-See [docs/agent-skills.md](docs/agent-skills.md) for detailed documentation.
+See [Agent Skills Management (explanation)](../docs/explanation/agent-skills.md) for detailed documentation.
+
 ```
 
 **Step 4: Create detailed documentation**
