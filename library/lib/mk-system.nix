@@ -24,6 +24,8 @@ in rec {
           }
           (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
+          inputs.opnix.darwinModules.default
+          ../machines/remote-builders.nix
         ]
         ++ modules
         ++ lib.optional (overrides != {}) {
@@ -58,6 +60,7 @@ in rec {
           (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
           inputs.opnix.nixosModules.default
+          ../machines/remote-builders.nix
           inputs.home-manager.nixosModules.home-manager
           {
             home-manager.sharedModules = [

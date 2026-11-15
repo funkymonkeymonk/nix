@@ -152,9 +152,10 @@ case "$query" in
   *drlight*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" x86_64-linux true '["tag:home-lab","tag:media-center"]' ;;
   *zero*|*type-nas*|*type-server*) emit_metadata Opnix nixos "$secret_status" "$bootstrap_status" x86_64-linux true '["tag:home-lab"]' ;;
   *MegamanX*) emit_metadata MegamanX darwin true false aarch64-darwin true '["tag:home-lab"]' ;;
-  *wweaver*) emit_metadata Employee darwin "$secret_status" "$bootstrap_status" aarch64-darwin false '[]' ;;
+  *wweaver*) emit_metadata BuilderClients darwin "$secret_status" "$bootstrap_status" aarch64-darwin false '[]' ;;
   *Lydia*) emit_metadata Opnix darwin "$secret_status" "$bootstrap_status" aarch64-darwin false '[]' ;;
-  *bootstrap*|*type-desktop*|*installer-iso*) emit_metadata Personal nixos "$secret_status" "$bootstrap_status" x86_64-linux false '[]' ;;
+  *type-desktop*) emit_metadata BuilderClients nixos "$secret_status" "$bootstrap_status" x86_64-linux false '[]' ;;
+  *bootstrap*|*installer-iso*) emit_metadata Personal nixos "$secret_status" "$bootstrap_status" x86_64-linux false '[]' ;;
   *) exit 92 ;;
 esac
 MOCK
@@ -471,7 +472,7 @@ expect_log 'devenv|machines check MegamanX'
 expect_profile MegamanX 'machines check MegamanX'
 run_with_unrelated_secret check wweaver
 expect_log 'devenv|machines check wweaver'
-expect_profile Employee 'machines check wweaver'
+expect_profile BuilderClients 'machines check wweaver'
 
 # Unknown, malformed, or failed status checks fail before key generation or
 # activation. Only the known NeedsLogin state may consume an OAuth key.

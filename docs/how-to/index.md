@@ -39,6 +39,7 @@ Procedural guides that solve a concrete task. Choose the guide that matches what
 
 | Guide | What It Does |
 |-------|-------------|
+| [Use Nix Remote Builders](nix-remote-builders.md) | Configure reciprocal Linux and Darwin builders with scoped SSH identities |
 | [Create a Darwin System Daemon](create-darwin-daemon.md) | Add a launchd service for macOS |
 
 ## LLM Stack

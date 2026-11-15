@@ -20,15 +20,17 @@
   ];
   personalMachines = [
     "bootstrap"
-    "type-desktop"
     "installer-iso"
-    "wweaver"
   ];
+  builderClientMachines = ["type-desktop" "wweaver"];
   profileChecks = assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Opnix") opnixMachines;
   assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "Personal") personalMachines;
+  assert builtins.all (name: (builtins.getAttr name catalog).secretProfile == "BuilderClients") builderClientMachines;
   assert !(manifest.profiles ? Personal);
   assert !(manifest.profiles ? Homelab);
-  assert catalog.wweaver.secretProfile == "Personal";
+  assert catalog.wweaver.secretProfile == "BuilderClients";
+  assert catalog."type-desktop".secretProfile == "BuilderClients";
+  assert (((manifest.profiles.BuilderClients or {}).OPNIX_SERVICE_ACCOUNT_TOKEN or {}).providers or []) == ["service-accounts"];
   assert !(manifest.profiles ? Employee);
   assert manifest.providers.opnix == "onepassword://Opnix";
   assert manifest.providers.employee == "onepassword://Employee";

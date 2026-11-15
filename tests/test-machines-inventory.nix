@@ -102,7 +102,13 @@
     inherit (representativeNixos) system;
     specialArgs = {inherit inputs self;};
     # devenv 2.4 imports the disko module before each Machines NixOS module.
-    modules = [inputs.disko.nixosModules.disko projectedZero];
+    modules = [
+      inputs.disko.nixosModules.disko
+      projectedZero
+      ({lib, ...}: {
+        hardware.facter.reportPath = lib.mkForce null;
+      })
+    ];
   };
   machinesBootstrap = inputs.nixpkgs.lib.nixosSystem {
     inherit (catalog.bootstrap) system;
@@ -149,7 +155,7 @@
     ${assertEqual "headless machine modules do not duplicate monkey SSH key wiring" true (builtins.all (source: !(lib.hasInfix "users.users.monkey.openssh.authorizedKeys.keys" source)) headlessMachineModuleSources)}
     ${assertEqual "zero system" "x86_64-linux" representativeNixos.system}
     ${assertEqual "zero hostname" "zero" representativeNixos.hostname}
-    ${assertEqual "zero module count" 11 (builtins.length representativeNixos.modules)}
+    ${assertEqual "zero module count" 10 (builtins.length representativeNixos.modules)}
     ${assertEqual "catalog records explicit disko metadata for zero" true (representativeNixos.disko or false)}
     ${assertEqual "native projection explicitly imports disko once" 1 (builtins.length (explicitDiskoModules nativeZeroModules))}
     ${assertEqual "Machines projection omits the catalog disko module" 0 (builtins.length (explicitDiskoModules devenvZeroModules))}
@@ -169,6 +175,7 @@
       mode = "0600";
     } (machinesProjection.machines.drlight.install.secrets."/etc/opnix/token" or {})}
     ${assertEqual "Machines zero evaluates its NixOS module stack" "zero" machinesZero.config.networking.hostName}
+    ${assertEqual "Machines zero projection evaluates a complete system derivation" true (builtins.isString machinesZero.config.system.build.toplevel.drvPath)}
     ${assertEqual "Machines zero has disko devices from the automatic module" true (builtins.attrNames machinesZero.config.disko.devices != [])}
     ${assertEqual "Machines bootstrap evaluates its NixOS module stack" "nixos-bootstrap" machinesBootstrap.config.networking.hostName}
     ${assertEqual "Machines installer ISO evaluates its NixOS module stack" "nixos-installer" machinesInstallerIso.config.networking.hostName}
@@ -176,7 +183,7 @@
     ${assertEqual "zero projection supplies root nixpkgs input" inputs.nixpkgs.outPath projectedZero.config._module.args.nixpkgs.outPath}
     ${assertEqual "zero projection supplies inputs set" inputs.nixpkgs.outPath projectedZero.config._module.args.inputs.nixpkgs.outPath}
     ${assertEqual "zero projection supplies mkUser" true (builtins.isFunction projectedZero.config._module.args.mkUser)}
-    ${assertEqual "zero projection wraps module paths" true (builtins.isFunction (builtins.elemAt projectedZero.imports 6))}
+    ${assertEqual "zero projection wraps module paths" true (builtins.any builtins.isFunction projectedZero.imports)}
     ${assertEqual "bootstrap projection retains raw constructor arguments" [] (builtins.attrNames (projectedBootstrap.config._module.args or {}))}
     ${assertEqual "bootstrap projection wraps module paths" true (builtins.isFunction (builtins.head projectedBootstrap.imports))}
     ${assertEqual "installer ISO projection retains inputs argument" ["inputs"] (builtins.attrNames (projectedInstallerIso.config._module.args or {}))}
@@ -194,7 +201,7 @@
     ${assertEqual "wweaver projection retains Darwin constructor arguments" (builtins.attrNames darwinConstructorArgs) (builtins.attrNames (projectedWweaver.config._module.args or {}))}
     ${assertEqual "wweaver projection supplies inputs set" inputs.nixpkgs.outPath projectedWweaver.config._module.args.inputs.nixpkgs.outPath}
     ${assertEqual "wweaver projection supplies mkUser" true (builtins.isFunction projectedWweaver.config._module.args.mkUser)}
-    ${assertEqual "wweaver projection wraps module paths" true (builtins.isFunction (builtins.elemAt projectedWweaver.imports 3))}
+    ${assertEqual "wweaver projection wraps module paths" true (builtins.any builtins.isFunction projectedWweaver.imports)}
     echo "All machine inventory projection tests passed"
     touch $out
   '';

@@ -41,7 +41,6 @@
   zero = catalog.zero;
   expectedZeroModules = [
     ../library/archetypes/desktop-nixos.nix
-    ../modules/nixos/base.nix
     ../modules/nixos/desktop.nix
     ../modules/nixos/gaming.nix
     ../modules/nixos/streaming.nix

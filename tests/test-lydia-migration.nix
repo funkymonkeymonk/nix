@@ -153,7 +153,7 @@
       in
         if
           megamanx.services.openssh.enable
-          && builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users
+          && pkgs.lib.hasInfix "trusted-users = root monkey nixbuilder" megamanx.environment.etc."nix/nix.custom.conf".text
           && megamanx.users.users.nixbuilder.isHidden
           && megamanx.users.users.nixbuilder.openssh.authorizedKeys.keys != []
           && megamanx.myConfig.onepassword.defaultVault == "Opnix"
@@ -186,7 +186,8 @@
           && lydia.myConfig.ssh.enable
           && lydia.services.openssh.enable
           && lydia.users.users.monkey.openssh.authorizedKeys.keys != []
-          && lydia.users.users.nixbuilder.isHidden
+          && !(lydia.users.users ? nixbuilder)
+          && !(pkgs.lib.hasInfix "nixbuilder" (lydia.environment.etc."nix/nix.custom.conf".text or ""))
           && lydia.myConfig.roles.developer.enable
           && lydia.myConfig.roles.desktop.enable
           && lydia.myConfig.roles.workstation.enable
