@@ -269,7 +269,6 @@ script = ''
 
 ## See Also
 
-- [Set up 1Password service account](../how-to/setup-opnix-service-account.md)
 - [Getting started with opnix](../tutorials/getting-started-opnix.md)
 - [opnix configuration reference](../reference/opnix-options.md)
 - [1Password Service Accounts documentation](https://developer.1password.com/docs/service-accounts/)
