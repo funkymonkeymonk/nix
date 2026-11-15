@@ -58,72 +58,7 @@ with lib; {
       description = "List of users to configure on the system";
     };
 
-    # Role toggles — each corresponds to a module in modules/roles/
-    roles = {
-      foundation = {
-        enable = mkOption {
-          type = types.bool;
-          default = true;
-          description = "Foundation role — always-on base tools (1Password CLI, git, helix, zsh, etc.)";
-        };
-      };
-      developer = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Development tools (clang, python, node, k8s, gh-dash)";
-        };
-      };
-      creative = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Media tools (ffmpeg, imagemagick, pandoc)";
-        };
-      };
-      gaming = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Gaming tools (moonlight-qt)";
-        };
-      };
-      desktop = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Desktop applications (logseq, super-productivity, element)";
-        };
-      };
-      workstation = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Developer workstation/desktop tools (slack, trippy, unar)";
-        };
-      };
-      work = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "This machine is used for an employer/work context (as opposed to purely personal use). Orthogonal to workstation (machine form-factor) — set explicitly per-host, not via a shared archetype.";
-        };
-      };
-      entertainment = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Entertainment apps — macOS homebrew casks (steam, obs, discord)";
-        };
-      };
-
-      homebrew = {
-        enable = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Homebrew integration for macOS (requires Homebrew to be installed)";
-        };
-      };
-    };
+    # Role toggles — each is now owned by its own module in modules/roles/
+    roles = {};
   };
 }

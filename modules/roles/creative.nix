@@ -9,6 +9,12 @@
   inherit (config.myConfig) isDarwin;
   hasHomebrew = options ? homebrew;
 in {
+  options.myConfig.roles.creative.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Media tools (ffmpeg, imagemagick, pandoc)";
+  };
+
   config = lib.mkIf cfg.enable (
     lib.mkMerge ([
         {

@@ -49,7 +49,10 @@ let
         ];
     }).config;
 
-  evalBase = (lib.evalModules {modules = baseStubs;}).config;
+  # evalBase now includes the foundation role module (it owns the foundation
+  # enable option) plus the onepassword stub the foundation role references.
+  evalBase =
+    (lib.evalModules {modules = baseStubs ++ [../modules/roles/foundation.nix] ++ stubs.onepassword;}).config;
 
   searxngStubs = stubs.searxng;
   bifrostStubs = stubs.bifrost;

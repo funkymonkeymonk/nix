@@ -86,6 +86,7 @@
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
   testSkillsOptionOwnership = import ./test-skills-option-ownership.nix {inherit pkgs;};
   testAgentOptionOwnership = import ./test-agent-option-ownership.nix {inherit pkgs;};
+  testRoleOptionOwnership = import ./test-role-option-ownership.nix {inherit pkgs;};
   testOptionsDoc =
     if self != null
     then import ./test-options-doc.nix {inherit pkgs self;}
@@ -164,6 +165,7 @@ in
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
+    role-option-ownership = testRoleOptionOwnership.roleOptionOwnership;
 
     # Package availability tests
     devenv-packages = testDevenvPackages;

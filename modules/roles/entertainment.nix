@@ -12,6 +12,12 @@
   # at module-definition time (not config time) to avoid infinite recursion.
   isNixOS = builtins.hasAttr "boot" options;
 in {
+  options.myConfig.roles.entertainment.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Entertainment apps — macOS homebrew casks (steam, obs, discord)";
+  };
+
   config = lib.mkIf cfg.enable (
     lib.mkMerge (
       [

@@ -9,6 +9,12 @@
   inherit (config.myConfig) isDarwin;
   hasHomebrew = options ? homebrew;
 in {
+  options.myConfig.roles.desktop.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Desktop applications (logseq, super-productivity, element)";
+  };
+
   config = lib.mkIf cfg.enable (
     lib.mkMerge ([
         {
