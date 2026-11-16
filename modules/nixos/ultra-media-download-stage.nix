@@ -16,6 +16,8 @@
   sshPort = 22;
   stageCfg = config.myConfig.ultraMediaDownloadStage;
   stageServices = ["ultra-media-download-stage"];
+  cleanupServices = ["ultra-media-cleanup"];
+  cleanupEnabled = stageCfg.cleanup.enable or false;
   arrSyncServices = [
     "radarr-media-config-sync"
     "sonarr-media-config-sync"
@@ -26,20 +28,26 @@
     mode = "0400";
     owner = "ultra-sync";
     group = "users";
-    services = stageServices;
+    services = stageServices ++ lib.optionals cleanupEnabled cleanupServices;
   };
   mkSharedSecret = reference: path: {
     inherit reference path;
     mode = "0440";
     owner = "root";
     group = "media-management-secrets";
-    services = stageServices ++ arrSyncServices;
+    services = stageServices ++ lib.optionals cleanupEnabled cleanupServices ++ arrSyncServices;
   };
 in {
   imports = [
     ./ultra-media-cleanup.nix
     ({lib, ...}: {
-      options.myConfig.ultraMediaDownloadStage.enable = lib.mkEnableOption "completed Ultra download staging timer";
+      options.myConfig.ultraMediaDownloadStage = {
+        enable = lib.mkEnableOption "completed Ultra download staging timer";
+        cleanup = {
+          enable = lib.mkEnableOption "automatic Ultra seedbox cleanup after verified local imports";
+          privateTrackerRatioProtection.enable = lib.mkEnableOption "future private-tracker account-ratio cleanup gate (unknown trackers fail closed)";
+        };
+      };
     })
   ];
 
@@ -79,13 +87,17 @@ in {
       SupplementaryGroups = ["media-management-secrets"];
       UMask = "0002";
       ProtectSystem = "strict";
-      ReadWritePaths = [stagingRoot];
+      RuntimeDirectory = "ultra-media";
+      RuntimeDirectoryMode = "0700";
+      RuntimeDirectoryPreserve = "yes";
+      ReadWritePaths = [stagingRoot "/run/ultra-media"];
     };
     script = ''
       set -euo pipefail
       export PYTHONPATH=${./scripts}
       exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-download-stage.py} \\
         --stage-downloads \\
+        --success-marker /run/ultra-media/stage-success.json \\
         --rpc-url ${lib.escapeShellArg rpcUrlPath} \\
         --download-root ${lib.escapeShellArg downloadRootPath} \\
         --ssh-host ${lib.escapeShellArg hostPath} \\

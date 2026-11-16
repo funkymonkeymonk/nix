@@ -16,6 +16,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
@@ -23,16 +24,29 @@ from urllib.parse import urlsplit
 
 
 STAGING_ROOT = "/srv/media/.arr-staging"
+OPERATION_LOCK_PATH = "/run/ultra-media/operation.lock"
+STAGE_SUCCESS_MARKER = "/run/ultra-media/stage-success.json"
 
 
 @contextmanager
-def _operation_lock(staging_root: str | Path = STAGING_ROOT) -> Iterator[None]:
-    """Serialize staging against report-only cleanup using one lock file."""
+def _operation_lock(
+    staging_root: str | Path = STAGING_ROOT,
+    *,
+    lock_path: str | Path | None = None,
+) -> Iterator[None]:
+    """Serialize staging and cleanup without granting cleanup media write access."""
     root = Path(staging_root).absolute()
     root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink():
         raise OSError("staging root must not be a symbolic link")
-    lock_path = root / ".operation.lock"
+    if lock_path is None:
+        lock_path = (
+            OPERATION_LOCK_PATH
+            if root == Path(STAGING_ROOT).absolute()
+            else root / ".operation.lock"
+        )
+    lock_path = Path(lock_path)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
     descriptor = os.open(lock_path, flags, 0o600)
     try:
@@ -45,6 +59,54 @@ def _operation_lock(staging_root: str | Path = STAGING_ROOT) -> Iterator[None]:
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+
+
+def clear_stage_success_marker(marker_path: str = STAGE_SUCCESS_MARKER) -> None:
+    """Remove any previous run token without following a symlink."""
+    path = Path(marker_path)
+    try:
+        metadata = os.lstat(path)
+    except FileNotFoundError:
+        return
+    if not stat.S_ISREG(metadata.st_mode):
+        raise OSError("stage success marker is not a regular file")
+    path.unlink()
+
+
+def write_stage_success_marker(
+    marker_path: str = STAGE_SUCCESS_MARKER,
+    *,
+    monotonic_ns: int | None = None,
+) -> None:
+    """Atomically publish a short-lived token after a complete staging run."""
+    if monotonic_ns is None:
+        monotonic_ns = time.monotonic_ns()
+    if not isinstance(monotonic_ns, int) or isinstance(monotonic_ns, bool) or monotonic_ns <= 0:
+        raise ValueError("stage success marker timestamp is invalid")
+    path = Path(marker_path)
+    if not path.is_absolute():
+        raise ValueError("stage success marker path must be absolute")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, prefix=".stage-success-", delete=False
+        ) as marker:
+            temporary_path = Path(marker.name)
+            os.fchmod(marker.fileno(), 0o660)
+            json.dump({"monotonic_ns": monotonic_ns}, marker, sort_keys=True)
+            marker.flush()
+            os.fsync(marker.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 class StagingConfigurationError(ValueError):
@@ -600,13 +662,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--ssh", required=True)
     parser.add_argument("--ssh-keygen", required=True)
     parser.add_argument("--rsync", required=True)
+    parser.add_argument("--success-marker", default=STAGE_SUCCESS_MARKER)
     args = parser.parse_args(argv)
     if not args.stage_downloads:
         print("staging failed reason=operation_required", file=sys.stderr)
         return 2
 
     try:
-        with _operation_lock():
+        with _operation_lock(lock_path=OPERATION_LOCK_PATH):
+            clear_stage_success_marker(args.success_marker)
             result = _stage_from_runtime_files(
                 {
                     "rpc_url": args.rpc_url,
@@ -624,6 +688,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ssh_keygen_executable=args.ssh_keygen,
                 rsync_executable=args.rsync,
             )
+            if result["failed"] == 0:
+                write_stage_success_marker(args.success_marker)
     except StagingConfigurationError as error:
         print(f"staging failed reason={error.reason}", file=sys.stderr)
         return 1

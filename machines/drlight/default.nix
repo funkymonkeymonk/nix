@@ -24,6 +24,13 @@ in {
     mkUser "monkey" "me@willweaver.dev"
     // {
       roles.developer.enable = true;
+      ultraMediaDownloadStage = {
+        enable = true;
+        cleanup = {
+          enable = true;
+          privateTrackerRatioProtection.enable = false;
+        };
+      };
       collector.destinationHostname = "localhost";
       caddy = {
         enable = true;
