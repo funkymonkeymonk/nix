@@ -208,22 +208,19 @@ in {
       echo "Zero hardware packages test passed"
       touch $out
     '';
-  # Test: zero is cloud-only (OpenCode Go, which falls back to OpenCode Zen) —
-  # no local models, no legacy LLM endpoint declarations, and the OpenCode Go
-  # API key wired through 1Password like on MegamanX.
+  # Test: OpenCode remains cloud-default on Zero while Pi can optionally use
+  # the remote Bifrost gateway; the OpenCode Go API key remains in 1Password.
   zeroCloudOnlyConfigTest =
     pkgs.runCommand "test-zero-cloud-only-config"
     {}
     ''
-      echo "=== Testing Zero cloud-only LLM configuration ==="
+      echo "=== Testing Zero cloud-default LLM configuration ==="
 
-      # OpenCode keeps its host-specific cloud model; Pi uses the global role default.
+      # OpenCode keeps its host-specific cloud model; Pi keeps OpenCode Go as its default.
       ${assertContainsStr "cloud default model" "opencode-go/gpt-5.6-luna" zeroConfigText}
       ${assertNotContainsStr "Pi does not pin the old global model" ''defaultModel = "gpt-5.6-luna"'' zeroConfigText}
-      # No local model targeting anywhere
-      ${assertNotContainsStr "no local-bifrost" "local-bifrost" zeroConfigText}
-      ${assertNotContainsStr "no local qwen model" "qwen3.8-27b" zeroConfigText}
-      ${assertNotContainsStr "no omlx" "omlx" zeroConfigText}
+      # Zero does not host a local oMLX inference service.
+      ${assertNotContainsStr "no local omlx service" "omlx.enable = true" zeroConfigText}
       # Legacy llmEndpoints block removed
       ${assertNotContainsStr "no llmEndpoints" "llmEndpoints" zeroConfigText}
       # OpenCode Go service-account key wired through 1Password.
