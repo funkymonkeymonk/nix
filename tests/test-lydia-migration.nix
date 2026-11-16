@@ -90,7 +90,8 @@
         discoveryExtension = ".pi/agent/extensions/bifrost-discovery/index.ts";
       in
         if
-          megamanx.myConfig.pi.models.bifrost.baseUrl == "http://megamanx:8081/v1"
+          megamanx.myConfig.pi.models.bifrost.baseUrl
+          == "http://megamanx:8081/v1"
           && zero.myConfig.pi.models.bifrost.baseUrl == "http://megamanx:8081/v1"
           && zero.myConfig.pi.models ? opencode-go
           && zero.myConfig.pi.settings.defaultProvider == "opencode-go"
