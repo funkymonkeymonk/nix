@@ -185,11 +185,7 @@ with lib; let
   # and registers them dynamically so pi can use any model bifrost serves
   bifrostDiscoveryFiles = let
     bifrostModels =
-      lib.filterAttrs (
-        _name: model:
-          model.baseUrl != "" && lib.hasInfix "bifrost" model.baseUrl
-      )
-      cfg.models;
+      lib.filterAttrs (_name: model: model.provider == "bifrost") cfg.models;
     hasBifrost = bifrostModels != {};
     firstBifrost = lib.head (lib.attrValues bifrostModels);
     bifrostBase = lib.removeSuffix "/" firstBifrost.baseUrl;
