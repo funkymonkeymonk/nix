@@ -27,6 +27,7 @@
     then "--apply"
     else "--report-only";
   trackerPolicyArgs = lib.optionalString cfg.privateTrackerRatioProtection.enable "--private-tracker-ratio-protection";
+  cleanupQueueRoot = "/var/lib/ultra-media/cleanup-queue";
   enabledArrServices = [
     "radarr.service"
     "sonarr.service"
@@ -39,7 +40,7 @@
 in {
   systemd.services.ultra-media-cleanup = {
     description = "Verify completed Ultra imports and clean eligible seedbox torrents";
-    after = ["ultra-media-download-stage.service"] ++ cleanupDependencies;
+    after = cleanupDependencies;
     wants = cleanupDependencies;
     requires = cleanupDependencies;
     unitConfig = {
@@ -60,6 +61,8 @@ in {
         RuntimeDirectory = "ultra-media";
         RuntimeDirectoryMode = "0700";
         RuntimeDirectoryPreserve = "yes";
+        StateDirectory = "ultra-media";
+        StateDirectoryMode = "0700";
         ReadOnlyPaths = ["/srv/media"];
         ReadWritePaths = ["/run/ultra-media"];
         TimeoutStartSec = "15min";
@@ -79,7 +82,7 @@ in {
       exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-cleanup.py} \
         ${modeArgs} \
         ${trackerPolicyArgs} \
-        --stage-success-marker /run/ultra-media/stage-success.json \
+        --queue-root ${lib.escapeShellArg cleanupQueueRoot} \
         --rpc-url /run/secrets/ultra-media-stage-rpc-url \
         --download-root /run/secrets/ultra-media-stage-download-root \
         --ssh-host /run/secrets/ultra-media-stage-host \
@@ -93,5 +96,14 @@ in {
         --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
         --arr-config ${arrConfig}
     '';
+  };
+
+  systemd.timers.ultra-media-cleanup = {
+    wantedBy = lib.optionals cfg.enable ["timers.target"];
+    timerConfig = {
+      OnBootSec = "1min";
+      OnUnitActiveSec = "1min";
+      Unit = "ultra-media-cleanup.service";
+    };
   };
 }

@@ -13,6 +13,8 @@
   rpcUsernamePath = "/run/secrets/ultra-media-stage-rpc-username";
   rpcPasswordPath = "/run/secrets/ultra-media-stage-rpc-password";
   stagingRoot = "/srv/media/.arr-staging";
+  cleanupQueueRoot = "/var/lib/ultra-media/cleanup-queue";
+  cleanupQueueArgument = lib.optionalString cleanupEnabled "--cleanup-queue-root ${lib.escapeShellArg cleanupQueueRoot} ";
   sshPort = 22;
   stageCfg = config.myConfig.ultraMediaDownloadStage;
   stageServices = ["ultra-media-download-stage"];
@@ -78,10 +80,9 @@ in {
     unitConfig = {
       ConditionPathIsMountPoint = "/srv/media";
       RequiresMountsFor = ["/srv/media"];
-      OnSuccess = "ultra-media-cleanup.service";
     };
     serviceConfig = {
-      Type = "oneshot";
+      Type = "exec";
       User = "ultra-sync";
       Group = "users";
       SupplementaryGroups = ["media-management-secrets"];
@@ -90,6 +91,8 @@ in {
       RuntimeDirectory = "ultra-media";
       RuntimeDirectoryMode = "0700";
       RuntimeDirectoryPreserve = "yes";
+      StateDirectory = "ultra-media";
+      StateDirectoryMode = "0700";
       ReadWritePaths = [stagingRoot "/run/ultra-media"];
     };
     environment.TMPDIR = "/run/ultra-media";
@@ -98,7 +101,6 @@ in {
       export PYTHONPATH=${./scripts}
       exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-download-stage.py} \
         --stage-downloads \
-        --success-marker /run/ultra-media/stage-success.json \
         --rpc-url ${lib.escapeShellArg rpcUrlPath} \
         --download-root ${lib.escapeShellArg downloadRootPath} \
         --ssh-host ${lib.escapeShellArg hostPath} \
@@ -110,7 +112,7 @@ in {
         --rpc-password ${lib.escapeShellArg rpcPasswordPath} \
         --ssh ${pkgs.openssh}/bin/ssh \
         --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
-        --rsync ${pkgs.rsync}/bin/rsync
+        ${cleanupQueueArgument}--rsync ${pkgs.rsync}/bin/rsync
     '';
   };
 

@@ -7,106 +7,32 @@ per-torrent and remote-path details.
 
 import argparse
 import fcntl
+import hashlib
 import ipaddress
 import json
+import math
 import os
 import posixpath
+import re
+import secrets
+import selectors
 import shlex
 import stat
 import subprocess
 import sys
 import tempfile
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
 from urllib.parse import urlsplit
 
+from ultra_media_file_stat import make_remote_source_stat
+
 
 STAGING_ROOT = "/srv/media/.arr-staging"
-OPERATION_LOCK_PATH = "/run/ultra-media/operation.lock"
-STAGE_SUCCESS_MARKER = "/run/ultra-media/stage-success.json"
-
-
-@contextmanager
-def _operation_lock(
-    staging_root: str | Path = STAGING_ROOT,
-    *,
-    lock_path: str | Path | None = None,
-) -> Iterator[None]:
-    """Serialize staging and cleanup without granting cleanup media write access."""
-    root = Path(staging_root).absolute()
-    root.mkdir(parents=True, exist_ok=True)
-    if root.is_symlink():
-        raise OSError("staging root must not be a symbolic link")
-    if lock_path is None:
-        lock_path = (
-            OPERATION_LOCK_PATH
-            if root == Path(STAGING_ROOT).absolute()
-            else root / ".operation.lock"
-        )
-    lock_path = Path(lock_path)
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(lock_path, flags, 0o600)
-    try:
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            raise OSError("operation lock is not a regular file")
-        with os.fdopen(descriptor, "r+") as lock_file:
-            descriptor = -1
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-            yield
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-
-
-def clear_stage_success_marker(marker_path: str = STAGE_SUCCESS_MARKER) -> None:
-    """Remove any previous run token without following a symlink."""
-    path = Path(marker_path)
-    try:
-        metadata = os.lstat(path)
-    except FileNotFoundError:
-        return
-    if not stat.S_ISREG(metadata.st_mode):
-        raise OSError("stage success marker is not a regular file")
-    path.unlink()
-
-
-def write_stage_success_marker(
-    marker_path: str = STAGE_SUCCESS_MARKER,
-    *,
-    monotonic_ns: int | None = None,
-) -> None:
-    """Atomically publish a short-lived token after a complete staging run."""
-    if monotonic_ns is None:
-        monotonic_ns = time.monotonic_ns()
-    if not isinstance(monotonic_ns, int) or isinstance(monotonic_ns, bool) or monotonic_ns <= 0:
-        raise ValueError("stage success marker timestamp is invalid")
-    path = Path(marker_path)
-    if not path.is_absolute():
-        raise ValueError("stage success marker path must be absolute")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=path.parent, prefix=".stage-success-", delete=False
-        ) as marker:
-            temporary_path = Path(marker.name)
-            os.fchmod(marker.fileno(), 0o660)
-            json.dump({"monotonic_ns": monotonic_ns}, marker, sort_keys=True)
-            marker.flush()
-            os.fsync(marker.fileno())
-        os.replace(temporary_path, path)
-        temporary_path = None
-        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+RUNTIME_ROOT = "/run/ultra-media"
+CLEANUP_QUEUE_ROOT = "/var/lib/ultra-media/cleanup-queue"
 
 
 class StagingConfigurationError(ValueError):
@@ -379,149 +305,906 @@ def build_rsync_arguments(
         "--protect-args",
         "--bwlimit=20000",
         "--partial-dir=.rsync-partial",
+        "--info=progress2",
         f"--rsh={ssh_command}",
         remote_source,
         local_destination,
     ]
 
 
-def stage_completed_downloads(
+_RSYNC_PROGRESS_PATTERN = re.compile(r"^\s*([\d,]+)\s+\d+%")
+
+
+def parse_rsync_progress_bytes(output: bytes | str) -> int | None:
+    """Return the last aggregate byte count from rsync progress output only."""
+    if isinstance(output, bytes):
+        text = output.decode("ascii", errors="ignore")
+    elif isinstance(output, str):
+        text = output
+    else:
+        return None
+    latest = None
+    for record in re.split(r"[\r\n]+", text):
+        match = _RSYNC_PROGRESS_PATTERN.match(record)
+        if match is None:
+            continue
+        try:
+            latest = int(match.group(1).replace(",", ""))
+        except ValueError:
+            continue
+    return latest
+
+
+def run_rsync_with_progress(
+    arguments: Sequence[str],
+    on_progress: Callable[[int], None],
+    *,
+    process_factory: Callable[..., Any] = subprocess.Popen,
+    poll_interval: float = 1.0,
+) -> None:
+    """Run rsync while extracting only numeric progress, never diagnostic text."""
+    process = process_factory(
+        list(arguments),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        bufsize=0,
+    )
+    if process.stderr is None:
+        raise OSError("rsync progress stream is unavailable")
+    selector = selectors.DefaultSelector()
+    selector.register(process.stderr, selectors.EVENT_READ)
+    buffered = b""
+    latest_progress = 0
+
+    def report_progress(value: int) -> None:
+        on_progress(value)
+
+    try:
+        while selector.get_map():
+            events = selector.select(poll_interval)
+            if not events:
+                if process.poll() is not None:
+                    break
+                report_progress(latest_progress)
+                continue
+            for key, _mask in events:
+                chunk = os.read(key.fileobj.fileno(), 4096)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                records = re.split(br"[\r\n]+", buffered + chunk)
+                buffered = records.pop()
+                for record in records:
+                    progress = parse_rsync_progress_bytes(record)
+                    if progress is not None:
+                        latest_progress = max(latest_progress, progress)
+                        report_progress(latest_progress)
+            if process.poll() is None:
+                report_progress(latest_progress)
+        trailing_progress = parse_rsync_progress_bytes(buffered)
+        if trailing_progress is not None:
+            report_progress(trailing_progress)
+        returncode = process.wait()
+        if returncode != 0:
+            raise subprocess.CalledProcessError(returncode, list(arguments))
+    except BaseException:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        raise
+    finally:
+        selector.close()
+        process.stderr.close()
+
+
+def build_staging_plan(
     torrents: Sequence[Mapping[str, Any]],
     mappings: Any,
-    transfer: Callable[[str, Path], None],
     *,
     staging_root: str | Path = STAGING_ROOT,
-) -> dict[str, int]:
-    """Copy only completed, fully mapped torrents and publish atomically per torrent.
-
-    Transfer callbacks receive a remote payload path and a private temporary
-    local target. They must perform copy-only transfers and leave remote data
-    untouched. Per-torrent names and paths are intentionally absent from the
-    returned aggregate counts.
-    """
+) -> dict[str, Any]:
+    """Plan only complete torrents whose every payload path maps safely."""
     normalized_mappings = _validate_normalized_mappings(mappings)
-    configured_root = Path(staging_root).absolute()
-    configured_root.mkdir(parents=True, exist_ok=True)
-    if configured_root.is_symlink():
-        raise OSError("staging root must not be a symbolic link")
-    root = configured_root.resolve()
-
-    result = {
-        "completed_candidates": 0,
-        "staged": 0,
-        "skipped_incomplete": 0,
-        "skipped_unknown_path": 0,
-        "skipped_malformed_path": 0,
-        "failed": 0,
-    }
+    planned_torrents: list[dict[str, Any]] = []
+    completed_candidates = 0
+    skipped_incomplete = 0
+    skipped_unknown_path = 0
+    skipped_malformed_path = 0
+    planned_files = 0
+    known_bytes = 0
+    unknown_size_files = 0
 
     for torrent in torrents:
         candidate = normalize_transmission_source_mappings(
-            torrent, normalized_mappings, staging_root=str(root)
+            torrent, normalized_mappings, staging_root=str(staging_root)
         )
         if candidate.get("complete") is not True:
-            result["skipped_incomplete"] += 1
+            skipped_incomplete += 1
             continue
-        result["completed_candidates"] += 1
+        completed_candidates += 1
 
-        paths = torrent.get("file_paths")
-        download_directory = torrent.get("download_directory")
+        torrent_id = torrent.get("id") if isinstance(torrent, Mapping) else None
+        paths = torrent.get("file_paths") if isinstance(torrent, Mapping) else None
+        download_directory = torrent.get("download_directory") if isinstance(torrent, Mapping) else None
+        source_files = candidate.get("files")
         if (
-            torrent.get("file_paths_valid") is not True
+            not isinstance(torrent_id, int)
+            or isinstance(torrent_id, bool)
+            or torrent_id <= 0
+            or torrent.get("file_paths_valid") is not True
             or not isinstance(paths, list)
             or not paths
             or not isinstance(download_directory, str)
+            or not isinstance(source_files, list)
+            or len(source_files) != len(paths)
         ):
-            result["skipped_malformed_path"] += 1
+            skipped_malformed_path += 1
             continue
 
-        source_files = candidate.get("files")
-        if not isinstance(source_files, list) or len(source_files) != len(paths):
-            result["skipped_malformed_path"] += 1
-            continue
-
-        transfers: list[tuple[str, Path]] = []
-        seen_destinations: set[str] = set()
+        file_sizes = torrent.get("file_sizes")
+        sizes_valid = (
+            torrent.get("file_sizes_valid") is True
+            and isinstance(file_sizes, list)
+            and len(file_sizes) == len(paths)
+        )
+        transfers = []
+        destinations: set[str] = set()
         reason: str | None = None
         for index, file_path in enumerate(paths):
             try:
+                normalized_directory = _normalize_absolute_remote_path(download_directory)
+                normalized_file = _normalize_relative_path(file_path)
                 remote_source = posixpath.normpath(
-                    posixpath.join(
-                        _normalize_absolute_remote_path(download_directory),
-                        _normalize_relative_path(file_path),
-                    )
+                    posixpath.join(normalized_directory, normalized_file)
                 )
                 local_destination = map_remote_path_to_staging(
                     download_directory,
                     file_path,
                     normalized_mappings,
-                    staging_root=str(root),
+                    staging_root=str(staging_root),
                 )
-                if source_files[index].get("source_mapping_verified") is not True:
-                    reason = "malformed_path"
-                    break
             except StagingConfigurationError as error:
                 reason = error.reason
                 break
-            if local_destination in seen_destinations:
+            if source_files[index].get("source_mapping_verified") is not True:
                 reason = "malformed_path"
                 break
-            seen_destinations.add(local_destination)
-            transfers.append((remote_source, Path(local_destination)))
+            if local_destination in destinations:
+                reason = "malformed_path"
+                break
+            destinations.add(local_destination)
+            size = file_sizes[index] if sizes_valid else None
+            if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+                size = None
+            transfers.append(
+                {
+                    "remote_source": remote_source,
+                    "local_destination": local_destination,
+                    "size_bytes": size,
+                }
+            )
 
         if reason == "unknown_path":
-            result["skipped_unknown_path"] += 1
+            skipped_unknown_path += 1
             continue
         if reason is not None or not transfers:
-            result["skipped_malformed_path"] += 1
+            skipped_malformed_path += 1
             continue
 
-        temporary_directory = Path(tempfile.mkdtemp(prefix=".incoming-", dir=root))
-        staged_files: list[tuple[Path, Path]] = []
+        planned_torrents.append(
+            {
+                "torrent_id": torrent_id,
+                "fingerprint": fingerprint_torrent(torrent, normalized_mappings),
+                "transfers": transfers,
+                "torrent": torrent,
+            }
+        )
+        planned_files += len(transfers)
+        for transfer in transfers:
+            size = transfer["size_bytes"]
+            if size is None:
+                unknown_size_files += 1
+            else:
+                known_bytes += size
+
+    return {
+        "torrents": planned_torrents,
+        "totals": {
+            "torrents": len(planned_torrents),
+            "files": planned_files,
+            "bytes": known_bytes if unknown_size_files == 0 else None,
+            "unknown_size_files": unknown_size_files,
+        },
+        "counts": {
+            "completed_candidates": completed_candidates,
+            "skipped_incomplete": skipped_incomplete,
+            "skipped_unknown_path": skipped_unknown_path,
+            "skipped_malformed_path": skipped_malformed_path,
+        },
+    }
+
+
+class StageProgressReporter:
+    """Emit privacy-safe aggregate progress events at a bounded cadence."""
+
+    def __init__(
+        self,
+        totals: Mapping[str, Any],
+        *,
+        emit: Callable[[Mapping[str, Any]], None] | None = None,
+        clock: Callable[[], float] = time.monotonic,
+        interval_seconds: int = 60,
+    ) -> None:
+        if isinstance(interval_seconds, bool) or not isinstance(interval_seconds, int) or interval_seconds <= 0:
+            raise ValueError("progress interval must be a positive integer")
+        self.totals = dict(totals)
+        self.clock = clock
+        self.interval_seconds = interval_seconds
+        self.emit_event = emit or self._emit_json
+        self.started_at = clock()
+        self.last_emit_at: float | None = None
+        self.last_emit_bytes = 0
+        self.bytes_per_second: float | None = None
+
+    @staticmethod
+    def _emit_json(event: Mapping[str, Any]) -> None:
+        print(json.dumps(event, sort_keys=True, separators=(",", ":")), flush=True)
+
+    def update(
+        self,
+        *,
+        torrents_done: int,
+        files_done: int,
+        bytes_done: int,
+        files_reused: int = 0,
+        bytes_reused: int = 0,
+        receipts_created: int = 0,
+        failed_torrents: int = 0,
+        event: str = "staging_progress",
+        force: bool = False,
+    ) -> bool:
+        now = self.clock()
+        if (
+            self.last_emit_at is not None
+            and not force
+            and now - self.last_emit_at < self.interval_seconds
+        ):
+            return False
+
+        update_rate = event == "staging_progress" or self.last_emit_at is None
+        if update_rate and self.last_emit_at is not None and now > self.last_emit_at:
+            sample_rate = max(0, bytes_done - self.last_emit_bytes) / (now - self.last_emit_at)
+            self.bytes_per_second = (
+                sample_rate
+                if self.bytes_per_second is None
+                else 0.5 * self.bytes_per_second + 0.5 * sample_rate
+            )
+        elif update_rate and now > self.started_at:
+            self.bytes_per_second = max(0, bytes_done) / (now - self.started_at)
+
+        total_bytes = self.totals.get("bytes")
+        progress_bytes = max(0, bytes_done) + max(0, bytes_reused)
+        percent_complete = None
+        if (
+            isinstance(total_bytes, int)
+            and not isinstance(total_bytes, bool)
+            and total_bytes > 0
+            and 0 <= progress_bytes <= total_bytes
+        ):
+            percent_complete = round(100 * progress_bytes / total_bytes, 1)
+        eta_seconds = None
+        if (
+            isinstance(total_bytes, int)
+            and not isinstance(total_bytes, bool)
+            and total_bytes >= progress_bytes
+            and self.bytes_per_second is not None
+            and self.bytes_per_second > 0
+        ):
+            eta_seconds = math.ceil((total_bytes - progress_bytes) / self.bytes_per_second)
+
+        self.emit_event(
+            {
+                "event": event,
+                "elapsed_seconds": max(0, int(now - self.started_at)),
+                "torrents_published": torrents_done,
+                "torrents_total": self.totals.get("torrents"),
+                "files_transferred": files_done,
+                "files_reused": files_reused,
+                "files_total": self.totals.get("files"),
+                "bytes_transferred": max(0, bytes_done),
+                "bytes_reused": max(0, bytes_reused),
+                "bytes_total": total_bytes,
+                "percent_complete": percent_complete,
+                "bytes_per_second": (
+                    round(self.bytes_per_second, 2)
+                    if self.bytes_per_second is not None
+                    else None
+                ),
+                "eta_seconds": eta_seconds,
+                "receipts_created": receipts_created,
+                "failed_torrents": failed_torrents,
+            }
+        )
+        if event == "staging_progress" or self.last_emit_at is None:
+            self.last_emit_at = now
+            self.last_emit_bytes = max(0, bytes_done)
+        return True
+
+
+
+_CLEANUP_POLICY_RETRY_REASONS = {
+    "incomplete_torrent",
+    "below_retention_threshold",
+    "private_ratio_below_floor",
+    "private_ratio_missing",
+    "private_ratio_malformed",
+    "private_ratio_unavailable",
+    "payload_files_missing",
+    "file_metadata_invalid",
+    "file_unmapped",
+    "source_mapping_unverified",
+    "source_file_shared",
+    "source_ownership_unverified",
+    "shared_file_unsafe",
+    "tracker_classification_unknown",
+    "tracker_ratio_unavailable",
+}
+_MAX_CLEANUP_RETRY_SECONDS = 60 * 60
+
+
+def _torrent_key(torrent_id: int) -> str:
+    if not isinstance(torrent_id, int) or isinstance(torrent_id, bool) or torrent_id <= 0:
+        raise ValueError("torrent identifier is invalid")
+    return hashlib.sha256(str(torrent_id).encode("ascii")).hexdigest()
+
+
+def fingerprint_torrent(
+    torrent: Mapping[str, Any],
+    mappings: Any = None,
+) -> str:
+    """Hash the ordered source manifest and mapping without exposing their paths."""
+    torrent_id = torrent.get("id")
+    download_directory = torrent.get("download_directory")
+    file_paths = torrent.get("file_paths")
+    file_sizes = torrent.get("file_sizes")
+    if (
+        not isinstance(torrent_id, int)
+        or isinstance(torrent_id, bool)
+        or torrent_id <= 0
+        or not isinstance(download_directory, str)
+        or not isinstance(file_paths, list)
+        or not file_paths
+        or not isinstance(file_sizes, list)
+        or len(file_sizes) != len(file_paths)
+        or any(not isinstance(path, str) or "\0" in path for path in file_paths)
+        or any(size is not None and (not isinstance(size, int) or isinstance(size, bool) or size < 0) for size in file_sizes)
+    ):
+        raise ValueError("torrent source manifest is invalid")
+    normalized_mappings = (
+        _validate_normalized_mappings(mappings)
+        if mappings is not None
+        else []
+    )
+    manifest = {
+        "torrent_id": torrent_id,
+        "download_directory": download_directory,
+        "file_paths": file_paths,
+        "file_sizes": file_sizes,
+        "mappings": normalized_mappings,
+    }
+    encoded = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _receipt_path(queue_root: str | Path, torrent_id: int) -> Path:
+    return Path(queue_root) / f"{_torrent_key(torrent_id)}.json"
+
+
+@contextmanager
+def cleanup_queue_lock(queue_root: str | Path) -> Iterator[None]:
+    """Serialize receipt read/modify/write operations across stage and cleanup."""
+    root = Path(queue_root)
+    root.mkdir(parents=True, mode=0o700, exist_ok=True)
+    if root.is_symlink() or root.parent.is_symlink():
+        raise OSError("cleanup queue directories must not be symlinks")
+    lock_path = root.parent / ".cleanup-queue.lock"
+    descriptor = os.open(
+        lock_path,
+        os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise OSError("cleanup queue lock is not a regular file")
+        with os.fdopen(descriptor, "r+") as lock_file:
+            descriptor = -1
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            yield
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def _write_receipt_atomic(path: Path, receipt: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    if path.parent.is_symlink():
+        raise OSError("queue directory must not be a symlink")
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, prefix=".receipt-", delete=False
+        ) as receipt_file:
+            temporary_path = Path(receipt_file.name)
+            os.fchmod(receipt_file.fileno(), 0o600)
+            json.dump(dict(receipt), receipt_file, sort_keys=True, separators=(",", ":"))
+            receipt_file.flush()
+            os.fsync(receipt_file.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
         try:
-            for index, (remote_source, local_destination) in enumerate(transfers):
-                temporary_file = temporary_directory / f"payload-{index}"
-                transfer(remote_source, temporary_file)
-                if not temporary_file.is_file():
-                    raise OSError("transfer did not produce a regular payload")
-                staged_files.append((temporary_file, local_destination))
-
-            backups: list[tuple[Path, Path]] = []
-            published: list[Path] = []
-            try:
-                for index, (temporary_file, local_destination) in enumerate(staged_files):
-                    local_destination.parent.mkdir(parents=True, exist_ok=True)
-                    resolved_parent = local_destination.parent.resolve()
-                    if os.path.commonpath((str(root), str(resolved_parent))) != str(root):
-                        raise OSError("staging destination escapes the staging root")
-                    if local_destination.exists():
-                        if not local_destination.is_file():
-                            raise OSError("staging destination is not a regular file")
-                        backup = temporary_directory / f"backup-{index}"
-                        os.replace(local_destination, backup)
-                        backups.append((backup, local_destination))
-                    os.replace(temporary_file, local_destination)
-                    published.append(local_destination)
-            except OSError:
-                for local_destination in reversed(published):
-                    local_destination.unlink(missing_ok=True)
-                for backup, local_destination in reversed(backups):
-                    if backup.exists():
-                        os.replace(backup, local_destination)
-                raise
-            result["staged"] += 1
-        except (OSError, subprocess.SubprocessError):
-            result["failed"] += 1
+            os.fsync(directory_fd)
         finally:
-            for item in temporary_directory.iterdir():
-                if item.is_dir() and not item.is_symlink():
-                    import shutil
+            os.close(directory_fd)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
-                    shutil.rmtree(item)
-                else:
-                    item.unlink(missing_ok=True)
-            temporary_directory.rmdir()
 
+def write_staged_torrent_receipt(
+    queue_root: str | Path,
+    torrent_id: int,
+    fingerprint: str,
+    *,
+    staged_at_ns: int,
+) -> dict[str, Any]:
+    """Atomically enqueue a torrent only after all of its files are published."""
+    if not isinstance(fingerprint, str) or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
+        raise ValueError("torrent fingerprint is invalid")
+    if not isinstance(staged_at_ns, int) or isinstance(staged_at_ns, bool) or staged_at_ns <= 0:
+        raise ValueError("staged timestamp is invalid")
+    receipt = {
+        "version": 1,
+        "receipt_id": secrets.token_hex(16),
+        "torrent_id": torrent_id,
+        "fingerprint": fingerprint,
+        "staged_at_ns": staged_at_ns,
+        "attempts": 0,
+        "next_attempt_ns": staged_at_ns,
+    }
+    path = _receipt_path(queue_root, torrent_id)
+    with cleanup_queue_lock(queue_root):
+        _write_receipt_atomic(path, receipt)
+    return {**receipt, "receipt_path": str(path)}
+
+
+def read_pending_torrent_receipts(
+    queue_root: str | Path,
+    *,
+    now_ns: int,
+) -> list[dict[str, Any]]:
+    """Read only valid, due receipts; malformed or symlinked entries fail closed."""
+    root = Path(queue_root)
+    if not root.exists():
+        return []
+    if root.is_symlink() or not root.is_dir():
+        return []
+    pending = []
+    for path in sorted(root.glob("*.json")):
+        try:
+            if not stat.S_ISREG(os.lstat(path).st_mode):
+                continue
+            receipt = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(receipt, Mapping):
+            continue
+        torrent_id = receipt.get("torrent_id")
+        fingerprint = receipt.get("fingerprint")
+        staged_at_ns = receipt.get("staged_at_ns")
+        receipt_id = receipt.get("receipt_id")
+        attempts = receipt.get("attempts")
+        next_attempt_ns = receipt.get("next_attempt_ns")
+        if (
+            receipt.get("version") != 1
+            or not isinstance(torrent_id, int)
+            or isinstance(torrent_id, bool)
+            or torrent_id <= 0
+            or not isinstance(receipt_id, str)
+            or re.fullmatch(r"[0-9a-f]{32}", receipt_id) is None
+            or not isinstance(fingerprint, str)
+            or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None
+            or not isinstance(staged_at_ns, int)
+            or isinstance(staged_at_ns, bool)
+            or staged_at_ns <= 0
+            or not isinstance(attempts, int)
+            or isinstance(attempts, bool)
+            or attempts < 0
+            or not isinstance(next_attempt_ns, int)
+            or isinstance(next_attempt_ns, bool)
+            or next_attempt_ns < staged_at_ns
+            or path != _receipt_path(root, torrent_id)
+            or next_attempt_ns > now_ns
+        ):
+            continue
+        pending.append(dict(receipt))
+    return sorted(pending, key=lambda receipt: (receipt["next_attempt_ns"], receipt["staged_at_ns"]))
+
+
+def defer_staged_torrent_receipt(
+    queue_root: str | Path,
+    receipt: Mapping[str, Any],
+    *,
+    now_ns: int,
+    reason: str,
+) -> dict[str, Any] | None:
+    """Retain the exact receipt and schedule a bounded retry for a safe block reason."""
+    torrent_id = receipt.get("torrent_id")
+    fingerprint = receipt.get("fingerprint")
+    if not isinstance(torrent_id, int) or isinstance(torrent_id, bool) or not isinstance(fingerprint, str):
+        return None
+    path = _receipt_path(queue_root, torrent_id)
+    with cleanup_queue_lock(queue_root):
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+        if (
+            not isinstance(current, dict)
+            or current.get("fingerprint") != fingerprint
+            or current.get("receipt_id") != receipt.get("receipt_id")
+        ):
+            return None
+        attempts = current.get("attempts", 0)
+        if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 0:
+            return None
+        delay_seconds = (
+            _MAX_CLEANUP_RETRY_SECONDS
+            if reason in _CLEANUP_POLICY_RETRY_REASONS
+            else min(60 * (2 ** min(attempts, 6)), _MAX_CLEANUP_RETRY_SECONDS)
+        )
+        current["attempts"] = attempts + 1
+        current["last_reason"] = reason if reason.isidentifier() else "runtime_cleanup_failed"
+        current["next_attempt_ns"] = now_ns + delay_seconds * 1_000_000_000
+        _write_receipt_atomic(path, current)
+        return current
+
+
+def ack_staged_torrent_receipt(
+    queue_root: str | Path,
+    expected_receipt: Mapping[str, Any],
+) -> bool:
+    """Remove a queue entry only if it is still the exact staged receipt."""
+    torrent_id = expected_receipt.get("torrent_id")
+    try:
+        path = _receipt_path(queue_root, torrent_id)
+        with cleanup_queue_lock(queue_root):
+            if not stat.S_ISREG(os.lstat(path).st_mode):
+                return False
+            current = json.loads(path.read_text(encoding="utf-8"))
+            if (
+                not isinstance(current, Mapping)
+                or current.get("fingerprint") != expected_receipt.get("fingerprint")
+                or current.get("receipt_id") != expected_receipt.get("receipt_id")
+            ):
+                return False
+            path.unlink()
+            return True
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return False
+
+
+@contextmanager
+def torrent_operation_lock(
+    runtime_root: str | Path,
+    torrent_id: int,
+    *,
+    blocking: bool = True,
+) -> Iterator[None]:
+    """Serialize stage/cleanup for one torrent while allowing unrelated torrents to overlap."""
+    lock_root = Path(runtime_root) / "locks"
+    lock_root.mkdir(parents=True, mode=0o700, exist_ok=True)
+    if lock_root.is_symlink():
+        raise OSError("torrent lock directory must not be a symlink")
+    lock_path = lock_root / f"{_torrent_key(torrent_id)}.lock"
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise OSError("torrent lock is not a regular file")
+        with os.fdopen(descriptor, "r+") as lock_file:
+            descriptor = -1
+            lock_flags = fcntl.LOCK_EX if blocking else fcntl.LOCK_EX | fcntl.LOCK_NB
+            fcntl.flock(lock_file.fileno(), lock_flags)
+            yield
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+def cleanup_legacy_stage_workspaces(staging_root: str | Path) -> int:
+    """Remove only unmanifested workspaces left by the pre-resume staging runner."""
+    root = Path(staging_root).absolute()
+    if root.is_symlink() or not root.is_dir():
+        raise OSError("staging root must be a regular directory")
+    removed = 0
+    for path in root.iterdir():
+        if not path.name.startswith(".incoming-") or path.name.startswith(".incoming-v1-"):
+            continue
+        metadata = os.lstat(path)
+        if stat.S_ISLNK(metadata.st_mode):
+            raise OSError("legacy staging workspace must not be a symlink")
+        if stat.S_ISDIR(metadata.st_mode):
+            import shutil
+
+            shutil.rmtree(path)
+            removed += 1
+    return removed
+
+
+def prepare_torrent_workspace(
+    staging_root: str | Path,
+    torrent_id: int,
+    fingerprint: str,
+) -> Path:
+    """Reuse rsync partial data only for the same torrent manifest."""
+    root = Path(staging_root).absolute()
+    if root.is_symlink() or not root.is_dir():
+        raise OSError("staging root must be a regular directory")
+    workspace = root / f".incoming-v1-{_torrent_key(torrent_id)}"
+    if workspace.exists() or workspace.is_symlink():
+        metadata = os.lstat(workspace)
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+            raise OSError("torrent workspace must be a regular directory")
+        manifest_path = workspace / ".manifest.json"
+        try:
+            manifest_metadata = os.lstat(manifest_path)
+            if not stat.S_ISREG(manifest_metadata.st_mode):
+                raise ValueError("workspace manifest is not regular")
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+            manifest = None
+        if not (
+            isinstance(manifest, Mapping)
+            and manifest.get("version") == 1
+            and manifest.get("torrent_id") == torrent_id
+            and manifest.get("fingerprint") == fingerprint
+        ):
+            import shutil
+
+            shutil.rmtree(workspace)
+    workspace.mkdir(mode=0o700, exist_ok=True)
+    resolved_workspace = workspace.resolve()
+    if os.path.commonpath((str(root), str(resolved_workspace))) != str(root):
+        raise OSError("torrent workspace escapes the staging root")
+    manifest_path = workspace / ".manifest.json"
+    if not manifest_path.exists():
+        _write_receipt_atomic(
+            manifest_path,
+            {"version": 1, "torrent_id": torrent_id, "fingerprint": fingerprint},
+        )
+    return workspace
+
+
+def _ensure_destination_within_root(destination: Path, root: Path) -> None:
+    resolved_root = root.resolve()
+    resolved_parent = destination.parent.resolve()
+    try:
+        contained = os.path.commonpath((str(resolved_root), str(resolved_parent))) == str(
+            resolved_root
+        )
+    except ValueError:
+        contained = False
+    if not contained:
+        raise OSError("staging destination escapes the staging root")
+
+
+def staged_file_matches_source(
+    remote_path: str,
+    local_path: str | Path,
+    expected_size: int | None,
+    source_stat: Callable[[str], Mapping[str, Any] | None],
+) -> bool:
+    """Reuse a local staging file only when strict remote size/mtime facts match."""
+    if not callable(source_stat):
+        return False
+    local_path = Path(local_path)
+    try:
+        local_metadata = os.lstat(local_path)
+    except OSError:
+        return False
+    if not stat.S_ISREG(local_metadata.st_mode):
+        return False
+    try:
+        remote_metadata = source_stat(remote_path)
+    except Exception:
+        return False
+    if (
+        not isinstance(remote_metadata, Mapping)
+        or remote_metadata.get("regular_file") is not True
+        or not isinstance(remote_metadata.get("size"), int)
+        or isinstance(remote_metadata.get("size"), bool)
+        or not isinstance(remote_metadata.get("mtime_ns"), int)
+        or isinstance(remote_metadata.get("mtime_ns"), bool)
+    ):
+        return False
+    remote_size = remote_metadata["size"]
+    if expected_size is not None and remote_size != expected_size:
+        return False
+    return local_metadata.st_size == remote_size and local_metadata.st_mtime_ns == remote_metadata["mtime_ns"]
+
+
+def _stage_torrent_files(
+    transfers: Sequence[Mapping[str, Any]],
+    root: Path,
+    workspace: Path,
+    transfer: Callable[[str, Path, Callable[[int], None]], None],
+    reporter: StageProgressReporter,
+    counters: dict[str, int],
+    source_stat: Callable[[str], Mapping[str, Any] | None] | None = None,
+) -> None:
+    staged_files: list[tuple[Path, Path]] = []
+    for index, transfer_plan in enumerate(transfers):
+        local_destination = Path(transfer_plan["local_destination"])
+        _ensure_destination_within_root(local_destination, root)
+        if source_stat is not None and staged_file_matches_source(
+            transfer_plan["remote_source"],
+            local_destination,
+            transfer_plan.get("size_bytes"),
+            source_stat,
+        ):
+            reused_bytes = os.lstat(local_destination).st_size
+            counters["bytes_reused"] += reused_bytes
+            counters["files_reused"] += 1
+            reporter.update(
+                torrents_done=counters["torrents_done"],
+                files_done=counters["files_done"],
+                bytes_done=counters["bytes_done"],
+                files_reused=counters["files_reused"],
+                bytes_reused=counters["bytes_reused"],
+                receipts_created=counters.get("receipts_created", 0),
+            )
+            continue
+        temporary_file = workspace / f"payload-{index}"
+
+        def report_file_progress(current_file_bytes: int) -> None:
+            reporter.update(
+                torrents_done=counters["torrents_done"],
+                files_done=counters["files_done"],
+                bytes_done=counters["bytes_done"] + max(0, current_file_bytes),
+                files_reused=counters["files_reused"],
+                bytes_reused=counters["bytes_reused"],
+                receipts_created=counters.get("receipts_created", 0),
+            )
+
+        transfer(transfer_plan["remote_source"], temporary_file, report_file_progress)
+        if not temporary_file.is_file():
+            raise OSError("transfer did not produce a regular payload")
+        counters["bytes_done"] += temporary_file.stat().st_size
+        counters["files_done"] += 1
+        staged_files.append(
+            (temporary_file, Path(transfer_plan["local_destination"]))
+        )
+
+    backups: list[tuple[Path, Path]] = []
+    published: list[Path] = []
+    try:
+        for index, (temporary_file, local_destination) in enumerate(staged_files):
+            local_destination.parent.mkdir(parents=True, exist_ok=True)
+            _ensure_destination_within_root(local_destination, root)
+            if local_destination.exists():
+                if not local_destination.is_file():
+                    raise OSError("staging destination is not a regular file")
+                backup = workspace / f"backup-{index}"
+                os.replace(local_destination, backup)
+                backups.append((backup, local_destination))
+            os.replace(temporary_file, local_destination)
+            published.append(local_destination)
+    except OSError:
+        for local_destination in reversed(published):
+            local_destination.unlink(missing_ok=True)
+        for backup, local_destination in reversed(backups):
+            if backup.exists():
+                os.replace(backup, local_destination)
+        raise
+
+    import shutil
+
+    shutil.rmtree(workspace)
+
+
+def stage_completed_downloads(
+    torrents: Sequence[Mapping[str, Any]],
+    mappings: Any,
+    transfer: Callable[[str, Path, Callable[[int], None]], None],
+    *,
+    staging_root: str | Path = STAGING_ROOT,
+    runtime_root: str | Path | None = None,
+    source_stat: Callable[[str], Mapping[str, Any] | None] | None = None,
+    progress_reporter: StageProgressReporter | None = None,
+    on_torrent_staged: Callable[[Mapping[str, Any]], None] | None = None,
+) -> dict[str, int]:
+    """Copy each complete mapped torrent as an atomic, independently reportable unit."""
+    plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
+    reporter = progress_reporter or StageProgressReporter(plan["totals"])
+    root = Path(staging_root).absolute()
+    root.mkdir(parents=True, exist_ok=True)
+    if root.is_symlink():
+        raise OSError("staging root must not be a symbolic link")
+    root = root.resolve()
+    cleanup_legacy_stage_workspaces(root)
+
+    result = {
+        **plan["counts"],
+        "staged": 0,
+        "failed": 0,
+        "reused_files": 0,
+    }
+    counters = {
+        "torrents_done": 0,
+        "files_done": 0,
+        "bytes_done": 0,
+        "files_reused": 0,
+        "bytes_reused": 0,
+        "receipts_created": 0,
+    }
+    reporter.update(**counters, event="staging_started", force=True)
+
+    for planned_torrent in plan["torrents"]:
+        torrent = planned_torrent["torrent"]
+        torrent_id = planned_torrent["torrent_id"]
+        lock = (
+            torrent_operation_lock(runtime_root, torrent_id)
+            if runtime_root is not None
+            else nullcontext()
+        )
+        try:
+            with lock:
+                workspace = prepare_torrent_workspace(
+                    root,
+                    torrent_id,
+                    planned_torrent["fingerprint"],
+                )
+                _stage_torrent_files(
+                    planned_torrent["transfers"],
+                    root,
+                    workspace,
+                    transfer,
+                    reporter,
+                    counters,
+                    source_stat,
+                )
+                result["reused_files"] = counters["files_reused"]
+                if on_torrent_staged is not None:
+                    on_torrent_staged(torrent)
+                    counters["receipts_created"] += 1
+            result["staged"] += 1
+            counters["torrents_done"] += 1
+            reporter.update(
+                **counters,
+                event="torrent_staged",
+                force=True,
+            )
+        except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+            result["failed"] += 1
+            result["reused_files"] = counters["files_reused"]
+            reporter.update(
+                **counters,
+                failed_torrents=result["failed"],
+                event="torrent_failed",
+                force=True,
+            )
+
+    reporter.update(
+        **counters,
+        failed_torrents=result["failed"],
+        event="staging_completed" if result["failed"] == 0 else "staging_failed",
+        force=True,
+    )
     return result
 
 
@@ -554,7 +1237,10 @@ def _stage_from_runtime_files(
     ssh_keygen_executable: str,
     rsync_executable: str,
     process_runner: Callable[..., Any] = subprocess.run,
+    progress_runner: Callable[[Sequence[str], Callable[[int], None]], None] = run_rsync_with_progress,
     staging_root: str | Path = STAGING_ROOT,
+    runtime_root: str | Path | None = None,
+    cleanup_queue_root: str | Path | None = None,
 ) -> dict[str, int]:
     try:
         rpc_url = _read_secret_file(secret_paths["rpc_url"])
@@ -621,6 +1307,12 @@ def _stage_from_runtime_files(
             "GlobalKnownHostsFile=/dev/null",
         ]
         ssh_command = shlex.join(ssh_arguments)
+        source_stat = make_remote_source_stat(
+            ssh_arguments,
+            ssh_username,
+            host,
+            process_runner=process_runner,
+        )
 
         try:
             from transmission_rpc import TransmissionRPC
@@ -630,20 +1322,35 @@ def _stage_from_runtime_files(
         except Exception:
             raise StagingConfigurationError("rpc_unavailable") from None
 
-        def transfer(remote_source: str, local_temporary: Path) -> None:
+        def transfer(
+            remote_source: str,
+            local_temporary: Path,
+            report_progress: Callable[[int], None],
+        ) -> None:
             remote = f"{ssh_username}@{host}:{remote_source}"
             arguments = build_rsync_arguments(
                 rsync_executable, ssh_command, remote, str(local_temporary)
             )
-            process_runner(
-                arguments,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True,
+            progress_runner(arguments, report_progress)
+
+        def enqueue_staged_torrent(torrent: Mapping[str, Any]) -> None:
+            if cleanup_queue_root is None:
+                return
+            write_staged_torrent_receipt(
+                cleanup_queue_root,
+                torrent["id"],
+                fingerprint_torrent(torrent, mappings),
+                staged_at_ns=time.time_ns(),
             )
 
         return stage_completed_downloads(
-            torrents, mappings, transfer, staging_root=staging_root
+            torrents,
+            mappings,
+            transfer,
+            staging_root=staging_root,
+            runtime_root=runtime_root,
+            source_stat=source_stat,
+            on_torrent_staged=enqueue_staged_torrent if cleanup_queue_root is not None else None,
         )
 
 
@@ -662,34 +1369,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--ssh", required=True)
     parser.add_argument("--ssh-keygen", required=True)
     parser.add_argument("--rsync", required=True)
-    parser.add_argument("--success-marker", default=STAGE_SUCCESS_MARKER)
+    parser.add_argument("--cleanup-queue-root")
     args = parser.parse_args(argv)
     if not args.stage_downloads:
         print("staging failed reason=operation_required", file=sys.stderr)
         return 2
 
     try:
-        with _operation_lock(lock_path=OPERATION_LOCK_PATH):
-            clear_stage_success_marker(args.success_marker)
-            result = _stage_from_runtime_files(
-                {
-                    "rpc_url": args.rpc_url,
-                    "download_root": args.download_root,
-                    "ssh_host": args.ssh_host,
-                    "ssh_username": args.ssh_username,
-                    "ssh_port": args.ssh_port,
-                    "known_hosts": args.known_hosts,
-                    "rpc_username": args.rpc_username,
-                    "rpc_password": args.rpc_password,
-                },
-                args.ssh_key,
-                ssh_port=args.ssh_port,
-                ssh_executable=args.ssh,
-                ssh_keygen_executable=args.ssh_keygen,
-                rsync_executable=args.rsync,
-            )
-            if result["failed"] == 0:
-                write_stage_success_marker(args.success_marker)
+        result = _stage_from_runtime_files(
+            {
+                "rpc_url": args.rpc_url,
+                "download_root": args.download_root,
+                "ssh_host": args.ssh_host,
+                "ssh_username": args.ssh_username,
+                "ssh_port": args.ssh_port,
+                "known_hosts": args.known_hosts,
+                "rpc_username": args.rpc_username,
+                "rpc_password": args.rpc_password,
+            },
+            args.ssh_key,
+            ssh_port=args.ssh_port,
+            ssh_executable=args.ssh,
+            ssh_keygen_executable=args.ssh_keygen,
+            rsync_executable=args.rsync,
+            runtime_root=RUNTIME_ROOT,
+            cleanup_queue_root=args.cleanup_queue_root,
+        )
     except StagingConfigurationError as error:
         print(f"staging failed reason={error.reason}", file=sys.stderr)
         return 1
@@ -697,7 +1402,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("staging failed reason=local_io_failure", file=sys.stderr)
         return 1
 
-    print("staging " + " ".join(f"{name}={count}" for name, count in result.items()))
+    print(
+        json.dumps(
+            {"event": "staging_run_result", **result},
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        flush=True,
+    )
     return 1 if result["failed"] else 0
 
 

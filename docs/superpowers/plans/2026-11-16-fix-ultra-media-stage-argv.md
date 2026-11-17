@@ -12,16 +12,16 @@
 
 ## Global Constraints
 
-- Cleanup remains gated on a successful staging service.
+- Cleanup is gated per torrent by a receipt written only after that torrent's files are fully published.
 - Deploy Drlight only through the reviewed Machines plan/apply workflow.
-- Preserve cleanup's success-only trigger and report-mode policy gates.
+- Let the one-minute cleanup timer consume per-torrent receipts; preserve report-mode policy gates.
 - Follow the repository's Jujutsu and Nix validation workflow.
 
 ## Review Focus
 
 - Shell line continuation escaping: assert both evaluated commands contain single-backslash/newline continuations and no doubled-backslash/newline sequence.
 - Required argument preservation: keep both services' existing flags and paths unchanged.
-- Cleanup trigger: preserve `OnSuccess` semantics; a failed stage must not start cleanup.
+- Cleanup queue: never enqueue partial or failed torrents; a failure in one torrent does not revoke already completed receipts for other torrents.
 - Systemd filesystem sandbox: direct Python temporary files to `/run/ultra-media`, not the read-only default temp directory.
 
 ---
@@ -55,4 +55,4 @@
 - [x] Set `TMPDIR` to `/run/ultra-media` for both systemd services; confirm the focused check passes.
 - [x] Run `devenv tasks run check:lint` and `devenv tasks run test:all`; commit the change.
 - [ ] Push the PR update using Jujutsu.
-- [ ] Apply a reviewed Drlight Machines plan; verify staging succeeds and cleanup runs only as its success-triggered follow-up.
+- [x] Apply reviewed Drlight Machines plans for the job argument and writable-temp fixes; staging now runs with the corrected arguments and runtime temp directory.

@@ -215,6 +215,46 @@
           }
         ];
       }
+      {
+        id = 7;
+        title = "Transfer progress and ETA";
+        type = "logs";
+        gridPos = {
+          h = 10;
+          w = 24;
+          x = 0;
+          y = 22;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="staging_progress" | line_format "torrents={{.torrents_published}}/{{.torrents_total}} files={{.files_transferred}}+{{.files_reused}} reused/{{.files_total}} bytes={{.bytes_transferred}}+{{.bytes_reused}} reused/{{.bytes_total}} percent={{.percent_complete}} rate={{.bytes_per_second}} eta={{.eta_seconds}} receipts={{.receipts_created}}"'';
+          }
+        ];
+      }
+      {
+        id = 8;
+        title = "Per-torrent cleanup queue";
+        type = "logs";
+        gridPos = {
+          h = 8;
+          w = 24;
+          x = 0;
+          y = 32;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="ultra-media-cleanup-start"} | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}}"'';
+          }
+        ];
+      }
     ];
   });
 

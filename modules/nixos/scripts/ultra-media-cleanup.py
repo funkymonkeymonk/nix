@@ -1,30 +1,26 @@
 """Retention policy and guarded Ultra.cc seedbox cleanup controller.
 
-Cleanup is triggered only after successful staging. Source data removal uses
-Transmission RPC after local Arr import and size/mtime proofs; the Drlight
-library is never mutated by this controller.
+Cleanup consumes per-torrent staging receipts and uses Transmission RPC only
+after local Arr import and size/mtime proofs; the Drlight library is never
+mutated by this controller.
 """
 
 import argparse
-import calendar
-import fcntl
 import importlib.util
 import json
 import math
 import os
 import posixpath
-import re
-import shlex
 import stat
 import subprocess
 import sys
 import time
 import tempfile
-from datetime import datetime
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
-from contextlib import contextmanager
+from contextlib import ExitStack, nullcontext
+from ultra_media_file_stat import make_remote_source_stat, parse_remote_stat
 from dataclasses import dataclass
 from numbers import Real
 from pathlib import Path
@@ -35,9 +31,8 @@ MIN_SEEDING_SECONDS = 240 * 60 * 60
 MIN_TORRENT_RATIO = 3.0
 MIN_PRIVATE_ACCOUNT_RATIO = 0.6
 STAGING_ROOT = "/srv/media/.arr-staging"
-OPERATION_LOCK_PATH = "/run/ultra-media/operation.lock"
-STAGE_SUCCESS_MARKER = "/run/ultra-media/stage-success.json"
-MAX_STAGE_SUCCESS_AGE_SECONDS = 300
+RUNTIME_ROOT = "/run/ultra-media"
+CLEANUP_QUEUE_ROOT = "/var/lib/ultra-media/cleanup-queue"
 
 
 @dataclass(frozen=True)
@@ -203,89 +198,6 @@ def _has_verified_source_mapping(candidate: Mapping[str, Any]) -> bool:
         or file_record.get("source_mapping_verified") is True
         for file_record in files
     )
-
-
-_REMOTE_STAT_PATTERN = re.compile(
-    r"^(?P<kind>[^\t]+)\t(?P<size>[0-9]+)\t"
-    r"(?P<date>[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})"
-    r"(?:\.(?P<fraction>[0-9]{1,9}))? (?P<zone>[+-][0-9]{4})$"
-)
-
-
-def parse_remote_stat(output: str) -> dict[str, Any] | None:
-    """Parse GNU stat output without retaining or logging source paths."""
-    if not isinstance(output, str):
-        return None
-    match = _REMOTE_STAT_PATTERN.fullmatch(output.strip())
-    if match is None or match.group("kind") != "regular file":
-        return None
-    try:
-        size = int(match.group("size"))
-        instant = datetime.strptime(
-            f"{match.group('date')} {match.group('zone')}",
-            "%Y-%m-%d %H:%M:%S %z",
-        )
-        seconds = calendar.timegm(instant.utctimetuple())
-        fraction = (match.group("fraction") or "").ljust(9, "0")
-        mtime_ns = seconds * 1_000_000_000 + (int(fraction) if fraction else 0)
-    except (OverflowError, ValueError):
-        return None
-    if size < 0:
-        return None
-    return {"regular_file": True, "size": size, "mtime_ns": mtime_ns}
-
-
-def make_remote_source_stat(
-    ssh_arguments: Sequence[str],
-    ssh_username: str,
-    ssh_host: str,
-    *,
-    process_runner: Callable[..., Any] = subprocess.run,
-) -> Callable[[str], Mapping[str, Any] | None]:
-    """Create a strict-SSH stat probe that never interprets source paths as shell."""
-    if (
-        not isinstance(ssh_arguments, Sequence)
-        or isinstance(ssh_arguments, (str, bytes))
-        or not ssh_arguments
-        or not isinstance(ssh_username, str)
-        or not ssh_username
-        or any(character.isspace() or character in "\0@:" for character in ssh_username)
-        or not isinstance(ssh_host, str)
-        or not ssh_host
-        or any(character.isspace() or character in "\0@:" for character in ssh_host)
-    ):
-        raise ValueError("ssh_config_missing")
-    target = f"{ssh_username}@{ssh_host}"
-
-    def source_stat(remote_path: str) -> Mapping[str, Any] | None:
-        if (
-            not isinstance(remote_path, str)
-            or not remote_path.startswith("/")
-            or "\0" in remote_path
-            or ".." in remote_path.split("/")
-        ):
-            return None
-        remote_path = posixpath.normpath(remote_path)
-        command = (
-            "LC_ALL=C stat --printf="
-            + shlex.quote("%F\\t%s\\t%y\\n")
-            + " -- "
-            + shlex.quote(remote_path)
-        )
-        try:
-            result = process_runner(
-                [*ssh_arguments, target, command],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                check=True,
-                timeout=20,
-            )
-        except (OSError, subprocess.SubprocessError):
-            return None
-        return parse_remote_stat(result.stdout)
-
-    return source_stat
 
 
 def _path_is_within(path: str, roots: Sequence[str]) -> bool:
@@ -466,21 +378,34 @@ def build_cleanup_candidates(
     if not isinstance(torrents, Sequence) or isinstance(torrents, (str, bytes)):
         return []
     source_path_counts: dict[str, int] = {}
+    inventory_valid = bool(torrents)
     for torrent in torrents:
         if not isinstance(torrent, Mapping):
+            inventory_valid = False
             continue
         directory = torrent.get("download_directory")
         paths = torrent.get("file_paths")
-        if not isinstance(directory, str) or not isinstance(paths, list):
+        if (
+            torrent.get("file_paths_valid") is not True
+            or not isinstance(directory, str)
+            or not isinstance(paths, list)
+            or not paths
+            or not directory.startswith("/")
+            or ".." in directory.split("/")
+            or "\0" in directory
+        ):
+            inventory_valid = False
             continue
-        try:
-            if not directory.startswith("/") or ".." in directory.split("/"):
-                continue
-            normalized_directory = posixpath.normpath(directory)
-        except (TypeError, ValueError):
-            continue
+        normalized_directory = posixpath.normpath(directory)
         for file_path in paths:
-            if not isinstance(file_path, str) or not file_path or file_path.startswith("/") or ".." in file_path.split("/") or "\0" in file_path:
+            if (
+                not isinstance(file_path, str)
+                or not file_path
+                or file_path.startswith("/")
+                or ".." in file_path.split("/")
+                or "\0" in file_path
+            ):
+                inventory_valid = False
                 continue
             source_path = posixpath.normpath(posixpath.join(normalized_directory, file_path))
             source_path_counts[source_path] = source_path_counts.get(source_path, 0) + 1
@@ -531,7 +456,11 @@ def build_cleanup_candidates(
                     )
                     mapped = True
                     source_identity = remote_path
-                    owner_count = source_path_counts.get(remote_path, 0)
+                    owner_count = (
+                        source_path_counts.get(remote_path, 0)
+                        if inventory_valid
+                        else None
+                    )
                     local_path = imported_paths.get(staged_path)
                 except Exception:
                     mapped = False
@@ -999,14 +928,25 @@ def execute_cleanup(
     transmission_rpc: Any,
     apply: bool,
     revalidate_candidate: Callable[[Mapping[str, Any]], bool] | None = None,
+    allowed_torrent_ids: set[int] | frozenset[int] | None = None,
+    candidate_lock: Callable[[int], Any] | None = None,
+    on_candidate_result: Callable[[int, str, Sequence[str]], None] | None = None,
 ) -> dict[str, Any]:
-    """Report or remove eligible seedbox torrents after revalidating each one.
-
-    The only destructive path calls Transmission's torrent-remove with
-    delete-local-data=true. Candidate IDs and paths are never included in the
-    returned aggregate report.
-    """
+    """Report or remove eligible queued torrents after per-torrent revalidation."""
     prepared = _prepare_cleanup_candidates(candidates)
+    if allowed_torrent_ids is not None:
+        if not isinstance(allowed_torrent_ids, (set, frozenset)) or any(
+            not isinstance(torrent_id, int)
+            or isinstance(torrent_id, bool)
+            or torrent_id <= 0
+            for torrent_id in allowed_torrent_ids
+        ):
+            raise ValueError("queued torrent identifiers are invalid")
+        prepared = [
+            candidate
+            for candidate in prepared
+            if candidate.get("torrent_id") in allowed_torrent_ids
+        ]
     counts = {
         "candidates": len(prepared),
         "eligible": 0,
@@ -1020,49 +960,80 @@ def execute_cleanup(
         reasons[reason] = reasons.get(reason, 0) + 1
 
     for candidate in prepared:
-        report = build_cleanup_report(
-            stage_succeeded,
-            [candidate],
-            arr_import_prover=arr_import_prover,
-            local_file_verifier=local_file_verifier,
-        )
-        if report["eligible"] != 1:
-            counts["blocked"] += 1
-            for reason, count in report["reasons"].items():
-                reasons[reason] = reasons.get(reason, 0) + count
-            continue
-
-        if not apply:
-            counts["eligible"] += 1
-            continue
-
         torrent_id = candidate.get("torrent_id")
-        if (
-            not isinstance(torrent_id, int)
-            or isinstance(torrent_id, bool)
-            or torrent_id <= 0
-            or not callable(revalidate_candidate)
-        ):
-            counts["blocked"] += 1
-            record_reason("torrent_revalidation_unavailable")
-            continue
-        try:
-            still_eligible = revalidate_candidate(candidate)
-        except Exception:
-            still_eligible = False
-        if still_eligible is not True:
-            counts["blocked"] += 1
-            record_reason("torrent_revalidation_failed")
-            continue
+        lock = (
+            candidate_lock(torrent_id)
+            if apply
+            and callable(candidate_lock)
+            and isinstance(torrent_id, int)
+            and not isinstance(torrent_id, bool)
+            and torrent_id > 0
+            else nullcontext()
+        )
+        with ExitStack() as lock_stack:
+            try:
+                lock_stack.enter_context(lock)
+            except BlockingIOError:
+                counts["blocked"] += 1
+                record_reason("torrent_operation_in_progress")
+                if callable(on_candidate_result) and isinstance(torrent_id, int):
+                    on_candidate_result(
+                        torrent_id,
+                        "deferred",
+                        ["torrent_operation_in_progress"],
+                    )
+                continue
+            report = build_cleanup_report(
+                stage_succeeded,
+                [candidate],
+                arr_import_prover=arr_import_prover,
+                local_file_verifier=local_file_verifier,
+            )
+            if report["eligible"] != 1:
+                counts["blocked"] += 1
+                blocked_reasons = sorted(report["reasons"])
+                for reason, count in report["reasons"].items():
+                    reasons[reason] = reasons.get(reason, 0) + count
+                if apply and callable(on_candidate_result) and isinstance(torrent_id, int):
+                    on_candidate_result(torrent_id, "deferred", blocked_reasons)
+                continue
 
-        try:
-            transmission_rpc.remove_torrent(torrent_id, delete_local_data=True)
-        except Exception:
-            counts["blocked"] += 1
-            record_reason("transmission_remove_failed")
-            continue
-        counts["eligible"] += 1
-        counts["removed"] += 1
+            if not apply:
+                counts["eligible"] += 1
+                continue
+
+            if (
+                not isinstance(torrent_id, int)
+                or isinstance(torrent_id, bool)
+                or torrent_id <= 0
+                or not callable(revalidate_candidate)
+            ):
+                counts["blocked"] += 1
+                record_reason("torrent_revalidation_unavailable")
+                continue
+            try:
+                still_eligible = revalidate_candidate(candidate)
+            except Exception:
+                still_eligible = False
+            if still_eligible is not True:
+                counts["blocked"] += 1
+                record_reason("torrent_revalidation_failed")
+                if callable(on_candidate_result):
+                    on_candidate_result(torrent_id, "deferred", ["torrent_revalidation_failed"])
+                continue
+
+            try:
+                transmission_rpc.remove_torrent(torrent_id, delete_local_data=True)
+            except Exception:
+                counts["blocked"] += 1
+                record_reason("transmission_remove_failed")
+                if callable(on_candidate_result):
+                    on_candidate_result(torrent_id, "deferred", ["transmission_remove_failed"])
+                continue
+            counts["eligible"] += 1
+            counts["removed"] += 1
+            if callable(on_candidate_result):
+                on_candidate_result(torrent_id, "removed", [])
 
     return {
         "mode": mode,
@@ -1102,7 +1073,15 @@ def _load_runtime_module(name: str, filename: str) -> Any:
     module = sys.modules.get(name)
     if module is not None:
         return module
-    path = Path(__file__).with_name(filename)
+    candidates = [Path(__file__).with_name(filename)]
+    candidates.extend(
+        Path(directory) / filename
+        for directory in os.environ.get("PYTHONPATH", "").split(os.pathsep)
+        if directory
+    )
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        raise RuntimeError("runtime_dependency_unavailable")
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError("runtime_dependency_unavailable")
@@ -1145,6 +1124,78 @@ def _read_arr_config(path: str) -> dict[str, Any]:
     return config
 
 
+def ack_stale_receipt_if_unlocked(
+    staging: Any,
+    queue_root: str | Path,
+    runtime_root: str | Path,
+    receipt: Mapping[str, Any],
+) -> bool:
+    """Acknowledge stale work only if staging is not concurrently updating it."""
+    torrent_id = receipt.get("torrent_id")
+    if not isinstance(torrent_id, int) or isinstance(torrent_id, bool) or torrent_id <= 0:
+        return False
+    try:
+        with staging.torrent_operation_lock(runtime_root, torrent_id, blocking=False):
+            return staging.ack_staged_torrent_receipt(queue_root, receipt)
+    except BlockingIOError:
+        return False
+
+
+def match_staged_torrent_receipts(
+    receipts: Sequence[Mapping[str, Any]],
+    torrents: Sequence[Mapping[str, Any]],
+    *,
+    fingerprint_fn: Callable[[Mapping[str, Any]], str],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Match private staging receipts to the current RPC snapshot without logging identities."""
+    current: dict[int, str | None] = {}
+    for torrent in torrents:
+        torrent_id = torrent.get("id") if isinstance(torrent, Mapping) else None
+        if not isinstance(torrent_id, int) or isinstance(torrent_id, bool) or torrent_id <= 0:
+            continue
+        try:
+            fingerprint = fingerprint_fn(torrent)
+        except Exception:
+            fingerprint = None
+        current[torrent_id] = fingerprint
+
+    matched = []
+    counts = {"matched": 0, "stale": 0, "missing": 0}
+    for receipt in receipts:
+        torrent_id = receipt.get("torrent_id") if isinstance(receipt, Mapping) else None
+        fingerprint = receipt.get("fingerprint") if isinstance(receipt, Mapping) else None
+        if not isinstance(torrent_id, int) or isinstance(torrent_id, bool) or torrent_id <= 0 or not isinstance(fingerprint, str):
+            counts["stale"] += 1
+            continue
+        if torrent_id not in current:
+            counts["missing"] += 1
+            continue
+        if current[torrent_id] != fingerprint:
+            counts["stale"] += 1
+            continue
+        matched.append(dict(receipt))
+        counts["matched"] += 1
+    return matched, counts
+
+
+def _queue_has_receipt_files(queue_root: str | Path) -> bool:
+    root = Path(queue_root)
+    if root.is_symlink():
+        raise RuntimeError("runtime_configuration_unavailable")
+    if not root.exists():
+        return False
+    if not root.is_dir():
+        raise RuntimeError("runtime_configuration_unavailable")
+    try:
+        with os.scandir(root) as entries:
+            return any(
+                entry.name.endswith(".json") and entry.is_file(follow_symlinks=False)
+                for entry in entries
+            )
+    except OSError:
+        raise RuntimeError("runtime_configuration_unavailable") from None
+
+
 def run_runtime_cleanup(
     secret_paths: Mapping[str, str],
     ssh_key_path: str,
@@ -1156,13 +1207,48 @@ def run_runtime_cleanup(
     apply: bool,
     private_tracker_ratio_protection: bool = False,
     staging_root: str = STAGING_ROOT,
+    queue_root: str = CLEANUP_QUEUE_ROOT,
+    runtime_root: str = RUNTIME_ROOT,
     process_runner: Callable[..., Any] = subprocess.run,
+    now_ns: int | None = None,
 ) -> dict[str, Any]:
     """Read live state, prove staged Arr imports, and optionally clean the seedbox."""
     if type(private_tracker_ratio_protection) is not bool:
         raise RuntimeError("runtime_configuration_unavailable")
+    if now_ns is None:
+        now_ns = time.time_ns()
+    if not isinstance(now_ns, int) or isinstance(now_ns, bool) or now_ns <= 0:
+        raise RuntimeError("runtime_configuration_unavailable")
+    if apply and not _queue_has_receipt_files(queue_root):
+        return {
+            "mode": "apply",
+            "candidates": 0,
+            "eligible": 0,
+            "blocked": 0,
+            "removed": 0,
+            "queued": 0,
+            "stale_or_missing": 0,
+            "reasons": {},
+        }
     staging = _load_runtime_module("ultra_media_download_stage", "ultra-media-download-stage.py")
     transmission_module = _load_runtime_module("transmission_rpc", "transmission_rpc.py")
+    pending_receipts = (
+        staging.read_pending_torrent_receipts(queue_root, now_ns=now_ns)
+        if apply
+        else []
+    )
+    if apply and not pending_receipts:
+        return {
+            "mode": "apply",
+            "candidates": 0,
+            "eligible": 0,
+            "blocked": 0,
+            "removed": 0,
+            "queued": 0,
+            "stale_or_missing": 0,
+            "reasons": {},
+        }
+    queued_count = len(pending_receipts)
     try:
         rpc_url = _read_runtime_value(staging._read_secret_file, secret_paths["rpc_url"], "rpc_url_missing")
         download_root = _read_runtime_value(staging._read_secret_file, secret_paths["download_root"], "download_root_missing")
@@ -1212,6 +1298,38 @@ def run_runtime_cleanup(
         torrents = rpc.get_torrents()
     except Exception:
         raise RuntimeError("transmission_state_unavailable") from None
+
+    matched_receipts, receipt_counts = match_staged_torrent_receipts(
+        pending_receipts,
+        torrents,
+        fingerprint_fn=lambda torrent: staging.fingerprint_torrent(torrent, mappings),
+    )
+    matched_keys = {
+        (receipt["torrent_id"], receipt["fingerprint"])
+        for receipt in matched_receipts
+    }
+    stale_or_missing = receipt_counts["stale"] + receipt_counts["missing"]
+    for receipt in pending_receipts:
+        key = (receipt["torrent_id"], receipt["fingerprint"])
+        if key in matched_keys:
+            continue
+        ack_stale_receipt_if_unlocked(
+            staging, queue_root, runtime_root, receipt
+        )
+
+    if not matched_receipts:
+        return {
+            "mode": "apply",
+            "candidates": 0,
+            "eligible": 0,
+            "blocked": 0,
+            "removed": 0,
+            "queued": queued_count,
+            "stale_or_missing": stale_or_missing,
+            "reasons": {},
+        }
+    receipts_by_id = {receipt["torrent_id"]: receipt for receipt in matched_receipts}
+    allowed_torrent_ids = set(receipts_by_id)
 
     candidates = build_cleanup_candidates(
         torrents,
@@ -1266,7 +1384,33 @@ def run_runtime_cleanup(
         )
 
         def revalidate_candidate(previous: Mapping[str, Any]) -> bool:
+            torrent_id = previous.get("torrent_id")
+            expected_receipt = receipts_by_id.get(torrent_id)
+            current_receipts = staging.read_pending_torrent_receipts(
+                queue_root, now_ns=2**63 - 1
+            )
+            current_receipt = next(
+                (receipt for receipt in current_receipts if receipt.get("torrent_id") == torrent_id),
+                None,
+            )
+            if (
+                expected_receipt is None
+                or current_receipt is None
+                or current_receipt.get("fingerprint") != expected_receipt.get("fingerprint")
+                or current_receipt.get("receipt_id") != expected_receipt.get("receipt_id")
+            ):
+                return False
             fresh_torrents = rpc.get_torrents()
+            fresh_source = next(
+                (torrent for torrent in fresh_torrents if torrent.get("id") == torrent_id),
+                None,
+            )
+            if (
+                fresh_source is None
+                or staging.fingerprint_torrent(fresh_source, mappings)
+                != expected_receipt.get("fingerprint")
+            ):
+                return False
             fresh_imported_paths = fetch_arr_import_paths(arr_config["arrApis"], library_roots)
             fresh_candidates = build_cleanup_candidates(
                 fresh_torrents,
@@ -1295,7 +1439,26 @@ def run_runtime_cleanup(
             )
             return report["eligible"] == 1
 
-        return execute_cleanup(
+        def record_queue_result(
+            torrent_id: int,
+            status: str,
+            reasons: Sequence[str],
+        ) -> None:
+            receipt = receipts_by_id.get(torrent_id)
+            if receipt is None:
+                return
+            if status == "removed":
+                staging.ack_staged_torrent_receipt(queue_root, receipt)
+            elif status == "deferred":
+                reason = next(iter(reasons), "runtime_cleanup_failed")
+                staging.defer_staged_torrent_receipt(
+                    queue_root,
+                    receipt,
+                    now_ns=now_ns,
+                    reason=reason,
+                )
+
+        report = execute_cleanup(
             True,
             candidates,
             arr_import_prover=arr_import_prover,
@@ -1303,106 +1466,27 @@ def run_runtime_cleanup(
             transmission_rpc=rpc,
             apply=apply,
             revalidate_candidate=revalidate_candidate if apply else None,
+            allowed_torrent_ids=allowed_torrent_ids,
+            candidate_lock=lambda torrent_id: staging.torrent_operation_lock(
+                runtime_root, torrent_id, blocking=False
+            ),
+            on_candidate_result=record_queue_result,
         )
-
-
-def consume_stage_success_marker(
-    marker_path: str = STAGE_SUCCESS_MARKER,
-    *,
-    now_monotonic_ns: int | None = None,
-    max_age_seconds: int = MAX_STAGE_SUCCESS_AGE_SECONDS,
-) -> bool:
-    """Consume a one-use, short-lived marker written only by successful staging."""
-    if not isinstance(marker_path, str) or not Path(marker_path).is_absolute():
-        return False
-    if now_monotonic_ns is None:
-        now_monotonic_ns = time.monotonic_ns()
-    if (
-        not isinstance(now_monotonic_ns, int)
-        or isinstance(now_monotonic_ns, bool)
-        or not isinstance(max_age_seconds, int)
-        or isinstance(max_age_seconds, bool)
-        or max_age_seconds <= 0
-    ):
-        return False
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        descriptor = os.open(marker_path, flags)
-    except OSError:
-        return False
-
-    marker_metadata = None
-    valid = False
-    try:
-        marker_metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(marker_metadata.st_mode):
-            return False
-        with os.fdopen(descriptor, "r", encoding="utf-8") as marker_file:
-            descriptor = -1
-            payload = json.load(marker_file)
-        created = payload.get("monotonic_ns") if isinstance(payload, Mapping) else None
-        valid = (
-            isinstance(created, int)
-            and not isinstance(created, bool)
-            and created > 0
-            and 0 <= now_monotonic_ns - created <= max_age_seconds * 1_000_000_000
+        report["queued"] = queued_count
+        report["stale_or_missing"] = stale_or_missing
+        report["pending_after_run"] = len(
+            staging.read_pending_torrent_receipts(
+                queue_root, now_ns=2**63 - 1
+            )
         )
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
-        valid = False
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-
-    try:
-        current_metadata = os.lstat(marker_path)
-        if (
-            marker_metadata is not None
-            and current_metadata.st_dev == marker_metadata.st_dev
-            and current_metadata.st_ino == marker_metadata.st_ino
-            and stat.S_ISREG(current_metadata.st_mode)
-        ):
-            os.unlink(marker_path)
-    except OSError:
-        return False
-    return valid
-
-
-@contextmanager
-def _operation_lock(
-    staging_root: str | Path = STAGING_ROOT,
-    *,
-    lock_path: str | Path | None = None,
-) -> Iterator[None]:
-    """Serialize staging and cleanup using a lock outside the media tree."""
-    root = Path(staging_root).absolute()
-    if lock_path is None:
-        root.mkdir(parents=True, exist_ok=True)
-        lock_path = root / ".operation.lock"
-    elif not root.is_dir():
-        raise OSError("staging root is not a directory")
-    if root.is_symlink():
-        raise OSError("staging root is not a directory")
-    lock_path = Path(lock_path)
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(lock_path, flags, 0o600)
-    try:
-        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            raise OSError("operation lock is not a regular file")
-        with os.fdopen(descriptor, "r+") as lock_file:
-            descriptor = -1
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-            yield
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
+        return report
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--stage-success-marker", default=STAGE_SUCCESS_MARKER)
+    parser.add_argument("--queue-root", default=CLEANUP_QUEUE_ROOT)
     parser.add_argument("--rpc-url")
     parser.add_argument("--download-root")
     parser.add_argument("--ssh-host")
@@ -1421,46 +1505,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("cleanup failed reason=mode_conflict")
         return 2
     try:
-        with _operation_lock(STAGING_ROOT, lock_path=OPERATION_LOCK_PATH):
-            if args.apply:
-                if not consume_stage_success_marker(args.stage_success_marker):
-                    print("cleanup failed reason=staging_not_successful")
-                    return 1
-                required_paths = (
-                    args.rpc_url,
-                    args.download_root,
-                    args.ssh_host,
-                    args.ssh_username,
-                    args.known_hosts,
-                    args.ssh_key,
-                    args.rpc_username,
-                    args.rpc_password,
-                    args.ssh,
-                    args.ssh_keygen,
-                    args.arr_config,
-                )
-                if any(not value for value in required_paths):
-                    raise RuntimeError("runtime_configuration_unavailable")
-                report = run_runtime_cleanup(
-                    {
-                        "rpc_url": args.rpc_url,
-                        "download_root": args.download_root,
-                        "ssh_host": args.ssh_host,
-                        "ssh_username": args.ssh_username,
-                        "known_hosts": args.known_hosts,
-                        "rpc_username": args.rpc_username,
-                        "rpc_password": args.rpc_password,
-                    },
-                    args.ssh_key,
-                    args.arr_config,
-                    ssh_executable=args.ssh,
-                    ssh_keygen_executable=args.ssh_keygen,
-                    ssh_port=args.ssh_port,
-                    apply=True,
-                    private_tracker_ratio_protection=args.private_tracker_ratio_protection,
-                )
-            else:
-                report = _runtime_unverified_report()
+        if args.apply:
+            required_paths = (
+                args.rpc_url,
+                args.download_root,
+                args.ssh_host,
+                args.ssh_username,
+                args.known_hosts,
+                args.ssh_key,
+                args.rpc_username,
+                args.rpc_password,
+                args.ssh,
+                args.ssh_keygen,
+                args.arr_config,
+            )
+            if any(not value for value in required_paths):
+                raise RuntimeError("runtime_configuration_unavailable")
+            report = run_runtime_cleanup(
+                {
+                    "rpc_url": args.rpc_url,
+                    "download_root": args.download_root,
+                    "ssh_host": args.ssh_host,
+                    "ssh_username": args.ssh_username,
+                    "known_hosts": args.known_hosts,
+                    "rpc_username": args.rpc_username,
+                    "rpc_password": args.rpc_password,
+                },
+                args.ssh_key,
+                args.arr_config,
+                ssh_executable=args.ssh,
+                ssh_keygen_executable=args.ssh_keygen,
+                ssh_port=args.ssh_port,
+                apply=True,
+                private_tracker_ratio_protection=args.private_tracker_ratio_protection,
+                queue_root=args.queue_root,
+            )
+        else:
+            report = _runtime_unverified_report()
     except OSError:
         print("cleanup failed reason=local_io_failure")
         return 1
@@ -1483,7 +1564,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         }
         print(f"cleanup failed reason={reason if reason in safe_reasons else 'runtime_cleanup_failed'}")
         return 1
-    print("cleanup " + json.dumps(report, sort_keys=True, separators=(",", ":")))
+    if args.apply and report.get("queued", 0) == 0:
+        return 0
+    print(
+        json.dumps(
+            {"event": "cleanup_queue_summary", **report},
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        flush=True,
+    )
     return 0
 
 

@@ -5,9 +5,10 @@
       policy = ../modules/nixos/scripts/ultra-media-cleanup.py;
       adapter = ../modules/nixos/scripts/transmission_rpc.py;
       staging = ../modules/nixos/scripts/ultra-media-download-stage.py;
+      scriptDir = ../modules/nixos/scripts;
       tests = ./test-ultra-media-cleanup.py;
     } ''
-      python "$tests" "$policy" "$adapter" "$staging"
+      python "$tests" "$policy" "$adapter" "$staging" "$scriptDir"
       touch $out
     '';
 }
