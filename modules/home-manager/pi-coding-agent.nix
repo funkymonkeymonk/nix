@@ -375,7 +375,7 @@ in {
 
     # Configure Pi's native OpenCode Go provider without putting the API key in
     # the Nix store or auth.json.
-    home.activation.piOpenCodeGoAuth = mkIf (cfg.opencodeGoOnePasswordItem != "") (lib.hm.dag.entryAfter ["installPackages" "retrieveOpnixSecrets"] ''
+    home.activation.piOpenCodeGoAuth = mkIf (cfg.opencodeGoOnePasswordItem != "") (lib.hm.dag.entryAfter ["installPackages"] ''
       secret_file="$HOME/${opencodeGoSecretPath}"
       auth_file="$HOME/.pi/agent/auth.json"
       if [ -f "$secret_file" ]; then

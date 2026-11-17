@@ -30,6 +30,7 @@ with lib; rec {
       lib.nameValuePair "${prefix}${toCamelCase name}ApiKey" {
         reference = mkOpnixRef defaultVault item.onePasswordItem;
         path = item.secretPath;
+        owner = item.owner or "root";
         group =
           if isDarwin
           then "staff"
