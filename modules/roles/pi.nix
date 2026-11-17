@@ -8,6 +8,10 @@
   cfg = config.myConfig.roles.pi;
   host = config.myConfig.llmClient.serverHost;
   port = config.myConfig.llmClient.serverPort;
+  bifrostBaseUrl =
+    if config.myConfig.tailscale.enable
+    then "http://megamanx:8081/v1"
+    else "http://${host}:${port}/v1";
 in {
   options.myConfig.roles.pi.enable = lib.mkOption {
     type = lib.types.bool;
@@ -44,7 +48,7 @@ in {
       name = "Bifrost AI Gateway";
       provider = "bifrost";
       modelId = "qwen3.8-27b";
-      baseUrl = "http://${host}:${port}/v1";
+      baseUrl = bifrostBaseUrl;
     };
 
     # Default global agent instructions — override per-machine with a direct assignment
