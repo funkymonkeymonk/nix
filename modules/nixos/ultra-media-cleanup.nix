@@ -46,6 +46,7 @@ in {
       ConditionPathIsMountPoint = "/srv/media";
       RequiresMountsFor = ["/srv/media"];
     };
+    environment.TMPDIR = "/run/ultra-media";
     serviceConfig =
       {
         Type = "oneshot";

@@ -92,6 +92,7 @@ in {
       RuntimeDirectoryPreserve = "yes";
       ReadWritePaths = [stagingRoot "/run/ultra-media"];
     };
+    environment.TMPDIR = "/run/ultra-media";
     script = ''
       set -euo pipefail
       export PYTHONPATH=${./scripts}

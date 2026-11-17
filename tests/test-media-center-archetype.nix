@@ -151,9 +151,11 @@
       ultraSyncCleanupModuleSource = builtins.readFile ../modules/nixos/ultra-media-cleanup.nix;
       ultraDownloadStageService = drlight.systemd.services.ultra-media-download-stage or {};
       ultraDownloadStageServiceConfig = ultraDownloadStageService.serviceConfig or {};
+      ultraDownloadStageEnvironment = ultraDownloadStageService.environment or {};
       ultraDownloadStageCommand = ultraDownloadStageService.script or (ultraDownloadStageServiceConfig.ExecStart or "");
       ultraCleanupService = drlight.systemd.services.ultra-media-cleanup or {};
       ultraCleanupServiceConfig = ultraCleanupService.serviceConfig or {};
+      ultraCleanupEnvironment = ultraCleanupService.environment or {};
       ultraCleanupCommand = ultraCleanupService.script or (ultraCleanupServiceConfig.ExecStart or "");
       ultraCleanupDisabledService = drlightWithDownloadAutomationDisabled.systemd.services.ultra-media-cleanup or {};
       ultraCleanupDisabledServiceConfig = ultraCleanupDisabledService.serviceConfig or {};
@@ -725,6 +727,8 @@
            ${checkFalse "staging command does not double-escape shell line continuations" (lib.hasInfix "\\\\\n" ultraDownloadStageCommand)}
            ${checkTrue "cleanup command uses shell line continuations" (lib.hasInfix "\\\n" ultraCleanupCommand)}
            ${checkFalse "cleanup command does not double-escape shell line continuations" (lib.hasInfix "\\\\\n" ultraCleanupCommand)}
+           ${checkEqual "staging temp files use the writable runtime directory" "/run/ultra-media" (ultraDownloadStageEnvironment.TMPDIR or null)}
+           ${checkEqual "cleanup temp files use the writable runtime directory" "/run/ultra-media" (ultraCleanupEnvironment.TMPDIR or null)}
            ${checkTrue "stage runtime validates individually supplied RPC URL and completed-download root fields" (lib.hasInfix "rpc_url" ultraSyncStagingSource && lib.hasInfix "download_root" ultraSyncStagingSource && lib.hasInfix "normalize_download_root" ultraSyncStagingSource)}
            ${checkTrue "the retention policy evaluator remains available separately from staging" (lib.hasInfix "evaluate_retention" ultraSyncPolicySource)}
            ${checkTrue "stage runtime reports aggregate counters only" (lib.hasInfix "staging " ultraSyncStagingSource && lib.hasInfix "reason=" ultraSyncStagingSource)}
