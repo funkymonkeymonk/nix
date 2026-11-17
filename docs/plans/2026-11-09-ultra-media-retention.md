@@ -212,11 +212,11 @@ Do not export app databases, alter 1Password, stop services, or perform any depl
 
 **Step 1: Add failing tests for the migration-aware cleanup gate**
 
-Test the 240-hour-OR-3.0 policy, private ratio floor, unknown-tracker behavior, and path-overlap protection. Verify cleanup blocks when staging fails, Arr has not imported, or an imported file is absent or mismatched by size and mtime. Verify unavailable Arr/RPC state and missing or expired staging markers also block cleanup. Verify cleanup requires successful staging and import, and that systemd serializes both services. Keep report-only as the default. Assert that failures never call Transmission removal.
+Test the 240-hour-OR-3.0 policy, private ratio floor, unknown-tracker behavior, and path-overlap protection. Verify cleanup blocks when a torrent's staging receipt is missing, Arr has not imported, or an imported file is absent or mismatched by size and mtime. Verify unavailable Arr/RPC state and stale or mismatched receipts block cleanup. Verify cleanup requires successful per-torrent staging and import, while the queue can process earlier completed torrents before the full batch ends. Keep report-only as the default. Assert that failures never call Transmission removal.
 
 **Step 2: Confirm RED; implement the report-only cleanup controller**
 
-Run candidate-specific source and local-file checks. Query Arr import state through supported local APIs. Start cleanup only after it consumes a fresh staging-success marker.
+Run candidate-specific source and local-file checks. Query Arr import state through supported local APIs. Start cleanup only for a fresh, matching per-torrent staging receipt; a receipt is written only after all files for that torrent are published locally.
 
 Immediately before removal, recheck Transmission and Arr state. Block deletion for unknown imports, ambiguous paths, shared source files, or unverified private-tracker protection. The user authorized apply mode on Drlight. Keep apply mode disabled by default elsewhere.
 

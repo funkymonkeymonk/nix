@@ -50,9 +50,9 @@ For new downloads:
 2. A Drlight staging job pulls only completed torrent payload files from Transmission's configured completed-download root into `/srv/media/.arr-staging`, on the same ZFS filesystem as the library. It must not use `--delete` or `--remove-source-files`.
 3. Arr remote-path mappings translate Transmission's reported seedbox paths to the local staging path. The mapping does not transfer files; the staging job must copy them first.
 4. Drlight Arr apps import from local staging into their canonical library roots. They must not move or delete the seedbox source.
-5. Do not consider a torrent's seedbox files for cleanup until staging completes successfully and the Arr library has a verified local import for every required media file. Use size-and-mtime checks, not checksums. Any ambiguous path, partial transfer, missing import, or mismatch blocks cleanup.
+5. Do not consider a torrent's seedbox files for cleanup until every required file in that torrent has been staged successfully and the Arr library has a verified local import for every required media file. Use size-and-mtime checks, not checksums. Any ambiguous path, partial transfer, missing import, or mismatch blocks cleanup.
 
-Keep the staging timer disabled by default until runtime settings and Arr remote-path mappings are populated and tested. The staging job remains copy-only. The report-only cleanup controller is triggered only after a successful staging run and serializes with staging and Arr import verification.
+Keep the staging timer disabled by default until runtime settings and Arr remote-path mappings are populated and tested. The staging job remains copy-only. The concurrent queue and progress reporting are specified in `docs/superpowers/specs/2026-11-16-ultra-media-progress-queue-design.md`; cleanup may process a completed torrent receipt before the full staging batch ends, while preserving all per-torrent import and source-ownership gates.
 
 ## Retention and cleanup
 
