@@ -80,6 +80,33 @@
     }
     echo "  Lydia workstation profile and SSH access: ✓"
 
+    # Pi clients use MegamanX's published Bifrost only when Tailscale is enabled.
+    ${
+      let
+        megamanx = self.darwinConfigurations.MegamanX.config;
+        zero = self.nixosConfigurations.zero.config;
+        lydia = self.darwinConfigurations.Lydia.config;
+        wweaver = self.darwinConfigurations.wweaver.config;
+        discoveryExtension = ".pi/agent/extensions/bifrost-discovery/index.ts";
+      in
+        if
+          megamanx.myConfig.pi.models.bifrost.baseUrl
+          == "http://megamanx:8081/v1"
+          && zero.myConfig.pi.models.bifrost.baseUrl == "http://megamanx:8081/v1"
+          && zero.myConfig.pi.models ? opencode-go
+          && zero.myConfig.pi.settings.defaultProvider == "opencode-go"
+          && megamanx.myConfig.pi.settings.defaultProvider == "opencode-go"
+          && builtins.hasAttr discoveryExtension megamanx.home-manager.users.monkey.home.file
+          && pkgs.lib.hasInfix "http://megamanx:8081/v1" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
+          && !(lydia.myConfig.tailscale.enable or false)
+          && !(wweaver.myConfig.tailscale.enable or false)
+          && !(pkgs.lib.hasInfix "megamanx" lydia.myConfig.pi.models.bifrost.baseUrl)
+          && !(pkgs.lib.hasInfix "megamanx" wweaver.myConfig.pi.models.bifrost.baseUrl)
+        then ""
+        else ''echo "FAIL: Pi Bifrost should follow tailnet membership while preserving providers and discovery"; exit 1''
+    }
+    echo "  Pi Bifrost endpoint follows tailnet membership and preserves defaults ✓"
+
     ${
       let
         megamanx = self.darwinConfigurations.MegamanX.config;

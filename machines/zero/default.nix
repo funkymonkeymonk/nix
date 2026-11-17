@@ -149,8 +149,8 @@ in {
         '';
 
         # OpenCode Go falls back to OpenCode Zen, so a single provider + key
-        # covers both. Replace the role's local bifrost model.
-        models = lib.mkForce {
+        # covers both. Keep the role's Bifrost model available to Pi.
+        models = {
           "opencode-go" = {
             name = "OpenCode Go";
             provider = "opencode-go";
