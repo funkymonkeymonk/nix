@@ -4,7 +4,16 @@
   pkgs,
   ...
 }: let
-  cfg = config.myConfig.ultraMediaDownloadStage.cleanup;
+  stageCfg = config.myConfig.ultraMediaDownloadStage;
+  cfg = stageCfg.cleanup;
+  remoteDisk = stageCfg.remoteDisk;
+  remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
+  remoteDiskMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox.prom";
+  remoteDiskArgs =
+    (lib.optionalString remoteDisk.enable "--remote-disk-monitoring ")
+    + "--remote-disk-capacity-bytes ${toString remoteDisk.capacityBytes} "
+    + "--remote-disk-warning-threshold-bytes ${toString remoteDisk.warningThresholdBytes} "
+    + "--remote-disk-metrics-path ${lib.escapeShellArg remoteDiskMetricsPath}";
   arrConfig = pkgs.writeText "ultra-media-cleanup-arr.json" (builtins.toJSON {
     libraryRoots = ["/srv/media/movies" "/srv/media/shows" "/srv/media/music"];
     arrApis = [
@@ -64,16 +73,18 @@ in {
         StateDirectory = "ultra-media";
         StateDirectoryMode = "0700";
         ReadOnlyPaths = ["/srv/media"];
-        ReadWritePaths = ["/run/ultra-media"];
+        ReadWritePaths = ["/run/ultra-media"] ++ lib.optionals remoteDisk.enable [remoteDiskMetricsDirectory];
         TimeoutStartSec = "15min";
       }
       // lib.optionalAttrs cfg.enable {
-        SupplementaryGroups = [
-          "media-management-secrets"
-          "radarr-api"
-          "sonarr-api"
-          "lidarr-api"
-        ];
+        SupplementaryGroups =
+          [
+            "media-management-secrets"
+            "radarr-api"
+            "sonarr-api"
+            "lidarr-api"
+          ]
+          ++ lib.optionals remoteDisk.enable ["ultra-media-metrics"];
         RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
       };
     script = ''
@@ -94,7 +105,7 @@ in {
         --rpc-password /run/secrets/ultra-media-stage-rpc-password \
         --ssh ${pkgs.openssh}/bin/ssh \
         --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
-        --arr-config ${arrConfig}
+        --arr-config ${arrConfig} ${remoteDiskArgs}
     '';
   };
 

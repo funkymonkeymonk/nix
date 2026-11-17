@@ -30,6 +30,11 @@ in {
           enable = true;
           privateTrackerRatioProtection.enable = false;
         };
+        remoteDisk = {
+          enable = true;
+          capacityBytes = 4000000000000;
+          warningThresholdBytes = 3000000000000;
+        };
       };
       collector.destinationHostname = "localhost";
       caddy = {

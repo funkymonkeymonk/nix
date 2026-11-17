@@ -20,7 +20,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from contextlib import ExitStack, nullcontext
-from ultra_media_file_stat import make_remote_source_stat, parse_remote_stat
+from ultra_media_file_stat import (
+    make_remote_disk_usage_probe,
+    make_remote_source_stat,
+    parse_remote_stat,
+)
 from dataclasses import dataclass
 from numbers import Real
 from pathlib import Path
@@ -33,6 +37,9 @@ MIN_PRIVATE_ACCOUNT_RATIO = 0.6
 STAGING_ROOT = "/srv/media/.arr-staging"
 RUNTIME_ROOT = "/run/ultra-media"
 CLEANUP_QUEUE_ROOT = "/var/lib/ultra-media/cleanup-queue"
+REMOTE_DISK_METRICS_PATH = "/run/ultra-media-metrics/ultra-seedbox.prom"
+REMOTE_DISK_CAPACITY_BYTES = 4_000_000_000_000
+REMOTE_DISK_WARNING_THRESHOLD_BYTES = 3_000_000_000_000
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,93 @@ class ArrImportProof:
         ):
             return cls.unverified()
         return cls(status="verified", imported_paths=frozenset(imported_paths))
+
+
+def write_remote_disk_metrics(
+    metrics_path: str | Path,
+    *,
+    used_bytes: int | None,
+    capacity_bytes: int,
+    warning_threshold_bytes: int,
+    sample_timestamp_seconds: int,
+) -> None:
+    """Atomically publish aggregate seedbox usage for node_exporter's textfile collector."""
+    if (
+        used_bytes is not None
+        and (not isinstance(used_bytes, int) or isinstance(used_bytes, bool) or used_bytes < 0)
+    ):
+        raise ValueError("remote disk usage is invalid")
+    if (
+        not isinstance(capacity_bytes, int)
+        or isinstance(capacity_bytes, bool)
+        or capacity_bytes <= 0
+        or not isinstance(warning_threshold_bytes, int)
+        or isinstance(warning_threshold_bytes, bool)
+        or warning_threshold_bytes <= 0
+        or not isinstance(sample_timestamp_seconds, int)
+        or isinstance(sample_timestamp_seconds, bool)
+        or sample_timestamp_seconds <= 0
+    ):
+        raise ValueError("remote disk metric configuration is invalid")
+
+    path = Path(metrics_path)
+    if path.is_symlink():
+        raise OSError("remote disk metrics destination must not be a symlink")
+    try:
+        existing = os.lstat(path)
+    except FileNotFoundError:
+        existing = None
+    if existing is not None and not stat.S_ISREG(existing.st_mode):
+        raise OSError("remote disk metrics destination must be a regular file")
+
+    lines = [
+        "# HELP ultra_seedbox_storage_capacity_bytes Configured seedbox account capacity in bytes.",
+        "# TYPE ultra_seedbox_storage_capacity_bytes gauge",
+        f"ultra_seedbox_storage_capacity_bytes {capacity_bytes}",
+        "# HELP ultra_seedbox_storage_warning_threshold_bytes Configured seedbox storage warning threshold in bytes.",
+        "# TYPE ultra_seedbox_storage_warning_threshold_bytes gauge",
+        f"ultra_seedbox_storage_warning_threshold_bytes {warning_threshold_bytes}",
+        "# HELP ultra_seedbox_storage_probe_success Whether the latest seedbox storage probe succeeded.",
+        "# TYPE ultra_seedbox_storage_probe_success gauge",
+        f"ultra_seedbox_storage_probe_success {1 if used_bytes is not None else 0}",
+        "# HELP ultra_seedbox_storage_sample_timestamp_seconds Unix time of the latest storage probe.",
+        "# TYPE ultra_seedbox_storage_sample_timestamp_seconds gauge",
+        f"ultra_seedbox_storage_sample_timestamp_seconds {sample_timestamp_seconds}",
+    ]
+    if used_bytes is not None:
+        lines.extend(
+            [
+                "# HELP ultra_seedbox_storage_used_bytes Account-level seedbox storage used in bytes.",
+                "# TYPE ultra_seedbox_storage_used_bytes gauge",
+                f"ultra_seedbox_storage_used_bytes {used_bytes}",
+            ]
+        )
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="ascii",
+            dir=path.parent,
+            prefix=".ultra-seedbox-",
+            suffix=".prom",
+            delete=False,
+        ) as metrics_file:
+            temporary_path = Path(metrics_file.name)
+            os.fchmod(metrics_file.fileno(), 0o640)
+            metrics_file.write("\n".join(lines) + "\n")
+            metrics_file.flush()
+            os.fsync(metrics_file.fileno())
+        os.replace(temporary_path, path)
+        temporary_path = None
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def _finite_number(value: Any) -> bool:
@@ -1104,6 +1198,96 @@ def _read_runtime_value(reader: Callable[[str], str], path: Any, reason: str) ->
         raise RuntimeError(reason) from None
 
 
+def _probe_remote_disk_usage_from_runtime(
+    secret_paths: Mapping[str, Any],
+    ssh_key_path: str,
+    *,
+    ssh_executable: str,
+    ssh_keygen_executable: str,
+    ssh_port: Any = 22,
+    process_runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, int] | None:
+    """Read account-level disk usage over the existing strict SSH credentials."""
+    try:
+        staging = _load_runtime_module(
+            "ultra_media_download_stage", "ultra-media-download-stage.py"
+        )
+        host = _read_runtime_value(
+            staging._read_secret_file, secret_paths["ssh_host"], "ssh_config_missing"
+        )
+        username = _read_runtime_value(
+            staging._read_secret_file,
+            secret_paths["ssh_username"],
+            "ssh_config_missing",
+        )
+        known_hosts = _read_runtime_value(
+            staging._read_known_hosts_file,
+            secret_paths["known_hosts"],
+            "ssh_config_missing",
+        )
+        port = staging.normalize_ssh_port(ssh_port)
+    except Exception:
+        return None
+    if (
+        not host
+        or any(character.isspace() or character in "\0@:" for character in host)
+        or not username
+        or any(character.isspace() or character in "\0@:" for character in username)
+        or not isinstance(ssh_key_path, str)
+        or not Path(ssh_key_path).is_file()
+    ):
+        return None
+
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as known_hosts_file:
+            os.chmod(known_hosts_file.name, 0o600)
+            known_hosts_file.write(known_hosts + "\n")
+            known_hosts_file.flush()
+            alias = host if port == 22 else f"[{host}]:{port}"
+            key_check = process_runner(
+                [
+                    ssh_keygen_executable,
+                    "-F",
+                    alias,
+                    "-f",
+                    known_hosts_file.name,
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            if key_check.returncode != 0:
+                return None
+            ssh_arguments = [
+                ssh_executable,
+                "-i",
+                ssh_key_path,
+                "-p",
+                str(port),
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "IdentitiesOnly=yes",
+                "-o",
+                "StrictHostKeyChecking=yes",
+                "-o",
+                f"UserKnownHostsFile={known_hosts_file.name}",
+                "-o",
+                "GlobalKnownHostsFile=/dev/null",
+                "-o",
+                "ConnectTimeout=15",
+            ]
+            probe = make_remote_disk_usage_probe(
+                ssh_arguments,
+                username,
+                host,
+                process_runner=process_runner,
+            )
+            return probe()
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
 def _read_arr_config(path: str) -> dict[str, Any]:
     try:
         config = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -1482,6 +1666,56 @@ def run_runtime_cleanup(
         return report
 
 
+def _collect_remote_disk_usage(args: argparse.Namespace) -> dict[str, Any]:
+    disk_usage = _probe_remote_disk_usage_from_runtime(
+        {
+            "ssh_host": args.ssh_host,
+            "ssh_username": args.ssh_username,
+            "known_hosts": args.known_hosts,
+        },
+        args.ssh_key,
+        ssh_executable=args.ssh,
+        ssh_keygen_executable=args.ssh_keygen,
+        ssh_port=args.ssh_port,
+    )
+    sample_timestamp = int(time.time())
+    try:
+        write_remote_disk_metrics(
+            args.remote_disk_metrics_path,
+            used_bytes=(disk_usage["used_bytes"] if disk_usage is not None else None),
+            capacity_bytes=args.remote_disk_capacity_bytes,
+            warning_threshold_bytes=args.remote_disk_warning_threshold_bytes,
+            sample_timestamp_seconds=sample_timestamp,
+        )
+    except (OSError, ValueError):
+        print(
+            json.dumps(
+                {"event": "remote_disk_metrics_write_failed"},
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+            flush=True,
+        )
+    if disk_usage is None:
+        return {
+            "event": "remote_disk_usage_unavailable",
+            "remote_disk_probe_success": False,
+            "sample_timestamp_seconds": sample_timestamp,
+        }
+    used_bytes = disk_usage["used_bytes"]
+    return {
+        "event": "remote_disk_usage",
+        "remote_disk_used_bytes": used_bytes,
+        "remote_disk_capacity_bytes": args.remote_disk_capacity_bytes,
+        "remote_disk_warning_threshold_bytes": args.remote_disk_warning_threshold_bytes,
+        "remote_disk_used_percent": round(
+            100 * used_bytes / args.remote_disk_capacity_bytes, 2
+        ),
+        "remote_disk_probe_success": True,
+        "sample_timestamp_seconds": sample_timestamp,
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report-only", action="store_true")
@@ -1499,6 +1733,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--ssh")
     parser.add_argument("--ssh-keygen")
     parser.add_argument("--arr-config")
+    parser.add_argument("--remote-disk-capacity-bytes", type=int, default=REMOTE_DISK_CAPACITY_BYTES)
+    parser.add_argument(
+        "--remote-disk-warning-threshold-bytes",
+        type=int,
+        default=REMOTE_DISK_WARNING_THRESHOLD_BYTES,
+    )
+    parser.add_argument("--remote-disk-metrics-path", default=REMOTE_DISK_METRICS_PATH)
+    parser.add_argument("--remote-disk-monitoring", action="store_true")
     parser.add_argument("--private-tracker-ratio-protection", action="store_true")
     args = parser.parse_args(argv)
     if args.apply and args.report_only:
@@ -1521,6 +1763,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if any(not value for value in required_paths):
                 raise RuntimeError("runtime_configuration_unavailable")
+            if args.remote_disk_monitoring:
+                if (
+                    args.remote_disk_capacity_bytes <= 0
+                    or args.remote_disk_warning_threshold_bytes <= 0
+                    or args.remote_disk_warning_threshold_bytes > args.remote_disk_capacity_bytes
+                ):
+                    raise RuntimeError("runtime_configuration_unavailable")
+                print(
+                    json.dumps(
+                        _collect_remote_disk_usage(args),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    flush=True,
+                )
             report = run_runtime_cleanup(
                 {
                     "rpc_url": args.rpc_url,

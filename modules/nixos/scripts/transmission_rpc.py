@@ -17,6 +17,7 @@ from urllib.request import HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm
 BASE_TORRENT_FIELDS = (
     "id",
     "status",
+    "doneDate",
     "secondsSeeding",
     "uploadRatio",
     "trackers",
@@ -228,6 +229,14 @@ def normalize_torrent(
     else:
         complete = status == 6
 
+    done_date = torrent.get("doneDate")
+    if (
+        not isinstance(done_date, int)
+        or isinstance(done_date, bool)
+        or done_date <= 0
+    ):
+        done_date = None
+
     seeding_seconds = torrent.get("secondsSeeding")
     if not isinstance(seeding_seconds, int) or isinstance(seeding_seconds, bool) or seeding_seconds < 0:
         seeding_seconds = None
@@ -288,6 +297,7 @@ def normalize_torrent(
 
     return {
         "id": torrent_id,
+        "done_date": done_date,
         "candidate": {
             "complete": complete,
             "seeding_seconds": seeding_seconds,

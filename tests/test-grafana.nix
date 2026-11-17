@@ -311,6 +311,24 @@ in {
         echo "FAIL: dashboard must show /srv/media capacity from drlight node metrics"; exit 1
       fi
 
+      if jq -e '[.panels[] | select(.title == "Oldest unstaged completion age") | .targets[]?.expr] | any(contains("unwrap time_behind_seconds") and contains("__error__"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard graphs the oldest pending completion age: OK"
+      else
+        echo "FAIL: dashboard must show oldest-first sync time behind"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Remote seedbox disk usage") | .targets[]? | select(.datasource.type? == "prometheus") | .expr] | any(contains("ultra_seedbox_storage_used_bytes") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard graphs account-level Ultra storage metrics: OK"
+      else
+        echo "FAIL: dashboard must graph remote seedbox account storage"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Remote seedbox disk usage") | .fieldConfig.defaults.thresholds.steps[]?.value] | any(. == 3000000000000)' "$DASHBOARD" > /dev/null; then
+        echo "dashboard marks the 3 TB warning threshold: OK"
+      else
+        echo "FAIL: remote disk dashboard must mark the 3 TB warning threshold"; exit 1
+      fi
+
       echo "Ultra download staging dashboard tests passed"
       touch $out
     '';

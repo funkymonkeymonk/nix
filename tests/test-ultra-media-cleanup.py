@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -22,6 +23,9 @@ ADAPTER_PATH = Path(sys.argv.pop(1))
 STAGING_PATH = Path(sys.argv.pop(1))
 SCRIPT_DIR = Path(sys.argv.pop(1))
 sys.path.insert(0, str(SCRIPT_DIR))
+os.environ["PYTHONPATH"] = os.pathsep.join(
+    filter(None, [str(SCRIPT_DIR), os.environ.get("PYTHONPATH", "")])
+)
 import ultra_media_file_stat as file_stat
 spec = importlib.util.spec_from_file_location("ultra_media_cleanup", POLICY_PATH)
 if spec is None or spec.loader is None:
@@ -94,6 +98,7 @@ class FakeTransmissionRPCServer:
                 torrent = {
                     "id": 17,
                     "status": 6,
+                    "doneDate": 1_700_000_000,
                     "secondsSeeding": 86400,
                     "uploadRatio": 2.5,
                     "trackers": [
@@ -162,6 +167,7 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
+        self.assertEqual(torrent["done_date"], 1_700_000_000)
         self.assertTrue(torrent["candidate"]["complete"])
         self.assertEqual(torrent["candidate"]["seeding_seconds"], 86400)
         self.assertEqual(torrent["candidate"]["torrent_ratio"], 2.5)
@@ -195,6 +201,7 @@ class TransmissionRPCTests(unittest.TestCase):
             {
                 "id": 18,
                 "status": 0,
+                "doneDate": 0,
                 "isFinished": True,
                 "leftUntilDone": 1,
                 "percentDone": 0.99,
@@ -205,6 +212,23 @@ class TransmissionRPCTests(unittest.TestCase):
             }
         )
         self.assertFalse(torrent["candidate"]["complete"])
+        self.assertIsNone(torrent["done_date"])
+
+    def test_normalized_torrent_ignores_invalid_completion_timestamps(self):
+        for timestamp in (None, 0, -1, True, "1700000000"):
+            with self.subTest(timestamp=timestamp):
+                torrent = transmission_rpc.normalize_torrent(
+                    {
+                        "id": 19,
+                        "status": 6,
+                        "doneDate": timestamp,
+                        "secondsSeeding": 0,
+                        "uploadRatio": 0.0,
+                        "trackers": [],
+                        "files": [],
+                    }
+                )
+                self.assertIsNone(torrent["done_date"])
 
     def test_http_rpc_endpoint_is_rejected_before_opener_creation(self):
         with patch.object(transmission_rpc, "build_opener") as build_opener:
@@ -290,6 +314,7 @@ class TransmissionRPCTests(unittest.TestCase):
                 "leftUntilDone",
                 "percentDone",
                 "secondsSeeding",
+                "doneDate",
                 "uploadRatio",
                 "trackers",
                 "downloadDir",
@@ -821,6 +846,137 @@ class CleanupRuntimeTests(unittest.TestCase):
                         ],
                         ["/srv/media/shows"],
                     )
+
+    def test_app_stats_disk_usage_parser_uses_decimal_gigabytes(self):
+        output = (
+            " *** disk stats ***\n"
+            "                           date  value\n"
+            "1413 2026-11-17 22:06:27.438047   4000.5\n"
+        )
+
+        self.assertEqual(
+            file_stat.parse_app_stats_disk_usage(output),
+            {"used_bytes": 4_000_500_000_000},
+        )
+
+    def test_app_stats_disk_usage_parser_fails_closed_on_missing_or_malformed_rows(self):
+        for output in (
+            "",
+            " *** disk stats ***\n date value\n",
+            "1413 2026-11-17 22:06:27.438047 NaN\n",
+            "1413 2026-11-17 22:06:27.438047 -2\n",
+        ):
+            with self.subTest(output=output):
+                self.assertIsNone(file_stat.parse_app_stats_disk_usage(output))
+
+    def test_remote_disk_usage_probe_uses_fixed_app_stats_command_and_strict_ssh_args(self):
+        commands = []
+        sample = "header\n1413 2026-11-17 22:06:27.438047 4000\n"
+
+        def runner(arguments, **kwargs):
+            commands.append((arguments, kwargs))
+            return SimpleNamespace(stdout=sample, returncode=0)
+
+        probe = file_stat.make_remote_disk_usage_probe(
+            ["ssh", "-o", "StrictHostKeyChecking=yes"],
+            "seed-user",
+            "seed.example",
+            process_runner=runner,
+        )
+
+        self.assertEqual(probe(), {"used_bytes": 4_000_000_000_000})
+        self.assertEqual(commands[0][0][-1], "app-stats show -s disk -t hour -c 1")
+        self.assertEqual(commands[0][0][-2], "seed-user@seed.example")
+        self.assertIs(commands[0][1]["stderr"], subprocess.DEVNULL)
+
+    def test_remote_disk_usage_probe_fails_closed_without_exposing_command_output(self):
+        probe = file_stat.make_remote_disk_usage_probe(
+            ["ssh", "-o", "StrictHostKeyChecking=yes"],
+            "seed-user",
+            "seed.example",
+            process_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                subprocess.CalledProcessError(1, ["ssh"], stderr="private diagnostic")
+            ),
+        )
+
+        self.assertIsNone(probe())
+
+    def test_runtime_remote_disk_probe_uses_scoped_strict_ssh_and_returns_only_usage(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            values = {
+                "ssh_host": "seed.example.test",
+                "ssh_username": "seed-user",
+                "known_hosts": "seed.example.test ssh-ed25519 fixture",
+            }
+            secret_paths = {}
+            for name, value in values.items():
+                path = root / name
+                path.write_text(value, encoding="utf-8")
+                secret_paths[name] = str(path)
+            key_path = root / "ssh-key"
+            key_path.write_text("private-key-fixture", encoding="utf-8")
+            commands = []
+
+            def runner(arguments, **_kwargs):
+                commands.append(arguments)
+                if arguments[0] == "fake-ssh-keygen":
+                    return SimpleNamespace(returncode=0, stdout="")
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout="header\n1413 2026-11-17 22:06:27.438047 4000\n",
+                )
+
+            usage = policy._probe_remote_disk_usage_from_runtime(
+                secret_paths,
+                str(key_path),
+                ssh_executable="fake-ssh",
+                ssh_keygen_executable="fake-ssh-keygen",
+                process_runner=runner,
+            )
+
+            self.assertEqual(usage, {"used_bytes": 4_000_000_000_000})
+            ssh_call = commands[-1]
+            self.assertEqual(ssh_call[-1], "app-stats show -s disk -t hour -c 1")
+            self.assertIn("StrictHostKeyChecking=yes", ssh_call)
+            self.assertIn("GlobalKnownHostsFile=/dev/null", ssh_call)
+            self.assertNotIn("fixture", json.dumps(usage))
+
+    def test_remote_disk_usage_metrics_file_is_private_and_contains_aggregate_values(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            metrics_path = Path(temporary_directory) / "seedbox.prom"
+            policy.write_remote_disk_metrics(
+                metrics_path,
+                used_bytes=4_000_000_000_000,
+                capacity_bytes=4_000_000_000_000,
+                warning_threshold_bytes=3_000_000_000_000,
+                sample_timestamp_seconds=1_700_000_000,
+            )
+
+            metrics = metrics_path.read_text(encoding="utf-8")
+            self.assertEqual(metrics_path.stat().st_mode & 0o777, 0o640)
+            self.assertIn("ultra_seedbox_storage_used_bytes 4000000000000", metrics)
+            self.assertIn("ultra_seedbox_storage_capacity_bytes 4000000000000", metrics)
+            self.assertIn("ultra_seedbox_storage_warning_threshold_bytes 3000000000000", metrics)
+            self.assertIn("ultra_seedbox_storage_probe_success 1", metrics)
+            self.assertIn("ultra_seedbox_storage_sample_timestamp_seconds 1700000000", metrics)
+            self.assertNotIn("torrent_id", metrics)
+            self.assertNotIn("/seedbox/", metrics)
+
+    def test_remote_disk_usage_failure_writes_probe_failure_without_stale_usage(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            metrics_path = Path(temporary_directory) / "seedbox.prom"
+            policy.write_remote_disk_metrics(
+                metrics_path,
+                used_bytes=None,
+                capacity_bytes=4_000_000_000_000,
+                warning_threshold_bytes=3_000_000_000_000,
+                sample_timestamp_seconds=1_700_000_001,
+            )
+
+            metrics = metrics_path.read_text(encoding="utf-8")
+            self.assertIn("ultra_seedbox_storage_probe_success 0", metrics)
+            self.assertNotIn("ultra_seedbox_storage_used_bytes", metrics)
 
     def test_remote_stat_quotes_source_path_as_one_remote_argument(self):
         remote_path = "/seedbox/complete/file';touch /tmp/should-not-run;'.mkv"
@@ -1510,6 +1666,7 @@ class DownloadStagingTests(unittest.TestCase):
         self._torrent_id += 1
         return {
             "id": torrent_id,
+            "done_date": 1_700_000_000 + torrent_id,
             "candidate": {"complete": complete},
             "download_directory": download_directory,
             "file_paths": file_paths,
@@ -1521,6 +1678,7 @@ class DownloadStagingTests(unittest.TestCase):
     def test_staging_plan_counts_only_complete_mapped_files(self):
         complete = {
             "id": 17,
+            "done_date": 1_700_000_000,
             "candidate": {"complete": True, "files": [{}, {}]},
             "download_directory": "/seedbox/complete downloads/Season 1",
             "file_paths": ["A/movie.mkv", "A/movie.srt"],
@@ -1552,9 +1710,41 @@ class DownloadStagingTests(unittest.TestCase):
         self.assertEqual(len(plan["torrents"]), 1)
         self.assertEqual(plan["torrents"][0]["torrent_id"], 17)
 
+    def test_staging_plan_orders_valid_completion_timestamps_oldest_first(self):
+        newer = self.torrent(True, "/seedbox/complete downloads", ["newer.mkv"])
+        older = self.torrent(True, "/seedbox/complete downloads", ["older.mkv"])
+        same_age_first = self.torrent(True, "/seedbox/complete downloads", ["tie-first.mkv"])
+        same_age_second = self.torrent(True, "/seedbox/complete downloads", ["tie-second.mkv"])
+        newer["done_date"] = 1_700_000_300
+        older["done_date"] = 1_700_000_100
+        same_age_first["done_date"] = 1_700_000_200
+        same_age_second["done_date"] = 1_700_000_200
+
+        plan = staging.build_staging_plan(
+            [newer, same_age_first, older, same_age_second], self.mappings
+        )
+
+        self.assertEqual(
+            [item["torrent_id"] for item in plan["torrents"]],
+            [older["id"], same_age_first["id"], same_age_second["id"], newer["id"]],
+        )
+
+    def test_staging_plan_skips_completed_torrents_without_orderable_completion_time(self):
+        unknown = self.torrent(True, "/seedbox/complete downloads", ["unknown.mkv"])
+        dated = self.torrent(True, "/seedbox/complete downloads", ["dated.mkv"])
+        unknown["done_date"] = None
+        dated["done_date"] = 1_700_000_100
+
+        plan = staging.build_staging_plan([unknown, dated], self.mappings)
+
+        self.assertEqual(plan["counts"]["skipped_unknown_completion_time"], 1)
+        self.assertEqual([item["torrent_id"] for item in plan["torrents"]], [dated["id"]])
+        self.assertEqual(plan["totals"]["torrents"], 1)
+
     def test_staging_plan_marks_unknown_total_bytes_for_eta(self):
         torrent = {
             "id": 20,
+            "done_date": 1_700_000_000,
             "candidate": {"complete": True, "files": [{}]},
             "download_directory": "/seedbox/complete downloads/Season 1",
             "file_paths": ["movie.mkv"],
@@ -1593,6 +1783,59 @@ class DownloadStagingTests(unittest.TestCase):
         self.assertEqual(events[-1]["eta_seconds"], 60)
         self.assertNotIn("torrent_id", events[-1])
         self.assertNotIn("path", events[-1])
+
+    def test_progress_reporter_tracks_oldest_pending_completion_age(self):
+        monotonic_now = [0.0]
+        wall_now = [1_700_003_600]
+        events = []
+        reporter = staging.StageProgressReporter(
+            {"torrents": 2, "files": 2, "bytes": 200, "unknown_size_files": 0},
+            completion_times=[1_700_000_000, 1_700_001_800],
+            emit=events.append,
+            clock=lambda: monotonic_now[0],
+            wall_clock=lambda: wall_now[0],
+        )
+
+        reporter.update(torrents_done=0, files_done=0, bytes_done=0, force=True)
+        self.assertEqual(events[-1]["time_behind_seconds"], 3_600)
+        self.assertEqual(events[-1]["unorderable_completed_torrents"], 0)
+
+        monotonic_now[0] = 1
+        wall_now[0] += 10
+        reporter.update(
+            torrents_done=1,
+            files_done=1,
+            bytes_done=100,
+            event="torrent_staged",
+            force=True,
+        )
+        self.assertEqual(events[-1]["time_behind_seconds"], 1_810)
+
+        monotonic_now[0] = 2
+        reporter.update(
+            torrents_done=2,
+            files_done=2,
+            bytes_done=200,
+            event="staging_completed",
+            force=True,
+        )
+        self.assertEqual(events[-1]["time_behind_seconds"], 0)
+
+    def test_progress_reporter_marks_lag_unknown_when_completion_times_are_missing(self):
+        events = []
+        reporter = staging.StageProgressReporter(
+            {"torrents": 1, "files": 1, "bytes": 100, "unknown_size_files": 0},
+            completion_times=[1_700_000_000],
+            unorderable_completed_torrents=1,
+            emit=events.append,
+            clock=lambda: 0.0,
+            wall_clock=lambda: 1_700_003_600,
+        )
+
+        reporter.update(torrents_done=0, files_done=0, bytes_done=0, force=True)
+
+        self.assertIsNone(events[-1]["time_behind_seconds"])
+        self.assertEqual(events[-1]["unorderable_completed_torrents"], 1)
 
     def test_torrent_completion_events_do_not_distort_heartbeat_rate(self):
         now = [0.0]
@@ -1641,7 +1884,7 @@ class DownloadStagingTests(unittest.TestCase):
         command = [
             sys.executable,
             "-c",
-            "import sys; sys.stderr.write(' 1,000 50% 1.00MB/s 0:00:01\\r 2,000 100% 1.00MB/s 0:00:00\\r'); sys.stderr.flush()",
+            "import sys; sys.stdout.write(' 1,000 50% 1.00MB/s 0:00:01\\r 2,000 100% 1.00MB/s 0:00:00\\r'); sys.stdout.flush(); sys.stderr.write('rsync diagnostic with a private path'); sys.stderr.flush()",
         ]
 
         staging.run_rsync_with_progress(command, progress.append, poll_interval=0.01)
@@ -1672,6 +1915,7 @@ class DownloadStagingTests(unittest.TestCase):
             staging_root = root / ".arr-staging"
             torrent = {
                 "id": 27,
+                "done_date": 1_700_000_000,
                 "candidate": {"complete": True, "files": [{}]},
                 "download_directory": "/seedbox/complete downloads/Season 1",
                 "file_paths": ["episode.mkv"],
@@ -2116,6 +2360,7 @@ class DownloadStagingTests(unittest.TestCase):
                     "skipped_incomplete": 1,
                     "skipped_unknown_path": 1,
                     "skipped_malformed_path": 1,
+                    "skipped_unknown_completion_time": 0,
                     "failed": 0,
                 },
             )
@@ -2999,29 +3244,80 @@ class CleanupOrchestrationTests(unittest.TestCase):
             self.assertEqual(report["deletable"], 0)
             self.assertNotIn(str(payload), json.dumps(report))
 
-    def test_apply_cli_with_empty_queue_is_a_noop(self):
+    def test_apply_cli_with_empty_queue_still_emits_remote_disk_usage(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             queue_root = Path(temporary_directory) / "cleanup-queue"
             queue_root.mkdir()
+            metrics_path = Path(temporary_directory) / "seedbox.prom"
             output = io.StringIO()
-            with redirect_stdout(output):
-                status = policy.main([
-                    "--apply",
-                    "--queue-root", str(queue_root),
-                    "--rpc-url", "/secret/rpc-url",
-                    "--download-root", "/secret/download-root",
-                    "--ssh-host", "/secret/ssh-host",
-                    "--ssh-username", "/secret/ssh-username",
-                    "--known-hosts", "/secret/known-hosts",
-                    "--ssh-key", "/secret/ssh-key",
-                    "--rpc-username", "/secret/rpc-username",
-                    "--rpc-password", "/secret/rpc-password",
-                    "--ssh", "fake-ssh",
-                    "--ssh-keygen", "fake-ssh-keygen",
-                    "--arr-config", "/secret/arr-config",
-                ])
-        self.assertEqual(status, 0, output.getvalue())
-        self.assertEqual(output.getvalue(), "")
+            with patch.object(
+                policy,
+                "_probe_remote_disk_usage_from_runtime",
+                return_value={"used_bytes": 4_000_000_000_000},
+                create=True,
+            ):
+                with redirect_stdout(output):
+                    status = policy.main([
+                        "--apply",
+                        "--queue-root", str(queue_root),
+                        "--rpc-url", "/secret/rpc-url",
+                        "--download-root", "/secret/download-root",
+                        "--ssh-host", "/secret/ssh-host",
+                        "--ssh-username", "/secret/ssh-username",
+                        "--known-hosts", "/secret/known-hosts",
+                        "--ssh-key", "/secret/ssh-key",
+                        "--rpc-username", "/secret/rpc-username",
+                        "--rpc-password", "/secret/rpc-password",
+                        "--ssh", "fake-ssh",
+                        "--ssh-keygen", "fake-ssh-keygen",
+                        "--arr-config", "/secret/arr-config",
+                        "--remote-disk-capacity-bytes", "4000000000000",
+                        "--remote-disk-warning-threshold-bytes", "3000000000000",
+                        "--remote-disk-metrics-path", str(metrics_path),
+                        "--remote-disk-monitoring",
+                    ])
+
+            events = [json.loads(line) for line in output.getvalue().splitlines()]
+            self.assertEqual(status, 0, output.getvalue())
+            self.assertEqual(events[0]["event"], "remote_disk_usage")
+            self.assertEqual(events[0]["remote_disk_used_bytes"], 4_000_000_000_000)
+            self.assertEqual(events[0]["remote_disk_capacity_bytes"], 4_000_000_000_000)
+            self.assertTrue(metrics_path.is_file())
+
+    def test_apply_cli_records_unavailable_disk_probe_without_failing_empty_queue(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            queue_root = Path(temporary_directory) / "cleanup-queue"
+            queue_root.mkdir()
+            metrics_path = Path(temporary_directory) / "seedbox.prom"
+            output = io.StringIO()
+            with patch.object(policy, "_probe_remote_disk_usage_from_runtime", return_value=None):
+                with redirect_stdout(output):
+                    status = policy.main([
+                        "--apply",
+                        "--queue-root", str(queue_root),
+                        "--rpc-url", "/secret/rpc-url",
+                        "--download-root", "/secret/download-root",
+                        "--ssh-host", "/secret/ssh-host",
+                        "--ssh-username", "/secret/ssh-username",
+                        "--known-hosts", "/secret/known-hosts",
+                        "--ssh-key", "/secret/ssh-key",
+                        "--rpc-username", "/secret/rpc-username",
+                        "--rpc-password", "/secret/rpc-password",
+                        "--ssh", "fake-ssh",
+                        "--ssh-keygen", "fake-ssh-keygen",
+                        "--arr-config", "/secret/arr-config",
+                        "--remote-disk-capacity-bytes", "4000000000000",
+                        "--remote-disk-warning-threshold-bytes", "3000000000000",
+                        "--remote-disk-metrics-path", str(metrics_path),
+                        "--remote-disk-monitoring",
+                    ])
+
+            event = json.loads(output.getvalue().splitlines()[0])
+            self.assertEqual(status, 0)
+            self.assertEqual(event["event"], "remote_disk_usage_unavailable")
+            self.assertFalse(event["remote_disk_probe_success"])
+            self.assertIn("ultra_seedbox_storage_probe_success 0", metrics_path.read_text())
+            self.assertNotIn("private", output.getvalue())
 
     def test_runtime_report_keeps_legacy_inventory_unverified_without_data(self):
         self.assertEqual(policy._runtime_unverified_report()["legacy_inventory_status"], "unverified")
