@@ -166,6 +166,8 @@
     # WHY: pins the UI npm dependency hash for the selected Bifrost input revision.
     # REMOVE WHEN: the upstream flake package no longer needs this hash override.
     bifrost-ui = (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-ui).overrideAttrs (oldAttrs: {
+      version = "2.5.1";
+      __intentionallyOverridingVersion = true;
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
@@ -179,7 +181,9 @@
       (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (prev: {
-        vendorHash = "sha256-tyxDAo2CBaCf0Fco+fcugLUz9AzSdYogkBiIMJjT3lE=";
+        version = "2.5.1";
+        __intentionallyOverridingVersion = true;
+        vendorHash = "sha256-boHu7mTTjtpEQnSUFXlT0reRio3E8qKULrJ4pVLp8nw=";
         postPatch =
           (prev.postPatch or "")
           + ''

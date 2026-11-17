@@ -370,6 +370,7 @@ in
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
     bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
+    bifrost-package-version = testBifrost.bifrostPackageVersionTest;
     bifrost-tailscale-serve = testBifrost.bifrostTailscaleServeTest;
 
     # Caddy reverse proxy module tests

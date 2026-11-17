@@ -240,17 +240,18 @@
       in
         if
           wweaver.myConfig.roles.pi.enable
-          && wweaver.myConfig.pi.npmPackages."pi-jev" == "^0.7.0"
+          && !(wweaver.myConfig.pi.npmPackages ? "pi-jev")
+          && wweaver.myConfig.pi.npmPackages."pi-subagents" == "^0.51.0"
           && wweaver.myConfig.onepassword.defaultVault == "Opnix"
           && wweaver.myConfig.onepassword.sudoPasswordRef == "op://Employee/wweaver Sudo Password/password"
-          && wweaver.myConfig.pi.jevOnePasswordItem == "Opencode/Service Accounts/wweaver"
-          && wweaver.home-manager.users.wweaver.home.sessionVariables.PI_JEV_BASE_URL == "https://opencode.ai/inference/systemone"
-          && wweaver.home-manager.users.wweaver.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
-          && wweaver.home-manager.users.wweaver.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/Opencode/Service Accounts/wweaver"
+          && wweaver.myConfig.pi.jevOnePasswordItem == ""
+          && !(wweaver.home-manager.users.wweaver.home.sessionVariables ? PI_JEV_BASE_URL)
+          && !(wweaver.home-manager.users.wweaver.home.sessionVariables ? TYPESAFE_DEFAULT_MODEL)
+          && !(wweaver.home-manager.users.wweaver.programs.onepassword-secrets.secrets ? pijevApiKey)
         then ""
-        else ''echo "FAIL: wweaver should receive pi-jev with its Console Jev key"; exit 1''
+        else ''echo "FAIL: wweaver should disable Jev and omit its 1Password key"; exit 1''
     }
-    echo "  wweaver: pi-jev package and Jev service account configured ✓"
+    echo "  wweaver: Jev disabled; no Jev 1Password secret configured ✓"
 
     echo ""
     echo "All Lydia machine tests passed"

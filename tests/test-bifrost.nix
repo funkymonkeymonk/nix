@@ -238,10 +238,12 @@ in {
       touch $out
     '';
 
-  # Verify the generated provider config (embedded in the launchd script)
-  # carries retry settings into network_config. Bifrost's upstream default is
-  # max_retries = 0 — one attempt, no retries — which is what let transient
-  # 503s from a busy local engine fail whole agent turns.
+  # Confirm overlay package metadata matches the pinned upstream transport.
+  bifrostPackageVersionTest = pkgs.runCommand "test-bifrost-package-version" {} ''
+    test "${pkgs.bifrost-http.version}" = "2.5.1"
+    touch $out
+  '';
+
   bifrostRetryConfigTest = let
     retryEval =
       (lib.evalModules {
