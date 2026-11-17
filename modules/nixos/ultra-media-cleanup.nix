@@ -75,21 +75,21 @@ in {
     script = ''
       set -euo pipefail
       export PYTHONPATH=${./scripts}
-      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-cleanup.py} \\
-        ${modeArgs} \\
-        ${trackerPolicyArgs} \\
-        --stage-success-marker /run/ultra-media/stage-success.json \\
-        --rpc-url /run/secrets/ultra-media-stage-rpc-url \\
-        --download-root /run/secrets/ultra-media-stage-download-root \\
-        --ssh-host /run/secrets/ultra-media-stage-host \\
-        --ssh-username /run/secrets/ultra-media-stage-username \\
-        --ssh-port 22 \\
-        --known-hosts /run/secrets/ultra-media-stage-known-hosts \\
-        --ssh-key /run/secrets/ultra-media-stage-key \\
-        --rpc-username /run/secrets/ultra-media-stage-rpc-username \\
-        --rpc-password /run/secrets/ultra-media-stage-rpc-password \\
-        --ssh ${pkgs.openssh}/bin/ssh \\
-        --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \\
+      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-cleanup.py} \
+        ${modeArgs} \
+        ${trackerPolicyArgs} \
+        --stage-success-marker /run/ultra-media/stage-success.json \
+        --rpc-url /run/secrets/ultra-media-stage-rpc-url \
+        --download-root /run/secrets/ultra-media-stage-download-root \
+        --ssh-host /run/secrets/ultra-media-stage-host \
+        --ssh-username /run/secrets/ultra-media-stage-username \
+        --ssh-port 22 \
+        --known-hosts /run/secrets/ultra-media-stage-known-hosts \
+        --ssh-key /run/secrets/ultra-media-stage-key \
+        --rpc-username /run/secrets/ultra-media-stage-rpc-username \
+        --rpc-password /run/secrets/ultra-media-stage-rpc-password \
+        --ssh ${pkgs.openssh}/bin/ssh \
+        --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
         --arr-config ${arrConfig}
     '';
   };

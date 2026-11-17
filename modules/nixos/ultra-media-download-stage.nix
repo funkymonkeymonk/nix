@@ -95,20 +95,20 @@ in {
     script = ''
       set -euo pipefail
       export PYTHONPATH=${./scripts}
-      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-download-stage.py} \\
-        --stage-downloads \\
-        --success-marker /run/ultra-media/stage-success.json \\
-        --rpc-url ${lib.escapeShellArg rpcUrlPath} \\
-        --download-root ${lib.escapeShellArg downloadRootPath} \\
-        --ssh-host ${lib.escapeShellArg hostPath} \\
-        --ssh-username ${lib.escapeShellArg usernamePath} \\
-        --ssh-port ${toString sshPort} \\
-        --known-hosts ${lib.escapeShellArg knownHostsPath} \\
-        --ssh-key ${lib.escapeShellArg keyPath} \\
-        --rpc-username ${lib.escapeShellArg rpcUsernamePath} \\
-        --rpc-password ${lib.escapeShellArg rpcPasswordPath} \\
-        --ssh ${pkgs.openssh}/bin/ssh \\
-        --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \\
+      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-download-stage.py} \
+        --stage-downloads \
+        --success-marker /run/ultra-media/stage-success.json \
+        --rpc-url ${lib.escapeShellArg rpcUrlPath} \
+        --download-root ${lib.escapeShellArg downloadRootPath} \
+        --ssh-host ${lib.escapeShellArg hostPath} \
+        --ssh-username ${lib.escapeShellArg usernamePath} \
+        --ssh-port ${toString sshPort} \
+        --known-hosts ${lib.escapeShellArg knownHostsPath} \
+        --ssh-key ${lib.escapeShellArg keyPath} \
+        --rpc-username ${lib.escapeShellArg rpcUsernamePath} \
+        --rpc-password ${lib.escapeShellArg rpcPasswordPath} \
+        --ssh ${pkgs.openssh}/bin/ssh \
+        --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
         --rsync ${pkgs.rsync}/bin/rsync
     '';
   };

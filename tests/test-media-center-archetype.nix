@@ -721,6 +721,10 @@
            ${checkTrue "completed-download staging can write only to stage data and its private runtime directory" (builtins.all (path: builtins.elem path (ultraDownloadStageServiceConfig.ReadWritePaths or [])) ["/srv/media/.arr-staging" "/run/ultra-media"])}
            ${checkTrue "completed-download staging waits for ZFS, media roots, and OpNix secrets" (builtins.all (unit: builtins.elem unit (ultraDownloadStageService.after or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"] && builtins.all (unit: builtins.elem unit (ultraDownloadStageService.requires or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"])}
            ${checkTrue "completed-download staging service runs the dedicated Python adapter" (lib.hasInfix "ultra-media-download-stage.py" ultraDownloadStageCommand && lib.hasInfix "--stage-downloads" ultraDownloadStageCommand)}
+           ${checkTrue "staging command uses shell line continuations" (lib.hasInfix "\\\n" ultraDownloadStageCommand)}
+           ${checkFalse "staging command does not double-escape shell line continuations" (lib.hasInfix "\\\\\n" ultraDownloadStageCommand)}
+           ${checkTrue "cleanup command uses shell line continuations" (lib.hasInfix "\\\n" ultraCleanupCommand)}
+           ${checkFalse "cleanup command does not double-escape shell line continuations" (lib.hasInfix "\\\\\n" ultraCleanupCommand)}
            ${checkTrue "stage runtime validates individually supplied RPC URL and completed-download root fields" (lib.hasInfix "rpc_url" ultraSyncStagingSource && lib.hasInfix "download_root" ultraSyncStagingSource && lib.hasInfix "normalize_download_root" ultraSyncStagingSource)}
            ${checkTrue "the retention policy evaluator remains available separately from staging" (lib.hasInfix "evaluate_retention" ultraSyncPolicySource)}
            ${checkTrue "stage runtime reports aggregate counters only" (lib.hasInfix "staging " ultraSyncStagingSource && lib.hasInfix "reason=" ultraSyncStagingSource)}
