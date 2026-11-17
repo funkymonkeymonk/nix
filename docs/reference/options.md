@@ -515,6 +515,8 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `cleanup.enable` | boolean | `false` | Whether to enable automatic Ultra seedbox cleanup after verified local imports. |
+| `cleanup.privateTrackerRatioProtection.enable` | boolean | `false` | Whether to enable future private-tracker account-ratio cleanup gate (unknown trackers fail closed). |
 | `enable` | boolean | `false` | Whether to enable completed Ultra download staging timer. |
 
 ### myConfig.users

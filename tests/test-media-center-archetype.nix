@@ -83,6 +83,15 @@
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
         }).config;
+      drlightWithDownloadAutomationDisabled =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [
+            {
+              myConfig.ultraMediaDownloadStage.enable = lib.mkForce false;
+              myConfig.ultraMediaDownloadStage.cleanup.enable = lib.mkForce false;
+            }
+          ];
+        }).config;
       drlightWithRadarrAuthOnly =
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.mediaManagement.radarr.transmission.enable = lib.mkForce false;}];
@@ -138,17 +147,22 @@
       secretValues = builtins.attrValues onePasswordSecrets;
       ultraSyncStagingSource = builtins.readFile ../modules/nixos/scripts/ultra-media-download-stage.py;
       ultraSyncPolicySource = builtins.readFile ../modules/nixos/scripts/ultra-media-cleanup.py;
+      ultraSyncRpcSource = builtins.readFile ../modules/nixos/scripts/transmission_rpc.py;
       ultraSyncCleanupModuleSource = builtins.readFile ../modules/nixos/ultra-media-cleanup.nix;
       ultraDownloadStageService = drlight.systemd.services.ultra-media-download-stage or {};
       ultraDownloadStageServiceConfig = ultraDownloadStageService.serviceConfig or {};
+      ultraDownloadStageEnvironment = ultraDownloadStageService.environment or {};
       ultraDownloadStageCommand = ultraDownloadStageService.script or (ultraDownloadStageServiceConfig.ExecStart or "");
       ultraCleanupService = drlight.systemd.services.ultra-media-cleanup or {};
       ultraCleanupServiceConfig = ultraCleanupService.serviceConfig or {};
+      ultraCleanupEnvironment = ultraCleanupService.environment or {};
       ultraCleanupCommand = ultraCleanupService.script or (ultraCleanupServiceConfig.ExecStart or "");
+      ultraCleanupDisabledService = drlightWithDownloadAutomationDisabled.systemd.services.ultra-media-cleanup or {};
+      ultraCleanupDisabledServiceConfig = ultraCleanupDisabledService.serviceConfig or {};
+      ultraCleanupDisabledCommand = ultraCleanupDisabledService.script or (ultraCleanupDisabledServiceConfig.ExecStart or "");
       ultraCleanupTimer = drlight.systemd.timers.ultra-media-cleanup or {};
       ultraDownloadStageTimer = drlight.systemd.timers.ultra-media-download-stage or {};
       ultraDownloadStageTimerConfig = ultraDownloadStageTimer.timerConfig or {};
-      ultraDownloadStageEnabled = drlight.myConfig.ultraMediaDownloadStage.enable or false;
       ultraStageSecretNames = [
         "ultraMediaStageHost"
         "ultraMediaStageUsername"
@@ -684,9 +698,11 @@
            ${checkFalse "legacy library source Opnix references are removed" (onePasswordSecrets ? ultraMediaStageMoviesSource || onePasswordSecrets ? ultraMediaStageShowsSource || onePasswordSecrets ? ultraMediaStageMusicSource || onePasswordSecrets ? ultraMediaStageComicsSource)}
            ${checkFalse "SSH port is no longer an Opnix secret" (onePasswordSecrets ? ultraMediaStagePort)}
            ${checkTrue "staging uses the default SSH port 22" (lib.hasInfix "--ssh-port 22" ultraDownloadStageCommand)}
-           ${checkFalse "completed-download staging option defaults to false" (drlight.myConfig.ultraMediaDownloadStage.enable or false)}
-           ${checkFalse "completed-download staging is disabled by default" ultraDownloadStageEnabled}
-           ${checkFalse "completed-download staging timer is not enabled by default" (builtins.elem "timers.target" (ultraDownloadStageTimer.wantedBy or []))}
+           ${checkTrue "Drlight enables completed-download staging" (drlight.myConfig.ultraMediaDownloadStage.enable or false)}
+           ${checkTrue "Drlight enables automatic seedbox cleanup" (drlight.myConfig.ultraMediaDownloadStage.cleanup.enable or false)}
+           ${checkTrue "Drlight keeps the future private-tracker ratio extension inactive" (!(drlight.myConfig.ultraMediaDownloadStage.cleanup.privateTrackerRatioProtection.enable or false))}
+           ${checkFalse "explicitly disabling completed-download staging removes its timer link" (builtins.elem "timers.target" ((drlightWithDownloadAutomationDisabled.systemd.timers.ultra-media-download-stage or {}).wantedBy or []))}
+           ${checkTrue "Drlight's completed-download staging timer is enabled" (builtins.elem "timers.target" (ultraDownloadStageTimer.wantedBy or []))}
            ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
@@ -694,26 +710,35 @@
            ${checkEqual "completed-download staging runs as the existing Ultra sync user" "ultra-sync" (ultraDownloadStageServiceConfig.User or null)}
            ${checkEqual "completed-download staging runs in the shared media group" "users" (ultraDownloadStageServiceConfig.Group or null)}
            ${checkEqual "completed-download staging requires the mounted media filesystem" "/srv/media" (ultraDownloadStageService.unitConfig.ConditionPathIsMountPoint or null)}
-           ${checkEqual "report-only cleanup is triggered only after successful staging" "ultra-media-cleanup.service" (ultraDownloadStageService.unitConfig.OnSuccess or null)}
-           ${checkEqual "cleanup is a report-only oneshot under the Ultra sync account" ["oneshot" "ultra-sync" "users"] [(ultraCleanupServiceConfig.Type or null) (ultraCleanupServiceConfig.User or null) (ultraCleanupServiceConfig.Group or null)]}
-           ${checkTrue "cleanup command explicitly selects report-only mode" (lib.hasInfix "ultra-media-cleanup.py" ultraCleanupCommand && lib.hasInfix "--report-only" ultraCleanupCommand)}
+           ${checkEqual "cleanup runs only after successful staging" "ultra-media-cleanup.service" (ultraDownloadStageService.unitConfig.OnSuccess or null)}
+           ${checkEqual "cleanup is a oneshot under the Ultra sync account" ["oneshot" "ultra-sync" "users"] [(ultraCleanupServiceConfig.Type or null) (ultraCleanupServiceConfig.User or null) (ultraCleanupServiceConfig.Group or null)]}
+           ${checkTrue "Drlight cleanup uses apply mode with the private one-use staging marker" (lib.hasInfix "ultra-media-cleanup.py" ultraCleanupCommand && lib.hasInfix "--apply" ultraCleanupCommand && lib.hasInfix "--stage-success-marker /run/ultra-media/stage-success.json" ultraCleanupCommand && lib.hasInfix "--success-marker /run/ultra-media/stage-success.json" ultraDownloadStageCommand)}
+           ${checkTrue "disabled cleanup stays report-only and network-isolated" (lib.hasInfix "--report-only" ultraCleanupDisabledCommand && (ultraCleanupDisabledServiceConfig.PrivateNetwork or false))}
            ${checkTrue "cleanup service has no timer or activation target" (!(builtins.elem "timers.target" (ultraCleanupTimer.wantedBy or [])) && !(builtins.elem "multi-user.target" (ultraCleanupService.wantedBy or [])))}
-           ${checkTrue "cleanup cannot access the network or credentials" ((ultraCleanupServiceConfig.PrivateNetwork or false) && (ultraCleanupServiceConfig.NoNewPrivileges or false) && !(lib.hasInfix "opnix-secrets" ultraSyncCleanupModuleSource) && !(lib.hasInfix "/run/secrets" ultraSyncCleanupModuleSource))}
-           ${checkTrue "cleanup and staging serialize on the same operation lock" (lib.hasInfix ".operation.lock" ultraSyncStagingSource && lib.hasInfix ".operation.lock" ultraSyncPolicySource)}
-           ${checkFalse "cleanup has no data deletion operation or destructive service mode" (lib.hasInfix "torrent-remove" ultraSyncPolicySource || lib.hasInfix "torrent-remove" ultraSyncCleanupModuleSource || lib.hasInfix "--delete" ultraSyncCleanupModuleSource)}
-           ${checkTrue "completed-download staging writes only to the hidden stage root" (builtins.elem "/srv/media/.arr-staging" (ultraDownloadStageServiceConfig.ReadWritePaths or []))}
+           ${checkTrue "enabled cleanup can reach Transmission and local Arr APIs" (!(ultraCleanupServiceConfig.PrivateNetwork or true) && (ultraCleanupServiceConfig.NoNewPrivileges or false) && builtins.all (unit: builtins.elem unit (ultraCleanupService.requires or [])) ["opnix-secrets.service" "radarr.service" "sonarr.service" "lidarr.service" "radarr-media-api-key.service" "sonarr-media-api-key.service" "lidarr-media-api-key.service"])}
+           ${checkTrue "cleanup receives only required runtime secret and Arr API groups" (builtins.all (group: builtins.elem group (ultraCleanupServiceConfig.SupplementaryGroups or [])) ["media-management-secrets" "radarr-api" "sonarr-api" "lidarr-api"])}
+           ${checkTrue "cleanup uses a private runtime directory and cannot modify local media" ((ultraCleanupServiceConfig.RuntimeDirectory or null) == "ultra-media" && (ultraCleanupServiceConfig.RuntimeDirectoryMode or null) == "0700" && (ultraCleanupServiceConfig.RuntimeDirectoryPreserve or null) == "yes" && builtins.elem "/run/ultra-media" (ultraCleanupServiceConfig.ReadWritePaths or []) && builtins.elem "/srv/media" (ultraCleanupServiceConfig.ReadOnlyPaths or []))}
+           ${checkTrue "staging and cleanup share a lock outside the media tree" (lib.hasInfix "/run/ultra-media/operation.lock" ultraSyncStagingSource && lib.hasInfix "/run/ultra-media/operation.lock" ultraSyncPolicySource && (ultraDownloadStageServiceConfig.RuntimeDirectory or null) == "ultra-media" && (ultraDownloadStageServiceConfig.RuntimeDirectoryMode or null) == "0700" && (ultraDownloadStageServiceConfig.RuntimeDirectoryPreserve or null) == "yes")}
+           ${checkTrue "cleanup removes torrents and their seedbox data only through Transmission RPC" (lib.hasInfix "torrent-remove" ultraSyncRpcSource && lib.hasInfix "delete-local-data" ultraSyncRpcSource && lib.hasInfix "--apply" ultraCleanupCommand && !(lib.hasInfix "--delete" ultraSyncCleanupModuleSource))}
+           ${checkTrue "completed-download staging can write only to stage data and its private runtime directory" (builtins.all (path: builtins.elem path (ultraDownloadStageServiceConfig.ReadWritePaths or [])) ["/srv/media/.arr-staging" "/run/ultra-media"])}
            ${checkTrue "completed-download staging waits for ZFS, media roots, and OpNix secrets" (builtins.all (unit: builtins.elem unit (ultraDownloadStageService.after or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"] && builtins.all (unit: builtins.elem unit (ultraDownloadStageService.requires or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"])}
            ${checkTrue "completed-download staging service runs the dedicated Python adapter" (lib.hasInfix "ultra-media-download-stage.py" ultraDownloadStageCommand && lib.hasInfix "--stage-downloads" ultraDownloadStageCommand)}
+           ${checkTrue "staging command uses shell line continuations" (lib.hasInfix "\\\n" ultraDownloadStageCommand)}
+           ${checkFalse "staging command does not double-escape shell line continuations" (lib.hasInfix "\\\\\n" ultraDownloadStageCommand)}
+           ${checkTrue "cleanup command uses shell line continuations" (lib.hasInfix "\\\n" ultraCleanupCommand)}
+           ${checkFalse "cleanup command does not double-escape shell line continuations" (lib.hasInfix "\\\\\n" ultraCleanupCommand)}
+           ${checkEqual "staging temp files use the writable runtime directory" "/run/ultra-media" (ultraDownloadStageEnvironment.TMPDIR or null)}
+           ${checkEqual "cleanup temp files use the writable runtime directory" "/run/ultra-media" (ultraCleanupEnvironment.TMPDIR or null)}
            ${checkTrue "stage runtime validates individually supplied RPC URL and completed-download root fields" (lib.hasInfix "rpc_url" ultraSyncStagingSource && lib.hasInfix "download_root" ultraSyncStagingSource && lib.hasInfix "normalize_download_root" ultraSyncStagingSource)}
            ${checkTrue "the retention policy evaluator remains available separately from staging" (lib.hasInfix "evaluate_retention" ultraSyncPolicySource)}
            ${checkTrue "stage runtime reports aggregate counters only" (lib.hasInfix "staging " ultraSyncStagingSource && lib.hasInfix "reason=" ultraSyncStagingSource)}
            ${checkFalse "stage rsync never deletes seedbox or local files" (lib.hasInfix "--delete" ultraSyncStagingSource || lib.hasInfix "--remove-source-files" ultraSyncStagingSource)}
            ${checkEqual "Transmission RPC username uses the unqualified OpNix field" "Ultra - Transmission/username" (ultraStageRpcUsernameSecret.reference or null)}
            ${checkEqual "Transmission RPC password uses the unqualified OpNix field" "Ultra - Transmission/password" (ultraStageRpcPasswordSecret.reference or null)}
-           ${checkTrue "Transmission RPC credentials are scoped to staging and local Arr reconciliation" ((ultraStageRpcUsernameSecret.services or []) == (["ultra-media-download-stage"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]) && (ultraStageRpcPasswordSecret.services or []) == (["ultra-media-download-stage"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]))}
+           ${checkTrue "Transmission RPC credentials are scoped to staging, enabled cleanup, and local Arr reconciliation" ((ultraStageRpcUsernameSecret.services or []) == (["ultra-media-download-stage" "ultra-media-cleanup"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]) && (ultraStageRpcPasswordSecret.services or []) == (["ultra-media-download-stage" "ultra-media-cleanup"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]))}
            ${checkEqual "Transmission RPC username resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/username" (opnixUltraStageRpcUsernameSecret.reference or null)}
            ${checkEqual "Transmission RPC password resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/password" (opnixUltraStageRpcPasswordSecret.reference or null)}
-           ${checkTrue "the SSH key is scoped only to staging" ((ultraStageKeySecret.services or []) == ["ultra-media-download-stage"])}
+           ${checkTrue "the SSH key is scoped only to staging and enabled cleanup" ((ultraStageKeySecret.services or []) == ["ultra-media-download-stage" "ultra-media-cleanup"])}
            ${checkEqual "Drlight uses Opnix as its default vault" "Opnix" (drlight.myConfig.onepassword.defaultVault or null)}
            ${checkEqual "Drlight Cloudflare secret uses the Opnix item and field" "Cloudflare DNS API Token/credential" (onePasswordSecrets.cloudflareApiToken.reference or null)}
            ${checkEqual "Drlight Cloudflare secret resolves to the Opnix vault" "op://Opnix/Cloudflare DNS API Token/credential" (opnixSecrets.cloudflareApiToken.reference or null)}
