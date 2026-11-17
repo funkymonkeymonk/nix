@@ -6,7 +6,7 @@
 
 **Architecture:** Stage each torrent atomically, publish a private idempotent receipt after all of its files are copied, and have a one-minute cleanup queue worker process only receipted torrents while the stage loop continues. Per-torrent locks serialize stage/removal of the same torrent; full-inventory ownership checks and immediate revalidation remain mandatory. Emit aggregate JSON progress to journald every 60 seconds and graph it in the existing Grafana dashboard.
 
-**Tech Stack:** Python, NixOS systemd oneshot/timer units, Transmission read-only RPC plus guarded remove RPC, Vector/Loki/Grafana, Jujutsu.
+**Tech Stack:** Python, NixOS systemd `Type=exec` staging plus oneshot/timer cleanup, Transmission read-only RPC plus guarded remove RPC, Vector/Loki/Grafana, Jujutsu.
 
 **Spec:** `docs/superpowers/specs/2026-11-16-ultra-media-progress-queue-design.md`
 
@@ -98,6 +98,7 @@
 - Test: `tests/test-grafana.nix`
 
 - [x] Add Nix assertions that staging no longer has whole-run `OnSuccess`, cleanup has a one-minute timer only when enabled, and the cleanup unit no longer waits for the stage unit.
+- [x] Add a Nix regression assertion that the long-running staging service is `Type=exec`, so system activation waits for executable startup rather than transfer completion.
 - [x] Add dashboard tests for progress bytes/percent, rate, ETA, and last event time using aggregate journal events.
 - [x] Run the focused Nix checks and confirm the new assertions fail before changing service wiring.
 - [x] Configure `StateDirectory=ultra-media` and `StateDirectoryMode=0700` for both stage and cleanup so they share the persistent queue; wire per-torrent runtime locks and a cleanup timer with `OnBootSec=1min` and `OnUnitActiveSec=1min`. Preserve the 60-second progress interval and service sandboxing.
@@ -110,7 +111,7 @@
 - Review all changed files in this plan.
 
 - [x] Run `devenv tasks run check:lint`.
-- [ ] Commit the implementation in the current Jujutsu PR workspace, then run `devenv tasks run test:all`.
-- [ ] Request a fresh read-only review and resolve any important findings.
-- [ ] Push the update to PR 567 with Jujutsu.
-- [ ] Do not deploy while the currently active Drlight staging run is active unless the user explicitly authorizes interrupting it; use a reviewed Machines plan/apply for any later deployment.
+- [x] Commit the implementation in the current Jujutsu PR workspace, then run `devenv tasks run test:all`.
+- [x] Request a fresh read-only review and resolve any important findings.
+- [ ] Push the update to PR 569 with Jujutsu.
+- [x] Do not deploy over the active Drlight staging run without authorization; the user explicitly authorized the interruption, and deployment must still use a reviewed Machines plan/apply.

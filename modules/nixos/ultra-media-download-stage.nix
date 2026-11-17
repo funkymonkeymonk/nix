@@ -82,7 +82,7 @@ in {
       RequiresMountsFor = ["/srv/media"];
     };
     serviceConfig = {
-      Type = "oneshot";
+      Type = "exec";
       User = "ultra-sync";
       Group = "users";
       SupplementaryGroups = ["media-management-secrets"];

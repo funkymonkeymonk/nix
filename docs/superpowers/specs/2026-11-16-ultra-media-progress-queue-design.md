@@ -29,6 +29,7 @@ The staging controller fetches a Transmission snapshot, copies each completed to
 ### Concurrent cleanup worker
 
 - Replace whole-run `OnSuccess` cleanup with a one-minute cleanup queue timer, enabled only when cleanup is enabled. The oneshot worker drains due receipts while staging continues and exits quickly when no receipts are due.
+- Run staging as a foreground `Type=exec` systemd service. The systemd start job completes once the configured `ExecStart` is successfully executed; the generated script then replaces itself with Python, which stays foreground and supervised until the transfer finishes. Do not make activation wait for a whole staging run to finish.
 - Stage and cleanup use per-torrent locks under `/run/ultra-media/locks`, named by a one-way hash of the torrent ID. Cleanup acquires locks nonblocking: if staging holds that torrent's lock, defer it and continue to other receipts. A separate queue lock protects receipt updates. Operations on the same torrent cannot overlap, while independent torrents can stage and clean concurrently.
 - For each receipt, re-fetch the full Transmission inventory and Arr import state. Compute path/source ownership across the full inventory before filtering to queued torrent IDs; do not clean an unqueued torrent.
 - Preserve every existing deletion gate: complete torrent, retention threshold, tracker policy, all files imported and verified by size/mtime, unique source ownership, and immediate fresh revalidation before removal.

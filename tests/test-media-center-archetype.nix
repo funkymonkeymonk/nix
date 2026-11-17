@@ -708,7 +708,7 @@
            ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
-           ${checkEqual "completed-download staging is a oneshot service" "oneshot" (ultraDownloadStageServiceConfig.Type or null)}
+           ${checkEqual "completed-download staging starts without waiting for the transfer to finish" "exec" (ultraDownloadStageServiceConfig.Type or null)}
            ${checkEqual "completed-download staging runs as the existing Ultra sync user" "ultra-sync" (ultraDownloadStageServiceConfig.User or null)}
            ${checkEqual "completed-download staging runs in the shared media group" "users" (ultraDownloadStageServiceConfig.Group or null)}
            ${checkEqual "completed-download staging requires the mounted media filesystem" "/srv/media" (ultraDownloadStageService.unitConfig.ConditionPathIsMountPoint or null)}
