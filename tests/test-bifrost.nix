@@ -56,6 +56,29 @@
           }
         ];
     }).config.myConfig.bifrost;
+  bifrostOpenCodeGoEval = lib.evalModules {
+    modules =
+      stubs.bifrost
+      ++ [
+        {
+          config.myConfig.users = [{name = "monkey";}];
+          config.myConfig.bifrost = {
+            enable = true;
+            modelMetadata."omlx/qwen3.8-27b" = {
+              contextLength = 128000;
+              maxOutputTokens = 30720;
+            };
+            upstreams."opencode-go" = {
+              type = "opencode-go";
+              url = "https://opencode.ai/zen/go";
+              apiKey = "FIXTURE_SECRET_SHOULD_NOT_LEAK";
+              apiKeyFile = ".pi/agent/secrets/opencode-go-apikey";
+            };
+          };
+        }
+      ];
+  };
+  bifrostOpenCodeGo = bifrostOpenCodeGoEval.config;
 in {
   bifrostOptionsTest = pkgs.runCommand "test-bifrost-options" {} ''
     echo "=== Testing Bifrost Option Defaults ==="
@@ -241,6 +264,37 @@ in {
   # Confirm overlay package metadata matches the pinned upstream transport.
   bifrostPackageVersionTest = pkgs.runCommand "test-bifrost-package-version" {} ''
     test "${pkgs.bifrost-http.version}" = "2.5.1"
+    touch $out
+  '';
+
+  bifrostOpenCodeGoTest = pkgs.runCommand "test-bifrost-opencode-go" {} ''
+    echo "=== Testing Bifrost OpenCode Go and model metadata ==="
+    SCRIPT=${bifrostOpenCodeGo.launchd.daemons.bifrost.command}
+    METADATA=${bifrostOpenCodeGo.launchd.daemons.bifrost.serviceConfig.EnvironmentVariables.BIFROST_MODEL_METADATA_FILE}
+
+    ${pkgs.python3}/bin/python - "$SCRIPT" <<'PY'
+    import json
+    import shlex
+    import sys
+
+    script = open(sys.argv[1], encoding="utf-8").read()
+    config_line = next(line for line in script.splitlines() if line.startswith("printf '%s\\n' "))
+    config = json.loads(shlex.split(config_line)[2])
+    provider = config["providers"]["opencode-go"]
+    assert "custom_provider_config" not in provider, provider
+    assert provider["keys"][0]["value"] == "env.BIFROST_OPENCODE_GO_API_KEY", provider
+    assert provider["network_config"]["base_url"] == "https://opencode.ai/zen/go", provider
+    assert "FIXTURE_SECRET_SHOULD_NOT_LEAK" not in script
+    assert ".pi/agent/secrets/opencode-go-apikey" in script
+    PY
+
+    ${pkgs.jq}/bin/jq -e '
+      .["omlx/qwen3.8-27b"].context_length == 128000 and
+      .["omlx/qwen3.8-27b"].max_output_tokens == 30720
+    ' "$METADATA" >/dev/null
+
+    echo "Bifrost Go provider uses the existing secret file without exposing its value: OK"
+    echo "Bifrost local Qwen metadata is advertised through its metadata file: OK"
     touch $out
   '';
 

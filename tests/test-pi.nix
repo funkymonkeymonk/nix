@@ -70,6 +70,45 @@
         ];
     }).config.myConfig.pi;
 in {
+  piBifrostModelMetadataTest =
+    pkgs.runCommand "test-pi-bifrost-model-metadata" {
+      nativeBuildInputs = [pkgs.nodejs];
+    } ''
+      node --input-type=module <<'NODE'
+      import assert from "node:assert/strict";
+      import {mapBifrostModel} from "file://${../modules/home-manager/bifrost-model-metadata.mjs}";
+
+      const largeCloudModel = mapBifrostModel({
+        id: "opencode-go/deepseek-v4.1-flash",
+        context_window: 1000000,
+        max_output_tokens: 384000,
+      });
+      assert.equal(largeCloudModel.contextWindow, 1000000);
+      assert.equal(largeCloudModel.maxTokens, 32000);
+
+      const localModel = mapBifrostModel({
+        id: "omlx/qwen3.8-27b",
+        context_length: 128000,
+        max_output_tokens: 30720,
+      });
+      assert.equal(localModel.contextWindow, 128000);
+      assert.equal(localModel.maxTokens, 30720);
+
+      const smallOutputModel = mapBifrostModel({
+        id: "opencode-go/small-output",
+        context_length: 64000,
+        max_output_tokens: 4096,
+      });
+      assert.equal(smallOutputModel.contextWindow, 64000);
+      assert.equal(smallOutputModel.maxTokens, 4096);
+
+      const missingLimitsModel = mapBifrostModel({id: "bifrost/unknown"});
+      assert.equal(missingLimitsModel.contextWindow, 128000);
+      assert.equal(missingLimitsModel.maxTokens, 32000);
+      NODE
+      touch $out
+    '';
+
   piAuthJsonInitializationTest =
     pkgs.runCommand "test-pi-auth-json-initialization"
     {}

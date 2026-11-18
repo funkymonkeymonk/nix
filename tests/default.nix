@@ -361,6 +361,7 @@ in
     pi-auth-json-initialization = testPi.piAuthJsonInitializationTest;
     pi-options = testPi.piOptionsTest;
     pi-custom-options = testPi.piCustomOptionsTest;
+    pi-bifrost-metadata = testPi.piBifrostModelMetadataTest;
 
     # Flake maintenance task tests
     flake-update-refreshes-fixed-output-hashes = testFlakeUpdate.flakeUpdateRefreshesFixedOutputHashesTest;
@@ -368,6 +369,7 @@ in
     # Bifrost AI gateway module tests
     bifrost-options = testBifrost.bifrostOptionsTest;
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
+    bifrost-opencode-go = testBifrost.bifrostOpenCodeGoTest;
     bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
     bifrost-package-version = testBifrost.bifrostPackageVersionTest;

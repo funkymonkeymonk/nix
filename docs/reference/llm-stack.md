@@ -74,8 +74,27 @@ sudo launchctl print system/com.bifrost.tailscale-serve
 curl http://127.0.0.1:8081/v1/models
 ```
 
-Use `omlx/qwen3.8-27b` as the model ID through Bifrost. The upstream's
-`streamIdleTimeoutInSeconds` is configured to accommodate long prompt prefills.
+Use `omlx/qwen3.8-27b` as the model ID through Bifrost. Bifrost also exposes
+OpenCode Go's subscription models under the `opencode-go/` prefix. Bifrost reads
+the API key from the existing Pi/Opnix secret file. Do not put that key in Nix
+configuration.
+
+Bifrost advertises OpenCode Go's context and output limits in `/v1/models`.
+Nix sets Qwen OMLX's advertised limits because oMLX does not report them. The
+limits are 128,000 context tokens and 30,720 output tokens. Pi uses the
+advertised context window and caps output at 32,000 tokens. These are client
+limits. They do not change oMLX's runtime allocation or guarantee that every
+context size fits available memory.
+
+Inspect the limits that Bifrost advertises:
+
+```bash
+curl -s http://127.0.0.1:8081/v1/models \
+  | jq '.data[] | select(.id == "omlx/qwen3.8-27b" or (.id | startswith("opencode-go/"))) | {id, context_window, max_output_tokens}'
+```
+
+The upstream's `streamIdleTimeoutInSeconds` is configured to accommodate long
+prompt prefills.
 
 ## Tailscale and telemetry
 

@@ -88,6 +88,7 @@
         lydia = self.darwinConfigurations.Lydia.config;
         wweaver = self.darwinConfigurations.wweaver.config;
         discoveryExtension = ".pi/agent/extensions/bifrost-discovery/index.ts";
+        metadataExtension = ".pi/agent/extensions/bifrost-discovery/model-metadata.mjs";
       in
         if
           megamanx.myConfig.pi.models.bifrost.baseUrl
@@ -97,7 +98,9 @@
           && zero.myConfig.pi.settings.defaultProvider == "opencode-go"
           && megamanx.myConfig.pi.settings.defaultProvider == "opencode-go"
           && builtins.hasAttr discoveryExtension megamanx.home-manager.users.monkey.home.file
+          && builtins.hasAttr metadataExtension megamanx.home-manager.users.monkey.home.file
           && pkgs.lib.hasInfix "http://megamanx:8081/v1" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
+          && pkgs.lib.hasInfix "model-metadata.mjs" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
           && !(lydia.myConfig.tailscale.enable or false)
           && !(wweaver.myConfig.tailscale.enable or false)
           && !(pkgs.lib.hasInfix "megamanx" lydia.myConfig.pi.models.bifrost.baseUrl)
@@ -152,6 +155,10 @@
           && builtins.elem "/Users/monkey/Library/Logs/omlx/*.log" (megamanx.myConfig.vector.logGlobs or [])
           && megamanx.myConfig.bifrost.enable
           && megamanx.myConfig.bifrost.host == "127.0.0.1"
+          && megamanx.myConfig.bifrost.upstreams."opencode-go".type == "opencode-go"
+          && megamanx.myConfig.bifrost.upstreams."opencode-go".apiKeyFile == ".pi/agent/secrets/opencode-go-apikey"
+          && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".contextLength == 128000
+          && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".maxOutputTokens == 30720
           && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).port or null) == 8081
           && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).target or null) == "http://127.0.0.1:8081"
           && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).readinessUrl or null) == "http://127.0.0.1:8081/v1/models"

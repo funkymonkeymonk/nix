@@ -184,6 +184,7 @@
         version = "2.5.1";
         __intentionallyOverridingVersion = true;
         vendorHash = "sha256-boHu7mTTjtpEQnSUFXlT0reRio3E8qKULrJ4pVLp8nw=";
+        patches = (prev.patches or []) ++ [../packages/bifrost/patches/model-list-limits.patch];
         postPatch =
           (prev.postPatch or "")
           + ''

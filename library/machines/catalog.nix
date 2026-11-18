@@ -326,6 +326,10 @@
             enable = true;
             host = "127.0.0.1";
             logLevel = "debug";
+            modelMetadata."omlx/qwen3.8-27b" = {
+              contextLength = 128000;
+              maxOutputTokens = 30720;
+            };
             upstreams = {
               omlx = {
                 url = "http://localhost:8300";
@@ -334,6 +338,11 @@
                 streamIdleTimeoutInSeconds = 1800;
                 maxRetries = 3;
                 models = ["qwen3.8-27b"];
+              };
+              opencode-go = {
+                url = "https://opencode.ai/zen/go";
+                type = "opencode-go";
+                apiKeyFile = ".pi/agent/secrets/opencode-go-apikey";
               };
             };
           };

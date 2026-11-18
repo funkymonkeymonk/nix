@@ -24,10 +24,39 @@ with lib; let
   appDir = cfg.appDir;
 
   upstreamList = mapAttrsToList (name: value: value // {inherit name;}) cfg.upstreams;
+  modelMetadataJson = lib.mapAttrs (_modelId: metadata:
+    lib.filterAttrs (_: value: value != null) {
+      context_length = metadata.contextLength;
+      max_output_tokens = metadata.maxOutputTokens;
+    })
+  cfg.modelMetadata;
+  modelMetadataFile = pkgs.writeText "bifrost-model-metadata.json" (builtins.toJSON modelMetadataJson);
+
+  apiKeyEnvVar = upstreamName:
+    assert builtins.match "[A-Za-z0-9-]+" upstreamName != null; "BIFROST_${lib.toUpper (lib.replaceStrings ["-"] ["_"] upstreamName)}_API_KEY";
+  secretUpstreams = lib.filterAttrs (_: upstream: upstream.apiKeyFile != null) cfg.upstreams;
+  secretFileExports = lib.concatStringsSep "\n" (lib.mapAttrsToList (name: upstream: let
+      secretFile =
+        if lib.hasPrefix "/" upstream.apiKeyFile
+        then upstream.apiKeyFile
+        else "${darwinHomeDir}/${upstream.apiKeyFile}";
+    in ''
+      secret_file=${lib.escapeShellArg secretFile}
+      if [ -r "$secret_file" ]; then
+        export ${apiKeyEnvVar name}="$(${pkgs.coreutils}/bin/cat "$secret_file")"
+      else
+        echo "Bifrost: API key file is not readable: $secret_file; provider ${name} will be unavailable until restart" >&2
+      fi
+    '')
+    secretUpstreams);
+  mkApiKeyValue = upstream:
+    if upstream.apiKeyFile != null
+    then "env.${apiKeyEnvVar upstream.name}"
+    else upstream.apiKey;
 
   mkOpenaiProviderKey = upstream: {
     name = "${upstream.name}-key";
-    value = upstream.apiKey;
+    value = mkApiKeyValue upstream;
     models =
       if upstream.models != []
       then upstream.models
@@ -74,7 +103,7 @@ with lib; let
 
   mkVllmKeyForModel = upstream: modelName: {
     name = "${upstream.name}-${modelName}-key";
-    value = upstream.apiKey;
+    value = mkApiKeyValue upstream;
     models = [modelName];
     weight = 1.0;
     vllm_key_config = {
@@ -96,6 +125,7 @@ with lib; let
     vllmUpstreams = filter (u: u.type == "vllm") upstreamList;
     openaiUpstreams = filter (u: u.type == "openai") upstreamList;
     anthropicUpstreams = filter (u: u.type == "anthropic") upstreamList;
+    opencodeGoUpstreams = filter (u: u.type == "opencode-go") upstreamList;
   in
     (optionalAttrs (vllmUpstreams != []) {
       vllm = mkVllmProvider vllmUpstreams;
@@ -109,7 +139,19 @@ with lib; let
         name = u.name;
         value = mkProvider "anthropic" [u];
       })
-      anthropicUpstreams);
+      anthropicUpstreams)
+    // builtins.listToAttrs (map (u: {
+        name = u.name;
+        value = {
+          keys = [(mkOpenaiProviderKey u)];
+          network_config =
+            (mkNetworkConfig u)
+            // {
+              base_url = u.url;
+            };
+        };
+      })
+      opencodeGoUpstreams);
 
   configJson = builtins.toJSON {
     inherit providers;
@@ -118,6 +160,7 @@ with lib; let
   bifrostScript = pkgs.writeShellScript "bifrost-launchd-service" ''
     set -euo pipefail
     export HOME="${darwinHomeDir}"
+    ${secretFileExports}
 
     APP_DIR="${appDir}"
     mkdir -p "$APP_DIR"
@@ -174,6 +217,25 @@ in {
       description = "Directory for Bifrost data (config.json, SQLite DB, request logs)";
     };
 
+    modelMetadata = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          contextLength = mkOption {
+            type = types.nullOr types.ints.positive;
+            default = null;
+            description = "Context window in tokens. Bifrost advertises this value when the model reports no limit.";
+          };
+          maxOutputTokens = mkOption {
+            type = types.nullOr types.ints.positive;
+            default = null;
+            description = "Maximum output tokens. Bifrost advertises this value when the model reports no limit.";
+          };
+        };
+      });
+      default = {};
+      description = "Limits for models that do not report them. Use each full Bifrost model ID as the key.";
+    };
+
     upstreams = mkOption {
       type = types.attrsOf (types.submodule {
         options = {
@@ -182,14 +244,19 @@ in {
             description = "Base URL for the upstream inference server (e.g., http://localhost:8300/v1)";
           };
           type = mkOption {
-            type = types.enum ["openai" "anthropic" "vllm"];
+            type = types.enum ["openai" "anthropic" "vllm" "opencode-go"];
             default = "openai";
-            description = "Provider type for the upstream. Use 'openai' or 'anthropic' for compatible APIs, or 'vllm' for Bifrost's native vLLM integration";
+            description = "Provider type for the upstream. Use 'openai' or 'anthropic' for compatible APIs, 'vllm' for Bifrost's native vLLM integration, or 'opencode-go' for its native subscription provider";
           };
           apiKey = mkOption {
             type = types.str;
             default = "dummy";
-            description = "API key for the upstream (dummy for local servers)";
+            description = "API key for the upstream. Use dummy for local servers. The service ignores this value when apiKeyFile is set.";
+          };
+          apiKeyFile = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Optional API key file. Use an absolute path or a path relative to the primary user's home. The service exports its value through an environment-variable reference.";
           };
           allowPrivateNetwork = mkOption {
             type = types.bool;
@@ -253,6 +320,7 @@ in {
         EnvironmentVariables = {
           HOME = darwinHomeDir;
           USER = primaryUser;
+          BIFROST_MODEL_METADATA_FILE = "${modelMetadataFile}";
         };
       };
     };

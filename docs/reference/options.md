@@ -64,17 +64,21 @@ or changing a `myConfig.*` option.
 | `enable` | boolean | `false` | Enable Bifrost AI gateway for unified LLM access across all local inference servers |
 | `host` | string | `"0.0.0.0"` | Host to bind Bifrost to |
 | `logLevel` | one of "debug", "info", "warn", "error" | `"info"` | Bifrost log level |
+| `modelMetadata` | attribute set of (submodule) | `{ }` | Limits for models that do not report them. Use each full Bifrost model ID as the key. |
+| `modelMetadata.<modelId>.contextLength` | null or positive integer | `null` | Context window in tokens. Bifrost advertises this value when the model reports no limit. |
+| `modelMetadata.<modelId>.maxOutputTokens` | null or positive integer | `null` | Maximum output tokens. Bifrost advertises this value when the model reports no limit. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8081` | Port for Bifrost HTTP gateway |
 | `upstreams` | attribute set of (submodule) | `{ }` | Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b') |
 | `upstreams.<name>.allowPrivateNetwork` | boolean | `true` | Allow connecting to private network IPs (localhost, 192.168.x.x, 10.x.x.x) |
-| `upstreams.<name>.apiKey` | string | `"dummy"` | API key for the upstream (dummy for local servers) |
+| `upstreams.<name>.apiKey` | string | `"dummy"` | API key for the upstream. Use dummy for local servers. The service ignores this value when `apiKeyFile` is set. |
+| `upstreams.<name>.apiKeyFile` | null or string | `null` | Optional API key file. Use an absolute path or a path relative to the primary user's home. The service reads this file and exports its value through an environment-variable reference. |
 | `upstreams.<name>.maxRetries` | unsigned integer, meaning >=0 | `0` | Maximum retry attempts for retryable upstream errors (e.g. 503 from a busy local engine). Bifrost's stock default is 0 — a single attempt — so transient failures fail the whole request. Local agent gateways should set 2-3. |
 | `upstreams.<name>.models` | list of string | `[ ]` | Model names to expose via this upstream (empty = wildcard). For vllm provider, list the models available on the vLLM server |
 | `upstreams.<name>.requestTimeout` | unsigned integer, meaning >=0 | `120` | Default request timeout in seconds |
 | `upstreams.<name>.retryBackoffInitialMs` | positive integer, meaning >0 | `500` | Initial retry backoff in milliseconds (matches Bifrost's upstream default of 500ms). Retries back off exponentially up to retryBackoffMaxMs. |
 | `upstreams.<name>.retryBackoffMaxMs` | positive integer, meaning >0 | `5000` | Maximum retry backoff in milliseconds (matches Bifrost's upstream default of 5s). |
 | `upstreams.<name>.streamIdleTimeoutInSeconds` | unsigned integer, meaning >=0 | `60` | Idle timeout for streaming responses. If no chunk arrives from the upstream within this window, Bifrost closes the connection. Must be >= the upstream's longest prefill time. For oMLX with long system prompts (22k+ tokens), set to 600s to avoid 500 errors during chunked prefill. Bifrost default is 60s. |
-| `upstreams.<name>.type` | one of "openai", "anthropic", "vllm" | `"openai"` | Provider type for the upstream. Use 'openai' or 'anthropic' for compatible APIs, or 'vllm' for Bifrost's native vLLM integration |
+| `upstreams.<name>.type` | one of "openai", "anthropic", "vllm", "opencode-go" | `"openai"` | Provider type for the upstream. Use OpenAI or Anthropic for compatible APIs, vLLM for its native integration, or OpenCode Go for its native subscription provider. |
 | `upstreams.<name>.url` | string | *required* | Base URL for the upstream inference server (e.g., http://localhost:8300/v1) |
 
 ### myConfig.cachix
