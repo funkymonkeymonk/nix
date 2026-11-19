@@ -46,28 +46,49 @@ echo "=== CI PR Validation Path Selection Tests ==="
 
 if [[ -f "$SELECTOR" ]]; then
   assert_selection "Disk configuration changes" \
-    $'disko-files=true\ninstall-machine-script=false' \
+    $'disko-files=true\ninstall-machine-script=false\nvm-smoke-checks=false' \
     "disk-configs/zero.nix"
   assert_selection "Flake input changes" \
-    $'disko-files=true\ninstall-machine-script=false' \
+    $'disko-files=true\ninstall-machine-script=false\nvm-smoke-checks=true' \
     "flake.nix"
   assert_selection "Flake lock changes" \
-    $'disko-files=true\ninstall-machine-script=false' \
+    $'disko-files=true\ninstall-machine-script=false\nvm-smoke-checks=true' \
     "flake.lock"
+  assert_selection "VM user module changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "modules/common/users.nix"
+  assert_selection "NixOS base changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "modules/nixos/base.nix"
+  assert_selection "Role changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "modules/roles/foundation.nix"
+  assert_selection "Package changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "packages/example.nix"
+  assert_selection "Machine changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "machines/zero/default.nix"
+  assert_selection "VM test source changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "tests/vm/default.nix"
+  assert_selection "Unrelated Nix changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=false' \
+    "modules/home-manager/terminal.nix"
   assert_selection "Unrelated documentation changes" \
-    $'disko-files=false\ninstall-machine-script=false' \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=false' \
     "docs/reference/options.md" "README.md"
   assert_selection "Installer script changes" \
-    $'disko-files=false\ninstall-machine-script=true' \
+    $'disko-files=false\ninstall-machine-script=true\nvm-smoke-checks=false' \
     "scripts/install-machine.sh"
   assert_selection "Nearby unrelated scripts" \
-    $'disko-files=false\ninstall-machine-script=false' \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=false' \
     "scripts/install-machine.sh.bak"
   assert_selection "Combined disk and installer changes" \
-    $'disko-files=true\ninstall-machine-script=true' \
+    $'disko-files=true\ninstall-machine-script=true\nvm-smoke-checks=false' \
     "disk-configs/zero.nix" "scripts/install-machine.sh"
   assert_selection "Manual dispatch selects both validations" \
-    $'disko-files=true\ninstall-machine-script=true' \
+    $'disko-files=true\ninstall-machine-script=true\nvm-smoke-checks=true' \
     --all
 else
   echo "  FAIL: path-selection helper exists for behavioral tests"
@@ -94,6 +115,14 @@ assert_contains "workflow outputs consume Disko selection from that step" \
 assert_contains "workflow outputs consume installer selection from that step" \
   "$(cat "$WORKFLOW")" \
   'install-machine-script: ${{ steps.changed-checks.outputs.install-machine-script }}'
+assert_contains "workflow outputs consume VM smoke selection from that step" \
+  "$(cat "$WORKFLOW")" \
+  'vm-smoke-checks: ${{ steps.changed-checks.outputs.vm-smoke-checks }}'
+vm_job="$(awk '/^  vm-tests:/,/^  test-and-validate:/' "$WORKFLOW")"
+assert_contains "PR VM job gates on VM-relevant paths" \
+  "$vm_job" "needs.changes.outputs.vm-smoke-checks == 'true'"
+assert_contains "VM checks remain enabled outside pull requests" \
+  "$vm_job" "github.event_name != 'pull_request' ||"
 assert_contains "Disko step consumes its matching validation output" \
   "$disko_step" "needs.changes.outputs.disko-files == 'true'"
 assert_contains "Disko step builds the configured Disko script" \
