@@ -66,6 +66,7 @@
       })
       (nixpkgsConfig {inherit inputs;})
       inputs.opnix.darwinModules.default
+      ../../modules/common/opnix-darwin-home-secrets.nix
       ./remote-builders.nix
       (observabilityInventory.machineModule machine)
     ];

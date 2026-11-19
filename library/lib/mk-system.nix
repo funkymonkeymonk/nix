@@ -25,6 +25,7 @@ in rec {
           (mkNixpkgsConfigModule {inherit inputs;})
           (import ../../modules)
           inputs.opnix.darwinModules.default
+          ../../modules/common/opnix-darwin-home-secrets.nix
           ../machines/remote-builders.nix
         ]
         ++ modules

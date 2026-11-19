@@ -132,7 +132,13 @@
           && megamanx.home-manager.users.monkey.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/OpenCode Service Account - MegamanX/credential"
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.path == ".pi/agent/secrets/typesafe_api_key"
-          && builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after
+          && !megamanx.home-manager.users.monkey.programs.onepassword-secrets.enable
+          && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.path == "Users/monkey/.pi/agent/secrets/typesafe_api_key"
+          && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.owner == "monkey"
+          && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.mode == "0600"
+          && megamanx.services.onepassword-secrets.secrets.monkeyPiopencodeGoApiKey.path == "Users/monkey/.pi/agent/secrets/opencode-go-apikey"
+          && !(builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after)
+          && megamanx.services.onepassword-secrets.enable
           && megamanx.myConfig.pi.pluginsSource != null
           && megamanx.myConfig.zellij.enable
           && megamanx.myConfig.llmClient.serverPort == "8081"

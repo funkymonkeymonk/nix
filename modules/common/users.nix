@@ -7,10 +7,7 @@
 }:
 with lib; let
   inherit (config.myConfig) isDarwin;
-  # Check if home-manager module is available by checking if the option is defined
   homeManagerAvailable = builtins.hasAttr "home-manager" options;
-
-  # Build home-manager user configs only if home-manager is available
   sshAgentEnabled = config.myConfig.onepassword.enable && config.myConfig.onepassword.enableSSHAgent;
   githubSshEnabled = sshAgentEnabled && config.myConfig.onepassword.useSSHForGitHub;
   sshSigningProgram =
@@ -78,9 +75,7 @@ with lib; let
           enableDefaultConfig = false;
           includes = user.sshIncludes;
           settings = lib.optionalAttrs sshAgentEnabled {
-            "*" = {
-              IdentityAgent = sshIdentityAgent;
-            };
+            "*" = {IdentityAgent = sshIdentityAgent;};
           };
         };
 
@@ -88,12 +83,8 @@ with lib; let
           SSH_AUTH_SOCK = sshAgentSocket;
         };
 
-        # Disable home-manager manpages to avoid expensive options.json
-        # generation and builtins.derivation context warnings
         manual.manpages.enable = lib.mkDefault false;
 
-        # Allowed signers file for SSH signature verification
-        # Maps email addresses to trusted SSH public keys for local commit verification
         home.file.".ssh/allowed_signers".text =
           lib.optionalString (
             config.myConfig.onepassword.enableGitSigning
@@ -102,7 +93,6 @@ with lib; let
             ${user.email} ${config.myConfig.onepassword.signingKey}
           '';
 
-        # Include shared home-manager modules
         imports =
           [
             ../../modules/home-manager/themes.nix
@@ -119,7 +109,6 @@ with lib; let
           ++ optional config.myConfig.email-agent.enable ../../modules/home-manager/email-agent.nix
           ++ optional config.myConfig.email-backup.enable ../../modules/home-manager/email-backup.nix;
 
-        # Pass user info and system config to home-manager modules
         _module.args = {
           userConfig = user;
           inherit (config) myConfig;
@@ -130,7 +119,6 @@ with lib; let
 in {
   config =
     {
-      # Validation assertions
       assertions = [
         {
           assertion = lib.all (user: user.name != "") config.myConfig.users;
@@ -142,8 +130,6 @@ in {
         }
       ];
 
-      # Configure users based on myConfig.users
-      # Note: Shell is handled by target-specific configurations
       users.users = listToAttrs (map (user: {
           inherit (user) name;
           value =
@@ -154,17 +140,10 @@ in {
                 else "/home/${user.name}";
             }
             // optionalAttrs (!isDarwin) {
-              # NixOS-specific user options
               useDefaultShell = true;
-            }
-            // optionalAttrs user.isAdmin {
-              # Additional admin configuration if needed
             };
         })
         config.myConfig.users);
-
-      # Configure home-manager for each user (only if home-manager is available)
-      # Using optionalAttrs to completely avoid defining home-manager when not available
     }
     // optionalAttrs homeManagerAvailable {
       home-manager.users = homeManagerUsersConfig;
