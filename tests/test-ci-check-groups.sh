@@ -72,7 +72,7 @@ run_plan pr '{"batchSize":4}'
 assert_output matrix '{"include":[{"checks":["core-packages","foundation-options","nixos-vector-enabled","onepassword-guard"]},{"checks":["vector-options","vm-role-generator"]}]}'
 
 run_plan extended '{"batchSize":5}'
-assert_output matrix '{"include":[{"checks":["overlay-openai-evals","overlay-rtk"]}]}'
+assert_output matrix '{"include":[{"checks":["module-coverage","overlay-openai-evals","overlay-rtk"]}]}'
 
 run_plan vm '{"batchSize":10}'
 assert_output matrix '{"include":[{"checks":["vm-packages","vm-role-developer","vm-role-foundation","vm-ssh","vm-ssh-target","vm-users"]}]}'
@@ -84,7 +84,7 @@ run_plan non-vm '{"batchSize":3,"checkPrefixes":["vector-","nixos-vector-"]}'
 assert_output matrix '{"include":[{"checks":["nixos-vector-enabled","vector-options"]}]}'
 
 run_plan non-vm '{"batchSize":20,"checkPrefixes":["no-such-check-prefix"]}'
-assert_output matrix '{"include":[{"checks":["core-packages","foundation-options","module-coverage","nixos-vector-enabled","onepassword-guard","overlay-openai-evals","overlay-rtk","vector-options","vm-role-generator"]}]}'
+assert_output matrix '{"include":[{"checks":["core-packages","foundation-options","nixos-vector-enabled","onepassword-guard","overlay-openai-evals","overlay-rtk","vector-options","vm-role-generator"]}]}'
 
 : > "$MOCK_NIX_CALLS"
 bash "$SCRIPT" build non-vm '{"checks":["vector-options","nixos-vector-enabled"],"maxJobs":2}'
@@ -98,7 +98,7 @@ assert_not_build_argument '.#checks.x86_64-linux.vm-users'
 : > "$MOCK_NIX_CALLS"
 bash "$SCRIPT" build non-vm '{"maxJobs":2}'
 assert_build_argument '.#checks.x86_64-linux.overlay-rtk'
-assert_build_argument '.#checks.x86_64-linux.module-coverage'
+assert_not_build_argument '.#checks.x86_64-linux.module-coverage'
 assert_build_argument '.#checks.x86_64-linux.vm-role-generator'
 assert_not_build_argument '.#checks.x86_64-linux.vm-users'
 
@@ -118,6 +118,7 @@ assert_not_build_argument '.#checks.x86_64-linux.module-coverage'
 
 : > "$MOCK_NIX_CALLS"
 bash "$SCRIPT" build extended '{"maxJobs":2}'
+assert_build_argument '.#checks.x86_64-linux.module-coverage'
 assert_build_argument '.#checks.x86_64-linux.overlay-openai-evals'
 assert_build_argument '.#checks.x86_64-linux.overlay-rtk'
 assert_not_build_argument '.#checks.x86_64-linux.core-packages'

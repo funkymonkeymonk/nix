@@ -38,10 +38,10 @@ filter_for_group() {
       jq -c '[.[] | select(. == "vm-role-generator" or (startswith("vm-") | not)) | select(startswith("overlay-") | not) | select(. != "module-coverage")]' <<< "$all_checks"
       ;;
     extended)
-      jq -c '[.[] | select(startswith("overlay-"))]' <<< "$all_checks"
+      jq -c '[.[] | select(startswith("overlay-") or . == "module-coverage")]' <<< "$all_checks"
       ;;
     non-vm)
-      jq -c '[.[] | select(. == "vm-role-generator" or (startswith("vm-") | not))]' <<< "$all_checks"
+      jq -c '[.[] | select(. == "vm-role-generator" or (startswith("vm-") | not)) | select(. != "module-coverage")]' <<< "$all_checks"
       ;;
     vm-pr)
       jq -cn --argjson available "$all_checks" \
