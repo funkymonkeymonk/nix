@@ -15,24 +15,24 @@ concurrency:
 jobs:
   flake-update:
     name: Update Flake and Create PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
             download-attempts = 10
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+        uses: DeterminateSystems/magic-nix-cache-action@v14
         with:
           upstream-cache: false
       - name: Install additional tools

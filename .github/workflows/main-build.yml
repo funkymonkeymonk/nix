@@ -18,16 +18,16 @@ concurrency:
 jobs:
   discover-targets:
     name: Discover Changed Configurations
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       darwin-changed: ${{ steps.check-changes.outputs.darwin-changed }}
       nixos-changed: ${{ steps.check-changes.outputs.nixos-changed }}
       nixos-arm-changed: ${{ steps.check-changes.outputs.nixos-arm-changed }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -35,7 +35,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Restore successful derivation cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .drv-cache
           key: main-build-drv-${{ github.run_id }}-${{ github.run_attempt }}
@@ -66,7 +66,7 @@ jobs:
       - name: Package candidate derivation cache
         run: tar -cf drv-cache.tar .drv-cache
       - name: Upload candidate derivation cache
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: main-build-drv-candidate
           path: drv-cache.tar
@@ -81,9 +81,9 @@ jobs:
         shell: bash
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -91,9 +91,9 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+        uses: DeterminateSystems/magic-nix-cache-action@v14
       - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -122,15 +122,15 @@ jobs:
   build-linux:
     name: Build Linux Configurations
     needs: [discover-targets]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -138,9 +138,9 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+        uses: DeterminateSystems/magic-nix-cache-action@v14
       - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -182,9 +182,9 @@ jobs:
         shell: bash
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -192,9 +192,9 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+        uses: DeterminateSystems/magic-nix-cache-action@v14
       - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -227,7 +227,7 @@ jobs:
           echo "All ARM NixOS configurations built and pushed to Cachix"
   cache-health:
     name: Verify Cache Population
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [discover-targets, build-darwin, build-linux, build-linux-arm]
     if: always()
     steps:
@@ -276,7 +276,7 @@ jobs:
           success() && needs.discover-targets.result == 'success' &&
           needs.build-darwin.result == 'success' && needs.build-linux.result == 'success' &&
           needs.build-linux-arm.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: main-build-drv-candidate
       - name: Unpack candidate derivation cache
@@ -286,19 +286,19 @@ jobs:
           success() && needs.discover-targets.result == 'success' &&
           needs.build-darwin.result == 'success' && needs.build-linux.result == 'success' &&
           needs.build-linux-arm.result == 'success'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .drv-cache
           key: main-build-drv-${{ github.run_id }}-${{ github.run_attempt }}
   full-test-suite:
     name: Full Test Suite
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -306,7 +306,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
