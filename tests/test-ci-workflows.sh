@@ -113,11 +113,11 @@ assert "overlay source checker changes trigger its CI regression test" \
 assert "PR workflow keeps VM smoke checks independent" \
   "grep -q 'bash .github/scripts/ci-checks.sh build vm-pr' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check matrix is capped at eight concurrent runners" \
-  "grep -q 'max-parallel: 8' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check shards contain at most three checks" \
-  "grep -q 'batchSize:3' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "three-check PR shards have a twenty-five-minute budget" \
+assert "PR check matrix is capped at six concurrent runners" \
+  "grep -q 'max-parallel: 6' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR check shards contain at most four checks" \
+  "grep -q 'batchSize:4' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "four-check PR shards have a twenty-five-minute budget" \
   "grep -q 'timeout-minutes: 25' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "PR workflow omits full role-package VM tests" \
   "! grep -Eq 'vm-role-(foundation|developer)' \
