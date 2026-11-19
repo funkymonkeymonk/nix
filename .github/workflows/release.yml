@@ -21,7 +21,7 @@ jobs:
   # Check if this push was from a weekly-release PR
   check-trigger:
     name: Check Release Trigger
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       should-release: ${{ steps.check.outputs.should_release }}
       pr-number: ${{ steps.check.outputs.pr_number }}
@@ -60,17 +60,17 @@ jobs:
   # Build ISO and create GitHub release
   release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check-trigger
     if: needs.check-trigger.outputs.should-release == 'true'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -78,7 +78,7 @@ jobs:
             download-attempts = 10
             extra-platforms = x86_64-linux
       - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -102,7 +102,7 @@ jobs:
           echo "iso_size=$ISO_SIZE" >> "$GITHUB_OUTPUT"
           echo "iso_sha256=$ISO_SHA256" >> "$GITHUB_OUTPUT"
       - name: Upload ISO artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nixos-installer-iso
           path: result/iso/*.iso
@@ -114,7 +114,7 @@ jobs:
           TAG="v$(date +%Y.%m.%d)"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Weekly Release ${{ steps.tag.outputs.tag }}
@@ -146,7 +146,7 @@ jobs:
   # Summary
   summary:
     name: Release Summary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [check-trigger, release]
     if: always()
     steps:

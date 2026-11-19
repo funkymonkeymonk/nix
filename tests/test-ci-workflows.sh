@@ -17,7 +17,81 @@ assert() {
   fi
 }
 
+assert_exact_line() {
+  local desc="$1"
+  local block="$2"
+  local expected="$3"
+  if grep -Fxq -- "$expected" <<< "$block"; then
+    echo "  PASS: $desc"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $desc"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+extract_job() {
+  local job="$1"
+  awk -v target="  $job:" '
+    $0 == target { active = 1; print; next }
+    active && /^  [^ ]/ { exit }
+    active { print }
+  ' "$REPO_ROOT/.github/workflows/pr-validation.yml"
+}
+
+extract_step() {
+  local step="$1"
+  awk -v target="      - name: $step" '
+    $0 == target { active = 1; print; next }
+    active && /^      - name:/ { exit }
+    active { print }
+  '
+}
+
 echo "=== CI Workflow Tests ==="
+
+assert "workflows do not invoke the retired OpenCode comment action" \
+  "! grep -Fq 'sst/opencode/github@github-v1' '$REPO_ROOT'/.github/workflows/*.yml"
+
+# Require the selected Node 24 releases in every workflow that uses them.
+for action_ref in \
+  'actions/checkout@v6' \
+  'cachix/cachix-action@v17' \
+  'DeterminateSystems/nix-installer-action@v23' \
+  'DeterminateSystems/magic-nix-cache-action@v14' \
+  'DeterminateSystems/flakehub-push@v7' \
+  'actions/cache@v5' \
+  'actions/cache/restore@v5' \
+  'actions/cache/save@v5' \
+  'actions/upload-artifact@v6' \
+  'actions/download-artifact@v7' \
+  'dorny/paths-filter@v4' \
+  'softprops/action-gh-release@v3'; do
+  action="${action_ref%@*}"
+  assert "$action uses the selected Node 24 ref" \
+    "awk -v action='$action' -v expected='$action_ref' '
+      /uses:/ {
+        line = \$0
+        sub(/^.*uses:[[:space:]]*[\"\047]?/, \"\", line)
+        sub(/[\"\047[:space:]#].*$/, \"\", line)
+        split(line, parts, \"@\")
+        if (parts[1] == action) { found = 1; if (line != expected) bad = 1 }
+      }
+      END { exit !(found && !bad) }
+    ' '$REPO_ROOT'/.github/workflows/*.yml"
+done
+
+assert "all Ubuntu runners use explicit maintained 24.04 labels" \
+  "awk '
+    /runs-on:/ && /ubuntu/ {
+      line = \$0
+      sub(/^.*runs-on:[[:space:]]*[\"\047]?/, \"\", line)
+      sub(/[\"\047[:space:]#].*$/, \"\", line)
+      found = 1
+      if (line != \"ubuntu-24.04\" && line != \"ubuntu-24.04-arm\") bad = 1
+    }
+    END { exit !(found && !bad) }
+  ' '$REPO_ROOT'/.github/workflows/*.yml"
 
 # Test: every Nix installer invocation raises retries for transient cache downloads.
 for workflow in "$REPO_ROOT"/.github/workflows/*.yml; do
@@ -113,12 +187,15 @@ assert "overlay source checker changes trigger its CI regression test" \
 assert "PR workflow keeps VM smoke checks independent" \
   "grep -q 'bash .github/scripts/ci-checks.sh build vm-pr' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check matrix is capped at eight concurrent runners" \
-  "grep -q 'max-parallel: 8' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check shards contain at most three checks" \
-  "grep -q 'batchSize:3' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "three-check PR shards have a twenty-five-minute budget" \
-  "grep -q 'timeout-minutes: 25' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+test_validate_job="$(extract_job test-and-validate)"
+discover_checks_job="$(extract_job discover-checks)"
+check_planning_step="$(extract_step 'Plan changed PR checks' <<< "$discover_checks_job")"
+assert_exact_line "test-and-validate caps concurrency at exactly six runners" \
+  "$test_validate_job" "      max-parallel: 6"
+assert_exact_line "PR planner batches exactly four checks" \
+  "$check_planning_step" "            '{batchSize:4,checkPrefixes:\$prefixes}')"
+assert_exact_line "four-check PR shards keep a twenty-five-minute budget" \
+  "$test_validate_job" "    timeout-minutes: 25"
 assert "PR workflow omits full role-package VM tests" \
   "! grep -Eq 'vm-role-(foundation|developer)' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
@@ -266,15 +343,172 @@ assert "main workflow does not install Devenv for the full test suite" \
   "! grep -q 'github:cachix/devenv/.*#devenv' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "full test suite is restricted to main" \
-  "grep -q \"if: github.ref == 'refs/heads/main'\" \
+  "grep -q \"if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'\" \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
+full_suite_job="$(awk '
+  /^  full-test-suite:/ { active = 1 }
+  active && /^  [^ ]/ && !/^  full-test-suite:/ { exit }
+  active { print }
+' "$REPO_ROOT/.github/workflows/main-build.yml")"
+full_suite_condition="$(sed -n 's/^    if: //p' <<< "$full_suite_job")"
+full_suite_runs_for() {
+  local event_name="$1"
+  local ref="$2"
+  local condition="$full_suite_condition"
+  condition=${condition//github.event_name/\"$event_name\"}
+  condition=${condition//github.ref/\"$ref\"}
+  eval "[[ $condition ]]"
+}
+assert "main full test suite skips routine push events" \
+  "! full_suite_runs_for push refs/heads/main"
+assert "main full test suite runs on manual main dispatch" \
+  "full_suite_runs_for workflow_dispatch refs/heads/main"
 
 # Test: deploy builds submit whole configuration sets to Nix and Cachix.
+main_workflow="$REPO_ROOT/.github/workflows/main-build.yml"
+main_job() {
+  awk -v target="  $1:" '
+    $0 == target { active = 1; print; next }
+    active && /^  [^ ]/ { exit }
+    active { print }
+  ' "$main_workflow"
+}
+main_discovery="$(main_job discover-targets)"
+assert_exact_line "manual force selection feeds change detection" \
+  "$(extract_step 'Check which configs changed' <<< "$main_discovery")" \
+  '          FORCE_REBUILD: ${{ inputs.force-rebuild || false }}'
+main_health="$(main_job cache-health)"
+main_save="$(extract_step 'Save successful derivation cache' <<< "$main_health")"
+assert "main discovery compares derivations using a dedicated successful-build cache" \
+  "grep -q 'check-config-changes.sh' <<< \"\$main_discovery\" && \
+   grep -q 'main-build-drv-' <<< \"\$main_discovery\" && \
+   ! grep -q 'actions/cache/save' <<< \"\$main_discovery\""
+for platform in darwin linux linux-arm; do
+  main_build="$(main_job "build-$platform")"
+  case "$platform" in
+    darwin) output=darwin-changed; runner=macos-latest ;;
+    linux) output=nixos-changed; runner=ubuntu-24.04 ;;
+    linux-arm) output=nixos-arm-changed; runner=ubuntu-24.04-arm ;;
+  esac
+  assert "main $platform builds only selected configurations on its native runner" \
+    "grep -q 'needs:.*discover-targets' <<< \"\$main_build\" && \
+     grep -q 'needs.discover-targets.outputs.$output' <<< \"\$main_build\" && \
+     grep -q 'runs-on: $runner' <<< \"\$main_build\" && \
+     grep -q 'No .*configurations.*' <<< \"\$main_build\" && \
+     grep -q 'exit 0' <<< \"\$main_build\""
+done
+
+# Execute each real build step with controlled selection outputs. Stub only the
+# external Nix build, recording its arguments so invalid lists cannot hide a
+# partial build and valid lists must reach the correct platform installable.
+selection_tmp="$(mktemp -d)"
+trap 'rm -rf "$selection_tmp"' EXIT
+mkdir -p "$selection_tmp/bin"
+extract_step 'Discover configurations' <<< "$main_discovery" | sed -n '/^        run: |$/,$p' |
+  sed '1d; s/^          //' > "$selection_tmp/discover"
+cat > "$selection_tmp/bin/nix" <<'EVAL_STUB'
+#!/usr/bin/env bash
+case "$*" in
+  *darwinConfigurations*) printf '%s\n' "$DARWIN_JSON" ;;
+  *nixosConfigurations*) printf '%s\n' "$NIXOS_JSON" ;;
+  *) exit 1 ;;
+esac
+EVAL_STUB
+chmod +x "$selection_tmp/bin/nix"
+run_discovery() {
+  : > "$selection_tmp/inventory"
+  DARWIN_JSON="$1" NIXOS_JSON="$2" GITHUB_OUTPUT="$selection_tmp/inventory" \
+    PATH="$selection_tmp/bin:$PATH" bash "$selection_tmp/discover"
+}
+valid='["test-host"]'
+for invalid in '' '[]' '{"host":"test-host"}' '["bad name"]' '[] ["test-host"]'; do
+  assert "Darwin discovery rejects $(printf '%q' "$invalid")" \
+    '! run_discovery "$invalid" "$valid" && [[ ! -s "$selection_tmp/inventory" ]]'
+  assert "NixOS discovery rejects $(printf '%q' "$invalid")" \
+    '! run_discovery "$valid" "$invalid" && [[ ! -s "$selection_tmp/inventory" ]]'
+done
+assert "discovery rejects an empty eligible NixOS inventory" \
+  '! run_discovery "$valid" "[\"installer-iso\"]"'
+assert "discovery emits eligible platform inventories" \
+  'run_discovery "$valid" "[\"installer-iso\",\"test-host\"]" &&
+   grep -Fxq "darwin-configs=$valid" "$selection_tmp/inventory" &&
+   grep -Fxq "nixos-configs=$valid" "$selection_tmp/inventory"'
+cat > "$selection_tmp/bin/nix" <<'NIX_STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$NIX_ARGS"
+printf '%s\n' /nix/store/test-output
+NIX_STUB
+cat > "$selection_tmp/bin/cachix" <<'CACHIX_STUB'
+#!/usr/bin/env bash
+[[ "$*" == 'push funkymonkeymonk' && "$CACHIX_AUTH_TOKEN" == test-token ]] &&
+  grep -Fxq /nix/store/test-output
+CACHIX_STUB
+chmod +x "$selection_tmp/bin/"{nix,cachix}
+run_main_selection() {
+  : > "$selection_tmp/nix-args"
+  TEST_CONFIGS="$1" CACHIX_AUTH_TOKEN="${2-test-token}" NIX_ARGS="$selection_tmp/nix-args" \
+    GITHUB_OUTPUT="$selection_tmp/github-output" PATH="$selection_tmp/bin:$PATH" \
+    bash "$selection_tmp/build-step" > "$selection_tmp/stdout" 2> "$selection_tmp/stderr"
+}
+for platform in darwin linux linux-arm; do
+  main_build="$(main_job "build-$platform")"
+  case "$platform" in
+    darwin) step='Build Darwin configurations (push to Cachix)'; expected='.#darwinConfigurations.test-host.system' ;;
+    linux) step='Build Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
+    linux-arm) step='Build ARM Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
+  esac
+  assert_exact_line "$platform build receives the push credential" \
+    "$(extract_step "$step" <<< "$main_build")" \
+    '          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}'
+  extract_step "$step" <<< "$main_build" | awk '
+    /^        run: \|$/ { active=1; next }
+    active && /^          / { sub(/^          /, ""); print; next }
+    active { exit }
+  ' | sed 's/^CONFIGS=.*/CONFIGS="$TEST_CONFIGS"/' > "$selection_tmp/build-step"
+  for invalid in '' '[' 'null' '{}' '"target"' '[1]' '[""]' '["bad name"]' '["test-host"] [' '[] []'; do
+    assert "$platform rejects invalid selection $(printf '%q' "$invalid")" \
+      "! run_main_selection \"\$invalid\" && [[ ! -s \"\$selection_tmp/nix-args\" ]]"
+  done
+  assert "$platform accepts an empty array without building" \
+    "run_main_selection '[]' && [[ ! -s \"\$selection_tmp/nix-args\" ]]"
+  assert "$platform rejects a missing credential even with no selected configs" \
+    "! run_main_selection '[]' ''"
+  assert "$platform push rejection fails the build job" \
+    "! run_main_selection '[\"test-host\"]' rejected-token"
+  assert "$platform builds the selected installable" \
+    "run_main_selection '[\"test-host\"]' && grep -Fxq -- \"\$expected\" \"\$selection_tmp/nix-args\""
+done
+assert "main candidate cache is published only after all build jobs pass" \
+  "grep -q 'needs:.*discover-targets.*build-darwin.*build-linux.*build-linux-arm' <<< \"\$main_health\" && \
+   grep -q 'actions/download-artifact@v7' <<< \"\$main_health\" && \
+   grep -q 'actions/cache/save@v5' <<< \"\$main_health\" && \
+   grep -q 'success()' <<< \"\$main_save\" && \
+   grep -q 'needs.discover-targets.result == .success.' <<< \"\$main_save\" && \
+   grep -q 'needs.build-darwin.result == .success.' <<< \"\$main_save\" && \
+   grep -q 'needs.build-linux.result == .success.' <<< \"\$main_save\" && \
+   grep -q 'needs.build-linux-arm.result == .success.' <<< \"\$main_save\""
+# Exercise the actual save condition with failed, skipped, and cancelled jobs.
+save_condition="$(awk '/^        if: >-/{active=1; next} active && /^          /{printf "%s ", $0; next} active{exit}' <<< "$main_save")"
+save_condition=${save_condition//success\(\)/\"\$step_result\" == \"success\"}
+save_condition=${save_condition//needs.discover-targets.result/\"\$discovery\"}
+save_condition=${save_condition//needs.build-darwin.result/\"\$darwin\"}
+save_condition=${save_condition//needs.build-linux.result/\"\$linux\"}
+save_condition=${save_condition//needs.build-linux-arm.result/\"\$arm\"}
+save_allowed() { eval "[[ $save_condition ]]"; }
+step_result=success discovery=success darwin=success linux=success arm=success
+assert "successful builds allow candidate publication" "save_allowed"
+for job in discovery darwin linux arm step_result; do
+  for result in failure skipped cancelled; do
+    printf -v "$job" '%s' "$result"
+    assert "$job $result prevents candidate publication" "! save_allowed"
+    printf -v "$job" '%s' success
+  done
+done
 assert "main build submits all configs in one Nix invocation" \
   "grep -q 'nix build --no-link.*installables' \\
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "main build warms the bootstrap deployment closure" \
-  "grep -q 'select(test(\"^installer-\") | not)' \\
+  "grep -q 'test(\"^installer-\") | not' \\
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "deploy machines use the shared Cachix substituter" \
   "grep -q 'https://funkymonkeymonk.cachix.org' \\

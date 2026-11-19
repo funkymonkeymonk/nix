@@ -62,9 +62,30 @@ if [[ ! -x "$SCRIPT" ]]; then
   echo "FAIL: executable derivation cache helper does not exist: $SCRIPT"
   exit 1
 fi
+
+# A missing successful baseline must select every non-ARM target and all ARM
+# targets, even if this is a rerun after a previous build failed.
+saved_cache="$DRV_CACHE_DIR"
+DRV_CACHE_DIR="$TMP_DIR/missing-cache" "$SCRIPT"
+assert_output darwin-changed '["existing-darwin","new-darwin"]'
+assert_output nixos-changed '["existing-linux","new-linux"]'
+assert_output nixos-arm-changed '["new-arm"]'
+: > "$GITHUB_OUTPUT"
 "$SCRIPT"
 assert_output darwin-changed '["new-darwin"]'
 assert_output nixos-changed '["new-linux"]'
+assert_output nixos-arm-changed '["new-arm"]'
+
+: > "$GITHUB_OUTPUT"
+"$SCRIPT"
+assert_output darwin-changed '[]'
+assert_output nixos-changed '[]'
+assert_output nixos-arm-changed '["new-arm"]'
+
+: > "$GITHUB_OUTPUT"
+FORCE_REBUILD=true "$SCRIPT"
+assert_output darwin-changed '["existing-darwin","new-darwin"]'
+assert_output nixos-changed '["existing-linux","new-linux"]'
 assert_output nixos-arm-changed '["new-arm"]'
 
 if [[ "$(cat "$DRV_CACHE_DIR/darwin-configs")" != "$DARWIN_CONFIGS" || \
@@ -97,6 +118,20 @@ fi
 CHANGED_HASH_FOR=existing-darwin "$SCRIPT"
 assert_output darwin-changed '["existing-darwin"]'
 echo "  PASS: a changed existing configuration is detected"
+
+# Model discovery on a restored copy. If a build fails, that candidate is not
+# published; the next run must compare against the old successful baseline.
+cp -R "$saved_cache" "$TMP_DIR/successful-cache"
+printf '/nix/store/old-darwin.drv\n' > "$TMP_DIR/successful-cache/darwin-existing-darwin.hash"
+cp -R "$TMP_DIR/successful-cache" "$TMP_DIR/failed-run-cache"
+: > "$GITHUB_OUTPUT"
+DRV_CACHE_DIR="$TMP_DIR/failed-run-cache" CHANGED_HASH_FOR=existing-darwin "$SCRIPT"
+assert_output darwin-changed '["existing-darwin"]'
+# The failed candidate is discarded; rerun from the successful copy.
+cp -R "$TMP_DIR/successful-cache" "$TMP_DIR/retry-cache"
+: > "$GITHUB_OUTPUT"
+DRV_CACHE_DIR="$TMP_DIR/retry-cache" CHANGED_HASH_FOR=existing-darwin "$SCRIPT"
+assert_output darwin-changed '["existing-darwin"]'
 
 previous_configs="$(cat "$DRV_CACHE_DIR/darwin-configs")"
 previous_hash="$(cat "$DRV_CACHE_DIR/darwin-new-darwin.hash")"
