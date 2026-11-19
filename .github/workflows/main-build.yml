@@ -52,13 +52,18 @@ jobs:
         id: discover
         run: |
           set -euo pipefail
+          inventory() {
+            jq -ces 'if length == 1 and (.[0] | type == "array" and length > 0 and
+              all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))
+              then .[0] else error("invalid configuration inventory") end'
+          }
           darwin=$(nix eval .#darwinConfigurations \
-            --apply 'x: builtins.attrNames x' --json | jq -c .)
+            --apply 'x: builtins.attrNames x' --json | inventory)
           # Installer images are built separately, except ARM targets which
           # retain their existing native build behavior.
           nixos=$(nix eval --impure .#nixosConfigurations \
-            --apply 'x: builtins.attrNames x' --json | jq -c \
-            '[.[] | select((test("^installer-") | not) or test("-arm(-|$)"))]')
+            --apply 'x: builtins.attrNames x' --json | inventory | jq -ce \
+            '[.[] | select((test("^installer-") | not) or test("-arm(-|$)"))] | select(length > 0)')
           echo "darwin-configs=$darwin" >> "$GITHUB_OUTPUT"
           echo "nixos-configs=$nixos" >> "$GITHUB_OUTPUT"
       - name: Check which configs changed
