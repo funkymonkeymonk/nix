@@ -24,6 +24,10 @@ assert_selection() {
 }
 
 echo "=== CI Changed Check Selection Tests ==="
+assert_selection "Extended-only coverage change" '[]' 'tests/test-coverage.nix'
+assert_selection "Coverage plus vector change" \
+  '["nixos-vector-","type-server-log-aggregator","vector-"]' \
+  'tests/test-coverage.nix' 'modules/nixos/vector.nix'
 assert_selection \
   "Vector implementation" \
   '["nixos-vector-","type-server-log-aggregator","vector-"]' \

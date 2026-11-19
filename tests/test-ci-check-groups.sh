@@ -80,6 +80,16 @@ assert_output matrix '{"include":[{"checks":["vm-packages","vm-role-developer","
 run_plan vm-extended '{"batchSize":5}'
 assert_output matrix '{"include":[{"checks":["vm-role-foundation","vm-role-developer"]}]}'
 
+plan_changed_paths() {
+  local prefixes
+  prefixes=$(printf '%s\n' "$@" | "$REPO_ROOT/.github/scripts/select-pr-checks.sh")
+  run_plan non-vm "{\"batchSize\":4,\"checkPrefixes\":$prefixes}"
+}
+plan_changed_paths tests/test-coverage.nix
+assert_output matrix '{"include":[]}'
+plan_changed_paths tests/test-coverage.nix modules/nixos/vector.nix
+assert_output matrix '{"include":[{"checks":["nixos-vector-enabled","vector-options"]}]}'
+
 run_plan non-vm '{"batchSize":3,"checkPrefixes":["vector-","nixos-vector-"]}'
 assert_output matrix '{"include":[{"checks":["nixos-vector-enabled","vector-options"]}]}'
 

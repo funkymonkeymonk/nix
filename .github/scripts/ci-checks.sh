@@ -84,7 +84,7 @@ case "$mode" in
           | . as $check
           | select(any($prefixes[]; . as $prefix
             | ($prefix == "*" or ($check | startswith($prefix)))))]')
-      if [[ $(jq 'length' <<< "$selected_checks") -eq 0 ]]; then
+      if [[ "$check_prefixes" != '[]' && $(jq 'length' <<< "$selected_checks") -eq 0 ]]; then
         echo "No checks matched the selected prefixes; falling back to the full '$group' group" >&2
         selected_checks=$(filter_for_group "$group")
       fi
