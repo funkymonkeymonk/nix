@@ -21,12 +21,12 @@ jobs:
   lint:
     name: Quick Validation & Code Quality
     needs: [changes]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -34,7 +34,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
@@ -56,10 +56,10 @@ jobs:
     name: CI Helper Regression Tests
     needs: [changes]
     if: needs.changes.outputs.ci-helper-files == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Test CI workflow helpers
         run: |
           bash tests/test-ci-workflows.sh
@@ -72,7 +72,7 @@ jobs:
   # Runs in parallel with lint since it only checks file paths
   changes:
     name: Detect Changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       nix-files: ${{ steps.filter.outputs.nix-files }}
       workflows: ${{ steps.filter.outputs.workflows }}
@@ -83,11 +83,11 @@ jobs:
       vm-smoke-checks: ${{ steps.changed-checks.outputs.vm-smoke-checks }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check for Nix file changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -125,7 +125,7 @@ jobs:
   # Discover what configurations exist and check if they need rebuilds
   discover-targets:
     name: Discover Build Targets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, changes]
     if: >
       ${{
@@ -142,9 +142,9 @@ jobs:
       nixos-arm-changed: ${{ steps.check-changes.outputs.nixos-arm-changed }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -152,13 +152,13 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
       # Restore cached derivation hashes from previous runs
       - name: Restore derivation cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         id: drv-cache
         with:
           path: .drv-cache
@@ -203,7 +203,7 @@ jobs:
       # Uses if: always() so the cache is saved even if downstream jobs fail.
       - name: Save derivation cache
         if: always() && steps.check-changes.outcome == 'success'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .drv-cache
           key: drv-${{ github.ref }}-${{ github.sha }}
@@ -219,9 +219,9 @@ jobs:
         config: ${{ fromJson(needs.discover-targets.outputs.darwin-changed) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -229,7 +229,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
@@ -250,7 +250,7 @@ jobs:
   build-nixos:
     name: Build NixOS - ${{ matrix.config }}
     needs: discover-targets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ needs.discover-targets.outputs.nixos-changed != '[]' }}
     strategy:
       fail-fast: false
@@ -258,9 +258,9 @@ jobs:
         config: ${{ fromJson(needs.discover-targets.outputs.nixos-changed) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -268,7 +268,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
@@ -300,9 +300,9 @@ jobs:
         config: ${{ fromJson(needs.discover-targets.outputs.nixos-arm-changed) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -310,7 +310,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
@@ -332,7 +332,7 @@ jobs:
   # Collect all build results and report
   build-report:
     name: Build Report
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - ci-helper-tests
       - build-darwin
@@ -422,16 +422,16 @@ jobs:
   # consumed by the bounded-concurrency check jobs below.
   discover-checks:
     name: Discover PR Check Matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, changes]
     if: ${{ needs.changes.outputs.check-prefixes != '[]' }}
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -439,7 +439,7 @@ jobs:
             download-attempts = 10
             access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
@@ -469,14 +469,14 @@ jobs:
   # VM checks require KVM and remain independent of the non-VM matrix.
   vm-tests:
     name: NixOS VM Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, changes]
     if: >-
       github.event_name != 'pull_request' ||
       needs.changes.outputs.vm-smoke-checks == 'true'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Free up disk space
         run: |
           echo "Runner disk usage before cleanup:"
@@ -490,7 +490,7 @@ jobs:
           df -h
           df -i
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -503,7 +503,7 @@ jobs:
         with:
           upstream-cache-filter: true
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true
@@ -514,7 +514,7 @@ jobs:
   # workflow concurrency limits both runner count and cache request bursts.
   test-and-validate:
     name: Tests & Validation (${{ join(matrix.checks, ', ') }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     needs: [lint, changes, discover-checks]
     if: >
@@ -528,7 +528,7 @@ jobs:
       matrix: ${{ fromJson(needs.discover-checks.outputs.matrix) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Free up disk space
         run: |
           echo "Runner disk usage before cleanup:"
@@ -542,7 +542,7 @@ jobs:
           df -h
           df -i
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -555,7 +555,7 @@ jobs:
         with:
           upstream-cache-filter: true
       - name: Cachix (read-only)
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           skipPush: true

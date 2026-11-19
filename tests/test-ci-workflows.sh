@@ -50,6 +50,46 @@ extract_step() {
 
 echo "=== CI Workflow Tests ==="
 
+# Require the selected Node 24 releases in every workflow that uses them.
+for action_ref in \
+  'actions/checkout@v6' \
+  'cachix/cachix-action@v17' \
+  'DeterminateSystems/nix-installer-action@v23' \
+  'DeterminateSystems/magic-nix-cache-action@v14' \
+  'DeterminateSystems/flakehub-push@v7' \
+  'actions/cache@v5' \
+  'actions/cache/restore@v5' \
+  'actions/cache/save@v5' \
+  'actions/upload-artifact@v6' \
+  'actions/download-artifact@v7' \
+  'dorny/paths-filter@v4' \
+  'softprops/action-gh-release@v3'; do
+  action="${action_ref%@*}"
+  assert "$action uses the selected Node 24 ref" \
+    "awk -v action='$action' -v expected='$action_ref' '
+      /uses:/ {
+        line = \$0
+        sub(/^.*uses:[[:space:]]*[\"\047]?/, \"\", line)
+        sub(/[\"\047[:space:]#].*$/, \"\", line)
+        split(line, parts, \"@\")
+        if (parts[1] == action) { found = 1; if (line != expected) bad = 1 }
+      }
+      END { exit !(found && !bad) }
+    ' '$REPO_ROOT'/.github/workflows/*.yml"
+done
+
+assert "all Ubuntu runners use explicit maintained 24.04 labels" \
+  "awk '
+    /runs-on:/ && /ubuntu/ {
+      line = \$0
+      sub(/^.*runs-on:[[:space:]]*[\"\047]?/, \"\", line)
+      sub(/[\"\047[:space:]#].*$/, \"\", line)
+      found = 1
+      if (line != \"ubuntu-24.04\" && line != \"ubuntu-24.04-arm\") bad = 1
+    }
+    END { exit !(found && !bad) }
+  ' '$REPO_ROOT'/.github/workflows/*.yml"
+
 # Test: every Nix installer invocation raises retries for transient cache downloads.
 for workflow in "$REPO_ROOT"/.github/workflows/*.yml; do
   if grep -q 'uses: DeterminateSystems/nix-installer-action' "$workflow"; then
@@ -341,7 +381,7 @@ for platform in darwin linux linux-arm; do
   main_build="$(main_job "build-$platform")"
   case "$platform" in
     darwin) output=darwin-changed; runner=macos-latest ;;
-    linux) output=nixos-changed; runner=ubuntu-latest ;;
+    linux) output=nixos-changed; runner=ubuntu-24.04 ;;
     linux-arm) output=nixos-arm-changed; runner=ubuntu-24.04-arm ;;
   esac
   assert "main $platform builds only selected configurations on its native runner" \
@@ -392,8 +432,8 @@ for platform in darwin linux linux-arm; do
 done
 assert "main candidate cache is published only after all build jobs pass" \
   "grep -q 'needs:.*discover-targets.*build-darwin.*build-linux.*build-linux-arm' <<< \"\$main_health\" && \
-   grep -q 'actions/download-artifact@v4' <<< \"\$main_health\" && \
-   grep -q 'actions/cache/save@v4' <<< \"\$main_health\" && \
+   grep -q 'actions/download-artifact@v7' <<< \"\$main_health\" && \
+   grep -q 'actions/cache/save@v5' <<< \"\$main_health\" && \
    grep -q 'success()' <<< \"\$main_save\" && \
    grep -q 'needs.discover-targets.result == .success.' <<< \"\$main_save\" && \
    grep -q 'needs.build-darwin.result == .success.' <<< \"\$main_save\" && \

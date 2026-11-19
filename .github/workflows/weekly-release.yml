@@ -15,7 +15,7 @@ concurrency:
 jobs:
   flake-update:
     name: Update Flake Inputs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       changes-detected: ${{ steps.check-updates.outputs.changes_detected }}
       pr-number: ${{ steps.create-pr.outputs.pr_number }}
@@ -25,20 +25,20 @@ jobs:
         shell: bash
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Use PAT so the PR created later is attributed to a human account,
           # bypassing the GitHub bot-approval gate that blocks CI on bot PRs.
           token: ${{ secrets.RELEASE_PAT }}
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
             sandbox = false
             download-attempts = 10
       - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+        uses: DeterminateSystems/magic-nix-cache-action@v14
         with:
           upstream-cache: false
       - name: Close existing flake update PRs
@@ -141,7 +141,7 @@ jobs:
           bash scripts/check-overlay-patches.sh overlays/default.nix overlay-repair-proposal.md
       - name: Upload overlay repair proposal
         if: steps.repair.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: overlay-repair-proposal
           path: overlay-repair-proposal.md
@@ -206,7 +206,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}
   summary:
     name: Release Summary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: flake-update
     if: always()
     steps:
