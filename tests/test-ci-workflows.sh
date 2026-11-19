@@ -300,8 +300,26 @@ assert "main workflow does not install Devenv for the full test suite" \
   "! grep -q 'github:cachix/devenv/.*#devenv' \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "full test suite is restricted to main" \
-  "grep -q \"if: github.ref == 'refs/heads/main'\" \
+  "grep -q \"if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'\" \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
+full_suite_job="$(awk '
+  /^  full-test-suite:/ { active = 1 }
+  active && /^  [^ ]/ && !/^  full-test-suite:/ { exit }
+  active { print }
+' "$REPO_ROOT/.github/workflows/main-build.yml")"
+full_suite_condition="$(sed -n 's/^    if: //p' <<< "$full_suite_job")"
+full_suite_runs_for() {
+  local event_name="$1"
+  local ref="$2"
+  local condition="$full_suite_condition"
+  condition=${condition//github.event_name/\"$event_name\"}
+  condition=${condition//github.ref/\"$ref\"}
+  eval "[[ $condition ]]"
+}
+assert "main full test suite skips routine push events" \
+  "! full_suite_runs_for push refs/heads/main"
+assert "main full test suite runs on manual main dispatch" \
+  "full_suite_runs_for workflow_dispatch refs/heads/main"
 
 # Test: deploy builds submit whole configuration sets to Nix and Cachix.
 main_workflow="$REPO_ROOT/.github/workflows/main-build.yml"
