@@ -55,8 +55,8 @@ while IFS= read -r config; do
     old_hash=$(<"$cache_dir/darwin-${config}.hash")
   fi
   new_hash=$(derivation_path "$config" "$darwin_drv_paths" darwin)
-  if [[ "$old_hash" != "$new_hash" ]]; then
-    echo "Darwin config '${config}' changed"
+  if [[ "${FORCE_REBUILD:-false}" == true || "$old_hash" != "$new_hash" ]]; then
+    echo "Selecting Darwin config '${config}'"
     darwin_changed+=("$config")
   else
     echo "Darwin config '${config}' unchanged"
@@ -75,8 +75,8 @@ while IFS= read -r config; do
     continue
   fi
   new_hash=$(derivation_path "$config" "$nixos_drv_paths" nixos)
-  if [[ "$old_hash" != "$new_hash" ]]; then
-    echo "NixOS config '${config}' changed"
+  if [[ "${FORCE_REBUILD:-false}" == true || "$old_hash" != "$new_hash" ]]; then
+    echo "Selecting NixOS config '${config}'"
     nixos_changed+=("$config")
   else
     echo "NixOS config '${config}' unchanged"

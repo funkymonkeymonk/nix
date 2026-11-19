@@ -197,10 +197,8 @@ assert "PR workflow keeps VM smoke checks independent" \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 test_validate_job="$(extract_job test-and-validate)"
 discover_targets_job="$(extract_job discover-targets)"
-discover_checks_job="$(extract_job discover-checks)"
 discover_targets_condition="$(extract_job_condition <<< "$discover_targets_job")"
 test_validate_condition="$(extract_job_condition <<< "$test_validate_job")"
-check_planning_step="$(extract_step 'Plan changed PR checks' <<< "$discover_checks_job")"
 assert_exact_line "discover-targets uses a folded bare condition" \
   "$discover_targets_condition" "    if: >-"
 assert_exact_line "discover-targets condition is not a truthy interpolation" \
@@ -217,6 +215,8 @@ assert_exact_line "test-and-validate condition requires a non-empty matrix" \
   "$test_validate_condition" "      needs.discover-checks.outputs.matrix != ''"
 assert "test-and-validate condition has no expression wrapper" \
   "! grep -Fq '\${{' <<< \"\$test_validate_condition\""
+discover_checks_job="$(extract_job discover-checks)"
+check_planning_step="$(extract_step 'Plan changed PR checks' <<< "$discover_checks_job")"
 assert_exact_line "test-and-validate caps concurrency at exactly six runners" \
   "$test_validate_job" "      max-parallel: 6"
 assert_exact_line "PR planner batches exactly four checks" \
@@ -401,6 +401,9 @@ main_job() {
   ' "$main_workflow"
 }
 main_discovery="$(main_job discover-targets)"
+assert_exact_line "manual force selection feeds change detection" \
+  "$(extract_step 'Check which configs changed' <<< "$main_discovery")" \
+  '          FORCE_REBUILD: ${{ inputs.force-rebuild || false }}'
 main_health="$(main_job cache-health)"
 main_save="$(extract_step 'Save successful derivation cache' <<< "$main_health")"
 assert "main discovery compares derivations using a dedicated successful-build cache" \
@@ -428,14 +431,49 @@ done
 selection_tmp="$(mktemp -d)"
 trap 'rm -rf "$selection_tmp"' EXIT
 mkdir -p "$selection_tmp/bin"
+extract_step 'Discover configurations' <<< "$main_discovery" | sed -n '/^        run: |$/,$p' |
+  sed '1d; s/^          //' > "$selection_tmp/discover"
+cat > "$selection_tmp/bin/nix" <<'EVAL_STUB'
+#!/usr/bin/env bash
+case "$*" in
+  *darwinConfigurations*) printf '%s\n' "$DARWIN_JSON" ;;
+  *nixosConfigurations*) printf '%s\n' "$NIXOS_JSON" ;;
+  *) exit 1 ;;
+esac
+EVAL_STUB
+chmod +x "$selection_tmp/bin/nix"
+run_discovery() {
+  : > "$selection_tmp/inventory"
+  DARWIN_JSON="$1" NIXOS_JSON="$2" GITHUB_OUTPUT="$selection_tmp/inventory" \
+    PATH="$selection_tmp/bin:$PATH" bash "$selection_tmp/discover"
+}
+valid='["test-host"]'
+for invalid in '' '[]' '{"host":"test-host"}' '["bad name"]' '[] ["test-host"]'; do
+  assert "Darwin discovery rejects $(printf '%q' "$invalid")" \
+    '! run_discovery "$invalid" "$valid" && [[ ! -s "$selection_tmp/inventory" ]]'
+  assert "NixOS discovery rejects $(printf '%q' "$invalid")" \
+    '! run_discovery "$valid" "$invalid" && [[ ! -s "$selection_tmp/inventory" ]]'
+done
+assert "discovery rejects an empty eligible NixOS inventory" \
+  '! run_discovery "$valid" "[\"installer-iso\"]"'
+assert "discovery emits eligible platform inventories" \
+  'run_discovery "$valid" "[\"installer-iso\",\"test-host\"]" &&
+   grep -Fxq "darwin-configs=$valid" "$selection_tmp/inventory" &&
+   grep -Fxq "nixos-configs=$valid" "$selection_tmp/inventory"'
 cat > "$selection_tmp/bin/nix" <<'NIX_STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$NIX_ARGS"
+printf '%s\n' /nix/store/test-output
 NIX_STUB
-chmod +x "$selection_tmp/bin/nix"
+cat > "$selection_tmp/bin/cachix" <<'CACHIX_STUB'
+#!/usr/bin/env bash
+[[ "$*" == 'push funkymonkeymonk' && "$CACHIX_AUTH_TOKEN" == test-token ]] &&
+  grep -Fxq /nix/store/test-output
+CACHIX_STUB
+chmod +x "$selection_tmp/bin/"{nix,cachix}
 run_main_selection() {
   : > "$selection_tmp/nix-args"
-  TEST_CONFIGS="$1" NIX_ARGS="$selection_tmp/nix-args" \
+  TEST_CONFIGS="$1" CACHIX_AUTH_TOKEN="${2-test-token}" NIX_ARGS="$selection_tmp/nix-args" \
     GITHUB_OUTPUT="$selection_tmp/github-output" PATH="$selection_tmp/bin:$PATH" \
     bash "$selection_tmp/build-step" > "$selection_tmp/stdout" 2> "$selection_tmp/stderr"
 }
@@ -446,6 +484,9 @@ for platform in darwin linux linux-arm; do
     linux) step='Build Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
     linux-arm) step='Build ARM Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
   esac
+  assert_exact_line "$platform build receives the push credential" \
+    "$(extract_step "$step" <<< "$main_build")" \
+    '          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}'
   extract_step "$step" <<< "$main_build" | awk '
     /^        run: \|$/ { active=1; next }
     active && /^          / { sub(/^          /, ""); print; next }
@@ -457,6 +498,10 @@ for platform in darwin linux linux-arm; do
   done
   assert "$platform accepts an empty array without building" \
     "run_main_selection '[]' && [[ ! -s \"\$selection_tmp/nix-args\" ]]"
+  assert "$platform rejects a missing credential even with no selected configs" \
+    "! run_main_selection '[]' ''"
+  assert "$platform push rejection fails the build job" \
+    "! run_main_selection '[\"test-host\"]' rejected-token"
   assert "$platform builds the selected installable" \
     "run_main_selection '[\"test-host\"]' && grep -Fxq -- \"\$expected\" \"\$selection_tmp/nix-args\""
 done
