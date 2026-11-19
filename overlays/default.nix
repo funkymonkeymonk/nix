@@ -189,8 +189,8 @@
           + ''
             rm -rf transports/vendor
             if ! grep -q '^github.com/mattn/go-isatty v0.0.24/go.mod ' transports/go.sum; then
-              printf '%s\n' \
-                'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \
+              printf '%s\\n' \\
+                'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \\
                 >> transports/go.sum
             fi
           '';
