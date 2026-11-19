@@ -472,25 +472,33 @@ def build_cleanup_candidates(
     if not isinstance(torrents, Sequence) or isinstance(torrents, (str, bytes)):
         return []
     source_path_counts: dict[str, int] = {}
-    inventory_valid = bool(torrents)
+    incomplete_source_roots: set[str] = set()
+    ownership_scope_unknown = not torrents
     for torrent in torrents:
         if not isinstance(torrent, Mapping):
-            inventory_valid = False
+            ownership_scope_unknown = True
             continue
         directory = torrent.get("download_directory")
         paths = torrent.get("file_paths")
+        directory_valid = (
+            isinstance(directory, str)
+            and directory.startswith("/")
+            and ".." not in directory.split("/")
+            and "\0" not in directory
+        )
+        if not directory_valid:
+            ownership_scope_unknown = True
+            continue
+
+        normalized_directory = posixpath.normpath(directory)
         if (
             torrent.get("file_paths_valid") is not True
-            or not isinstance(directory, str)
             or not isinstance(paths, list)
             or not paths
-            or not directory.startswith("/")
-            or ".." in directory.split("/")
-            or "\0" in directory
         ):
-            inventory_valid = False
+            incomplete_source_roots.add(normalized_directory)
+        if not isinstance(paths, list):
             continue
-        normalized_directory = posixpath.normpath(directory)
         for file_path in paths:
             if (
                 not isinstance(file_path, str)
@@ -499,7 +507,7 @@ def build_cleanup_candidates(
                 or ".." in file_path.split("/")
                 or "\0" in file_path
             ):
-                inventory_valid = False
+                incomplete_source_roots.add(normalized_directory)
                 continue
             source_path = posixpath.normpath(posixpath.join(normalized_directory, file_path))
             source_path_counts[source_path] = source_path_counts.get(source_path, 0) + 1
@@ -552,7 +560,7 @@ def build_cleanup_candidates(
                     source_identity = remote_path
                     owner_count = (
                         source_path_counts.get(remote_path, 0)
-                        if inventory_valid
+                        if not ownership_scope_unknown
                         else None
                     )
                     local_path = imported_paths.get(staged_path)
@@ -563,7 +571,15 @@ def build_cleanup_candidates(
                     "mapped": mapped,
                     "source_mapping_verified": mapped,
                     "source_identity": source_identity,
-                    "source_ownership_verified": mapped and owner_count is not None,
+                    "source_ownership_verified": (
+                        mapped
+                        and owner_count is not None
+                        and not any(
+                            remote_path == incomplete_root
+                            or remote_path.startswith(f"{incomplete_root.rstrip('/')}/")
+                            for incomplete_root in incomplete_source_roots
+                        )
+                    ),
                     "source_owner_count": owner_count,
                     "staged_path": staged_path,
                     "remote_path": remote_path,

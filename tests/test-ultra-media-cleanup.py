@@ -1523,6 +1523,84 @@ class CleanupExecutionTests(unittest.TestCase):
         self.assertEqual(report["removed"], 0)
         self.assertEqual(report["reasons"], {"source_ownership_unverified": 1})
 
+    def test_incomplete_inventory_in_unrelated_download_directory_does_not_block_candidate_ownership(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staging_root = str(Path(temporary_directory) / ".arr-staging")
+            valid_candidate = self.candidate()
+            valid_candidate["files"][0]["source_identity"] = None
+            complete_torrent = {
+                "id": 17,
+                "candidate": valid_candidate,
+                "download_directory": "/seedbox/complete",
+                "file_paths": ["movie.mkv"],
+                "file_paths_valid": True,
+                "file_sizes": [1024],
+                "file_sizes_valid": True,
+            }
+            incomplete_torrent = {
+                "id": 18,
+                "candidate": {"complete": False, "files": [{}]},
+                "download_directory": "/seedbox/incomplete",
+                "file_paths": ["unknown.mkv"],
+                "file_paths_valid": False,
+                "file_sizes": [None],
+                "file_sizes_valid": False,
+            }
+
+            candidates = policy.build_cleanup_candidates(
+                [complete_torrent, incomplete_torrent],
+                [
+                    {"remoteRoot": "/seedbox/complete", "stagingSubpath": ""},
+                    {"remoteRoot": "/seedbox/incomplete", "stagingSubpath": ""},
+                ],
+                {f"{staging_root}/movie.mkv": "/library/movie.mkv"},
+                staging_root=staging_root,
+                path_mapper=lambda _directory, file_path, _mappings, *, staging_root: (
+                    f"{staging_root}/{file_path}"
+                ),
+            )
+
+        by_id = {candidate["torrent_id"]: candidate for candidate in candidates}
+        self.assertTrue(by_id[17]["files"][0]["source_ownership_verified"])
+        self.assertEqual(by_id[17]["files"][0]["source_owner_count"], 1)
+        self.assertFalse(by_id[18]["files"][0]["source_ownership_verified"])
+
+    def test_unknown_inventory_directory_still_blocks_all_source_ownership(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staging_root = str(Path(temporary_directory) / ".arr-staging")
+            complete_torrent = {
+                "id": 17,
+                "candidate": self.candidate(),
+                "download_directory": "/seedbox/complete",
+                "file_paths": ["movie.mkv"],
+                "file_paths_valid": True,
+                "file_sizes": [1024],
+                "file_sizes_valid": True,
+            }
+            unknown_scope_torrent = {
+                "id": 18,
+                "candidate": {"complete": False, "files": [{}]},
+                "download_directory": None,
+                "file_paths": [],
+                "file_paths_valid": False,
+                "file_sizes": [],
+                "file_sizes_valid": False,
+            }
+
+            candidates = policy.build_cleanup_candidates(
+                [complete_torrent, unknown_scope_torrent],
+                [{"remoteRoot": "/seedbox/complete", "stagingSubpath": ""}],
+                {f"{staging_root}/movie.mkv": "/library/movie.mkv"},
+                staging_root=staging_root,
+                path_mapper=lambda _directory, file_path, _mappings, *, staging_root: (
+                    f"{staging_root}/{file_path}"
+                ),
+            )
+
+        by_id = {candidate["torrent_id"]: candidate for candidate in candidates}
+        self.assertFalse(by_id[17]["files"][0]["source_ownership_verified"])
+        self.assertEqual(by_id[17]["files"][0]["source_owner_count"], None)
+
     def test_queued_torrent_remains_blocked_by_unqueued_shared_source_owner(self):
         removals = []
         rpc = SimpleNamespace(
