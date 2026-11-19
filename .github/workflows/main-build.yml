@@ -16,8 +16,65 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  discover-targets:
+    name: Discover Changed Configurations
+    runs-on: ubuntu-latest
+    outputs:
+      darwin-changed: ${{ steps.check-changes.outputs.darwin-changed }}
+      nixos-changed: ${{ steps.check-changes.outputs.nixos-changed }}
+      nixos-arm-changed: ${{ steps.check-changes.outputs.nixos-arm-changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v21
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+            sandbox = false
+            download-attempts = 10
+            access-tokens = ${{ env.NIX_ACCESS_TOKENS }}
+      - name: Restore successful derivation cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .drv-cache
+          key: main-build-drv-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            main-build-drv-
+      - name: Create stub facter.json
+        run: bash .github/scripts/create-facter-stub.sh
+      - name: Discover configurations
+        id: discover
+        run: |
+          set -euo pipefail
+          darwin=$(nix eval .#darwinConfigurations \
+            --apply 'x: builtins.attrNames x' --json | jq -c .)
+          # Installer images are built separately, except ARM targets which
+          # retain their existing native build behavior.
+          nixos=$(nix eval --impure .#nixosConfigurations \
+            --apply 'x: builtins.attrNames x' --json | jq -c \
+            '[.[] | select((test("^installer-") | not) or test("-arm(-|$)"))]')
+          echo "darwin-configs=$darwin" >> "$GITHUB_OUTPUT"
+          echo "nixos-configs=$nixos" >> "$GITHUB_OUTPUT"
+      - name: Check which configs changed
+        id: check-changes
+        env:
+          DARWIN_CONFIGS: ${{ steps.discover.outputs.darwin-configs }}
+          NIXOS_CONFIGS: ${{ steps.discover.outputs.nixos-configs }}
+        run: bash .github/scripts/check-config-changes.sh
+      # This is only a candidate. Publish it as a cache after builds succeed.
+      - name: Package candidate derivation cache
+        run: tar -cf drv-cache.tar .drv-cache
+      - name: Upload candidate derivation cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-build-drv-candidate
+          path: drv-cache.tar
+          if-no-files-found: error
+          retention-days: 1
   build-darwin:
     name: Build Darwin Configurations
+    needs: [discover-targets]
     runs-on: macos-latest
     defaults:
       run:
@@ -40,35 +97,31 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - name: Discover Darwin configurations
-        id: discover
-        run: |
-          echo "Discovering Darwin configurations..."
-          CONFIGS=$(nix eval .#darwinConfigurations \
-            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-          # Use multi-line syntax for GitHub Actions output to handle JSON properly
-          echo "configs<<EOF" >> $GITHUB_OUTPUT
-          echo "$CONFIGS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "Found Darwin configurations: $CONFIGS"
       - name: Build Darwin configurations (push to Cachix)
         run: |
           set -euo pipefail
           echo "Building Darwin configurations and pushing to Cachix..."
-          CONFIGS='${{ steps.discover.outputs.configs }}'
+          CONFIGS='${{ needs.discover-targets.outputs.darwin-changed }}'
+          if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
+            all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' \
+            <<< "$CONFIGS" > /dev/null; then
+            echo "Invalid Darwin configuration selection" >&2
+            exit 1
+          fi
           installables=()
           while IFS= read -r config; do
             [[ -z "$config" ]] || installables+=(".#darwinConfigurations.$config.system")
           done < <(echo "$CONFIGS" | jq -r '.[]')
           if ((${#installables[@]} == 0)); then
-            echo "No Darwin configurations found"
-            exit 1
+            echo "No changed Darwin configurations to build"
+            exit 0
           fi
           echo "Building ${#installables[@]} Darwin configurations in one Nix invocation"
           nix build --no-link --max-jobs auto "${installables[@]}"
           echo "All Darwin configurations built and pushed to Cachix"
   build-linux:
     name: Build Linux Configurations
+    needs: [discover-targets]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -93,34 +146,18 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
-      - name: Discover NixOS configurations
-        id: discover
-        run: |
-          echo "Discovering NixOS configurations..."
-          # Installer images are built by build-iso; ARM configs run natively.
-          ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
-            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-          # ARM configs build on native ARM runners; x86_64 on ubuntu-latest
-          ARM_CONFIGS=$(echo "$ALL_CONFIGS" | jq \
-            '[.[] | select(test("^installer-") | not)
-                  | select(test("-arm(-|$)"))]')
-          CONFIGS=$(echo "$ALL_CONFIGS" | jq \
-            '[.[] | select(test("^installer-") | not)
-                  | select(test("-arm(-|$)") | not)]')
-          echo "configs<<EOF" >> $GITHUB_OUTPUT
-          echo "$CONFIGS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "arm-configs<<EOF" >> $GITHUB_OUTPUT
-          echo "$ARM_CONFIGS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "Found NixOS configurations (x86_64): $CONFIGS"
-          echo "Found NixOS configurations (ARM): $ARM_CONFIGS"
       - name: Build Linux configurations (push to Cachix)
         id: build
         run: |
           set -euo pipefail
           echo "Building NixOS configurations and pushing to Cachix..."
-          CONFIGS='${{ steps.discover.outputs.configs }}'
+          CONFIGS='${{ needs.discover-targets.outputs.nixos-changed }}'
+          if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
+            all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' \
+            <<< "$CONFIGS" > /dev/null; then
+            echo "Invalid x86_64 NixOS configuration selection" >&2
+            exit 1
+          fi
           installables=()
           while IFS= read -r config; do
             [[ -z "$config" ]] || installables+=(
@@ -128,8 +165,8 @@ jobs:
             )
           done < <(echo "$CONFIGS" | jq -r '.[]')
           if ((${#installables[@]} == 0)); then
-            echo "No x86_64 NixOS configurations found"
-            exit 1
+            echo "No changed x86_64 NixOS configurations to build"
+            exit 0
           fi
           echo "Building ${#installables[@]} x86_64 NixOS configurations in one Nix invocation"
           nix build --no-link --impure --max-jobs auto "${installables[@]}"
@@ -138,6 +175,7 @@ jobs:
           echo "All NixOS configurations built and pushed to Cachix"
   build-linux-arm:
     name: Build ARM Linux Configurations
+    needs: [discover-targets]
     runs-on: ubuntu-24.04-arm
     defaults:
       run:
@@ -160,24 +198,18 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - name: Discover ARM NixOS configurations
-        id: discover
-        run: |
-          echo "Discovering ARM NixOS configurations..."
-          ALL_CONFIGS=$(nix eval --impure .#nixosConfigurations \
-            --apply 'x: builtins.attrNames x' --json 2>/dev/null || echo '[]')
-          ARM_CONFIGS=$(echo "$ALL_CONFIGS" | jq \
-            '[.[] | select(test("-arm(-|$)"))]')
-          echo "arm-configs<<EOF" >> $GITHUB_OUTPUT
-          echo "$ARM_CONFIGS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          echo "Found ARM NixOS configurations: $ARM_CONFIGS"
       - name: Build ARM Linux configurations (push to Cachix)
         id: build
         run: |
           set -euo pipefail
           echo "Building ARM NixOS configurations and pushing to Cachix..."
-          CONFIGS='${{ steps.discover.outputs.arm-configs }}'
+          CONFIGS='${{ needs.discover-targets.outputs.nixos-arm-changed }}'
+          if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
+            all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' \
+            <<< "$CONFIGS" > /dev/null; then
+            echo "Invalid ARM NixOS configuration selection" >&2
+            exit 1
+          fi
           installables=()
           while IFS= read -r config; do
             [[ -z "$config" ]] || installables+=(
@@ -185,8 +217,8 @@ jobs:
             )
           done < <(echo "$CONFIGS" | jq -r '.[]')
           if ((${#installables[@]} == 0)); then
-            echo "No ARM NixOS configurations found"
-            exit 1
+            echo "No changed ARM NixOS configurations to build"
+            exit 0
           fi
           echo "Building ${#installables[@]} ARM NixOS configurations in one Nix invocation"
           nix build --no-link --impure --max-jobs auto "${installables[@]}"
@@ -196,7 +228,7 @@ jobs:
   cache-health:
     name: Verify Cache Population
     runs-on: ubuntu-latest
-    needs: [build-darwin, build-linux, build-linux-arm]
+    needs: [discover-targets, build-darwin, build-linux, build-linux-arm]
     if: always()
     steps:
       - name: Check build results
@@ -213,7 +245,6 @@ jobs:
           else
             echo "- Darwin builds: **FAILED** ($DARWIN)" >> "$GITHUB_STEP_SUMMARY"
           fi
-
           if [ "$LINUX" = "success" ]; then
             echo "- NixOS (x86_64) builds: pushed to Cachix" >> "$GITHUB_STEP_SUMMARY"
           else
@@ -240,6 +271,25 @@ jobs:
             echo "Cache is up-to-date for all configurations." \
               >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Download candidate derivation cache
+        if: >-
+          success() && needs.discover-targets.result == 'success' &&
+          needs.build-darwin.result == 'success' && needs.build-linux.result == 'success' &&
+          needs.build-linux-arm.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: main-build-drv-candidate
+      - name: Unpack candidate derivation cache
+        run: tar -xf drv-cache.tar
+      - name: Save successful derivation cache
+        if: >-
+          success() && needs.discover-targets.result == 'success' &&
+          needs.build-darwin.result == 'success' && needs.build-linux.result == 'success' &&
+          needs.build-linux-arm.result == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: .drv-cache
+          key: main-build-drv-${{ github.run_id }}-${{ github.run_attempt }}
   full-test-suite:
     name: Full Test Suite
     if: github.ref == 'refs/heads/main'
