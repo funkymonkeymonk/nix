@@ -50,6 +50,9 @@ extract_step() {
 
 echo "=== CI Workflow Tests ==="
 
+assert "workflows do not invoke the retired OpenCode comment action" \
+  "! grep -Fq 'sst/opencode/github@github-v1' '$REPO_ROOT'/.github/workflows/*.yml"
+
 # Require the selected Node 24 releases in every workflow that uses them.
 for action_ref in \
   'actions/checkout@v6' \
