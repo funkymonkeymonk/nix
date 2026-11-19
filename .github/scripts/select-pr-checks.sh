@@ -76,7 +76,7 @@ select_for_path() {
       add core-bootstrap
       ;;
     tests/test-coverage.nix)
-      add module-coverage
+      # module-coverage runs in extended validation.
       ;;
     tests/test-roles.nix)
       add all-role-tests
