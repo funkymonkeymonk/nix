@@ -77,28 +77,9 @@ assert "PR workflow builds check shards with the standalone Nix helper" \
 assert "PR check discovery selects checks from changed files" \
   "grep -q 'select-pr-checks.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "Disko validation is selected by disk configuration changes" \
-  "grep -Fq \"              - 'disk-configs/**'\" \
-    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
-    && grep -q 'disko-files:.*steps.filter.outputs.disko-files' \
-      '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "Disko validation skips PRs without disk configuration changes" \
-  "grep -Fq \"github.event_name != 'pull_request' ||\" \
-    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
-    && grep -Fq \"needs.changes.outputs.disko-files == 'true'\" \
-      '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "installer syntax validation is selected by install-machine.sh changes" \
-  "grep -Fq \"              - 'scripts/install-machine.sh'\" \
-    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
-    && grep -q 'install-machine-script:.*steps.filter.outputs.install-machine-script' \
-      '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "installer syntax validation skips PRs without install-machine.sh changes" \
-  "grep -Fq \"github.event_name != 'pull_request' ||\" \
-    '$REPO_ROOT/.github/workflows/pr-validation.yml' \
-    && grep -Fq \"needs.changes.outputs.install-machine-script == 'true'\" \
-      '$REPO_ROOT/.github/workflows/pr-validation.yml' \
-    && grep -q 'bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh' \
-      '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR workflow runs PR validation path-selection regression tests" \
+  "grep -q 'bash tests/test-ci-pr-validation-selection.sh' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "non-VM PR checks run when selected prefixes are non-empty" \
   "grep -Fq \"check-prefixes != '[]'\" \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
