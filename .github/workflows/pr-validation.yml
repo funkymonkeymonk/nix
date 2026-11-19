@@ -111,7 +111,7 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+            git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA" > changed-files.txt
             bash .github/scripts/select-pr-checks.sh \
               < changed-files.txt > check-prefixes.json
             bash .github/scripts/select-pr-validation-checks.sh \
