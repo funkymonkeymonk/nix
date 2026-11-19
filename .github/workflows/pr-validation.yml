@@ -77,6 +77,8 @@ jobs:
       workflows: ${{ steps.filter.outputs.workflows }}
       check-prefixes: ${{ steps.changed-checks.outputs.check-prefixes }}
       ci-helper-files: ${{ steps.filter.outputs.ci-helper-files }}
+      disko-files: ${{ steps.filter.outputs.disko-files }}
+      install-machine-script: ${{ steps.filter.outputs.install-machine-script }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -100,6 +102,12 @@ jobs:
               - '.github/scripts/**'
               - '.github/workflows/**'
               - 'tests/test-ci-*.sh'
+            disko-files:
+              - 'disk-configs/**'
+              - 'library/machines/catalog.nix'
+              - 'library/machines/modules.nix'
+            install-machine-script:
+              - 'scripts/install-machine.sh'
       - name: Select non-VM checks affected by changed files
         id: changed-checks
         env:
@@ -437,10 +445,16 @@ jobs:
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Validate Disko configuration
+        if: >-
+          github.event_name != 'pull_request' ||
+          needs.changes.outputs.disko-files == 'true'
         run: >-
           nix build .#nixosConfigurations.zero.config.system.build.diskoScript
           --no-link --dry-run --quiet
       - name: Validate installation script
+        if: >-
+          github.event_name != 'pull_request' ||
+          needs.changes.outputs.install-machine-script == 'true'
         run: bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh
       - name: Plan changed PR checks
         id: plan
