@@ -304,11 +304,66 @@ assert "full test suite is restricted to main" \
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 
 # Test: deploy builds submit whole configuration sets to Nix and Cachix.
+main_workflow="$REPO_ROOT/.github/workflows/main-build.yml"
+main_job() {
+  awk -v target="  $1:" '
+    $0 == target { active = 1; print; next }
+    active && /^  [^ ]/ { exit }
+    active { print }
+  ' "$main_workflow"
+}
+main_discovery="$(main_job discover-targets)"
+main_health="$(main_job cache-health)"
+main_save="$(extract_step 'Save successful derivation cache' <<< "$main_health")"
+assert "main discovery compares derivations using a dedicated successful-build cache" \
+  "grep -q 'check-config-changes.sh' <<< \"\$main_discovery\" && \
+   grep -q 'main-build-drv-' <<< \"\$main_discovery\" && \
+   ! grep -q 'actions/cache/save' <<< \"\$main_discovery\""
+for platform in darwin linux linux-arm; do
+  main_build="$(main_job "build-$platform")"
+  case "$platform" in
+    darwin) output=darwin-changed; runner=macos-latest ;;
+    linux) output=nixos-changed; runner=ubuntu-latest ;;
+    linux-arm) output=nixos-arm-changed; runner=ubuntu-24.04-arm ;;
+  esac
+  assert "main $platform builds only selected configurations on its native runner" \
+    "grep -q 'needs:.*discover-targets' <<< \"\$main_build\" && \
+     grep -q 'needs.discover-targets.outputs.$output' <<< \"\$main_build\" && \
+     grep -q 'runs-on: $runner' <<< \"\$main_build\" && \
+     grep -q 'No .*configurations.*' <<< \"\$main_build\" && \
+     grep -q 'exit 0' <<< \"\$main_build\""
+done
+assert "main candidate cache is published only after all build jobs pass" \
+  "grep -q 'needs:.*discover-targets.*build-darwin.*build-linux.*build-linux-arm' <<< \"\$main_health\" && \
+   grep -q 'actions/download-artifact@v4' <<< \"\$main_health\" && \
+   grep -q 'actions/cache/save@v4' <<< \"\$main_health\" && \
+   grep -q 'success()' <<< \"\$main_save\" && \
+   grep -q 'needs.discover-targets.result == .success.' <<< \"\$main_save\" && \
+   grep -q 'needs.build-darwin.result == .success.' <<< \"\$main_save\" && \
+   grep -q 'needs.build-linux.result == .success.' <<< \"\$main_save\" && \
+   grep -q 'needs.build-linux-arm.result == .success.' <<< \"\$main_save\""
+# Exercise the actual save condition with failed, skipped, and cancelled jobs.
+save_condition="$(awk '/^        if: >-/{active=1; next} active && /^          /{printf "%s ", $0; next} active{exit}' <<< "$main_save")"
+save_condition=${save_condition//success\(\)/\"\$step_result\" == \"success\"}
+save_condition=${save_condition//needs.discover-targets.result/\"\$discovery\"}
+save_condition=${save_condition//needs.build-darwin.result/\"\$darwin\"}
+save_condition=${save_condition//needs.build-linux.result/\"\$linux\"}
+save_condition=${save_condition//needs.build-linux-arm.result/\"\$arm\"}
+save_allowed() { eval "[[ $save_condition ]]"; }
+step_result=success discovery=success darwin=success linux=success arm=success
+assert "successful builds allow candidate publication" "save_allowed"
+for job in discovery darwin linux arm step_result; do
+  for result in failure skipped cancelled; do
+    printf -v "$job" '%s' "$result"
+    assert "$job $result prevents candidate publication" "! save_allowed"
+    printf -v "$job" '%s' success
+  done
+done
 assert "main build submits all configs in one Nix invocation" \
   "grep -q 'nix build --no-link.*installables' \\
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "main build warms the bootstrap deployment closure" \
-  "grep -q 'select(test(\"^installer-\") | not)' \\
+  "grep -q 'test(\"^installer-\") | not' \\
     '$REPO_ROOT/.github/workflows/main-build.yml'"
 assert "deploy machines use the shared Cachix substituter" \
   "grep -q 'https://funkymonkeymonk.cachix.org' \\
