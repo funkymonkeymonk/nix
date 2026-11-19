@@ -374,6 +374,9 @@ main_job() {
   ' "$main_workflow"
 }
 main_discovery="$(main_job discover-targets)"
+assert_exact_line "manual force selection feeds change detection" \
+  "$(extract_step 'Check which configs changed' <<< "$main_discovery")" \
+  '          FORCE_REBUILD: ${{ inputs.force-rebuild || false }}'
 main_health="$(main_job cache-health)"
 main_save="$(extract_step 'Save successful derivation cache' <<< "$main_health")"
 assert "main discovery compares derivations using a dedicated successful-build cache" \
@@ -404,11 +407,17 @@ mkdir -p "$selection_tmp/bin"
 cat > "$selection_tmp/bin/nix" <<'NIX_STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$NIX_ARGS"
+printf '%s\n' /nix/store/test-output
 NIX_STUB
-chmod +x "$selection_tmp/bin/nix"
+cat > "$selection_tmp/bin/cachix" <<'CACHIX_STUB'
+#!/usr/bin/env bash
+[[ "$*" == 'push funkymonkeymonk' && "$CACHIX_AUTH_TOKEN" == test-token ]] &&
+  grep -Fxq /nix/store/test-output
+CACHIX_STUB
+chmod +x "$selection_tmp/bin/"{nix,cachix}
 run_main_selection() {
   : > "$selection_tmp/nix-args"
-  TEST_CONFIGS="$1" NIX_ARGS="$selection_tmp/nix-args" \
+  TEST_CONFIGS="$1" CACHIX_AUTH_TOKEN="${2-test-token}" NIX_ARGS="$selection_tmp/nix-args" \
     GITHUB_OUTPUT="$selection_tmp/github-output" PATH="$selection_tmp/bin:$PATH" \
     bash "$selection_tmp/build-step" > "$selection_tmp/stdout" 2> "$selection_tmp/stderr"
 }
@@ -419,6 +428,9 @@ for platform in darwin linux linux-arm; do
     linux) step='Build Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
     linux-arm) step='Build ARM Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
   esac
+  assert_exact_line "$platform build receives the push credential" \
+    "$(extract_step "$step" <<< "$main_build")" \
+    '          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}'
   extract_step "$step" <<< "$main_build" | awk '
     /^        run: \|$/ { active=1; next }
     active && /^          / { sub(/^          /, ""); print; next }
@@ -430,6 +442,10 @@ for platform in darwin linux linux-arm; do
   done
   assert "$platform accepts an empty array without building" \
     "run_main_selection '[]' && [[ ! -s \"\$selection_tmp/nix-args\" ]]"
+  assert "$platform rejects a missing credential even with no selected configs" \
+    "! run_main_selection '[]' ''"
+  assert "$platform push rejection fails the build job" \
+    "! run_main_selection '[\"test-host\"]' rejected-token"
   assert "$platform builds the selected installable" \
     "run_main_selection '[\"test-host\"]' && grep -Fxq -- \"\$expected\" \"\$selection_tmp/nix-args\""
 done

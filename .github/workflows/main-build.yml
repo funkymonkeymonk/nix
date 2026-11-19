@@ -6,6 +6,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      force-rebuild:
+        description: Build and republish every discovered configuration
+        type: boolean
+        default: false
 env:
   NIX_ACCESS_TOKENS: >-
     github.com=${{ github.token }} api.github.com=${{ github.token }}
@@ -60,6 +65,7 @@ jobs:
         id: check-changes
         env:
           DARWIN_CONFIGS: ${{ steps.discover.outputs.darwin-configs }}
+          FORCE_REBUILD: ${{ inputs.force-rebuild || false }}
           NIXOS_CONFIGS: ${{ steps.discover.outputs.nixos-configs }}
         run: bash .github/scripts/check-config-changes.sh
       # This is only a candidate. Publish it as a cache after builds succeed.
@@ -97,9 +103,13 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          skipPush: true
       - name: Build Darwin configurations (push to Cachix)
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
           set -euo pipefail
+          : "${CACHIX_AUTH_TOKEN:?Cachix push credential required}"
           echo "Building Darwin configurations and pushing to Cachix..."
           CONFIGS='${{ needs.discover-targets.outputs.darwin-changed }}'
           if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
@@ -117,7 +127,8 @@ jobs:
             exit 0
           fi
           echo "Building ${#installables[@]} Darwin configurations in one Nix invocation"
-          nix build --no-link --max-jobs auto "${installables[@]}"
+          nix build --no-link --print-out-paths --max-jobs auto "${installables[@]}" |
+            cachix push funkymonkeymonk
           echo "All Darwin configurations built and pushed to Cachix"
   build-linux:
     name: Build Linux Configurations
@@ -144,12 +155,16 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          skipPush: true
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Build Linux configurations (push to Cachix)
         id: build
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
           set -euo pipefail
+          : "${CACHIX_AUTH_TOKEN:?Cachix push credential required}"
           echo "Building NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ needs.discover-targets.outputs.nixos-changed }}'
           if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
@@ -169,7 +184,8 @@ jobs:
             exit 0
           fi
           echo "Building ${#installables[@]} x86_64 NixOS configurations in one Nix invocation"
-          nix build --no-link --impure --max-jobs auto "${installables[@]}"
+          nix build --no-link --print-out-paths --impure --max-jobs auto "${installables[@]}" |
+            cachix push funkymonkeymonk
           echo "built=${#installables[@]}" >> "$GITHUB_OUTPUT"
           echo "failed=0" >> "$GITHUB_OUTPUT"
           echo "All NixOS configurations built and pushed to Cachix"
@@ -198,10 +214,14 @@ jobs:
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          skipPush: true
       - name: Build ARM Linux configurations (push to Cachix)
         id: build
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
         run: |
           set -euo pipefail
+          : "${CACHIX_AUTH_TOKEN:?Cachix push credential required}"
           echo "Building ARM NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ needs.discover-targets.outputs.nixos-arm-changed }}'
           if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
@@ -221,7 +241,8 @@ jobs:
             exit 0
           fi
           echo "Building ${#installables[@]} ARM NixOS configurations in one Nix invocation"
-          nix build --no-link --impure --max-jobs auto "${installables[@]}"
+          nix build --no-link --print-out-paths --impure --max-jobs auto "${installables[@]}" |
+            cachix push funkymonkeymonk
           echo "built=${#installables[@]}" >> "$GITHUB_OUTPUT"
           echo "failed=0" >> "$GITHUB_OUTPUT"
           echo "All ARM NixOS configurations built and pushed to Cachix"
