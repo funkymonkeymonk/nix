@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
 
 
-MIN_SEEDING_SECONDS = 240 * 60 * 60
+MIN_COMPLETION_AGE_SECONDS = 240 * 60 * 60
 MIN_TORRENT_RATIO = 3.0
 MIN_PRIVATE_ACCOUNT_RATIO = 0.6
 STAGING_ROOT = "/srv/media/.arr-staging"
@@ -160,13 +160,17 @@ def _finite_number(value: Any) -> bool:
         return False
 
 
-def evaluate_retention(candidate: Mapping[str, Any]) -> dict[str, Any]:
+def evaluate_retention(
+    candidate: Mapping[str, Any],
+    *,
+    now_seconds: int | float | None = None,
+) -> dict[str, Any]:
     """Return an eligibility decision and safe reason codes for normalized metadata.
 
     Candidate schema:
       - ``complete``: true only when the torrent is complete.
-      - ``seeding_seconds`` and ``torrent_ratio``: accumulated seeding duration
-        in seconds and the torrent's upload/download ratio.
+      - ``done_date`` and ``torrent_ratio``: Transmission's completion time
+        as a Unix timestamp and the torrent's upload/download ratio.
       - ``trackers``: records with ``classification`` equal to ``public`` or
         ``private``. Private records also require ``ratio_source_available``
         and ``account_ratio``.
@@ -190,18 +194,26 @@ def evaluate_retention(candidate: Mapping[str, Any]) -> dict[str, Any]:
     if candidate.get("complete") is not True:
         block("incomplete_torrent")
 
-    seeding_seconds = candidate.get("seeding_seconds")
-    torrent_ratio = candidate.get("torrent_ratio")
-    reached_seeding_limit = (
-        _finite_number(seeding_seconds)
-        and seeding_seconds >= MIN_SEEDING_SECONDS
+    done_date = candidate.get("done_date")
+    if now_seconds is None:
+        now_seconds = time.time()
+    done_date_valid = _valid_integer(done_date) and done_date > 0
+    now_valid = _finite_number(now_seconds)
+    reached_completion_age = (
+        done_date_valid
+        and now_valid
+        and now_seconds - done_date >= MIN_COMPLETION_AGE_SECONDS
     )
+    torrent_ratio = candidate.get("torrent_ratio")
     reached_torrent_ratio = (
         _finite_number(torrent_ratio)
         and torrent_ratio >= MIN_TORRENT_RATIO
     )
-    if not (reached_seeding_limit or reached_torrent_ratio):
-        block("below_retention_threshold")
+    if not (reached_completion_age or reached_torrent_ratio):
+        if not done_date_valid or not now_valid:
+            block("completion_time_unknown")
+        else:
+            block("below_retention_threshold")
 
     trackers = candidate.get("trackers")
     if not isinstance(trackers, (list, tuple)) or not trackers:
@@ -594,6 +606,7 @@ def build_cleanup_candidates(
 
         candidate["files"] = files
         candidate["torrent_id"] = torrent.get("id")
+        candidate["done_date"] = torrent.get("done_date")
         candidate["runtime_config_available"] = True
         candidate["rpc_available"] = True
         candidate["arr_state_available"] = True
@@ -867,6 +880,7 @@ def _retention_preflight_reasons(candidate: Mapping[str, Any]) -> list[str]:
     preflight_reasons = {
         "incomplete_torrent",
         "below_retention_threshold",
+        "completion_time_unknown",
         "tracker_classification_unknown",
         "private_ratio_unavailable",
         "private_ratio_missing",

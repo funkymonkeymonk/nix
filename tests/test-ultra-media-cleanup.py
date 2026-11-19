@@ -380,7 +380,7 @@ class RetentionPolicyTests(unittest.TestCase):
     def candidate(self, **overrides):
         candidate = {
             "complete": True,
-            "seeding_seconds": 0,
+            "done_date": 1_700_000_000,
             "torrent_ratio": 0.0,
             "trackers": [{"classification": "public"}],
             "files": [
@@ -398,16 +398,43 @@ class RetentionPolicyTests(unittest.TestCase):
         candidate.update(overrides)
         return candidate
 
-    def test_qualifies_at_exact_seeding_time_with_low_ratio(self):
-        decision = policy.evaluate_retention(
-            self.candidate(seeding_seconds=240 * 60 * 60, torrent_ratio=0.1)
-        )
+    def test_qualifies_by_done_date_age_even_when_transmission_reports_no_seeding_time(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - 240 * 60 * 60,
+                    seeding_seconds=0,
+                    torrent_ratio=0.1,
+                )
+            )
         self.assertTrue(decision["eligible"])
 
-    def test_qualifies_at_exact_torrent_ratio_with_low_seeding_time(self):
-        decision = policy.evaluate_retention(
-            self.candidate(seeding_seconds=1, torrent_ratio=3.0)
-        )
+    def test_missing_done_date_fails_closed_when_ratio_is_below_threshold(self):
+        with patch.object(policy.time, "time", return_value=1_800_000_000):
+            decision = policy.evaluate_retention(
+                self.candidate(done_date=None, torrent_ratio=2.99)
+            )
+        self.assertFalse(decision["eligible"])
+        self.assertIn("completion_time_unknown", decision["reasons"])
+
+    def test_qualifies_at_exact_completion_age_with_low_ratio(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - 240 * 60 * 60,
+                    torrent_ratio=0.1,
+                )
+            )
+        self.assertTrue(decision["eligible"])
+
+    def test_qualifies_at_exact_torrent_ratio_even_when_recently_completed(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(done_date=now_seconds - 1, torrent_ratio=3.0)
+            )
         self.assertTrue(decision["eligible"])
 
     def test_mapped_file_requires_explicit_verified_source_provenance(self):
@@ -462,9 +489,14 @@ class RetentionPolicyTests(unittest.TestCase):
         self.assertTrue(decision["eligible"])
 
     def test_below_both_retention_limits_does_not_qualify(self):
-        decision = policy.evaluate_retention(
-            self.candidate(seeding_seconds=240 * 60 * 60 - 1, torrent_ratio=2.99)
-        )
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - (240 * 60 * 60) + 1,
+                    torrent_ratio=2.99,
+                )
+            )
         self.assertFalse(decision["eligible"])
         self.assertIn("below_retention_threshold", decision["reasons"])
 
@@ -753,6 +785,7 @@ class CleanupRuntimeTests(unittest.TestCase):
             staged_path = str(Path(stage_root) / "Series" / "episode.mkv")
             torrent = {
                 "id": 17,
+                "done_date": 1_700_000_000,
                 "candidate": {
                     "complete": True,
                     "seeding_seconds": 864000,
@@ -776,6 +809,7 @@ class CleanupRuntimeTests(unittest.TestCase):
         self.assertEqual(len(candidates), 1)
         candidate = candidates[0]
         self.assertEqual(candidate["torrent_id"], 17)
+        self.assertEqual(candidate["done_date"], 1_700_000_000)
         self.assertEqual(candidate["files"][0]["local_path"], "/srv/media/shows/Series/episode.mkv")
         self.assertEqual(candidate["files"][0]["staged_path"], staged_path)
         self.assertEqual(candidate["files"][0]["remote_path"], "/seedbox/complete/Series/episode.mkv")
@@ -1048,6 +1082,7 @@ class CleanupRuntimeTests(unittest.TestCase):
             )
             torrent = {
                 "id": 17,
+                "done_date": 1_700_000_000,
                 "candidate": {
                     "complete": True,
                     "seeding_seconds": 240 * 60 * 60,
@@ -1236,8 +1271,8 @@ class CleanupExecutionTests(unittest.TestCase):
     def candidate(self):
         return {
             "torrent_id": 17,
+            "done_date": 1_700_000_000,
             "complete": True,
-            "seeding_seconds": 240 * 60 * 60,
             "torrent_ratio": 0.2,
             "runtime_config_available": True,
             "rpc_available": True,
@@ -1482,6 +1517,7 @@ class CleanupExecutionTests(unittest.TestCase):
             staging_root = str(Path(temporary_directory) / ".arr-staging")
             complete_torrent = {
                 "id": 17,
+                "done_date": 1_700_000_000,
                 "candidate": self.candidate(),
                 "download_directory": "/seedbox/complete",
                 "file_paths": ["movie.mkv"],
@@ -1530,6 +1566,7 @@ class CleanupExecutionTests(unittest.TestCase):
             valid_candidate["files"][0]["source_identity"] = None
             complete_torrent = {
                 "id": 17,
+                "done_date": 1_700_000_000,
                 "candidate": valid_candidate,
                 "download_directory": "/seedbox/complete",
                 "file_paths": ["movie.mkv"],
@@ -1570,6 +1607,7 @@ class CleanupExecutionTests(unittest.TestCase):
             staging_root = str(Path(temporary_directory) / ".arr-staging")
             complete_torrent = {
                 "id": 17,
+                "done_date": 1_700_000_000,
                 "candidate": self.candidate(),
                 "download_directory": "/seedbox/complete",
                 "file_paths": ["movie.mkv"],
@@ -2829,7 +2867,7 @@ class CleanupOrchestrationTests(unittest.TestCase):
         self._source_counter += 1
         value = {
             "complete": True,
-            "seeding_seconds": 240 * 60 * 60,
+            "done_date": 1_700_000_000,
             "torrent_ratio": 3.0,
             "runtime_config_available": True,
             "rpc_available": True,
@@ -2863,13 +2901,18 @@ class CleanupOrchestrationTests(unittest.TestCase):
 
     def test_cleanup_skips_remote_import_and_file_proofs_below_retention_limits(self):
         calls = []
-        candidate = self.candidate(seeding_seconds=1, torrent_ratio=2.99)
-        report = policy.build_cleanup_report(
-            True,
-            [candidate],
-            arr_import_prover=lambda _candidate: calls.append("arr"),
-            local_file_verifier=lambda _file: calls.append("local"),
+        now_seconds = int(time.time())
+        candidate = self.candidate(
+            done_date=now_seconds - (240 * 60 * 60) + 1,
+            torrent_ratio=2.99,
         )
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            report = policy.build_cleanup_report(
+                True,
+                [candidate],
+                arr_import_prover=lambda _candidate: calls.append("arr"),
+                local_file_verifier=lambda _file: calls.append("local"),
+            )
         self.assertEqual(calls, [])
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"below_retention_threshold": 1})
