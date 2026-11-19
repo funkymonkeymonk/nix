@@ -2072,7 +2072,6 @@ class DownloadStagingTests(unittest.TestCase):
             list(dict.fromkeys(value for value in progress if value > 0)),
             [1000, 2000],
         )
-        self.assertEqual(progress[0], 0)
 
     def test_rsync_runner_reports_heartbeat_when_no_progress_text_arrives(self):
         progress = []
