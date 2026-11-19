@@ -180,11 +180,19 @@
     bifrost-http =
       (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
-      }).overrideAttrs (prev: {
+      }).overrideAttrs (prev: let
         version = "2.5.1";
+      in {
+        inherit version;
         __intentionallyOverridingVersion = true;
         vendorHash = "sha256-boHu7mTTjtpEQnSUFXlT0reRio3E8qKULrJ4pVLp8nw=";
         patches = (prev.patches or []) ++ [../packages/bifrost/patches/model-list-limits.patch];
+        ldflags = [
+          "-s"
+          "-w"
+          "-X main.Version=${version}"
+          "-buildid="
+        ];
         postPatch =
           (prev.postPatch or "")
           + ''

@@ -130,6 +130,10 @@ if [[ "$query" == 'builtins.currentSystem' ]]; then
   exit
 fi
 if [[ "$query" == *nixosConfigurations.zero.config* ]]; then
+  [[ "$query" == *'nixBuilderClientKey.reference'* ]] || {
+    echo 'remote builder metadata must read the canonical nixBuilderClientKey secret' >&2
+    exit 95
+  }
   printf '%s' '{"builders":[{"hostName":"megamanx","system":"aarch64-darwin","protocol":"ssh-ng","sshUser":"nixbuilder","maxJobs":4,"speedFactor":1,"supportedFeatures":["big-parallel"],"mandatoryFeatures":[],"publicHostKey":"c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK","sshKey":"/run/secrets/nix-remote-builder-megamanx"}],"defaultVault":"Opnix","keyReference":"Nix Remote Builder Zero to MegamanX/private key"}'
   exit
 fi

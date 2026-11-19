@@ -264,6 +264,11 @@ in {
   # Confirm overlay package metadata matches the pinned upstream transport.
   bifrostPackageVersionTest = pkgs.runCommand "test-bifrost-package-version" {} ''
     test "${pkgs.bifrost-http.version}" = "2.5.1"
+    if ${lib.boolToString (builtins.elem "-X main.Version=2.5.1" pkgs.bifrost-http.drvAttrs.ldflags)}; then
+      echo "Bifrost binary version linker flag is 2.5.1: OK"
+    else
+      echo "FAIL: Bifrost binary version linker flag must be 2.5.1"; exit 1
+    fi
     touch $out
   '';
 

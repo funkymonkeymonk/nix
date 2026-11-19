@@ -97,7 +97,7 @@ megamanx_builder_metadata() {
       inherit (builder) hostName system protocol sshUser publicHostKey;
     }) builders;
     defaultVault = zero.myConfig.onepassword.defaultVault;
-    keyReference = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey.reference;
+    keyReference = zero.myConfig.onepassword.secrets.nixBuilderClientKey.reference;
   }"
   "$nix_bin" eval --impure --raw --expr "$expression"
 }
