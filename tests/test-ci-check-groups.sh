@@ -68,8 +68,8 @@ run_plan() {
 }
 
 printf '%s\n' '=== CI check script tests ==='
-run_plan pr '{"batchSize":3}'
-assert_output matrix '{"include":[{"checks":["core-packages","foundation-options","nixos-vector-enabled"]},{"checks":["onepassword-guard","vector-options","vm-role-generator"]}]}'
+run_plan pr '{"batchSize":4}'
+assert_output matrix '{"include":[{"checks":["core-packages","foundation-options","nixos-vector-enabled","onepassword-guard"]},{"checks":["vector-options","vm-role-generator"]}]}'
 
 run_plan extended '{"batchSize":5}'
 assert_output matrix '{"include":[{"checks":["overlay-openai-evals","overlay-rtk"]}]}'
