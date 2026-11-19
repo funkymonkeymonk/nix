@@ -19,6 +19,8 @@
     && lib.hasInfix "github:nix-community/nixos-facter-modules" devenvYamlText
     && lib.hasInfix "follows: nixpkgs" devenvYamlText
     && lib.hasInfix "import ./library/machines/devenv.nix {inherit inputs;}" devenvText;
+  # Devenv does not install the Bifrost binary in its shell packages. The input
+  # is required to build MegamanX's service through the shared Machines overlay.
   machineBuildInputs = [
     "bifrost"
     "devenv"

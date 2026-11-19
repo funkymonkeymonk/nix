@@ -131,11 +131,67 @@
 
   Explain that OpenCode Go limits are read from Bifrost's model list, OMLX limits are declared in Bifrost's Nix model metadata, Pi caps output at 32K, and how to inspect `/v1/models` for the advertised fields. Note that this does not change runtime OMLX context allocation.
 
-- [ ] **Step 2: Run formatting and focused checks**
+- [x] **Step 2: Run formatting and focused checks**
 
-  Run `devenv tasks run check:lint`, the focused Bifrost/Pi checks, and `devenv tasks run test:build-checks` after staging and describing the intended JJ revision so flake evaluation reads the committed tree.
-  Expected: all checks pass. The baseline lint currently reports the pre-existing `overlays/default.nix` formatting change; format that file while preserving the existing `postPatch` behavior, then rerun lint.
+  Run `devenv tasks run check:lint`, the focused Bifrost/Pi checks, and `devenv tasks run test:all` after staging and describing the intended JJ revision. Do not deploy or switch the live host.
 
-- [ ] **Step 3: Build the Bifrost package**
+  Result: lint, focused checks, Darwin evaluation, and the full test suite pass after Task 6 synchronizes the Devenv Bifrost input.
+
+- [x] **Step 3: Build the Bifrost package**
 
   Run the current-system Bifrost package build and inspect the final JJ diff/status. Do not switch or deploy the live machine.
+
+  Result: `nix build .#packages.x86_64-linux.bifrost-http --no-link` succeeds. No live host was switched or deployed.
+
+### Task 5: Keep Bifrost out of the foundation role
+
+**Files:**
+- Integrated from the current Bifrost-upgrade base: `modules/roles/foundation.nix`
+- Integrated regression test: `tests/test-packages.nix`
+- Verify: `modules/services/bifrost/darwin.nix`
+
+**Interfaces:**
+- Consumes: the existing Bifrost service module and package.
+- Produces: no globally installed `bifrost-http` from foundation. The service still launches the package only when Bifrost is enabled.
+
+- [x] **Step 1: Verify foundation package ownership and its regression test**
+
+  The previous foundation config installed `bifrost-http` on every foundation-enabled host. The current base removes it and asserts that the foundation package list contains no `bifrost-http`.
+
+- [x] **Step 2: Adopt the service-scoped package configuration**
+
+  Preserve the current base change that removes `bifrost-http` from `modules/roles/foundation.nix`; keep `${pkgs.bifrost-http}/bin/bifrost-http` in the enabled Bifrost service command.
+
+- [x] **Step 3: Verify foundation and Bifrost service checks**
+
+  Run `nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).foundation-options .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).bifrost-opencode-go --no-link --impure`.
+
+### Task 6: Merge Drlight observability and synchronize the Devenv Bifrost input
+
+**Files:**
+- Merge: commit `8b4bc225` from `feat/drlight-sync-observability`
+- Modify: `devenv.yaml`
+- Modify: `devenv.lock`
+- Modify: `tests/test-machines-foundation.nix`
+
+**Interfaces:**
+- Consumes: the model-limit feature commit and the requested Drlight observability commit.
+- Produces: the observability changes in this feature history, a Devenv Bifrost input locked to the root flake's `7cb75fb2f8276ca48d0792c857fecb67b8879e2f` revision, and documentation in the machine-input check explaining why the input remains required.
+
+- [x] **Step 1: Reproduce and trace the lock failure**
+
+  Run `nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).machines-secret-profiles --no-link --impure`. Confirm it fails because `devenv.lock` pins Bifrost `6e640279b36337820f2088fb85f6e78f339063c3` while root `flake.lock` pins `7cb75fb2f8276ca48d0792c857fecb67b8879e2f`.
+
+- [x] **Step 2: Merge the requested observability commit**
+
+  Create a Jujutsu merge with `feat/drlight-sync-observability` at `8b4bc225`. Preserve its Drlight/Grafana/Prometheus changes and resolve any non-overlapping documentation merges without changing the Bifrost model-limit behavior.
+
+- [x] **Step 3: Synchronize the Devenv pin and keep the required input**
+
+  Update the Bifrost URL in `devenv.yaml` and its lock node in `devenv.lock` to the root flake's locked revision. Keep the input because the shared Machines overlay needs it to build MegamanX's Bifrost service; Devenv does not install the Bifrost executable in its shell package list.
+
+- [x] **Step 4: Run machine-input and full validation**
+
+  Run `nix build .#checks.$(nix eval --impure --expr 'builtins.currentSystem' --raw).machines-secret-profiles --no-link --impure`, then `devenv tasks run test:all` and `devenv tasks run check:lint`. Expected: the lock check and suite pass without deploying the host.
+
+  Result: `machines-secret-profiles`, `test:all`, and lint pass after syncing Devenv's Bifrost lock. The Devenv Bifrost input remains because it supplies the package to named Machines builds.
