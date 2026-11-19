@@ -82,6 +82,12 @@ assert_output darwin-changed '[]'
 assert_output nixos-changed '[]'
 assert_output nixos-arm-changed '["new-arm"]'
 
+: > "$GITHUB_OUTPUT"
+FORCE_REBUILD=true "$SCRIPT"
+assert_output darwin-changed '["existing-darwin","new-darwin"]'
+assert_output nixos-changed '["existing-linux","new-linux"]'
+assert_output nixos-arm-changed '["new-arm"]'
+
 if [[ "$(cat "$DRV_CACHE_DIR/darwin-configs")" != "$DARWIN_CONFIGS" || \
       "$(cat "$DRV_CACHE_DIR/nixos-configs")" != "$NIXOS_CONFIGS" ]]; then
   echo "FAIL: current configuration lists were not persisted"
