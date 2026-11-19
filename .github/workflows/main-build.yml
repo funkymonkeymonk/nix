@@ -102,6 +102,12 @@ jobs:
           set -euo pipefail
           echo "Building Darwin configurations and pushing to Cachix..."
           CONFIGS='${{ needs.discover-targets.outputs.darwin-changed }}'
+          if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
+            all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' \
+            <<< "$CONFIGS" > /dev/null; then
+            echo "Invalid Darwin configuration selection" >&2
+            exit 1
+          fi
           installables=()
           while IFS= read -r config; do
             [[ -z "$config" ]] || installables+=(".#darwinConfigurations.$config.system")
@@ -146,6 +152,12 @@ jobs:
           set -euo pipefail
           echo "Building NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ needs.discover-targets.outputs.nixos-changed }}'
+          if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
+            all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' \
+            <<< "$CONFIGS" > /dev/null; then
+            echo "Invalid x86_64 NixOS configuration selection" >&2
+            exit 1
+          fi
           installables=()
           while IFS= read -r config; do
             [[ -z "$config" ]] || installables+=(
@@ -192,6 +204,12 @@ jobs:
           set -euo pipefail
           echo "Building ARM NixOS configurations and pushing to Cachix..."
           CONFIGS='${{ needs.discover-targets.outputs.nixos-arm-changed }}'
+          if ! jq -e -s 'length == 1 and (.[0] | type == "array" and
+            all(.[]; type == "string" and test("^[A-Za-z0-9_-]+$")))' \
+            <<< "$CONFIGS" > /dev/null; then
+            echo "Invalid ARM NixOS configuration selection" >&2
+            exit 1
+          fi
           installables=()
           while IFS= read -r config; do
             [[ -z "$config" ]] || installables+=(

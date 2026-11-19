@@ -333,6 +333,45 @@ for platform in darwin linux linux-arm; do
      grep -q 'No .*configurations.*' <<< \"\$main_build\" && \
      grep -q 'exit 0' <<< \"\$main_build\""
 done
+
+# Execute each real build step with controlled selection outputs. Stub only the
+# external Nix build, recording its arguments so invalid lists cannot hide a
+# partial build and valid lists must reach the correct platform installable.
+selection_tmp="$(mktemp -d)"
+trap 'rm -rf "$selection_tmp"' EXIT
+mkdir -p "$selection_tmp/bin"
+cat > "$selection_tmp/bin/nix" <<'NIX_STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$NIX_ARGS"
+NIX_STUB
+chmod +x "$selection_tmp/bin/nix"
+run_main_selection() {
+  : > "$selection_tmp/nix-args"
+  TEST_CONFIGS="$1" NIX_ARGS="$selection_tmp/nix-args" \
+    GITHUB_OUTPUT="$selection_tmp/github-output" PATH="$selection_tmp/bin:$PATH" \
+    bash "$selection_tmp/build-step" > "$selection_tmp/stdout" 2> "$selection_tmp/stderr"
+}
+for platform in darwin linux linux-arm; do
+  main_build="$(main_job "build-$platform")"
+  case "$platform" in
+    darwin) step='Build Darwin configurations (push to Cachix)'; expected='.#darwinConfigurations.test-host.system' ;;
+    linux) step='Build Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
+    linux-arm) step='Build ARM Linux configurations (push to Cachix)'; expected='.#nixosConfigurations.test-host.config.system.build.toplevel' ;;
+  esac
+  extract_step "$step" <<< "$main_build" | awk '
+    /^        run: \|$/ { active=1; next }
+    active && /^          / { sub(/^          /, ""); print; next }
+    active { exit }
+  ' | sed 's/^CONFIGS=.*/CONFIGS="$TEST_CONFIGS"/' > "$selection_tmp/build-step"
+  for invalid in '' '[' 'null' '{}' '"target"' '[1]' '[""]' '["bad name"]' '["test-host"] [' '[] []'; do
+    assert "$platform rejects invalid selection $(printf '%q' "$invalid")" \
+      "! run_main_selection \"\$invalid\" && [[ ! -s \"\$selection_tmp/nix-args\" ]]"
+  done
+  assert "$platform accepts an empty array without building" \
+    "run_main_selection '[]' && [[ ! -s \"\$selection_tmp/nix-args\" ]]"
+  assert "$platform builds the selected installable" \
+    "run_main_selection '[\"test-host\"]' && grep -Fxq -- \"\$expected\" \"\$selection_tmp/nix-args\""
+done
 assert "main candidate cache is published only after all build jobs pass" \
   "grep -q 'needs:.*discover-targets.*build-darwin.*build-linux.*build-linux-arm' <<< \"\$main_health\" && \
    grep -q 'actions/download-artifact@v4' <<< \"\$main_health\" && \
