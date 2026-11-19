@@ -39,6 +39,14 @@ extract_job() {
   ' "$REPO_ROOT/.github/workflows/pr-validation.yml"
 }
 
+extract_job_condition() {
+  awk '
+    /^    if: / { active = 1; print; next }
+    active && /^      / { print; next }
+    active { exit }
+  '
+}
+
 extract_step() {
   local step="$1"
   awk -v target="      - name: $step" '
@@ -47,7 +55,6 @@ extract_step() {
     active { print }
   '
 }
-
 echo "=== CI Workflow Tests ==="
 
 assert "workflows do not invoke the retired OpenCode comment action" \
@@ -188,6 +195,25 @@ assert "PR workflow keeps VM smoke checks independent" \
   "grep -q 'bash .github/scripts/ci-checks.sh build vm-pr' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 test_validate_job="$(extract_job test-and-validate)"
+discover_targets_job="$(extract_job discover-targets)"
+discover_targets_condition="$(extract_job_condition <<< "$discover_targets_job")"
+test_validate_condition="$(extract_job_condition <<< "$test_validate_job")"
+assert_exact_line "discover-targets uses a folded bare condition" \
+  "$discover_targets_condition" "    if: >-"
+assert_exact_line "discover-targets condition is not a truthy interpolation" \
+  "$discover_targets_condition" "      needs.changes.outputs.nix-files == 'true' ||"
+assert_exact_line "discover-targets condition includes workflow changes" \
+  "$discover_targets_condition" "      needs.changes.outputs.workflows == 'true'"
+assert "discover-targets condition has no expression wrapper" \
+  "! grep -Fq '\${{' <<< \"\$discover_targets_condition\""
+assert_exact_line "test-and-validate uses a folded bare condition" \
+  "$test_validate_condition" "    if: >-"
+assert_exact_line "test-and-validate condition requires selected prefixes" \
+  "$test_validate_condition" "      needs.changes.outputs.check-prefixes != '[]' &&"
+assert_exact_line "test-and-validate condition requires a non-empty matrix" \
+  "$test_validate_condition" "      needs.discover-checks.outputs.matrix != ''"
+assert "test-and-validate condition has no expression wrapper" \
+  "! grep -Fq '\${{' <<< \"\$test_validate_condition\""
 discover_checks_job="$(extract_job discover-checks)"
 check_planning_step="$(extract_step 'Plan changed PR checks' <<< "$discover_checks_job")"
 assert_exact_line "test-and-validate caps concurrency at exactly six runners" \
