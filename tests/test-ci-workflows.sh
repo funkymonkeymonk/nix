@@ -404,6 +404,35 @@ done
 selection_tmp="$(mktemp -d)"
 trap 'rm -rf "$selection_tmp"' EXIT
 mkdir -p "$selection_tmp/bin"
+extract_step 'Discover configurations' <<< "$main_discovery" | sed -n '/^        run: |$/,$p' |
+  sed '1d; s/^          //' > "$selection_tmp/discover"
+cat > "$selection_tmp/bin/nix" <<'EVAL_STUB'
+#!/usr/bin/env bash
+case "$*" in
+  *darwinConfigurations*) printf '%s\n' "$DARWIN_JSON" ;;
+  *nixosConfigurations*) printf '%s\n' "$NIXOS_JSON" ;;
+  *) exit 1 ;;
+esac
+EVAL_STUB
+chmod +x "$selection_tmp/bin/nix"
+run_discovery() {
+  : > "$selection_tmp/inventory"
+  DARWIN_JSON="$1" NIXOS_JSON="$2" GITHUB_OUTPUT="$selection_tmp/inventory" \
+    PATH="$selection_tmp/bin:$PATH" bash "$selection_tmp/discover"
+}
+valid='["test-host"]'
+for invalid in '' '[]' '{"host":"test-host"}' '["bad name"]' '[] ["test-host"]'; do
+  assert "Darwin discovery rejects $(printf '%q' "$invalid")" \
+    '! run_discovery "$invalid" "$valid" && [[ ! -s "$selection_tmp/inventory" ]]'
+  assert "NixOS discovery rejects $(printf '%q' "$invalid")" \
+    '! run_discovery "$valid" "$invalid" && [[ ! -s "$selection_tmp/inventory" ]]'
+done
+assert "discovery rejects an empty eligible NixOS inventory" \
+  '! run_discovery "$valid" "[\"installer-iso\"]"'
+assert "discovery emits eligible platform inventories" \
+  'run_discovery "$valid" "[\"installer-iso\",\"test-host\"]" &&
+   grep -Fxq "darwin-configs=$valid" "$selection_tmp/inventory" &&
+   grep -Fxq "nixos-configs=$valid" "$selection_tmp/inventory"'
 cat > "$selection_tmp/bin/nix" <<'NIX_STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$NIX_ARGS"
