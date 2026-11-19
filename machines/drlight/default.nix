@@ -20,6 +20,10 @@ in {
   # Disko provisions the Patriot OS disk and Samsung NVMe cache. The existing
   # media ZFS mirror remains outside the Disko layout.
 
+  # Opnix's secret service already resolves changed values and restarts their
+  # dependents. Its output-directory watcher launches a duplicate resolver.
+  systemd.paths.opnix-secrets-watcher.enable = lib.mkForce false;
+
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {

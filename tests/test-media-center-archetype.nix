@@ -211,6 +211,8 @@
       ultraStageRpcUsernameSecret = onePasswordSecrets.ultraMediaStageRpcUsername or {};
       ultraStageRpcPasswordSecret = onePasswordSecrets.ultraMediaStageRpcPassword or {};
       opnixSecrets = drlight.services.onepassword-secrets.secrets or {};
+      opnixChangeDetection = drlight.services.onepassword-secrets.systemdIntegration.changeDetection or {};
+      opnixWatcherPath = drlight.systemd.paths.opnix-secrets-watcher or {};
       opnixUltraStagePrivateSecrets = map (name: opnixSecrets.${name} or {}) ultraStagePrivateSecretNames;
       opnixUltraStageSharedSecrets = map (name: opnixSecrets.${name} or {}) ultraStageSharedSecretNames;
       opnixUltraStageKeySecret = opnixSecrets.ultraMediaStageKey or {};
@@ -490,6 +492,8 @@
         ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
         ${checkFalse "Mylar3 can leave restored INI untouched during one-time root migration" (builtins.hasAttr "ExecStartPre" (drlightWithMylarSettingsManagementDisabled.systemd.services.mylar3.serviceConfig or {}))}
         ${checkTrue "Drlight enables Opnix runtime secrets for declared media credentials" drlight.services.onepassword-secrets.enable}
+        ${checkTrue "Drlight keeps Opnix content hash change detection enabled" (opnixChangeDetection.enable or false)}
+        ${checkFalse "Drlight disables the redundant Opnix output-directory watcher" (opnixWatcherPath.enable or true)}
         ${checkEqual "media app login secrets use the expected Opnix fields" mediaAuthExpectedReferences (map (secret: secret.reference or null) mediaAuthSecrets)}
         ${checkEqual "media app login references resolve through the Opnix default vault" (map (reference: "op://Opnix/${reference}") mediaAuthExpectedReferences) (map (secret: secret.reference or null) opnixMediaAuthSecrets)}
         ${checkEqual "media app login secrets use restricted runtime paths" [
