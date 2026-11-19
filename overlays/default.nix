@@ -185,7 +185,7 @@
       in {
         inherit version;
         __intentionallyOverridingVersion = true;
-        vendorHash = "sha256-boHu7mTTjtpEQnSUFXlT0reRio3E8qKULrJ4pVLp8nw=";
+        vendorHash = "sha256-6dQK2U2MK6EsiGLJALcz20VP2dJwB/NIGcODNeQgU6g=";
         patches = (prev.patches or []) ++ [../packages/bifrost/patches/model-list-limits.patch];
         ldflags = [
           "-s"
