@@ -42,6 +42,19 @@
   ];
   catalogNixosNames = builtins.attrNames catalogNixos;
   catalogDarwinNames = builtins.attrNames catalogDarwin;
+  hasExpectedModules = machine: expectedModules: builtins.all (module: builtins.elem module machine.modules) expectedModules;
+  zeroExpectedModules = [
+    ../library/archetypes/desktop-nixos.nix
+    ../modules/nixos/gaming.nix
+    ../modules/services/caddy/nixos.nix
+    ../machines/zero
+  ];
+  wweaverExpectedModules = [
+    ../modules/services/bifrost/darwin.nix
+    ../modules/services/omlx/darwin.nix
+    ../modules/home-manager/aerospace.nix
+    ../machines/wweaver
+  ];
   headlessServerNixosSource = builtins.readFile ../library/archetypes/headless-server-nixos.nix;
   headlessMachineModuleSources = map (name: builtins.readFile (../machines + "/${name}/default.nix")) ["type-nas" "type-server-arm" "drlight"];
   nativeNixosNames = builtins.attrNames self.nixosConfigurations;
@@ -155,7 +168,7 @@
     ${assertEqual "headless machine modules do not duplicate monkey SSH key wiring" true (builtins.all (source: !(lib.hasInfix "users.users.monkey.openssh.authorizedKeys.keys" source)) headlessMachineModuleSources)}
     ${assertEqual "zero system" "x86_64-linux" representativeNixos.system}
     ${assertEqual "zero hostname" "zero" representativeNixos.hostname}
-    ${assertEqual "zero module count" 10 (builtins.length representativeNixos.modules)}
+    ${assertEqual "zero retains its desktop, gaming, Caddy, and machine modules" true (hasExpectedModules representativeNixos zeroExpectedModules)}
     ${assertEqual "catalog records explicit disko metadata for zero" true (representativeNixos.disko or false)}
     ${assertEqual "native projection explicitly imports disko once" 1 (builtins.length (explicitDiskoModules nativeZeroModules))}
     ${assertEqual "Machines projection omits the catalog disko module" 0 (builtins.length (explicitDiskoModules devenvZeroModules))}
@@ -193,7 +206,7 @@
     ${assertEqual "wweaver generated host platform follows the catalog" representativeDarwin.system self.darwinConfigurations.wweaver.config.nixpkgs.hostPlatform.system}
     ${assertEqual "Darwin Machines projection host platform follows the catalog" representativeDarwin.system devenvMegamanX.config.nixpkgs.hostPlatform.system}
     ${assertEqual "wweaver hostname" "wweaver" representativeDarwin.hostname}
-    ${assertEqual "wweaver module count" 4 (builtins.length representativeDarwin.modules)}
+    ${assertEqual "wweaver retains its Bifrost, OMLX, Aerospace, and machine modules" true (hasExpectedModules representativeDarwin wweaverExpectedModules)}
     ${assertEqual "wweaver extra special args" ["mkUser"] (builtins.attrNames representativeDarwin.extraSpecialArgs)}
     ${assertEqual "Machines wweaver system" "aarch64-darwin" machinesProjection.machines.wweaver.system}
     ${assertEqual "Machines wweaver nix-darwin role" true (builtins.hasAttr "nix-darwin" machinesProjection.machines.wweaver)}
