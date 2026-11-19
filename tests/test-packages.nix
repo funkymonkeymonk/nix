@@ -259,13 +259,14 @@
                 sshIncludes = [];
               }
             ];
-            onepassword.enable = false;
             opencode.enable = false;
           };
         }
       ];
     };
     evaluatedConfig = testEval.config.myConfig;
+    foundationSystemPackages = testEval.config.environment.systemPackages;
+    foundationBifrostPackages = builtins.filter (package: (package.pname or "") == "bifrost-http") foundationSystemPackages;
   in
     pkgs.runCommand "test-foundation-options"
     {}
@@ -283,6 +284,8 @@
       # Verify role options exist
       echo "  roles.foundation.enable: ${builtins.toJSON evaluatedConfig.roles.foundation.enable}"
       echo "  roles.developer.enable: ${builtins.toJSON evaluatedConfig.roles.developer.enable}"
+      test "${toString (builtins.length foundationBifrostPackages)}" = "0"
+      echo "  foundation does not install bifrost-http: OK"
 
       echo "All foundation options verified"
       touch $out

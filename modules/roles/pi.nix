@@ -47,7 +47,7 @@ in {
     myConfig.pi.models.bifrost = lib.mkDefault {
       name = "Bifrost AI Gateway";
       provider = "bifrost";
-      modelId = "qwen3.8-27b";
+      modelId = "";
       baseUrl = bifrostBaseUrl;
     };
 

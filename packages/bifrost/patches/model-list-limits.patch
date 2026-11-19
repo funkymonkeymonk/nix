@@ -1,0 +1,395 @@
+diff --git a/core/providers/openai/models.go b/core/providers/openai/models.go
+index b9ac947..67e8bba 100644
+--- a/core/providers/openai/models.go
++++ b/core/providers/openai/models.go
+@@ -7,6 +7,26 @@ import (
+ 	"github.com/maximhq/bifrost/core/schemas"
+ )
+ 
++func (model OpenAIModel) contextLength() *int {
++	if model.ContextWindow != nil {
++		return model.ContextWindow
++	}
++	if model.Limit != nil {
++		return model.Limit.Context
++	}
++	return nil
++}
++
++func (model OpenAIModel) maxOutputTokens() *int {
++	if model.MaxOutputTokens != nil {
++		return model.MaxOutputTokens
++	}
++	if model.Limit != nil {
++		return model.Limit.Output
++	}
++	return nil
++}
++
+ // ToBifrostListModelsResponse converts an OpenAI list models response to a Bifrost list models response
+ func (response *OpenAIListModelsResponse) ToBifrostListModelsResponse(providerKey schemas.ModelProvider, allowedModels schemas.WhiteList, blacklistedModels schemas.BlackList, aliases schemas.KeyAliases, unfiltered bool) *schemas.BifrostListModelsResponse {
+ 	if response == nil {
+@@ -34,10 +54,11 @@ func (response *OpenAIListModelsResponse) ToBifrostListModelsResponse(providerKe
+ 	for _, model := range response.Data {
+ 		for _, result := range pipeline.FilterModel(model.ID) {
+ 			entry := schemas.Model{
+-				ID:            string(providerKey) + "/" + result.ResolvedID,
+-				Created:       model.Created,
+-				OwnedBy:       schemas.Ptr(model.OwnedBy),
+-				ContextLength: model.ContextWindow,
++				ID:              string(providerKey) + "/" + result.ResolvedID,
++				Created:         model.Created,
++				OwnedBy:         schemas.Ptr(model.OwnedBy),
++				ContextLength:   model.contextLength(),
++				MaxOutputTokens: model.maxOutputTokens(),
+ 			}
+ 			if result.AliasValue != "" {
+ 				entry.Alias = schemas.Ptr(result.AliasValue)
+@@ -61,11 +82,12 @@ func (model *OpenAIModel) ToBifrostModelRetrieveResponse(providerKey schemas.Mod
+ 
+ 	return &schemas.BifrostModelRetrieveResponse{
+ 		Model: schemas.Model{
+-			ID:            string(providerKey) + "/" + model.ID,
+-			Created:       model.Created,
+-			OwnedBy:       schemas.Ptr(model.OwnedBy),
+-			ContextLength: model.ContextWindow,
+-			ShutdownDate:  model.ShutdownDate,
++			ID:              string(providerKey) + "/" + model.ID,
++			Created:         model.Created,
++			OwnedBy:         schemas.Ptr(model.OwnedBy),
++			ContextLength:   model.contextLength(),
++			MaxOutputTokens: model.maxOutputTokens(),
++			ShutdownDate:    model.ShutdownDate,
+ 		},
+ 	}
+ }
+@@ -78,10 +100,11 @@ func ToOpenAIModelRetrieveResponse(response *schemas.BifrostModelRetrieveRespons
+ 	}
+ 
+ 	openaiModel := &OpenAIModel{
+-		ID:           response.ID,
+-		Object:       "model",
+-		Created:      response.Created,
+-		ShutdownDate: response.ShutdownDate,
++		ID:              response.ID,
++		Object:          "model",
++		Created:         response.Created,
++		ShutdownDate:    response.ShutdownDate,
++		MaxOutputTokens: response.MaxOutputTokens,
+ 	}
+ 	if response.OwnedBy != nil {
+ 		openaiModel.OwnedBy = *response.OwnedBy
+@@ -119,6 +142,7 @@ func ToOpenAIListModelsResponse(response *schemas.BifrostListModelsResponse) *Op
+ 			openaiModel.ContextWindow = model.MaxInputTokens // Fallback to MaxInputTokens if ContextLength is not set
+ 		}
+ 
++		openaiModel.MaxOutputTokens = model.MaxOutputTokens
+ 		openaiResponse.Data = append(openaiResponse.Data, openaiModel)
+ 
+ 	}
+diff --git a/core/providers/openai/models_test.go b/core/providers/openai/models_test.go
+index f4c7b4f..763de3f 100644
+--- a/core/providers/openai/models_test.go
++++ b/core/providers/openai/models_test.go
+@@ -2,6 +2,7 @@ package openai
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"testing"
+@@ -15,11 +16,12 @@ func TestListModelsByKeyResponseShapes(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	tests := []struct {
+-		name        string
+-		body        string
+-		wantID      string
+-		wantOwnedBy string
+-		wantContext int
++		name          string
++		body          string
++		wantID        string
++		wantOwnedBy   string
++		wantContext   int
++		wantMaxOutput int
+ 	}{
+ 		{
+ 			name:        "OpenAI envelope",
+@@ -35,6 +37,13 @@ func TestListModelsByKeyResponseShapes(t *testing.T) {
+ 			wantOwnedBy: "Z.ai",
+ 			wantContext: 131072,
+ 		},
++		{
++			name:          "OpenCode Go nested limits",
++			body:          `{"object":"list","data":[{"id":"qwen3.8-27b","object":"model","limit":{"context":1000000,"output":384000}}]}`,
++			wantID:        "test/qwen3.8-27b",
++			wantContext:   1000000,
++			wantMaxOutput: 384000,
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -62,11 +71,32 @@ func TestListModelsByKeyResponseShapes(t *testing.T) {
+ 			require.Len(t, response.Data, 1)
+ 			require.Equal(t, test.wantID, response.Data[0].ID)
+ 			require.Equal(t, schemas.Ptr(test.wantOwnedBy), response.Data[0].OwnedBy)
+-			require.Equal(t, schemas.Ptr(test.wantContext), response.Data[0].ContextLength)
++			if test.wantContext > 0 {
++				require.Equal(t, schemas.Ptr(test.wantContext), response.Data[0].ContextLength)
++			}
++			if test.wantMaxOutput > 0 {
++				require.Equal(t, schemas.Ptr(test.wantMaxOutput), response.Data[0].MaxOutputTokens)
++			}
+ 		})
+ 	}
+ }
+ 
++func TestToOpenAIListModelsResponseIncludesOutputLimit(t *testing.T) {
++	t.Parallel()
++
++	response := ToOpenAIListModelsResponse(&schemas.BifrostListModelsResponse{
++		Data: []schemas.Model{{
++			ID:              "opencode-go/deepseek-v4.1-flash",
++			ContextLength:   schemas.Ptr(1000000),
++			MaxOutputTokens: schemas.Ptr(384000),
++		}},
++	})
++
++	encoded, err := json.Marshal(response)
++	require.NoError(t, err)
++	require.JSONEq(t, `{"object":"","data":[{"id":"opencode-go/deepseek-v4.1-flash","object":"model","owned_by":"","context_window":1000000,"max_output_tokens":384000}]}`, string(encoded))
++}
++
+ func TestModelRetrieveResponseShape(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/core/providers/openai/types.go b/core/providers/openai/types.go
+index 6663e12..8c7c153 100644
+--- a/core/providers/openai/types.go
++++ b/core/providers/openai/types.go
+@@ -1677,9 +1677,17 @@ type OpenAIModel struct {
+ 	// Retirement date announced by the provider, returned by model retrieve
+ 	ShutdownDate *string `json:"shutdown_date,omitempty"`
+ 
+-	// GROQ specific fields
+-	Active        *bool `json:"active,omitempty"`
+-	ContextWindow *int  `json:"context_window,omitempty"`
++	// OpenAI-compatible and provider-specific model limits.
++	Active          *bool             `json:"active,omitempty"`
++	ContextWindow   *int              `json:"context_window,omitempty"`
++	MaxOutputTokens *int              `json:"max_output_tokens,omitempty"`
++	Limit           *OpenAIModelLimit `json:"limit,omitempty"`
++}
++
++// OpenAIModelLimit captures the nested limits published by OpenCode gateways.
++type OpenAIModelLimit struct {
++	Context *int `json:"context,omitempty"`
++	Output  *int `json:"output,omitempty"`
+ }
+ 
+ // OpenAIListModelsResponse represents an OpenAI list models response
+diff --git a/framework/modelcatalog/main.go b/framework/modelcatalog/main.go
+index 87bb1e4..0688619 100644
+--- a/framework/modelcatalog/main.go
++++ b/framework/modelcatalog/main.go
+@@ -31,9 +31,10 @@ type ModelCatalog struct {
+ 	distributedLockManager *configstore.DistributedLockManager
+ 	logger                 schemas.Logger
+ 
+-	datasheet *datasheet.Store
+-	live      *live.Store
+-	keyconf   *keyconfig.Store
++	datasheet     *datasheet.Store
++	live          *live.Store
++	keyconf       *keyconfig.Store
++	modelMetadata map[string]ModelMetadata
+ 
+ 	// capabilities caches datasheet capability records by (provider, model).
+ 	// Flushed whenever a sync applies a new sheet.
+@@ -86,6 +87,11 @@ func resolveMCPLibrarySyncInterval(config *Config) time.Duration {
+ }
+ 
+ func Init(ctx context.Context, config *Config, configStore configstore.ConfigStore, logger schemas.Logger) (*ModelCatalog, error) {
++	modelMetadata, err := loadModelMetadataFromEnv()
++	if err != nil {
++		return nil, fmt.Errorf("failed to load local model metadata: %w", err)
++	}
++
+ 	pricingURL := DefaultPricingURL
+ 	if config != nil && config.PricingURL != nil {
+ 		pricingURL = *config.PricingURL
+@@ -111,6 +117,7 @@ func Init(ctx context.Context, config *Config, configStore configstore.ConfigSto
+ 	mc := &ModelCatalog{
+ 		mcpLibraryURL:          mcpLibraryURL,
+ 		mcpLibrarySyncInterval: mcpLibrarySyncInterval,
++		modelMetadata:          modelMetadata,
+ 		configStore:            configStore,
+ 		logger:                 logger,
+ 		distributedLockManager: configstore.NewDistributedLockManager(configStore, logger, configstore.WithDefaultTTL(30*time.Second)),
+diff --git a/framework/modelcatalog/model_metadata.go b/framework/modelcatalog/model_metadata.go
+new file mode 100644
+index 0000000..07af2a4
+--- /dev/null
++++ b/framework/modelcatalog/model_metadata.go
+@@ -0,0 +1,71 @@
++package modelcatalog
++
++import (
++	"encoding/json"
++	"fmt"
++	"os"
++	"strings"
++
++	"github.com/maximhq/bifrost/core/schemas"
++)
++
++const modelMetadataFileEnv = "BIFROST_MODEL_METADATA_FILE"
++
++// ModelMetadata declares limits for a model that does not report them itself.
++type ModelMetadata struct {
++	ContextLength   *int `json:"context_length,omitempty"`
++	MaxOutputTokens *int `json:"max_output_tokens,omitempty"`
++}
++
++func loadModelMetadataFromEnv() (map[string]ModelMetadata, error) {
++	path := strings.TrimSpace(os.Getenv(modelMetadataFileEnv))
++	if path == "" {
++		return nil, nil
++	}
++
++	data, err := os.ReadFile(path)
++	if err != nil {
++		return nil, fmt.Errorf("read %s: %w", modelMetadataFileEnv, err)
++	}
++	var configured map[string]ModelMetadata
++	if err := json.Unmarshal(data, &configured); err != nil {
++		return nil, fmt.Errorf("parse %s: %w", modelMetadataFileEnv, err)
++	}
++
++	metadata := make(map[string]ModelMetadata, len(configured))
++	for modelID, limits := range configured {
++		key := strings.ToLower(strings.TrimSpace(modelID))
++		if key == "" {
++			return nil, fmt.Errorf("%s contains an empty model ID", modelMetadataFileEnv)
++		}
++		if _, exists := metadata[key]; exists {
++			return nil, fmt.Errorf("%s contains duplicate model ID %q", modelMetadataFileEnv, modelID)
++		}
++		if limits.ContextLength != nil && *limits.ContextLength <= 0 {
++			return nil, fmt.Errorf("%s context_length for %q must be positive", modelMetadataFileEnv, modelID)
++		}
++		if limits.MaxOutputTokens != nil && *limits.MaxOutputTokens <= 0 {
++			return nil, fmt.Errorf("%s max_output_tokens for %q must be positive", modelMetadataFileEnv, modelID)
++		}
++		metadata[key] = limits
++	}
++	return metadata, nil
++}
++
++func (mc *ModelCatalog) applyLocalModelMetadata(model *schemas.Model) {
++	if mc == nil || model == nil || len(mc.modelMetadata) == 0 {
++		return
++	}
++	metadata, ok := mc.modelMetadata[strings.ToLower(strings.TrimSpace(model.ID))]
++	if !ok {
++		return
++	}
++	if model.ContextLength == nil && model.MaxInputTokens == nil && metadata.ContextLength != nil {
++		contextLength := *metadata.ContextLength
++		model.ContextLength = &contextLength
++	}
++	if model.MaxOutputTokens == nil && metadata.MaxOutputTokens != nil {
++		maxOutputTokens := *metadata.MaxOutputTokens
++		model.MaxOutputTokens = &maxOutputTokens
++	}
++}
+diff --git a/framework/modelcatalog/modelinfo.go b/framework/modelcatalog/modelinfo.go
+index a003a6a..0f9c0dc 100644
+--- a/framework/modelcatalog/modelinfo.go
++++ b/framework/modelcatalog/modelinfo.go
+@@ -71,6 +71,7 @@ func (mc *ModelCatalog) enrichModel(model *schemas.Model) {
+ 		entry = mc.GetPricingEntryForModel(*model.Alias, provider)
+ 	}
+ 	ApplyModelInfo(model, entry)
++	mc.applyLocalModelMetadata(model)
+ }
+ 
+ // ApplyModelInfo merges catalog metadata from entry into model, filling only
+diff --git a/framework/modelcatalog/modelmetadata_test.go b/framework/modelcatalog/modelmetadata_test.go
+new file mode 100644
+index 0000000..3603a33
+--- /dev/null
++++ b/framework/modelcatalog/modelmetadata_test.go
+@@ -0,0 +1,70 @@
++package modelcatalog
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++
++	bifrost "github.com/maximhq/bifrost/core"
++	"github.com/maximhq/bifrost/core/schemas"
++)
++
++func TestInitLoadsLocalModelMetadataAndBackfillsOnlyMissingLimits(t *testing.T) {
++	tempDir := t.TempDir()
++	metadataPath := filepath.Join(tempDir, "model-metadata.json")
++	metadataJSON := []byte(`{
++		"omlx/qwen3.8-27b": {
++			"context_length": 128000,
++			"max_output_tokens": 30720
++		}
++	}`)
++	if err := os.WriteFile(metadataPath, metadataJSON, 0o600); err != nil {
++		t.Fatalf("write model metadata: %v", err)
++	}
++	t.Setenv("BIFROST_MODEL_METADATA_FILE", metadataPath)
++
++	pricingPath := filepath.Join(tempDir, "pricing.json")
++	if err := os.WriteFile(pricingPath, []byte(`{}`), 0o600); err != nil {
++		t.Fatalf("write pricing fixture: %v", err)
++	}
++	paramsPath := filepath.Join(tempDir, "model-parameters.json")
++	if err := os.WriteFile(paramsPath, []byte(`{}`), 0o600); err != nil {
++		t.Fatalf("write model parameters fixture: %v", err)
++	}
++
++	catalog, err := Init(t.Context(), &Config{
++		PricingURL:             schemas.Ptr("file://" + pricingPath),
++		ModelParametersURL:     schemas.Ptr("file://" + paramsPath),
++		MCPLibrarySyncInterval: schemas.Ptr(int64(MCPLibrarySyncDisabled)),
++	}, nil, bifrost.NewNoOpLogger())
++	if err != nil {
++		t.Fatalf("initialize model catalog: %v", err)
++	}
++	defer catalog.Cleanup()
++
++	missing := &schemas.BifrostListModelsResponse{
++		Data: []schemas.Model{{ID: "omlx/qwen3.8-27b"}},
++	}
++	catalog.EnrichListModelsResponse(missing)
++	if got := missing.Data[0].ContextLength; got == nil || *got != 128000 {
++		t.Errorf("ContextLength = %v, want 128000", got)
++	}
++	if got := missing.Data[0].MaxOutputTokens; got == nil || *got != 30720 {
++		t.Errorf("MaxOutputTokens = %v, want 30720", got)
++	}
++
++	providerReported := &schemas.BifrostListModelsResponse{
++		Data: []schemas.Model{{
++			ID:              "omlx/qwen3.8-27b",
++			ContextLength:   schemas.Ptr(65536),
++			MaxOutputTokens: schemas.Ptr(4096),
++		}},
++	}
++	catalog.EnrichListModelsResponse(providerReported)
++	if got := providerReported.Data[0].ContextLength; got == nil || *got != 65536 {
++		t.Errorf("provider ContextLength = %v, want preserved 65536", got)
++	}
++	if got := providerReported.Data[0].MaxOutputTokens; got == nil || *got != 4096 {
++		t.Errorf("provider MaxOutputTokens = %v, want preserved 4096", got)
++	}
++}

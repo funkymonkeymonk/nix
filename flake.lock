@@ -5,11 +5,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1794036560,
-        "narHash": "sha256-sqNx/1eVZoOlDBZMjTF/pyeeoT6QgWdzAAJeap7GA/U=",
+        "lastModified": 1794297465,
+        "narHash": "sha256-FLSJpgb1NOmHpKmui+1CSK2wrZfJlNO+4SW9xLT8zpc=",
         "owner": "maximhq",
         "repo": "bifrost",
-        "rev": "6e640279b36337820f2088fb85f6e78f339063c3",
+        "rev": "7cb75fb2f8276ca48d0792c857fecb67b8879e2f",
         "type": "github"
       },
       "original": {
