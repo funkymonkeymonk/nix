@@ -348,7 +348,7 @@ in {
     # All pi configuration files
     home.file = allFiles;
 
-    home.sessionVariables = {
+    home.sessionVariables = lib.optionalAttrs (cfg.jevOnePasswordItem != "") {
       PI_JEV_BASE_URL = "https://opencode.ai/inference/systemone";
       TYPESAFE_DEFAULT_MODEL = "jev-1.13";
     };
