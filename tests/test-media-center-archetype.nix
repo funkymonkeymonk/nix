@@ -165,6 +165,13 @@
       ultraCleanupTimerConfig = ultraCleanupTimer.timerConfig or {};
       ultraDownloadStageTimer = drlight.systemd.timers.ultra-media-download-stage or {};
       ultraDownloadStageTimerConfig = ultraDownloadStageTimer.timerConfig or {};
+      ultraRemoteDiskConfig = drlight.myConfig.ultraMediaDownloadStage.remoteDisk or {};
+      ultraRemoteDiskMetricsDirectory = "/run/ultra-media-metrics";
+      nodeExporterTextfileDirectory = drlight.myConfig.nodeExporter.textfileDirectory or null;
+      nodeExporterExtraFlags = drlight.services.prometheus.exporters.node.extraFlags or [];
+      nodeExporterExtraGroups = drlight.users.users.node-exporter.extraGroups or [];
+      ultraPrometheusRules = builtins.concatStringsSep "\n" (drlight.services.prometheus.rules or []);
+      ultraMetricsTmpfiles = drlight.systemd.tmpfiles.rules or [];
       ultraStageSecretNames = [
         "ultraMediaStageHost"
         "ultraMediaStageUsername"
@@ -204,6 +211,8 @@
       ultraStageRpcUsernameSecret = onePasswordSecrets.ultraMediaStageRpcUsername or {};
       ultraStageRpcPasswordSecret = onePasswordSecrets.ultraMediaStageRpcPassword or {};
       opnixSecrets = drlight.services.onepassword-secrets.secrets or {};
+      opnixChangeDetection = drlight.services.onepassword-secrets.systemdIntegration.changeDetection or {};
+      opnixWatcherPath = drlight.systemd.paths.opnix-secrets-watcher or {};
       opnixUltraStagePrivateSecrets = map (name: opnixSecrets.${name} or {}) ultraStagePrivateSecretNames;
       opnixUltraStageSharedSecrets = map (name: opnixSecrets.${name} or {}) ultraStageSharedSecretNames;
       opnixUltraStageKeySecret = opnixSecrets.ultraMediaStageKey or {};
@@ -483,6 +492,8 @@
         ${checkTrue "Mylar3 overlays declared settings before startup" (lib.hasInfix "render-mylar3-config" (mediaManagementServiceConfig "mylar3").ExecStartPre)}
         ${checkFalse "Mylar3 can leave restored INI untouched during one-time root migration" (builtins.hasAttr "ExecStartPre" (drlightWithMylarSettingsManagementDisabled.systemd.services.mylar3.serviceConfig or {}))}
         ${checkTrue "Drlight enables Opnix runtime secrets for declared media credentials" drlight.services.onepassword-secrets.enable}
+        ${checkTrue "Drlight keeps Opnix content hash change detection enabled" (opnixChangeDetection.enable or false)}
+        ${checkFalse "Drlight disables the redundant Opnix output-directory watcher" (opnixWatcherPath.enable or true)}
         ${checkEqual "media app login secrets use the expected Opnix fields" mediaAuthExpectedReferences (map (secret: secret.reference or null) mediaAuthSecrets)}
         ${checkEqual "media app login references resolve through the Opnix default vault" (map (reference: "op://Opnix/${reference}") mediaAuthExpectedReferences) (map (secret: secret.reference or null) opnixMediaAuthSecrets)}
         ${checkEqual "media app login secrets use restricted runtime paths" [
@@ -708,13 +719,21 @@
            ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
+           ${checkTrue "Drlight enables account-level seedbox disk monitoring" (ultraRemoteDiskConfig.enable or false)}
+           ${checkEqual "seedbox capacity uses the configured decimal 4 TB" 4000000000000 (ultraRemoteDiskConfig.capacityBytes or null)}
+           ${checkEqual "seedbox warning threshold uses decimal 3 TB" 3000000000000 (ultraRemoteDiskConfig.warningThresholdBytes or null)}
+           ${checkEqual "node_exporter textfile collector uses the private Ultra metrics directory" ultraRemoteDiskMetricsDirectory nodeExporterTextfileDirectory}
+           ${checkTrue "node_exporter reads the dedicated metrics group" (builtins.elem "ultra-media-metrics" nodeExporterExtraGroups && builtins.elem "--collector.textfile.directory=/run/ultra-media-metrics" nodeExporterExtraFlags)}
+           ${checkTrue "cleanup writes remote usage metrics only through its private group path" (builtins.elem ultraRemoteDiskMetricsDirectory (ultraCleanupServiceConfig.ReadWritePaths or []) && builtins.elem "ultra-media-metrics" (ultraCleanupServiceConfig.SupplementaryGroups or []) && builtins.elem "ultra-media-metrics" (builtins.attrNames (drlight.users.groups or {})) && builtins.elem "d /run/ultra-media-metrics 2750 ultra-sync ultra-media-metrics - -" ultraMetricsTmpfiles && builtins.elem "z /run/ultra-media-metrics 2750 ultra-sync ultra-media-metrics - -" ultraMetricsTmpfiles)}
+           ${checkTrue "Prometheus alerts when Ultra storage exceeds 3 TB" (lib.hasInfix "UltraSeedboxStorageHigh" ultraPrometheusRules && lib.hasInfix "3000000000000" ultraPrometheusRules)}
+           ${checkTrue "Prometheus alerts if Ultra storage telemetry is unavailable" (lib.hasInfix "UltraSeedboxStorageTelemetryUnavailable" ultraPrometheusRules)}
            ${checkEqual "completed-download staging starts without waiting for the transfer to finish" "exec" (ultraDownloadStageServiceConfig.Type or null)}
            ${checkEqual "completed-download staging runs as the existing Ultra sync user" "ultra-sync" (ultraDownloadStageServiceConfig.User or null)}
            ${checkEqual "completed-download staging runs in the shared media group" "users" (ultraDownloadStageServiceConfig.Group or null)}
            ${checkEqual "completed-download staging requires the mounted media filesystem" "/srv/media" (ultraDownloadStageService.unitConfig.ConditionPathIsMountPoint or null)}
            ${checkFalse "staging no longer waits for the whole batch to trigger cleanup" (ultraDownloadStageService.unitConfig ? OnSuccess)}
            ${checkEqual "cleanup is a oneshot under the Ultra sync account" ["oneshot" "ultra-sync" "users"] [(ultraCleanupServiceConfig.Type or null) (ultraCleanupServiceConfig.User or null) (ultraCleanupServiceConfig.Group or null)]}
-           ${checkTrue "Drlight cleanup uses apply mode with per-torrent queue receipts" (lib.hasInfix "ultra-media-cleanup.py" ultraCleanupCommand && lib.hasInfix "--apply" ultraCleanupCommand && lib.hasInfix "--queue-root /var/lib/ultra-media/cleanup-queue" ultraCleanupCommand && lib.hasInfix "--cleanup-queue-root /var/lib/ultra-media/cleanup-queue" ultraDownloadStageCommand)}
+           ${checkTrue "Drlight cleanup uses apply mode, per-torrent receipts, and remote disk telemetry" (lib.hasInfix "ultra-media-cleanup.py" ultraCleanupCommand && lib.hasInfix "--apply" ultraCleanupCommand && lib.hasInfix "--queue-root /var/lib/ultra-media/cleanup-queue" ultraCleanupCommand && lib.hasInfix "--cleanup-queue-root /var/lib/ultra-media/cleanup-queue" ultraDownloadStageCommand && lib.hasInfix "--remote-disk-metrics-path /run/ultra-media-metrics/ultra-seedbox.prom" ultraCleanupCommand)}
            ${checkTrue "disabled cleanup stays report-only and network-isolated" (lib.hasInfix "--report-only" ultraCleanupDisabledCommand && (ultraCleanupDisabledServiceConfig.PrivateNetwork or false))}
            ${checkTrue "cleanup queue timer runs every minute only when enabled" (builtins.elem "timers.target" (ultraCleanupTimer.wantedBy or []) && (ultraCleanupTimerConfig.OnBootSec or null) == "1min" && (ultraCleanupTimerConfig.OnUnitActiveSec or null) == "1min" && (ultraCleanupTimerConfig.Unit or null) == "ultra-media-cleanup.service" && !(builtins.elem "timers.target" (ultraCleanupDisabledTimer.wantedBy or [])))}
            ${checkFalse "cleanup queue worker does not depend on full staging service completion" (builtins.elem "ultra-media-download-stage.service" (ultraCleanupService.after or []) || builtins.elem "ultra-media-download-stage.service" (ultraCleanupService.requires or []))}

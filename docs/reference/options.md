@@ -303,6 +303,7 @@ or changing a `myConfig.*` option.
 | `listenOnTailscale` | boolean | `false` | Resolve the current Tailscale IPv4 address at service startup and bind only to that address. The service waits for Tailscale to become available, which keeps the metrics endpoint off the machine's LAN interfaces. |
 | `openFirewallInterfaces` | list of string | `[ "tailscale0" ]` | Network interfaces allowed to reach node_exporter. The default exposes metrics over Tailscale only; add a non-Tailscale interface explicitly when access from that network is intended. Set to [] for local-only access. The exporter listens on IPv4 interfaces, while this firewall list controls its network reachability. |
 | `port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `9100` | Port for node_exporter HTTP server |
+| `textfileDirectory` | null or string | `null` | Optional node_exporter textfile collector directory for aggregate custom metrics. |
 
 ### myConfig.obsidian
 
@@ -518,6 +519,9 @@ or changing a `myConfig.*` option.
 | `cleanup.enable` | boolean | `false` | Whether to enable automatic Ultra seedbox cleanup after verified local imports. |
 | `cleanup.privateTrackerRatioProtection.enable` | boolean | `false` | Whether to enable future private-tracker account-ratio cleanup gate (unknown trackers fail closed). |
 | `enable` | boolean | `false` | Whether to enable completed Ultra download staging timer. |
+| `remoteDisk.capacityBytes` | positive integer, meaning >0 | `4000000000000` | Nominal remote seedbox account capacity in decimal bytes. |
+| `remoteDisk.enable` | boolean | `false` | Whether to enable Ultra seedbox account storage monitoring. |
+| `remoteDisk.warningThresholdBytes` | positive integer, meaning >0 | `3000000000000` | Remote seedbox storage warning threshold in bytes. |
 
 ### myConfig.users
 

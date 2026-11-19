@@ -20,6 +20,9 @@
   stageServices = ["ultra-media-download-stage"];
   cleanupServices = ["ultra-media-cleanup"];
   cleanupEnabled = stageCfg.cleanup.enable or false;
+  remoteDiskConfig = stageCfg.remoteDisk;
+  remoteDiskEnabled = remoteDiskConfig.enable;
+  remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
   arrSyncServices = [
     "radarr-media-config-sync"
     "sonarr-media-config-sync"
@@ -49,17 +52,56 @@ in {
           enable = lib.mkEnableOption "automatic Ultra seedbox cleanup after verified local imports";
           privateTrackerRatioProtection.enable = lib.mkEnableOption "future private-tracker account-ratio cleanup gate (unknown trackers fail closed)";
         };
+        remoteDisk = {
+          enable = lib.mkEnableOption "Ultra seedbox account storage monitoring";
+          capacityBytes = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 4000000000000;
+            description = "Nominal remote seedbox account capacity in decimal bytes.";
+          };
+          warningThresholdBytes = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 3000000000000;
+            description = "Remote seedbox storage warning threshold in bytes.";
+          };
+        };
       };
     })
   ];
 
-  users.groups.media-management-secrets = {};
+  users.groups =
+    {
+      media-management-secrets = {};
+    }
+    // lib.optionalAttrs remoteDiskEnabled {
+      ultra-media-metrics = {};
+    };
   users.users.ultra-sync = {
     isSystemUser = true;
     group = "users";
-    extraGroups = ["media-management-secrets"];
+    extraGroups = ["media-management-secrets"] ++ lib.optionals remoteDiskEnabled ["ultra-media-metrics"];
     description = "Stage completed Ultra downloads for local Arr imports";
   };
+
+  assertions = [
+    {
+      assertion = !remoteDiskEnabled || cleanupEnabled;
+      message = "Ultra remote disk monitoring requires the cleanup timer to be enabled";
+    }
+    {
+      assertion = !remoteDiskEnabled || remoteDiskConfig.warningThresholdBytes <= remoteDiskConfig.capacityBytes;
+      message = "Ultra remote disk warning threshold must not exceed the configured capacity";
+    }
+  ];
+  users.users.node-exporter.extraGroups = lib.optionals remoteDiskEnabled ["ultra-media-metrics"];
+  myConfig.nodeExporter.textfileDirectory =
+    if remoteDiskEnabled
+    then remoteDiskMetricsDirectory
+    else null;
+  systemd.tmpfiles.rules = lib.optionals remoteDiskEnabled [
+    "d ${remoteDiskMetricsDirectory} 2750 ultra-sync ultra-media-metrics - -"
+    "z ${remoteDiskMetricsDirectory} 2750 ultra-sync ultra-media-metrics - -"
+  ];
 
   myConfig.onepassword.secrets = {
     ultraMediaStageHost = mkSecret "Ultra Media Sync Config/host" hostPath;

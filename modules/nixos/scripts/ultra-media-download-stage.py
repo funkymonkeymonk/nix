@@ -345,14 +345,14 @@ def run_rsync_with_progress(
     """Run rsync while extracting only numeric progress, never diagnostic text."""
     process = process_factory(
         list(arguments),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
         bufsize=0,
     )
-    if process.stderr is None:
+    if process.stdout is None:
         raise OSError("rsync progress stream is unavailable")
     selector = selectors.DefaultSelector()
-    selector.register(process.stderr, selectors.EVENT_READ)
+    selector.register(process.stdout, selectors.EVENT_READ)
     buffered = b""
     latest_progress = 0
 
@@ -398,7 +398,7 @@ def run_rsync_with_progress(
         raise
     finally:
         selector.close()
-        process.stderr.close()
+        process.stdout.close()
 
 
 def build_staging_plan(
@@ -414,6 +414,7 @@ def build_staging_plan(
     skipped_incomplete = 0
     skipped_unknown_path = 0
     skipped_malformed_path = 0
+    skipped_unknown_completion_time = 0
     planned_files = 0
     known_bytes = 0
     unknown_size_files = 0
@@ -495,9 +496,19 @@ def build_staging_plan(
             skipped_malformed_path += 1
             continue
 
+        done_date = torrent.get("done_date")
+        if (
+            not isinstance(done_date, int)
+            or isinstance(done_date, bool)
+            or done_date <= 0
+        ):
+            skipped_unknown_completion_time += 1
+            continue
+
         planned_torrents.append(
             {
                 "torrent_id": torrent_id,
+                "done_date": done_date,
                 "fingerprint": fingerprint_torrent(torrent, normalized_mappings),
                 "transfers": transfers,
                 "torrent": torrent,
@@ -510,6 +521,8 @@ def build_staging_plan(
                 unknown_size_files += 1
             else:
                 known_bytes += size
+
+    planned_torrents.sort(key=lambda item: item["done_date"])
 
     return {
         "torrents": planned_torrents,
@@ -524,6 +537,7 @@ def build_staging_plan(
             "skipped_incomplete": skipped_incomplete,
             "skipped_unknown_path": skipped_unknown_path,
             "skipped_malformed_path": skipped_malformed_path,
+            "skipped_unknown_completion_time": skipped_unknown_completion_time,
         },
     }
 
@@ -537,18 +551,49 @@ class StageProgressReporter:
         *,
         emit: Callable[[Mapping[str, Any]], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], float] = time.time,
+        completion_times: Sequence[int] = (),
+        unorderable_completed_torrents: int = 0,
         interval_seconds: int = 60,
     ) -> None:
         if isinstance(interval_seconds, bool) or not isinstance(interval_seconds, int) or interval_seconds <= 0:
             raise ValueError("progress interval must be a positive integer")
         self.totals = dict(totals)
         self.clock = clock
+        self.wall_clock = wall_clock
         self.interval_seconds = interval_seconds
         self.emit_event = emit or self._emit_json
         self.started_at = clock()
         self.last_emit_at: float | None = None
         self.last_emit_bytes = 0
         self.bytes_per_second: float | None = None
+        self.completion_times: tuple[int, ...] = ()
+        self.unorderable_completed_torrents = 0
+        self.set_completion_context(
+            completion_times, unorderable_completed_torrents
+        )
+
+    def set_completion_context(
+        self,
+        completion_times: Sequence[int],
+        unorderable_completed_torrents: int,
+    ) -> None:
+        if (
+            not isinstance(completion_times, Sequence)
+            or isinstance(completion_times, (str, bytes))
+            or any(
+                not isinstance(timestamp, int)
+                or isinstance(timestamp, bool)
+                or timestamp <= 0
+                for timestamp in completion_times
+            )
+            or not isinstance(unorderable_completed_torrents, int)
+            or isinstance(unorderable_completed_torrents, bool)
+            or unorderable_completed_torrents < 0
+        ):
+            raise ValueError("completion-time context is invalid")
+        self.completion_times = tuple(completion_times)
+        self.unorderable_completed_torrents = unorderable_completed_torrents
 
     @staticmethod
     def _emit_json(event: Mapping[str, Any]) -> None:
@@ -588,6 +633,19 @@ class StageProgressReporter:
 
         total_bytes = self.totals.get("bytes")
         progress_bytes = max(0, bytes_done) + max(0, bytes_reused)
+        if self.unorderable_completed_torrents > 0:
+            total_bytes = None
+        if self.unorderable_completed_torrents > 0:
+            time_behind_seconds = None
+        elif not self.completion_times:
+            time_behind_seconds = 0 if self.totals.get("torrents") == 0 else None
+        elif torrents_done >= len(self.completion_times):
+            time_behind_seconds = 0
+        else:
+            time_behind_seconds = max(
+                0,
+                int(self.wall_clock() - self.completion_times[torrents_done]),
+            )
         percent_complete = None
         if (
             isinstance(total_bytes, int)
@@ -625,6 +683,8 @@ class StageProgressReporter:
                     else None
                 ),
                 "eta_seconds": eta_seconds,
+                "time_behind_seconds": time_behind_seconds,
+                "unorderable_completed_torrents": self.unorderable_completed_torrents,
                 "receipts_created": receipts_created,
                 "failed_torrents": failed_torrents,
             }
@@ -1131,6 +1191,10 @@ def stage_completed_downloads(
     """Copy each complete mapped torrent as an atomic, independently reportable unit."""
     plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
     reporter = progress_reporter or StageProgressReporter(plan["totals"])
+    reporter.set_completion_context(
+        [planned["done_date"] for planned in plan["torrents"]],
+        plan["counts"]["skipped_unknown_completion_time"],
+    )
     root = Path(staging_root).absolute()
     root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink():

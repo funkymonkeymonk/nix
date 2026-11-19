@@ -6,8 +6,14 @@ import re
 import shlex
 import subprocess
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Mapping, Sequence
 
+
+_APP_STATS_DISK_ROW_PATTERN = re.compile(
+    r"^\s*\d+\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d+)?\s+(?P<used_gb>[\d,]+(?:\.\d+)?)\s*$"
+)
 
 _REMOTE_STAT_PATTERN = re.compile(
     r"(?P<kind>[^\t]+)\t(?P<size>\d+)\t"
@@ -37,6 +43,72 @@ def parse_remote_stat(output: str) -> dict[str, Any] | None:
     if size < 0:
         return None
     return {"regular_file": True, "size": size, "mtime_ns": mtime_ns}
+
+
+def parse_app_stats_disk_usage(output: str) -> dict[str, int] | None:
+    """Parse the last Ultra app-stats disk row as decimal bytes."""
+    if not isinstance(output, str):
+        return None
+    used_gigabytes = None
+    for line in output.splitlines():
+        match = _APP_STATS_DISK_ROW_PATTERN.fullmatch(line)
+        if match is None:
+            continue
+        try:
+            value = Decimal(match.group("used_gb").replace(",", ""))
+        except InvalidOperation:
+            continue
+        if not value.is_finite() or value < 0:
+            continue
+        used_gigabytes = value
+    if used_gigabytes is None:
+        return None
+    try:
+        return {"used_bytes": int(used_gigabytes * Decimal(1_000_000_000))}
+    except (OverflowError, ValueError):
+        return None
+
+
+def make_remote_disk_usage_probe(
+    ssh_arguments: Sequence[str],
+    ssh_username: str,
+    ssh_host: str,
+    *,
+    process_runner: Callable[..., Any] = subprocess.run,
+) -> Callable[[], dict[str, int] | None]:
+    """Create a strict-SSH probe for Ultra's account-level disk usage."""
+    if (
+        not isinstance(ssh_arguments, Sequence)
+        or isinstance(ssh_arguments, (str, bytes))
+        or not ssh_arguments
+        or not isinstance(ssh_username, str)
+        or not ssh_username
+        or any(character.isspace() or character in "\0@:" for character in ssh_username)
+        or not isinstance(ssh_host, str)
+        or not ssh_host
+        or any(character.isspace() or character in "\0@:" for character in ssh_host)
+    ):
+        raise ValueError("ssh_config_missing")
+    target = f"{ssh_username}@{ssh_host}"
+    command = "app-stats show -s disk -t hour -c 1"
+
+    def probe() -> dict[str, int] | None:
+        try:
+            result = process_runner(
+                [*ssh_arguments, target, command],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=True,
+                timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        if getattr(result, "returncode", 0) != 0:
+            return None
+        return parse_app_stats_disk_usage(result.stdout)
+
+    return probe
 
 
 def make_remote_source_stat(
