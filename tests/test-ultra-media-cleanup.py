@@ -706,26 +706,85 @@ class CleanupRuntimeTests(unittest.TestCase):
             finally:
                 sys.modules.pop(module_name, None)
 
-    def test_arr_import_proof_requires_source_size_and_local_path_for_every_file(self):
-        candidate = {
-            "files": [
-                {
-                    "remote_path": "/seedbox/complete/episode.mkv",
-                    "staged_path": "/srv/media/.arr-staging/episode.mkv",
-                    "local_path": "/srv/media/shows/episode.mkv",
-                    "expected_size": 1024,
-                }
-            ]
-        }
-        source_stat = lambda _path: {
-            "regular_file": True,
-            "size": 1024,
-            "mtime_ns": 1_700_000_000_000_000_000,
-        }
-        proof = policy.make_arr_import_prover(source_stat)(candidate)
-        self.assertEqual(proof.status, "verified")
-        self.assertEqual(proof.imported_paths, frozenset({"/srv/media/shows/episode.mkv"}))
-        self.assertEqual(candidate["files"][0]["expected_mtime_ns"], 1_700_000_000_000_000_000)
+    def test_arr_import_proof_requires_source_size_and_staged_mtime_match(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staged_file = Path(temporary_directory) / "episode.mkv"
+            staged_file.write_bytes(b"x" * 1024)
+            expected_mtime = 1_700_000_000_000_000_000
+            os.utime(staged_file, ns=(expected_mtime, expected_mtime))
+            candidate = {
+                "files": [
+                    {
+                        "remote_path": "/seedbox/complete/episode.mkv",
+                        "staged_path": str(staged_file),
+                        "local_path": "/srv/media/shows/episode.mkv",
+                        "expected_size": 1024,
+                    }
+                ]
+            }
+            source_stat = lambda _path: {
+                "regular_file": True,
+                "size": 1024,
+                "mtime_ns": expected_mtime,
+            }
+            with patch.object(policy, "STAGING_ROOT", temporary_directory):
+                proof = policy.make_arr_import_prover(source_stat)(candidate)
+            self.assertEqual(proof.status, "verified")
+            self.assertEqual(proof.imported_paths, frozenset({"/srv/media/shows/episode.mkv"}))
+            self.assertEqual(candidate["files"][0]["expected_mtime_ns"], expected_mtime)
+
+    def test_arr_import_proof_rejects_symlinked_staged_copy(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            outside_file = root / "outside.mkv"
+            outside_file.write_bytes(b"x" * 1024)
+            expected_mtime = 1_700_000_000_000_000_000
+            os.utime(outside_file, ns=(expected_mtime, expected_mtime))
+            staged_file = root / "stage" / "episode.mkv"
+            staged_file.parent.mkdir()
+            staged_file.symlink_to(outside_file)
+            candidate = {
+                "files": [
+                    {
+                        "remote_path": "/seedbox/complete/episode.mkv",
+                        "staged_path": str(staged_file),
+                        "local_path": "/srv/media/shows/episode.mkv",
+                        "expected_size": 1024,
+                    }
+                ]
+            }
+            source_stat = lambda _path: {
+                "regular_file": True,
+                "size": 1024,
+                "mtime_ns": expected_mtime,
+            }
+            with patch.object(policy, "STAGING_ROOT", str(root / "stage")):
+                proof = policy.make_arr_import_prover(source_stat)(candidate)
+        self.assertEqual(proof.status, "unverified")
+
+    def test_arr_import_proof_rejects_staged_copy_mtime_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staged_file = Path(temporary_directory) / "episode.mkv"
+            staged_file.write_bytes(b"x" * 1024)
+            os.utime(staged_file, ns=(1_700_000_000_000_000_000, 1_700_000_000_000_000_000))
+            candidate = {
+                "files": [
+                    {
+                        "remote_path": "/seedbox/complete/episode.mkv",
+                        "staged_path": str(staged_file),
+                        "local_path": "/srv/media/shows/episode.mkv",
+                        "expected_size": 1024,
+                    }
+                ]
+            }
+            source_stat = lambda _path: {
+                "regular_file": True,
+                "size": 1024,
+                "mtime_ns": 1_700_000_000_000_000_001,
+            }
+            with patch.object(policy, "STAGING_ROOT", temporary_directory):
+                proof = policy.make_arr_import_prover(source_stat)(candidate)
+        self.assertEqual(proof.status, "unverified")
 
     def test_arr_import_proof_fails_closed_when_source_stat_size_changed(self):
         candidate = {
@@ -1043,9 +1102,12 @@ class CleanupRuntimeTests(unittest.TestCase):
             library_root = root / "library"
             stage_root.mkdir()
             library_root.mkdir()
+            staged_file = stage_root / "episode.mkv"
+            staged_file.write_bytes(b"payload")
+            os.utime(staged_file, ns=(1_700_000_000_000_000_000,) * 2)
             local_file = library_root / "episode.mkv"
             local_file.write_bytes(b"payload")
-            os.utime(local_file, ns=(1_700_000_000_000_000_000,) * 2)
+            os.utime(local_file, ns=(1_700_000_000_000_000_000 + 86_400_000_000_000,) * 2)
             staged_path = str(stage_root / "episode.mkv")
             local_path = str(local_file)
             secret_paths = {}
@@ -3139,31 +3201,36 @@ class CleanupOrchestrationTests(unittest.TestCase):
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"arr_import_unverified": 1})
 
-    def test_local_size_and_mtime_must_both_match(self):
-        candidate = self.candidate()
-        for observed in (
-            {
+    def test_local_import_revalidation_requires_size_but_allows_import_mtime_change(self):
+        mismatched_size = policy.build_cleanup_report(
+            True,
+            [self.candidate()],
+            arr_import_prover=lambda _candidate: self.verified_import(
+                "/library/movie.mkv"
+            ),
+            local_file_verifier=lambda _file: {
                 "regular_file": True,
                 "size": 1023,
                 "mtime_ns": 1_700_000_000_000_000_000,
             },
-            {
+        )
+        self.assertEqual(mismatched_size["eligible"], 0)
+        self.assertEqual(mismatched_size["reasons"], {"local_file_mismatch": 1})
+
+        changed_import_mtime = policy.build_cleanup_report(
+            True,
+            [self.candidate()],
+            arr_import_prover=lambda _candidate: self.verified_import(
+                "/library/movie.mkv"
+            ),
+            local_file_verifier=lambda _file: {
                 "regular_file": True,
                 "size": 1024,
                 "mtime_ns": 1_700_000_000_000_000_001,
             },
-        ):
-            with self.subTest(observed=observed):
-                report = policy.build_cleanup_report(
-                    True,
-                    [candidate],
-                    arr_import_prover=lambda _candidate: self.verified_import(
-                        "/library/movie.mkv"
-                    ),
-                    local_file_verifier=lambda _file: observed,
-                )
-                self.assertEqual(report["eligible"], 0)
-                self.assertEqual(report["reasons"], {"local_file_mismatch": 1})
+        )
+        self.assertEqual(changed_import_mtime["eligible"], 1)
+        self.assertEqual(changed_import_mtime["reasons"], {})
 
     def test_unknown_private_account_ratio_blocks_cleanup_report(self):
         candidate = self.candidate(

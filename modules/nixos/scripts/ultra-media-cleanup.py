@@ -276,21 +276,20 @@ def _valid_integer(value: Any, *, nonnegative: bool = False) -> bool:
 
 
 def local_file_matches(file_record: Mapping[str, Any], observed: Any) -> bool:
-    """Require exact regular-file size and nanosecond-mtime evidence."""
+    """Require a regular imported file with the exact payload size.
+
+    Arr may copy the staged file and assign the destination a new mtime, so
+    source/staging mtime equality is checked separately before this proof.
+    """
     if not isinstance(observed, Mapping):
         return False
     expected_size = file_record.get("expected_size")
-    expected_mtime = file_record.get("expected_mtime_ns")
     actual_size = observed.get("size")
-    actual_mtime = observed.get("mtime_ns")
     return (
         observed.get("regular_file") is True
         and _valid_integer(expected_size, nonnegative=True)
         and _valid_integer(actual_size, nonnegative=True)
-        and _valid_integer(expected_mtime)
-        and _valid_integer(actual_mtime)
         and expected_size == actual_size
-        and expected_mtime == actual_mtime
     )
 
 
@@ -638,6 +637,8 @@ def _has_import_proof(candidate: Mapping[str, Any], proof: Any) -> bool:
 
 def make_arr_import_prover(
     source_stat: Callable[[str], Mapping[str, Any] | None],
+    *,
+    staging_root: str | None = None,
 ) -> Callable[[Mapping[str, Any]], ArrImportProof]:
     """Build an import proof only when each imported file matches its source."""
     def prove(candidate: Mapping[str, Any]) -> ArrImportProof:
@@ -670,6 +671,18 @@ def make_arr_import_prover(
                 or not _valid_integer(observed.get("mtime_ns"))
             ):
                 return ArrImportProof.unverified()
+            staged_observed = verify_local_staged_file(
+                file_record, staging_root=staging_root
+            )
+            if (
+                not isinstance(staged_observed, Mapping)
+                or staged_observed.get("regular_file") is not True
+                or not _valid_integer(staged_observed.get("size"), nonnegative=True)
+                or staged_observed.get("size") != expected_size
+                or not _valid_integer(staged_observed.get("mtime_ns"))
+                or staged_observed.get("mtime_ns") != observed.get("mtime_ns")
+            ):
+                return ArrImportProof.unverified()
             file_record["expected_mtime_ns"] = observed["mtime_ns"]
             imported_paths.append(local_path)
         return ArrImportProof.verified(imported_paths)
@@ -677,19 +690,18 @@ def make_arr_import_prover(
     return prove
 
 
-def verify_local_imported_file(
-    file_record: Mapping[str, Any], library_roots: Sequence[str]
+def _observe_local_regular_file(
+    path: Any, allowed_roots: Sequence[str]
 ) -> Mapping[str, Any] | None:
-    """Read-only size/mtime observation for one path from Arr import history."""
-    path = file_record.get("local_path") if isinstance(file_record, Mapping) else None
-    if not isinstance(path, str) or not _path_is_within(path, library_roots):
+    """Return read-only metadata for a regular, non-symlink file inside trusted roots."""
+    if not isinstance(path, str) or not _path_is_within(path, allowed_roots):
         return None
     try:
         path_object = Path(path)
         if path_object.is_symlink():
             return None
         resolved = path_object.resolve(strict=True)
-        if not _path_is_within(str(resolved), library_roots):
+        if not _path_is_within(str(resolved), allowed_roots):
             return None
         observed = os.lstat(resolved)
     except OSError:
@@ -699,6 +711,23 @@ def verify_local_imported_file(
         "size": observed.st_size,
         "mtime_ns": observed.st_mtime_ns,
     }
+
+
+def verify_local_imported_file(
+    file_record: Mapping[str, Any], library_roots: Sequence[str]
+) -> Mapping[str, Any] | None:
+    """Read-only size/mtime observation for one path from Arr import history."""
+    path = file_record.get("local_path") if isinstance(file_record, Mapping) else None
+    return _observe_local_regular_file(path, library_roots)
+
+
+def verify_local_staged_file(
+    file_record: Mapping[str, Any], *, staging_root: str | None = None
+) -> Mapping[str, Any] | None:
+    """Read-only metadata for the exact staged copy that Arr imported."""
+    path = file_record.get("staged_path") if isinstance(file_record, Mapping) else None
+    trusted_staging_root = STAGING_ROOT if staging_root is None else staging_root
+    return _observe_local_regular_file(path, [trusted_staging_root])
 
 
 def _path_counts(candidates: Sequence[Any]) -> dict[str, int]:
@@ -1592,7 +1621,9 @@ def run_runtime_cleanup(
             ssh_host,
             process_runner=process_runner,
         )
-        arr_import_prover = make_arr_import_prover(source_stat)
+        arr_import_prover = make_arr_import_prover(
+            source_stat, staging_root=staging_root
+        )
         local_file_verifier = lambda file_record: verify_local_imported_file(
             file_record, library_roots
         )
