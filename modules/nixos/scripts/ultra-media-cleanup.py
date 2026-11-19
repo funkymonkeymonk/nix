@@ -1750,6 +1750,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--reset-retry-times", action="store_true")
     parser.add_argument("--queue-root", default=CLEANUP_QUEUE_ROOT)
     parser.add_argument("--rpc-url")
     parser.add_argument("--download-root")
@@ -1773,10 +1774,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--remote-disk-monitoring", action="store_true")
     parser.add_argument("--private-tracker-ratio-protection", action="store_true")
     args = parser.parse_args(argv)
-    if args.apply and args.report_only:
+    if (args.apply and args.report_only) or (
+        args.reset_retry_times and (args.apply or args.report_only)
+    ):
         print("cleanup failed reason=mode_conflict")
         return 2
     try:
+        if args.reset_retry_times:
+            staging = _load_runtime_module(
+                "ultra_media_download_stage", "ultra-media-download-stage.py"
+            )
+            reset_count = staging.reset_staged_torrent_receipt_retry_times(
+                args.queue_root
+            )
+            print(
+                json.dumps(
+                    {"event": "cleanup_retry_times_reset", "reset": reset_count},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                flush=True,
+            )
+            return 0
         if args.apply:
             required_paths = (
                 args.rpc_url,

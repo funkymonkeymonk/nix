@@ -109,6 +109,29 @@ in {
     '';
   };
 
+  systemd.services.ultra-media-cleanup-reset-retries = lib.mkIf cfg.enable {
+    description = "Make all valid Ultra cleanup queue receipts due for immediate evaluation";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "ultra-sync";
+      Group = "users";
+      UMask = "0002";
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      NoNewPrivileges = true;
+      PrivateNetwork = true;
+      StateDirectory = "ultra-media";
+      StateDirectoryMode = "0700";
+    };
+    script = ''
+      set -euo pipefail
+      export PYTHONPATH=${./scripts}
+      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-cleanup.py} \
+        --reset-retry-times \
+        --queue-root ${lib.escapeShellArg cleanupQueueRoot}
+    '';
+  };
+
   systemd.timers.ultra-media-cleanup = {
     wantedBy = lib.optionals cfg.enable ["timers.target"];
     timerConfig = {

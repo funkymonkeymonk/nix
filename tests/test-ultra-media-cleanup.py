@@ -2111,6 +2111,101 @@ class DownloadStagingTests(unittest.TestCase):
             self.assertFalse(staging.ack_staged_torrent_receipt(queue_root, receipt))
             self.assertTrue(staging.ack_staged_torrent_receipt(queue_root, duplicate))
 
+    def test_reset_receipt_retry_times_makes_all_valid_receipts_due_and_preserves_history(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            queue_root = Path(temporary_directory) / "cleanup-queue"
+            receipt = staging.write_staged_torrent_receipt(
+                queue_root, 17, "a" * 64, staged_at_ns=1_000_000_000
+            )
+            deferred = staging.defer_staged_torrent_receipt(
+                queue_root,
+                receipt,
+                now_ns=2_000_000_000,
+                reason="arr_import_pending",
+            )
+            original_retry_time = deferred["next_attempt_ns"]
+
+            reset_count = staging.reset_staged_torrent_receipt_retry_times(queue_root)
+
+            self.assertEqual(reset_count, 1)
+            due_receipts = staging.read_pending_torrent_receipts(
+                queue_root, now_ns=2_000_000_000
+            )
+            self.assertEqual(len(due_receipts), 1)
+            reset_receipt = due_receipts[0]
+            self.assertEqual(reset_receipt["next_attempt_ns"], receipt["staged_at_ns"])
+            self.assertLess(reset_receipt["next_attempt_ns"], original_retry_time)
+            self.assertEqual(reset_receipt["attempts"], deferred["attempts"])
+            self.assertEqual(reset_receipt["receipt_id"], receipt["receipt_id"])
+            self.assertEqual(reset_receipt["fingerprint"], receipt["fingerprint"])
+
+    def test_reset_receipt_retry_times_skips_malformed_and_symlinked_entries(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            queue_root = root / "cleanup-queue"
+            receipt = staging.write_staged_torrent_receipt(
+                queue_root, 17, "a" * 64, staged_at_ns=1_000_000_000
+            )
+            deferred = staging.defer_staged_torrent_receipt(
+                queue_root,
+                receipt,
+                now_ns=2_000_000_000,
+                reason="arr_import_pending",
+            )
+            malformed_path = staging._receipt_path(queue_root, 18)
+            malformed_path.write_text("not json", encoding="utf-8")
+            outside_path = root / "outside.json"
+            outside_path.write_text("leave this untouched", encoding="utf-8")
+            symlink_path = staging._receipt_path(queue_root, 19)
+            symlink_path.symlink_to(outside_path)
+
+            reset_count = staging.reset_staged_torrent_receipt_retry_times(queue_root)
+
+            self.assertEqual(reset_count, 1)
+            self.assertEqual(malformed_path.read_text(encoding="utf-8"), "not json")
+            self.assertTrue(symlink_path.is_symlink())
+            self.assertEqual(outside_path.read_text(encoding="utf-8"), "leave this untouched")
+            self.assertEqual(
+                staging.read_pending_torrent_receipts(
+                    queue_root, now_ns=receipt["staged_at_ns"]
+                ),
+                [
+                    {
+                        **{key: value for key, value in deferred.items() if key != "receipt_path"},
+                        "next_attempt_ns": receipt["staged_at_ns"],
+                    }
+                ],
+            )
+
+    def test_reset_receipt_retry_times_skips_boolean_version(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            queue_root = Path(temporary_directory) / "cleanup-queue"
+            receipt = staging.write_staged_torrent_receipt(
+                queue_root, 17, "a" * 64, staged_at_ns=1_000_000_000
+            )
+            deferred = staging.defer_staged_torrent_receipt(
+                queue_root,
+                receipt,
+                now_ns=2_000_000_000,
+                reason="arr_import_pending",
+            )
+            receipt_path = Path(receipt["receipt_path"])
+            malformed = json.loads(receipt_path.read_text(encoding="utf-8"))
+            malformed["version"] = True
+            receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
+            before = receipt_path.read_bytes()
+
+            reset_count = staging.reset_staged_torrent_receipt_retry_times(queue_root)
+
+            self.assertEqual(reset_count, 0)
+            self.assertEqual(receipt_path.read_bytes(), before)
+            self.assertEqual(
+                staging.read_pending_torrent_receipts(
+                    queue_root, now_ns=2_000_000_000
+                ),
+                [],
+            )
+
     def test_queue_receipt_updates_serialize_on_the_state_directory_lock(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             queue_root = Path(temporary_directory) / "cleanup-queue"
@@ -3439,6 +3534,58 @@ class CleanupOrchestrationTests(unittest.TestCase):
             self.assertFalse(event["remote_disk_probe_success"])
             self.assertIn("ultra_seedbox_storage_probe_success 0", metrics_path.read_text())
             self.assertNotIn("private", output.getvalue())
+
+    def test_reset_retry_cli_only_resets_queue_and_emits_aggregate_count(self):
+        calls = []
+        output = io.StringIO()
+
+        def reset_retry_times(queue_root):
+            calls.append(queue_root)
+            return 7
+
+        staging_module = SimpleNamespace(
+            reset_staged_torrent_receipt_retry_times=reset_retry_times
+        )
+        with patch.object(policy, "_load_runtime_module", return_value=staging_module):
+            with patch.object(
+                policy,
+                "run_runtime_cleanup",
+                side_effect=AssertionError("reset mode must not run cleanup"),
+            ):
+                with redirect_stdout(output):
+                    try:
+                        status = policy.main([
+                            "--reset-retry-times",
+                            "--queue-root",
+                            "/var/lib/ultra-media/cleanup-queue",
+                        ])
+                    except SystemExit as error:
+                        self.fail(f"reset mode should return a status, not exit: {error}")
+
+        self.assertEqual(status, 0)
+        self.assertEqual(calls, ["/var/lib/ultra-media/cleanup-queue"])
+        event = json.loads(output.getvalue())
+        self.assertEqual(event, {"event": "cleanup_retry_times_reset", "reset": 7})
+
+    def test_reset_retry_cli_rejects_cleanup_modes(self):
+        for conflicting_mode in ("--apply", "--report-only"):
+            with self.subTest(conflicting_mode=conflicting_mode):
+                output = io.StringIO()
+                with patch.object(
+                    policy,
+                    "_load_runtime_module",
+                    side_effect=AssertionError("conflicting mode must not reset queue"),
+                ):
+                    with redirect_stdout(output):
+                        try:
+                            status = policy.main([
+                                "--reset-retry-times",
+                                conflicting_mode,
+                            ])
+                        except SystemExit as error:
+                            self.fail(f"mode conflict should return a status: {error}")
+                self.assertEqual(status, 2)
+                self.assertEqual(output.getvalue().strip(), "cleanup failed reason=mode_conflict")
 
     def test_runtime_report_keeps_legacy_inventory_unverified_without_data(self):
         self.assertEqual(policy._runtime_unverified_report()["legacy_inventory_status"], "unverified")
