@@ -120,6 +120,8 @@
     "nixos/grafana.nix"
     # Tested via test-temporal.nix (option defaults and launchd script).
     "services/temporal/darwin.nix"
+    # Tested via test-lydia-migration.nix (wweaver Jev secret and env wiring)
+    "home-manager/pi-coding-agent.nix"
     # Tested via test-home-manager.nix (opencode, shell aliases)
     "home-manager/opencode.nix"
     "home-manager/aliases.nix"

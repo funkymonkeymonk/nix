@@ -16,6 +16,7 @@
     (nixpkgsConfig {inherit inputs;})
     (import ../../modules)
     inputs.opnix.nixosModules.default
+    ./remote-builders.nix
     inputs.home-manager.nixosModules.home-manager
     {
       home-manager.sharedModules = [
@@ -56,14 +57,16 @@
     };
   darwinModule = machine: let
     moduleArgs = darwinModuleArgs machine;
-    # Darwin catalog stacks import the shared modules through their archetypes.
-    # Importing them here as well duplicates option declarations in C-Nix eval.
+    # Darwin archetypes own the shared project modules; the system-wide Opnix
+    # and remote-builder modules are injected here for every catalog machine.
     baseModules = [
       ({...}: {
         networking.hostName = machine.hostname;
         nixpkgs.hostPlatform = machine.system;
       })
       (nixpkgsConfig {inherit inputs;})
+      inputs.opnix.darwinModules.default
+      ./remote-builders.nix
       (observabilityInventory.machineModule machine)
     ];
   in {

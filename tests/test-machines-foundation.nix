@@ -19,6 +19,8 @@
     && lib.hasInfix "github:nix-community/nixos-facter-modules" devenvYamlText
     && lib.hasInfix "follows: nixpkgs" devenvYamlText
     && lib.hasInfix "import ./library/machines/devenv.nix {inherit inputs;}" devenvText;
+  # Devenv does not install the Bifrost binary in its shell packages. The input
+  # is required to build MegamanX's service through the shared Machines overlay.
   machineBuildInputs = [
     "bifrost"
     "devenv"
@@ -103,21 +105,29 @@
       if name == "Opnix"
       then ["OPNIX_SERVICE_ACCOUNT_TOKEN" "TAILSCALE_OAUTH_CLIENT_ID" "TAILSCALE_OAUTH_CLIENT_SECRET" "defaults"]
       else if name == "MegamanX"
-      then ["MEGAMANX_SUDO_PASSWORD" "TAILSCALE_OAUTH_CLIENT_ID" "TAILSCALE_OAUTH_CLIENT_SECRET" "defaults"]
+      then ["MEGAMANX_SUDO_PASSWORD" "OPNIX_SERVICE_ACCOUNT_TOKEN" "TAILSCALE_OAUTH_CLIENT_ID" "TAILSCALE_OAUTH_CLIENT_SECRET" "defaults"]
+      else if name == "BuilderClients"
+      then ["OPNIX_SERVICE_ACCOUNT_TOKEN" "defaults"]
       else ["defaults"];
   in
     builtins.attrNames profile == expected)
   (builtins.attrNames profiles);
-  opnixServiceAccountToken = (profiles.Opnix or {}).OPNIX_SERVICE_ACCOUNT_TOKEN or {};
-  opnixServiceAccountTokenIsReferenceOnly =
-    (opnixServiceAccountToken.ref or {})
+  tokenReferenceIsValid = secret:
+    (secret.ref or {})
     == {
       item = "opcec4mg3aykq2qkbnhri2vtn4";
       field = "credential";
     }
-    && (opnixServiceAccountToken.providers or []) == ["service-accounts"]
-    && (opnixServiceAccountToken ? description)
-    && !(opnixServiceAccountToken ? value);
+    && (secret.providers or []) == ["service-accounts"]
+    && (secret ? description)
+    && !(secret ? value);
+  opnixServiceAccountToken = (profiles.Opnix or {}).OPNIX_SERVICE_ACCOUNT_TOKEN or {};
+  builderClientsServiceAccountToken = (profiles.BuilderClients or {}).OPNIX_SERVICE_ACCOUNT_TOKEN or {};
+  megamanxServiceAccountToken = (profiles.MegamanX or {}).OPNIX_SERVICE_ACCOUNT_TOKEN or {};
+  opnixServiceAccountTokenIsReferenceOnly =
+    tokenReferenceIsValid opnixServiceAccountToken
+    && tokenReferenceIsValid builderClientsServiceAccountToken
+    && tokenReferenceIsValid megamanxServiceAccountToken;
   megamanxSudoPassword = (profiles.MegamanX or {}).MEGAMANX_SUDO_PASSWORD or {};
   megamanxSudoPasswordIsReferenceOnly =
     (megamanxSudoPassword.ref or {})
@@ -183,7 +193,8 @@ in {
     ${assertResult "Devenv locks all inputs needed by the shared Machines package overlay" machineBuildInputsMatchRootLock}
     ${assertResult "SecretSpec routes the Opnix profile through the Opnix vault" (manifestExists && profileRoutesTo "Opnix" "Opnix")}
     ${assertResult "SecretSpec routes the bootstrap token through the Service Accounts vault ID" (manifestExists && (providers."service-accounts" or null) == "onepassword://vio73ncjh7hofsrzj7ogf473w4")}
-    ${assertResult "SecretSpec omits the unused Personal profile" (manifestExists && !(profiles ? Personal))}
+    ${assertResult "SecretSpec keeps the Personal profile out of machine runtime secrets" (manifestExists && !(profiles ? Personal))}
+    ${assertResult "SecretSpec routes builder-client bootstrap through the Service Accounts vault" (manifestExists && profileRoutesTo "BuilderClients" "vio73ncjh7hofsrzj7ogf473w4")}
     ${assertResult "SecretSpec routes the MegamanX sudo profile through Opnix" (manifestExists && profileRoutesTo "MegamanX" "Opnix")}
     ${assertResult "Employee has no empty SecretSpec profile" (manifestExists && !(profiles ? Employee))}
     ${assertResult "MegamanX sudo password is referenced from Opnix without embedding a value" megamanxSudoPasswordIsReferenceOnly}

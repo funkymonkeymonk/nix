@@ -208,22 +208,19 @@ in {
       echo "Zero hardware packages test passed"
       touch $out
     '';
-  # Test: zero is cloud-only (OpenCode Go, which falls back to OpenCode Zen) —
-  # no local models, no legacy LLM endpoint declarations, and the OpenCode Go
-  # API key wired through 1Password like on MegamanX.
+  # Test: OpenCode remains cloud-default on Zero while Pi can optionally use
+  # the remote Bifrost gateway; the OpenCode Go API key remains in 1Password.
   zeroCloudOnlyConfigTest =
     pkgs.runCommand "test-zero-cloud-only-config"
     {}
     ''
-      echo "=== Testing Zero cloud-only LLM configuration ==="
+      echo "=== Testing Zero cloud-default LLM configuration ==="
 
-      # OpenCode keeps its host-specific cloud model; Pi uses the global role default.
+      # OpenCode keeps its host-specific cloud model; Pi keeps OpenCode Go as its default.
       ${assertContainsStr "cloud default model" "opencode-go/gpt-5.6-luna" zeroConfigText}
       ${assertNotContainsStr "Pi does not pin the old global model" ''defaultModel = "gpt-5.6-luna"'' zeroConfigText}
-      # No local model targeting anywhere
-      ${assertNotContainsStr "no local-bifrost" "local-bifrost" zeroConfigText}
-      ${assertNotContainsStr "no local qwen model" "qwen3.8-27b" zeroConfigText}
-      ${assertNotContainsStr "no omlx" "omlx" zeroConfigText}
+      # Zero does not host a local oMLX inference service.
+      ${assertNotContainsStr "no local omlx service" "omlx.enable = true" zeroConfigText}
       # Legacy llmEndpoints block removed
       ${assertNotContainsStr "no llmEndpoints" "llmEndpoints" zeroConfigText}
       # OpenCode Go service-account key wired through 1Password.
@@ -431,12 +428,11 @@ in {
     else let
       zero = self.nixosConfigurations.zero.config;
       builder = lib.findFirst (machine: machine.hostName == "megamanx") null zero.nix.buildMachines;
-      builderSecret = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey or {};
+      builderSecret = zero.myConfig.onepassword.secrets.nixBuilderClientKey or {};
       megamanx = self.darwinConfigurations.MegamanX.config;
       lydia = self.darwinConfigurations.Lydia.config;
       builderUser = megamanx.users.users.nixbuilder or {};
-      lydiaBuilderUser = lydia.users.users.nixbuilder or {};
-      remoteBuilderUserTrusted = builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users;
+      remoteBuilderUserTrusted = lib.hasInfix "trusted-users = root monkey nixbuilder" megamanx.environment.etc."nix/nix.custom.conf".text;
       builderUserConfigured =
         builderUser
         != {}
@@ -450,19 +446,7 @@ in {
         && !(builtins.elem "admin" (builderUser.groups or []))
         && builtins.elem "nixbuilder" megamanx.users.knownUsers;
       builderSshConfig = megamanx.services.openssh.extraConfig;
-      lydiaSshConfig = lydia.services.openssh.extraConfig;
-      lydiaBuilderUserConfigured =
-        lydiaBuilderUser
-        != {}
-        && lydiaBuilderUser.uid == 502
-        && lydiaBuilderUser.gid == 20
-        && lydiaBuilderUser.createHome == false
-        && lydiaBuilderUser.isHidden
-        && builtins.toString lydiaBuilderUser.home == "/var/empty"
-        && lydiaBuilderUser.shell != null
-        && lydiaBuilderUser.shell != "/usr/bin/false"
-        && !(builtins.elem "admin" (lydiaBuilderUser.groups or []))
-        && builtins.elem "nixbuilder" lydia.users.knownUsers;
+      lydiaSshConfig = lydia.services.openssh.extraConfig or "";
       builderSshAuthenticationRestricted =
         lib.hasInfix "Match User nixbuilder" builderSshConfig
         && lib.hasInfix "AuthenticationMethods publickey" builderSshConfig
@@ -485,10 +469,10 @@ in {
         && builder.system == "aarch64-darwin"
         && builder.protocol == "ssh-ng"
         && builder.sshUser == "nixbuilder"
-        && builder.sshKey == "/run/secrets/nix-remote-builder-megamanx"
+        && builder.sshKey == "/run/secrets/nix-builder-client"
         && builder.publicHostKey == "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK"
         && builderSecret.reference == "Nix Remote Builder Zero to MegamanX/private key"
-        && builderSecret.path == "/run/secrets/nix-remote-builder-megamanx"
+        && builderSecret.path == "/run/secrets/nix-builder-client"
         && builderSecret.owner == "root"
         && builderSecret.group == "root"
         && builderSecret.mode == "0400"
@@ -496,21 +480,9 @@ in {
         && remoteBuilderUserTrusted
         && builderUserConfigured
         && builderSshAuthenticationRestricted
-        && builtins.elem "nixbuilder" lydia.nix.settings.trusted-users
-        && lydia.users.users.nixbuilder.isHidden
-        && lydiaBuilderUserConfigured
-        && lydia.myConfig.ssh.enable
-        && lydia.services.openssh.enable
-        && lib.hasInfix "Match User nixbuilder" lydiaSshConfig
-        && lib.hasInfix "AuthenticationMethods publickey" lydiaSshConfig
-        && lib.hasInfix "PasswordAuthentication no" lydiaSshConfig
-        && lib.hasInfix "KbdInteractiveAuthentication no" lydiaSshConfig
-        && lib.hasInfix "AllowAgentForwarding no" lydiaSshConfig
-        && lib.hasInfix "AllowTcpForwarding no" lydiaSshConfig
-        && lib.hasInfix "PermitTTY no" lydiaSshConfig
-        && lib.hasInfix "X11Forwarding no" lydiaSshConfig
-        && lib.hasInfix "ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio" lydiaSshConfig
-        && lib.hasInfix "Match all" lydiaSshConfig;
+        && !(lib.hasInfix "nixbuilder" (lydia.environment.etc."nix/nix.custom.conf".text or ""))
+        && !(lydia.users.users ? nixbuilder)
+        && !(lib.hasInfix "Match User nixbuilder" lydiaSshConfig);
     in
       pkgs.runCommand "test-zero-nix-remote-builder" {} ''
         echo "=== Testing Zero's MegamanX remote builder configuration ==="

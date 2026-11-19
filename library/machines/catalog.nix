@@ -9,6 +9,17 @@
     kind = "darwin";
     extraSpecialArgs = {inherit mkUser;};
   };
+  sshKeyRegistry = import ../ssh-key-registry.nix;
+  nixBuilderKeysFor = builderName:
+    map (clientName: sshKeyRegistry.clients.${clientName}.publicKey)
+    (builtins.filter (clientName: clientName != builderName) sshKeyRegistry.clientNames);
+  opnixTokenInstallAt = tokenPath: {
+    secrets.${tokenPath} = {
+      secret = "OPNIX_SERVICE_ACCOUNT_TOKEN";
+      owner = "0:0";
+      mode = "0600";
+    };
+  };
   handMaintainedCatalog = {
     bootstrap = {
       kind = "nixos";
@@ -30,6 +41,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "type-nas";
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/headless-server-nixos.nix
@@ -51,6 +63,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "type-server";
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/type-server.nix
@@ -71,6 +84,7 @@
       disko = true;
       system = "aarch64-linux";
       hostname = "type-server-arm";
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/type-server.nix
@@ -85,10 +99,11 @@
     };
 
     type-desktop = nixosMachine {
-      secretProfile = "Personal";
+      secretProfile = "BuilderClients";
       disko = true;
       system = "x86_64-linux";
       hostname = "type-desktop";
+      install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../archetypes/desktop-nixos.nix
         ../../modules/nixos/desktop.nix
@@ -118,9 +133,9 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "zero";
+      install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../archetypes/desktop-nixos.nix
-        ../../modules/nixos/base.nix
         ../../modules/nixos/desktop.nix
         ../../modules/nixos/gaming.nix
         ../../modules/nixos/streaming.nix
@@ -145,6 +160,7 @@
       disko = true;
       system = "x86_64-linux";
       hostname = "drlight";
+      install = opnixTokenInstallAt "/etc/opnix/token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/type-media-center.nix
@@ -158,11 +174,6 @@
         ../../machines/drlight
       ];
       extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
-      install.secrets."/etc/opnix/token" = {
-        secret = "OPNIX_SERVICE_ACCOUNT_TOKEN";
-        owner = "0:0";
-        mode = "0600";
-      };
       overrides = {
         autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#drlight";
         tailscale = {
@@ -173,9 +184,10 @@
     };
 
     wweaver = darwinMachine {
-      secretProfile = "Personal";
+      secretProfile = "BuilderClients";
       system = "aarch64-darwin";
       hostname = "wweaver";
+      install = opnixTokenInstallAt "/etc/opnix-token";
       modules = [
         ../../modules/services/bifrost/darwin.nix
         ../../modules/services/omlx/darwin.nix
@@ -188,6 +200,7 @@
       secretProfile = "MegamanX";
       system = "aarch64-darwin";
       hostname = "MegamanX";
+      install = opnixTokenInstallAt "/etc/opnix-token";
       nodeExporter.enable = true;
       modules = [
         ../archetypes/headless-inference-darwin.nix
@@ -196,28 +209,23 @@
           pkgs,
           ...
         }: let
-          nixBuilderPublicKey =
-            builtins.replaceStrings ["\n" "\r"] ["" ""]
-            (builtins.readFile ../../keys/nix-remote-builder-megamanx.pub);
-          nixBuilderAuthorizedKey = "restrict,command=\"/nix/var/nix/profiles/default/bin/nix-daemon --stdio\" ${nixBuilderPublicKey}";
+          nixBuilderKeys = nixBuilderKeysFor "MegamanX";
         in {
           system.stateVersion = 4;
           system.primaryUser = "monkey";
 
-          nix.settings.trusted-users = ["root" "monkey" "nixbuilder"];
-
-          # This hidden account exposes only the Nix daemon protocol to Zero's builder key.
+          # This hidden account exposes only the Nix daemon protocol to registered builder clients.
           users.knownUsers = ["nixbuilder"];
           users.users.nixbuilder = {
             uid = 502;
             gid = 20;
-            description = "Nix remote builder for Zero";
+            description = "Restricted Nix remote builder";
             home = "/var/empty";
             shell = pkgs.bashInteractive;
             ignoreShellProgramCheck = true;
             isHidden = true;
             createHome = false;
-            openssh.authorizedKeys.keys = [nixBuilderAuthorizedKey];
+            openssh.authorizedKeys.keys = nixBuilderKeys;
           };
 
           services.openssh.extraConfig = lib.mkForce ''
@@ -317,6 +325,10 @@
             enable = true;
             host = "127.0.0.1";
             logLevel = "debug";
+            modelMetadata."omlx/qwen3.8-27b" = {
+              contextLength = 128000;
+              maxOutputTokens = 30720;
+            };
             upstreams = {
               omlx = {
                 url = "http://localhost:8300";
@@ -325,6 +337,11 @@
                 streamIdleTimeoutInSeconds = 1800;
                 maxRetries = 3;
                 models = ["qwen3.8-27b"];
+              };
+              opencode-go = {
+                url = "https://opencode.ai/zen/go";
+                type = "opencode-go";
+                apiKeyFile = ".pi/agent/secrets/opencode-go-apikey";
               };
             };
           };

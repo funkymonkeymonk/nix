@@ -80,11 +80,13 @@
   testTailscaleConfig = import ./test-tailscale-config.nix {inherit pkgs self inputs;};
   testInstallerReady = import ./test-installer-ready.nix {inherit pkgs self;};
   testSshAuthorizedKeys = import ./test-ssh-authorized-keys.nix {inherit pkgs self;};
+  testSshBuilders = import ./test-ssh-builders.nix {inherit pkgs self inputs;};
   testSshHostKeyFingerprint = import ./test-ssh-host-key-fingerprint.nix {inherit pkgs self;};
   testTailscaleOauthAuthKey = import ./test-tailscale-oauth-authkey.nix {inherit pkgs;};
   testEmailOptionOwnership = import ./test-email-option-ownership.nix {inherit pkgs;};
   testSkillsOptionOwnership = import ./test-skills-option-ownership.nix {inherit pkgs;};
   testAgentOptionOwnership = import ./test-agent-option-ownership.nix {inherit pkgs;};
+  testRoleOptionOwnership = import ./test-role-option-ownership.nix {inherit pkgs;};
   testOptionsDoc =
     if self != null
     then import ./test-options-doc.nix {inherit pkgs self;}
@@ -155,6 +157,7 @@ in
     installer-ready = testInstallerReady.installerReady;
     installer-source = installerSourceTest;
     ssh-authorized-keys = testSshAuthorizedKeys;
+    ssh-builders = testSshBuilders.sshBuilders;
     ssh-host-key-fingerprint = testSshHostKeyFingerprint.sshHostKeyFingerprint;
     tailscale-oauth-auth-key = testTailscaleOauthAuthKey.tailscaleOauthAuthKey;
     tailscale-darwin-autoconnect = testTailscaleConfig.tailscaleDarwinAutoconnect;
@@ -162,6 +165,7 @@ in
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
+    role-option-ownership = testRoleOptionOwnership.roleOptionOwnership;
 
     # Package availability tests
     devenv-packages = testDevenvPackages;
@@ -357,6 +361,7 @@ in
     pi-auth-json-initialization = testPi.piAuthJsonInitializationTest;
     pi-options = testPi.piOptionsTest;
     pi-custom-options = testPi.piCustomOptionsTest;
+    pi-bifrost-metadata = testPi.piBifrostModelMetadataTest;
 
     # Flake maintenance task tests
     flake-update-refreshes-fixed-output-hashes = testFlakeUpdate.flakeUpdateRefreshesFixedOutputHashesTest;
@@ -364,8 +369,10 @@ in
     # Bifrost AI gateway module tests
     bifrost-options = testBifrost.bifrostOptionsTest;
     bifrost-custom-options = testBifrost.bifrostCustomOptionsTest;
+    bifrost-opencode-go = testBifrost.bifrostOpenCodeGoTest;
     bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
+    bifrost-package-version = testBifrost.bifrostPackageVersionTest;
     bifrost-tailscale-serve = testBifrost.bifrostTailscaleServeTest;
 
     # Caddy reverse proxy module tests

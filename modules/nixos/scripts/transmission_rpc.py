@@ -17,6 +17,7 @@ from urllib.request import HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm
 BASE_TORRENT_FIELDS = (
     "id",
     "status",
+    "doneDate",
     "secondsSeeding",
     "uploadRatio",
     "trackers",
@@ -74,8 +75,16 @@ class TransmissionRPC:
         password_manager.add_password(None, url, username, password)
         self._opener = build_opener(HTTPBasicAuthHandler(password_manager))
 
-    def _rpc(self, method: str, arguments: Mapping[str, Any] | None = None) -> dict[str, Any]:
-        if method not in ("session-get", "torrent-get"):
+    def _rpc(
+        self,
+        method: str,
+        arguments: Mapping[str, Any] | None = None,
+        *,
+        allow_torrent_removal: bool = False,
+    ) -> dict[str, Any]:
+        read_only_method = method in ("session-get", "torrent-get")
+        authorized_removal = method == "torrent-remove" and allow_torrent_removal
+        if not read_only_method and not authorized_removal:
             raise TransmissionRPCError("Transmission RPC operation is not allowed")
         request_arguments = dict(arguments or {})
         for _attempt in range(2):
@@ -120,6 +129,22 @@ class TransmissionRPC:
         if not isinstance(torrents, list):
             raise TransmissionRPCError("Transmission RPC torrent response is malformed")
         return [normalize_torrent(torrent, self._tracker_classifier) for torrent in torrents]
+
+    def remove_torrent(self, torrent_id: int, *, delete_local_data: bool) -> None:
+        """Remove one verified torrent and its payload through Transmission RPC."""
+        if (
+            not isinstance(torrent_id, int)
+            or isinstance(torrent_id, bool)
+            or torrent_id <= 0
+        ):
+            raise ValueError("Transmission torrent identifier is invalid")
+        if delete_local_data is not True:
+            raise ValueError("seedbox cleanup must remove torrent data with the torrent")
+        self._rpc(
+            "torrent-remove",
+            {"ids": [torrent_id], "delete-local-data": True},
+            allow_torrent_removal=True,
+        )
 
 
 def _is_finite_number(value: Any) -> bool:
@@ -204,6 +229,14 @@ def normalize_torrent(
     else:
         complete = status == 6
 
+    done_date = torrent.get("doneDate")
+    if (
+        not isinstance(done_date, int)
+        or isinstance(done_date, bool)
+        or done_date <= 0
+    ):
+        done_date = None
+
     seeding_seconds = torrent.get("secondsSeeding")
     if not isinstance(seeding_seconds, int) or isinstance(seeding_seconds, bool) or seeding_seconds < 0:
         seeding_seconds = None
@@ -236,6 +269,7 @@ def normalize_torrent(
         download_directory = ""
     files = torrent.get("files")
     file_paths = []
+    file_sizes = []
     file_paths_valid = (
         isinstance(files, list)
         and bool(files)
@@ -248,10 +282,22 @@ def normalize_torrent(
         )
     )
     if isinstance(files, list):
-        file_paths = [item["name"] for item in files if isinstance(item, Mapping) and isinstance(item.get("name"), str)]
+        for item in files:
+            if not isinstance(item, Mapping):
+                continue
+            name = item.get("name")
+            if isinstance(name, str):
+                file_paths.append(name)
+            length = item.get("length")
+            file_sizes.append(
+                length
+                if isinstance(length, int) and not isinstance(length, bool) and length >= 0
+                else None
+            )
 
     return {
         "id": torrent_id,
+        "done_date": done_date,
         "candidate": {
             "complete": complete,
             "seeding_seconds": seeding_seconds,
@@ -274,4 +320,6 @@ def normalize_torrent(
         "download_directory": download_directory,
         "file_paths": file_paths,
         "file_paths_valid": file_paths_valid,
+        "file_sizes": file_sizes,
+        "file_sizes_valid": bool(file_sizes) and all(size is not None for size in file_sizes),
     }

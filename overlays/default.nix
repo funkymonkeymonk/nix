@@ -166,6 +166,8 @@
     # WHY: pins the UI npm dependency hash for the selected Bifrost input revision.
     # REMOVE WHEN: the upstream flake package no longer needs this hash override.
     bifrost-ui = (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-ui).overrideAttrs (oldAttrs: {
+      version = "2.5.1";
+      __intentionallyOverridingVersion = true;
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
         name = "${oldAttrs.pname or oldAttrs.name}-npm-deps";
@@ -178,15 +180,26 @@
     bifrost-http =
       (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
-      }).overrideAttrs (prev: {
-        vendorHash = "sha256-tyxDAo2CBaCf0Fco+fcugLUz9AzSdYogkBiIMJjT3lE=";
+      }).overrideAttrs (prev: let
+        version = "2.5.1";
+      in {
+        inherit version;
+        __intentionallyOverridingVersion = true;
+        vendorHash = "sha256-6dQK2U2MK6EsiGLJALcz20VP2dJwB/NIGcODNeQgU6g=";
+        patches = (prev.patches or []) ++ [../packages/bifrost/patches/model-list-limits.patch];
+        ldflags = [
+          "-s"
+          "-w"
+          "-X main.Version=${version}"
+          "-buildid="
+        ];
         postPatch =
           (prev.postPatch or "")
           + ''
             rm -rf transports/vendor
             if ! grep -q '^github.com/mattn/go-isatty v0.0.24/go.mod ' transports/go.sum; then
-              printf '%s\n' \
-                'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \
+              printf '%s\\n' \\
+                'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \\
                 >> transports/go.sum
             fi
           '';

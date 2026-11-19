@@ -128,9 +128,8 @@
     pi = {
       "pi.enable" = true;
       "pi.settings.defaultModel" = "gpt-6-luna";
-      # Default local model served through Bifrost.
-      # Must match a model alias on hosts that run the local stack.
-      "pi.models.bifrost.modelId" = "qwen3.8-27b";
+      # Bifrost model identifiers and limits come from runtime discovery.
+      "pi.models.bifrost.modelId" = "";
     };
     assistant = {"email-agent.enable" = true;};
     email-backup = {"email-backup.enable" = true;};

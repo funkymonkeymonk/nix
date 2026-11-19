@@ -80,6 +80,36 @@
     }
     echo "  Lydia workstation profile and SSH access: ✓"
 
+    # Pi clients use MegamanX's published Bifrost only when Tailscale is enabled.
+    ${
+      let
+        megamanx = self.darwinConfigurations.MegamanX.config;
+        zero = self.nixosConfigurations.zero.config;
+        lydia = self.darwinConfigurations.Lydia.config;
+        wweaver = self.darwinConfigurations.wweaver.config;
+        discoveryExtension = ".pi/agent/extensions/bifrost-discovery/index.ts";
+        metadataExtension = ".pi/agent/extensions/bifrost-discovery/model-metadata.mjs";
+      in
+        if
+          megamanx.myConfig.pi.models.bifrost.baseUrl
+          == "http://megamanx:8081/v1"
+          && zero.myConfig.pi.models.bifrost.baseUrl == "http://megamanx:8081/v1"
+          && zero.myConfig.pi.models ? opencode-go
+          && zero.myConfig.pi.settings.defaultProvider == "opencode-go"
+          && megamanx.myConfig.pi.settings.defaultProvider == "opencode-go"
+          && builtins.hasAttr discoveryExtension megamanx.home-manager.users.monkey.home.file
+          && builtins.hasAttr metadataExtension megamanx.home-manager.users.monkey.home.file
+          && pkgs.lib.hasInfix "http://megamanx:8081/v1" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
+          && pkgs.lib.hasInfix "model-metadata.mjs" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
+          && !(lydia.myConfig.tailscale.enable or false)
+          && !(wweaver.myConfig.tailscale.enable or false)
+          && !(pkgs.lib.hasInfix "megamanx" lydia.myConfig.pi.models.bifrost.baseUrl)
+          && !(pkgs.lib.hasInfix "megamanx" wweaver.myConfig.pi.models.bifrost.baseUrl)
+        then ""
+        else ''echo "FAIL: Pi Bifrost should follow tailnet membership while preserving providers and discovery"; exit 1''
+    }
+    echo "  Pi Bifrost endpoint follows tailnet membership and preserves defaults ✓"
+
     ${
       let
         megamanx = self.darwinConfigurations.MegamanX.config;
@@ -125,6 +155,10 @@
           && builtins.elem "/Users/monkey/Library/Logs/omlx/*.log" (megamanx.myConfig.vector.logGlobs or [])
           && megamanx.myConfig.bifrost.enable
           && megamanx.myConfig.bifrost.host == "127.0.0.1"
+          && megamanx.myConfig.bifrost.upstreams."opencode-go".type == "opencode-go"
+          && megamanx.myConfig.bifrost.upstreams."opencode-go".apiKeyFile == ".pi/agent/secrets/opencode-go-apikey"
+          && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".contextLength == 128000
+          && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".maxOutputTokens == 30720
           && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).port or null) == 8081
           && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).target or null) == "http://127.0.0.1:8081"
           && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).readinessUrl or null) == "http://127.0.0.1:8081/v1/models"
@@ -153,7 +187,7 @@
       in
         if
           megamanx.services.openssh.enable
-          && builtins.elem "nixbuilder" megamanx.nix.settings.trusted-users
+          && pkgs.lib.hasInfix "trusted-users = root monkey nixbuilder" megamanx.environment.etc."nix/nix.custom.conf".text
           && megamanx.users.users.nixbuilder.isHidden
           && megamanx.users.users.nixbuilder.openssh.authorizedKeys.keys != []
           && megamanx.myConfig.onepassword.defaultVault == "Opnix"
@@ -186,7 +220,8 @@
           && lydia.myConfig.ssh.enable
           && lydia.services.openssh.enable
           && lydia.users.users.monkey.openssh.authorizedKeys.keys != []
-          && lydia.users.users.nixbuilder.isHidden
+          && !(lydia.users.users ? nixbuilder)
+          && !(pkgs.lib.hasInfix "nixbuilder" (lydia.environment.etc."nix/nix.custom.conf".text or ""))
           && lydia.myConfig.roles.developer.enable
           && lydia.myConfig.roles.desktop.enable
           && lydia.myConfig.roles.workstation.enable
@@ -212,17 +247,18 @@
       in
         if
           wweaver.myConfig.roles.pi.enable
-          && wweaver.myConfig.pi.npmPackages."pi-jev" == "^0.7.0"
+          && !(wweaver.myConfig.pi.npmPackages ? "pi-jev")
+          && wweaver.myConfig.pi.npmPackages."pi-subagents" == "^0.51.0"
           && wweaver.myConfig.onepassword.defaultVault == "Opnix"
           && wweaver.myConfig.onepassword.sudoPasswordRef == "op://Employee/wweaver Sudo Password/password"
-          && wweaver.myConfig.pi.jevOnePasswordItem == "Opencode/Service Accounts/wweaver"
-          && wweaver.home-manager.users.wweaver.home.sessionVariables.PI_JEV_BASE_URL == "https://opencode.ai/inference/systemone"
-          && wweaver.home-manager.users.wweaver.home.sessionVariables.TYPESAFE_DEFAULT_MODEL == "jev-1.13"
-          && wweaver.home-manager.users.wweaver.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/Opencode/Service Accounts/wweaver"
+          && wweaver.myConfig.pi.jevOnePasswordItem == ""
+          && !(wweaver.home-manager.users.wweaver.home.sessionVariables ? PI_JEV_BASE_URL)
+          && !(wweaver.home-manager.users.wweaver.home.sessionVariables ? TYPESAFE_DEFAULT_MODEL)
+          && !(wweaver.home-manager.users.wweaver.programs.onepassword-secrets.secrets ? pijevApiKey)
         then ""
-        else ''echo "FAIL: wweaver should receive pi-jev with its Console Jev key"; exit 1''
+        else ''echo "FAIL: wweaver should disable Jev and omit its 1Password key"; exit 1''
     }
-    echo "  wweaver: pi-jev package and Jev service account configured ✓"
+    echo "  wweaver: Jev disabled; no Jev 1Password secret configured ✓"
 
     echo ""
     echo "All Lydia machine tests passed"

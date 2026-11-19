@@ -97,7 +97,7 @@ megamanx_builder_metadata() {
       inherit (builder) hostName system protocol sshUser publicHostKey;
     }) builders;
     defaultVault = zero.myConfig.onepassword.defaultVault;
-    keyReference = zero.myConfig.onepassword.secrets.nixRemoteBuilderKey.reference;
+    keyReference = zero.myConfig.onepassword.secrets.nixBuilderClientKey.reference;
   }"
   "$nix_bin" eval --impure --raw --expr "$expression"
 }
@@ -313,7 +313,7 @@ run_scoped_machine_operation() {
   }
   IFS=$'\t' read -r profile kind has_secrets has_bootstrap_secret target_system tailscale_enabled has_tailscale_oauth tailscale_auth_tags <<< "$metadata"
   case "$profile" in
-    Opnix|Personal|MegamanX|Employee) ;;
+    Opnix|Personal|MegamanX|BuilderClients|Employee) ;;
     *) printf 'ERROR: unsupported SecretSpec profile for machine %s\n' "$machine" >&2; exit 64 ;;
   esac
 

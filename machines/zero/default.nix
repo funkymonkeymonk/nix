@@ -9,6 +9,11 @@
   ...
 }: let
   sshPublicKey = import ../../library/ssh-public-key.nix;
+  sshKeyRegistry = import ../../library/ssh-key-registry.nix;
+  nixBuilderKeys =
+    map
+    (clientName: sshKeyRegistry.clients.${clientName}.publicKey)
+    (builtins.filter (clientName: clientName != "zero") sshKeyRegistry.clientNames);
 in {
   # Key-only root SSH access, same approved key as the other desktop targets.
   users.users.root.openssh.authorizedKeys.keys = [sshPublicKey];
@@ -19,24 +24,31 @@ in {
 
   system.stateVersion = "25.05";
 
-  nix = {
-    distributedBuilds = true;
-    buildMachines = [
-      {
-        hostName = "megamanx";
-        system = "aarch64-darwin";
-        protocol = "ssh-ng";
-        sshUser = "nixbuilder";
-        sshKey = "/run/secrets/nix-remote-builder-megamanx";
-        # Nix expects base64 of the full OpenSSH public-key line, not only its key blob.
-        publicHostKey = "c3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSU9Hd2lqRkxveHN2UVRhcDJScWVrWmdnS3krMlJzVUZDVnRrT28wSWtUN3QK";
-        maxJobs = 4;
-        speedFactor = 1;
-        supportedFeatures = ["big-parallel"];
-      }
-    ];
-    settings.builders-use-substitutes = true;
+  users.groups.nixbuilder = {};
+  users.users.nixbuilder = {
+    isSystemUser = true;
+    group = "nixbuilder";
+    home = "/var/empty";
+    shell = pkgs.bashInteractive;
+    createHome = false;
+    openssh.authorizedKeys.keys = nixBuilderKeys;
   };
+
+  nix.settings.trusted-users = ["root" "monkey" "nixbuilder"];
+
+  services.openssh.extraConfig = lib.mkAfter ''
+    Match User nixbuilder
+      AuthenticationMethods publickey
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      AllowAgentForwarding no
+      AllowTcpForwarding no
+      PermitTTY no
+      X11Forwarding no
+      ForceCommand /nix/var/nix/profiles/default/bin/nix-daemon --stdio
+
+    Match all
+  '';
 
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
@@ -81,13 +93,6 @@ in {
           owner = "root";
           group = "root";
           services = ["caddy-cloudflare-env" "caddy"];
-        };
-        secrets.nixRemoteBuilderKey = {
-          reference = "Nix Remote Builder Zero to MegamanX/private key";
-          path = "/run/secrets/nix-remote-builder-megamanx";
-          mode = "0400";
-          owner = "root";
-          group = "root";
         };
       };
 
@@ -148,8 +153,8 @@ in {
         '';
 
         # OpenCode Go falls back to OpenCode Zen, so a single provider + key
-        # covers both. Replace the role's local bifrost model.
-        models = lib.mkForce {
+        # covers both. Keep the role's Bifrost model available to Pi.
+        models = {
           "opencode-go" = {
             name = "OpenCode Go";
             provider = "opencode-go";

@@ -13,10 +13,11 @@
 ## Binding policy and safety requirements
 
 - Retain a complete torrent until it has at least **240 actual seeding hours OR a per-torrent upload/download ratio of 3.0**, whichever occurs first.
-- For every associated private tracker, require the current account-wide ratio to be **at least 0.6**. Unknown trackers or unavailable ratio sources fail closed. The current configured Prowlarr indexers are public; do not invent private-tracker ratio APIs.
+- For every associated private tracker, require the current account-wide ratio to be **at least 0.6**. Unknown trackers or unavailable ratio sources fail closed. The current Prowlarr indexers are public. Do not invent private-tracker ratio APIs.
+- On 2026-11-16, the user confirmed that no private-account trackers are in use. Drlight leaves private-tracker protection disabled. Add a trusted ratio source before adding private trackers.
 - A seedbox torrent is never eligible for removal until rsync successfully stages its complete payload and Drlight's Arr state confirms the imported local library file exists and matches by size and modification time. Do not add checksum scans.
 - Do not add `--delete` or `--remove-source-files` to the rsync transfer. Do not directly `rm` seedbox data. Any torrent removal with local data must go through Transmission's documented RPC, using the deployed version's verified API.
-- Report-only is the default. No install/switch, external Ultra app changes, or seedbox deletion is part of code validation.
+- Report-only remains the option default. On 2026-11-16, the user authorized staging and cleanup on Drlight. This approval covers code and machine configuration changes only. It does not authorize deployment or live removal during validation.
 
 ## Task 1: Read-only migration and connectivity preflight
 
@@ -211,11 +212,13 @@ Do not export app databases, alter 1Password, stop services, or perform any depl
 
 **Step 1: Add failing tests for the migration-aware cleanup gate**
 
-Besides the existing 240-hour-OR-3.0, 0.6 private account floor, unknown-tracker fail-closed, and path-overlap cases, test that cleanup is blocked when rsync staging failed, the Arr app has not imported the payload, any mapped local library file is missing/mismatched by size+mtime, the app state cannot prove the import, or Tailscale/RPC status is unavailable. Test that cleanup only runs after a successful staging unit and import verification, that systemd serializes staging/cleanup, that report-only is the default, and that no failure path calls Transmission remove.
+Test the 240-hour-OR-3.0 policy, private ratio floor, unknown-tracker behavior, and path-overlap protection. Verify cleanup blocks when a torrent's staging receipt is missing, Arr has not imported, or an imported file is absent or mismatched by size and mtime. Verify unavailable Arr/RPC state and stale or mismatched receipts block cleanup. Verify cleanup requires successful per-torrent staging and import, while the queue can process earlier completed torrents before the full batch ends. Keep report-only as the default. Assert that failures never call Transmission removal.
 
 **Step 2: Confirm RED; implement the report-only cleanup controller**
 
-Run candidate-specific rsync verification and query local Arr import state only through a documented/supported interface. Trigger cleanup only after the staging service succeeds, then recheck Transmission/torrent/tracker state immediately before a removal request. Unknown app imports, unknown private-tracker ratios, ambiguous legacy library paths, or shared torrent files block deletion. Keep destructive mode disabled in Drlight configuration.
+Run candidate-specific source and local-file checks. Query Arr import state through supported local APIs. Start cleanup only for a fresh, matching per-torrent staging receipt; a receipt is written only after all files for that torrent are published locally.
+
+Immediately before removal, recheck Transmission and Arr state. Block deletion for unknown imports, ambiguous paths, shared source files, or unverified private-tracker protection. The user authorized apply mode on Drlight. Keep apply mode disabled by default elsewhere.
 
 **Step 3: Add the explicit Transmission removal gate only after deployed-version verification**
 
@@ -245,7 +248,7 @@ devenv tasks run test:build-checks
 devenv tasks run test:eval
 ```
 
-Review `jj diff` for secrets, hostnames, account names, tracker domains, source paths, API keys, and default-enabled deletion. Do not deploy/switch Drlight, install Ultra's Tailscale beta, stop/uninstall Ultra apps, edit 1Password, or call a destructive Transmission RPC in code-validation. The report-only configuration is the only live cleanup behavior until the user explicitly authorizes cutover and destructive activation.
+Review `jj diff` for secrets, hostnames, account names, tracker domains, source paths, API keys, and default-enabled deletion. Do not deploy Drlight, install Ultra's Tailscale beta, stop Ultra apps, edit 1Password, or call a destructive Transmission RPC during code validation. The running system remains report-only until a reviewed deployment applies the user-authorized Drlight configuration.
 
 ## Deployment and cutover checklist (separately authorized)
 
@@ -255,7 +258,7 @@ The following operational actions are not part of code implementation or local v
 2. Install/authorize Ultra's beta Tailscale app under the user's control, verify Prowlarr can reach only the intended Drlight Arr APIs over the tailnet, and keep Arr APIs closed to public ingress.
 3. Switch on Drlight's Arr/Bazarr/Mylar3 services in report-only/download-disabled mode; restore state, remap the local roots, set the remote Transmission client, and test the local staging import path.
 4. Cut over one app at a time. Keep old Ultra apps and data available until local library counts, Bazarr connections, Prowlarr indexer sync, and Transmission staging/import tests pass. Stop old Ultra Arr/Bazarr services only after that validation; retain backups for rollback.
-5. Review cleanup's report-only candidates and the legacy organized-library inventory. Do not enable destructive cleanup or delete legacy files until the user separately approves that action and path ownership has been verified.
+5. The user authorized automatic removal of eligible Transmission entries and seedbox payloads after verified imports and retention checks. Keep legacy organized-library files out of this service. Handle them in a separate operation after path-ownership review.
 
 ## Execution notes
 

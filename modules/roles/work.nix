@@ -7,4 +7,10 @@
 # vault. Orthogonal to workstation (machine form-factor): a personal desktop
 # and a work laptop can both be "workstation" archetypes, but only the work
 # laptop enables this role.
-_: {}
+{lib, ...}: {
+  options.myConfig.roles.work.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "This machine is used for an employer/work context (as opposed to purely personal use). Orthogonal to workstation (machine form-factor) — set explicitly per-host, not via a shared archetype.";
+  };
+}

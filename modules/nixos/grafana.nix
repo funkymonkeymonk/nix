@@ -9,6 +9,9 @@
   # Match drlight's existing provisioned Loki datasource instead of changing
   # its UID, which would break Grafana's persistent datasource references.
   lokiDatasourceUid = "P8E80F9AEF21F6940";
+  ultraRemoteDiskConfig = lib.attrByPath ["myConfig" "ultraMediaDownloadStage" "remoteDisk"] {} config;
+  ultraRemoteDiskCapacityBytes = ultraRemoteDiskConfig.capacityBytes or 4000000000000;
+  ultraRemoteDiskWarningThresholdBytes = ultraRemoteDiskConfig.warningThresholdBytes or 3000000000000;
 
   ultraStageFailureQuery = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-download-stage.service" | JOB_RESULT="failed" [5m]))'';
 
@@ -212,6 +215,125 @@
           {
             datasource.type = "prometheus";
             expr = ''100 * (1 - node_filesystem_avail_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"} / node_filesystem_size_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"})'';
+          }
+        ];
+      }
+      {
+        id = 7;
+        title = "Transfer progress and ETA";
+        type = "logs";
+        gridPos = {
+          h = 10;
+          w = 24;
+          x = 0;
+          y = 22;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="staging_progress" | line_format "torrents={{.torrents_published}}/{{.torrents_total}} files={{.files_transferred}}+{{.files_reused}} reused/{{.files_total}} bytes={{.bytes_transferred}}+{{.bytes_reused}} reused/{{.bytes_total}} percent={{.percent_complete}} rate={{.bytes_per_second}} eta={{.eta_seconds}} lag={{.time_behind_seconds}} unorderable={{.unorderable_completed_torrents}} receipts={{.receipts_created}}"'';
+          }
+        ];
+      }
+      {
+        id = 8;
+        title = "Per-torrent cleanup queue";
+        type = "logs";
+        gridPos = {
+          h = 8;
+          w = 24;
+          x = 0;
+          y = 32;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="ultra-media-cleanup-start"} | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}}"'';
+          }
+        ];
+      }
+      {
+        id = 9;
+        title = "Oldest unstaged completion age";
+        type = "stat";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 0;
+          y = 40;
+        };
+        fieldConfig.defaults.unit = "s";
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | unwrap time_behind_seconds | __error__="" [24h])'';
+          }
+        ];
+      }
+      {
+        id = 10;
+        title = "Sync time behind history";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 18;
+          x = 6;
+          y = 40;
+        };
+        fieldConfig.defaults.unit = "s";
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | unwrap time_behind_seconds | __error__="" [24h])'';
+          }
+        ];
+      }
+      {
+        id = 11;
+        title = "Remote seedbox disk usage";
+        type = "timeseries";
+        gridPos = {
+          h = 8;
+          w = 24;
+          x = 0;
+          y = 46;
+        };
+        fieldConfig.defaults = {
+          unit = "decbytes";
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                color = "green";
+                value = null;
+              }
+              {
+                color = "orange";
+                value = ultraRemoteDiskWarningThresholdBytes;
+              }
+              {
+                color = "red";
+                value = ultraRemoteDiskCapacityBytes;
+              }
+            ];
+          };
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_seedbox_storage_used_bytes{job="node",instance="drlight:9100"}'';
           }
         ];
       }

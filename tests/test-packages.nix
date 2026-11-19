@@ -212,6 +212,10 @@
         ../modules/common/zellij.nix
         ../modules/common/llm-client.nix
         ../modules/common/opencode.nix
+        # Role enable options now live in the role modules (not central options.nix);
+        # import the two roles this test references so they resolve here.
+        ../modules/roles/foundation.nix
+        ../modules/roles/developer.nix
         ../modules/roles/agent-skills.nix
         {
           options.nixpkgs.hostPlatform = pkgs.lib.mkOption {
@@ -255,13 +259,14 @@
                 sshIncludes = [];
               }
             ];
-            onepassword.enable = false;
             opencode.enable = false;
           };
         }
       ];
     };
     evaluatedConfig = testEval.config.myConfig;
+    foundationSystemPackages = testEval.config.environment.systemPackages;
+    foundationBifrostPackages = builtins.filter (package: (package.pname or "") == "bifrost-http") foundationSystemPackages;
   in
     pkgs.runCommand "test-foundation-options"
     {}
@@ -279,6 +284,8 @@
       # Verify role options exist
       echo "  roles.foundation.enable: ${builtins.toJSON evaluatedConfig.roles.foundation.enable}"
       echo "  roles.developer.enable: ${builtins.toJSON evaluatedConfig.roles.developer.enable}"
+      test "${toString (builtins.length foundationBifrostPackages)}" = "0"
+      echo "  foundation does not install bifrost-http: OK"
 
       echo "All foundation options verified"
       touch $out

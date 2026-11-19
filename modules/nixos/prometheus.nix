@@ -26,6 +26,14 @@
 with lib; let
   cfg = config.myConfig.prometheus;
   nodeExporterCfg = config.myConfig.nodeExporter;
+  ultraRemoteDiskConfig =
+    lib.attrByPath ["myConfig" "ultraMediaDownloadStage" "remoteDisk"] {
+      enable = false;
+      warningThresholdBytes = 3000000000000;
+    }
+    config;
+  ultraRemoteDiskEnabled = ultraRemoteDiskConfig.enable or false;
+  ultraRemoteDiskWarningBytes = ultraRemoteDiskConfig.warningThresholdBytes or 3000000000000;
 
   # Not every NixOS target that imports this module also imports
   # modules/nixos/alertmanager.nix — guard alertmanager wiring on option
@@ -40,43 +48,69 @@ with lib; let
   # established for darwin-server in PR #432
   # (modules/services/prometheus/darwin.nix).
   alertRules = {
-    groups = [
-      {
-        name = "basic-service-health";
+    groups =
+      [
+        {
+          name = "basic-service-health";
+          rules = [
+            {
+              alert = "PrometheusTargetDown";
+              expr = "up == 0";
+              for = "5m";
+              labels.severity = "critical";
+              annotations = {
+                summary = "{{ $labels.job }} target down";
+                description = "Scrape target {{ $labels.instance }} for job {{ $labels.job }} has been down for more than 5 minutes.";
+              };
+            }
+            {
+              alert = "HostHighMemoryUsage";
+              expr = "node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1";
+              for = "5m";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Host memory nearly exhausted";
+                description = "Available memory on {{ $labels.instance }} has been below 10% for more than 5 minutes.";
+              };
+            }
+            {
+              alert = "HostOutOfDiskSpace";
+              expr = ''node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"} < 0.1'';
+              for = "5m";
+              labels.severity = "warning";
+              annotations = {
+                summary = "Host disk space nearly exhausted";
+                description = "Available disk space on {{ $labels.instance }} mount {{ $labels.mountpoint }} has been below 10% for more than 5 minutes.";
+              };
+            }
+          ];
+        }
+      ]
+      ++ optional ultraRemoteDiskEnabled {
+        name = "ultra-seedbox-storage";
         rules = [
           {
-            alert = "PrometheusTargetDown";
-            expr = "up == 0";
-            for = "5m";
-            labels.severity = "critical";
+            alert = "UltraSeedboxStorageHigh";
+            expr = ''ultra_seedbox_storage_probe_success{job="node",instance="drlight:9100"} == 1 and ultra_seedbox_storage_used_bytes{job="node",instance="drlight:9100"} > ${toString ultraRemoteDiskWarningBytes}'';
+            for = "0s";
+            labels.severity = "warning";
             annotations = {
-              summary = "{{ $labels.job }} target down";
-              description = "Scrape target {{ $labels.instance }} for job {{ $labels.job }} has been down for more than 5 minutes.";
+              summary = "Ultra seedbox storage is above 3 TB";
+              description = "Account-level Ultra storage usage exceeds the configured warning threshold.";
             };
           }
           {
-            alert = "HostHighMemoryUsage";
-            expr = "node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1";
-            for = "5m";
+            alert = "UltraSeedboxStorageTelemetryUnavailable";
+            expr = ''absent(ultra_seedbox_storage_probe_success{job="node",instance="drlight:9100"}) or ultra_seedbox_storage_probe_success{job="node",instance="drlight:9100"} == 0 or time() - ultra_seedbox_storage_sample_timestamp_seconds{job="node",instance="drlight:9100"} > 180'';
+            for = "0s";
             labels.severity = "warning";
             annotations = {
-              summary = "Host memory nearly exhausted";
-              description = "Available memory on {{ $labels.instance }} has been below 10% for more than 5 minutes.";
-            };
-          }
-          {
-            alert = "HostOutOfDiskSpace";
-            expr = ''node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"} < 0.1'';
-            for = "5m";
-            labels.severity = "warning";
-            annotations = {
-              summary = "Host disk space nearly exhausted";
-              description = "Available disk space on {{ $labels.instance }} mount {{ $labels.mountpoint }} has been below 10% for more than 5 minutes.";
+              summary = "Ultra seedbox storage telemetry is unavailable";
+              description = "The latest account-level storage probe is missing, failed, or stale.";
             };
           }
         ];
-      }
-    ];
+      };
   };
 in {
   options.myConfig.prometheus = {
@@ -112,6 +146,12 @@ in {
       type = types.port;
       default = 9100;
       description = "Port for node_exporter HTTP server.";
+    };
+
+    textfileDirectory = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      description = "Optional node_exporter textfile collector directory for aggregate custom metrics.";
     };
 
     openFirewallInterfaces = mkOption {
@@ -162,6 +202,10 @@ in {
         # The interface-specific firewall below restricts the wildcard socket
         # without relying on Tailscale's dynamic interface address.
         listenAddress = "0.0.0.0";
+        extraFlags =
+          optional
+          (nodeExporterCfg.textfileDirectory != null)
+          "--collector.textfile.directory=${nodeExporterCfg.textfileDirectory}";
       };
 
       networking.firewall.interfaces = genAttrs nodeExporterCfg.openFirewallInterfaces (_: {

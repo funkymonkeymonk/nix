@@ -17,8 +17,9 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+  # The shared Machines overlay needs this input to build the MegamanX service.
   bifrost:
-    url: github:maximhq/bifrost/6e640279b36337820f2088fb85f6e78f339063c3
+    url: github:maximhq/bifrost/7cb75fb2f8276ca48d0792c857fecb67b8879e2f
     inputs:
       nixpkgs:
         follows: nixpkgs

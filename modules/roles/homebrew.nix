@@ -14,6 +14,12 @@ with lib; let
   # Also check if homebrew option exists
   hasHomebrew = options ? homebrew;
 in {
+  options.myConfig.roles.homebrew.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = "Homebrew integration for macOS (requires Homebrew to be installed)";
+  };
+
   config = lib.mkIf cfg.enable (lib.mkMerge [
     # nix-homebrew settings (only if module is available)
     (lib.optionalAttrs hasNixHomebrew {

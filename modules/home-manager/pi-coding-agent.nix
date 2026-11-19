@@ -185,11 +185,7 @@ with lib; let
   # and registers them dynamically so pi can use any model bifrost serves
   bifrostDiscoveryFiles = let
     bifrostModels =
-      lib.filterAttrs (
-        _name: model:
-          model.baseUrl != "" && lib.hasInfix "bifrost" model.baseUrl
-      )
-      cfg.models;
+      lib.filterAttrs (_name: model: model.provider == "bifrost") cfg.models;
     hasBifrost = bifrostModels != {};
     firstBifrost = lib.head (lib.attrValues bifrostModels);
     bifrostBase = lib.removeSuffix "/" firstBifrost.baseUrl;
@@ -203,8 +199,13 @@ with lib; let
           };
         };
       };
+      ".pi/agent/extensions/bifrost-discovery/model-metadata.mjs" = {
+        text = builtins.readFile ./bifrost-model-metadata.mjs;
+      };
       ".pi/agent/extensions/bifrost-discovery/index.ts" = {
         text = ''
+          import { mapBifrostModel } from "./model-metadata.mjs";
+
           export default async function (pi: any) {
             try {
               const response = await fetch("${bifrostBase}/models");
@@ -228,14 +229,7 @@ with lib; let
                 console.error("[bifrost-discovery] Unexpected response format");
                 return;
               }
-              const models = payload.data.map((m: any) => ({
-                id: m.id,
-                name: m.name || m.id,
-                reasoning: /thinking|reasoning/i.test(m.id),
-                input: ["text"],
-                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                contextWindow: 128000,
-              }));
+              const models = payload.data.map(mapBifrostModel);
               pi.registerProvider("bifrost", {
                 baseUrl: "${bifrostBase}",
                 apiKey: "dummy",
@@ -352,7 +346,7 @@ in {
     # All pi configuration files
     home.file = allFiles;
 
-    home.sessionVariables = {
+    home.sessionVariables = lib.optionalAttrs (cfg.jevOnePasswordItem != "") {
       PI_JEV_BASE_URL = "https://opencode.ai/inference/systemone";
       TYPESAFE_DEFAULT_MODEL = "jev-1.13";
     };

@@ -63,6 +63,7 @@ jobs:
       - name: Test CI workflow helpers
         run: |
           bash tests/test-ci-workflows.sh
+          bash tests/test-ci-pr-validation-selection.sh
           bash tests/test-ci-overlay-upstream-check.sh
           bash tests/test-ci-check-groups.sh
           bash tests/test-ci-change-selection.sh
@@ -77,6 +78,9 @@ jobs:
       workflows: ${{ steps.filter.outputs.workflows }}
       check-prefixes: ${{ steps.changed-checks.outputs.check-prefixes }}
       ci-helper-files: ${{ steps.filter.outputs.ci-helper-files }}
+      disko-files: ${{ steps.changed-checks.outputs.disko-files }}
+      install-machine-script: ${{ steps.changed-checks.outputs.install-machine-script }}
+      vm-smoke-checks: ${{ steps.changed-checks.outputs.vm-smoke-checks }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -100,17 +104,22 @@ jobs:
               - '.github/scripts/**'
               - '.github/workflows/**'
               - 'tests/test-ci-*.sh'
-      - name: Select non-VM checks affected by changed files
+      - name: Select changed checks and PR validations
         id: changed-checks
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            git diff --name-only "$BASE_SHA...$HEAD_SHA" \
-              | bash .github/scripts/select-pr-checks.sh > check-prefixes.json
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+            bash .github/scripts/select-pr-checks.sh \
+              < changed-files.txt > check-prefixes.json
+            bash .github/scripts/select-pr-validation-checks.sh \
+              < changed-files.txt >> "$GITHUB_OUTPUT"
           else
             printf '["*"]\n' > check-prefixes.json
+            bash .github/scripts/select-pr-validation-checks.sh --all \
+              >> "$GITHUB_OUTPUT"
           fi
           printf 'check-prefixes=%s\n' "$(<check-prefixes.json)" >> "$GITHUB_OUTPUT"
   # Discover what configurations exist and check if they need rebuilds
@@ -437,10 +446,16 @@ jobs:
       - name: Create stub facter.json
         run: bash .github/scripts/create-facter-stub.sh
       - name: Validate Disko configuration
+        if: >-
+          github.event_name != 'pull_request' ||
+          needs.changes.outputs.disko-files == 'true'
         run: >-
           nix build .#nixosConfigurations.zero.config.system.build.diskoScript
           --no-link --dry-run --quiet
       - name: Validate installation script
+        if: >-
+          github.event_name != 'pull_request' ||
+          needs.changes.outputs.install-machine-script == 'true'
         run: bash -n scripts/install-machine.sh && test -x scripts/install-machine.sh
       - name: Plan changed PR checks
         id: plan
@@ -456,7 +471,9 @@ jobs:
     name: NixOS VM Checks
     runs-on: ubuntu-latest
     needs: [lint, changes]
-    if: ${{ needs.changes.outputs.nix-files == 'true' }}
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.vm-smoke-checks == 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

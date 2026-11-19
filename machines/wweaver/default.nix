@@ -51,9 +51,10 @@
       roles.work.enable = true;
 
       pi.pluginsSource = lib.mkDefault (inputs.pi-plugins.outPath or null);
-      pi.jevOnePasswordItem = "Opencode/Service Accounts/wweaver";
+      pi.jevOnePasswordItem = "";
 
-      pi.npmPackages = {
+      # Keep other Pi extensions while disabling Jev on wweaver.
+      pi.npmPackages = lib.mkForce {
         # Subagent dispatch tool (scout/researcher/worker/reviewer/oracle)
         # for pi, mirroring opencode/claude's native Task tool / @mention
         # subagent support — needed by dispatching-parallel-agents and
