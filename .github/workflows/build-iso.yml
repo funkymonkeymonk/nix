@@ -23,19 +23,19 @@ concurrency:
 jobs:
   build-iso:
     name: Build NixOS Installer ISO
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Full history for proper flake evaluation
           fetch-depth: 0
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -45,7 +45,7 @@ jobs:
             extra-platforms = x86_64-linux
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@v15
+        uses: cachix/cachix-action@v17
         with:
           name: funkymonkeymonk
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -87,7 +87,7 @@ jobs:
           echo "SHA256: $ISO_SHA256"
 
       - name: Upload ISO artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nixos-installer-iso
           path: result/iso/*.iso
@@ -97,7 +97,7 @@ jobs:
       - name: Create release
         # yamllint disable-line rule:line-length
         if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release-iso]')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: iso-${{ github.run_number }}
           name: NixOS Installer ISO ${{ github.run_number }}

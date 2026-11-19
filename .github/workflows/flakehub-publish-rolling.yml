@@ -6,16 +6,16 @@ on:
 jobs:
   flakehub-publish:
     if: false  # DISABLED: Authentication issues with FlakeHub
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
     permissions:
       id-token: "write"
       contents: "read"
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v6"
         with:
           persist-credentials: false
       - uses: "DeterminateSystems/determinate-nix-action@v3"
-      - uses: "DeterminateSystems/flakehub-push@v6"
+      - uses: "DeterminateSystems/flakehub-push@v7"
         with:
           name: "funkymonkeymonk/nix"
           rolling: true

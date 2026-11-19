@@ -24,11 +24,11 @@ jobs:
   # Clear cache when manually requested
   clear-cache:
     name: Clear Derivation Cache
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'workflow_dispatch' && inputs.clear-cache == true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Clear derivation cache
         run: |
@@ -40,7 +40,7 @@ jobs:
           echo "Cache cleared. Next PR will rebuild all configurations."
 
       - name: Save cleared cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .drv-cache
           key: drv-main-${{ github.run_id }}
@@ -48,14 +48,14 @@ jobs:
   # Prune stale cache entries weekly
   prune-cache:
     name: Prune Derivation Cache
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'schedule'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v21
+        uses: DeterminateSystems/nix-installer-action@v23
         with:
           extra-conf: |
             experimental-features = nix-command flakes
@@ -63,7 +63,7 @@ jobs:
             download-attempts = 10
 
       - name: Restore derivation cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: drv-cache
         with:
           path: .drv-cache
@@ -121,7 +121,7 @@ jobs:
           ls -la .drv-cache/
 
       - name: Save pruned cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .drv-cache
           key: drv-main-${{ github.run_id }}
