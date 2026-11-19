@@ -17,6 +17,37 @@ assert() {
   fi
 }
 
+assert_exact_line() {
+  local desc="$1"
+  local block="$2"
+  local expected="$3"
+  if grep -Fxq -- "$expected" <<< "$block"; then
+    echo "  PASS: $desc"
+    PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $desc"
+    FAIL=$((FAIL + 1))
+  fi
+}
+
+extract_job() {
+  local job="$1"
+  awk -v target="  $job:" '
+    $0 == target { active = 1; print; next }
+    active && /^  [^ ]/ { exit }
+    active { print }
+  ' "$REPO_ROOT/.github/workflows/pr-validation.yml"
+}
+
+extract_step() {
+  local step="$1"
+  awk -v target="      - name: $step" '
+    $0 == target { active = 1; print; next }
+    active && /^      - name:/ { exit }
+    active { print }
+  '
+}
+
 echo "=== CI Workflow Tests ==="
 
 # Test: every Nix installer invocation raises retries for transient cache downloads.
@@ -113,12 +144,15 @@ assert "overlay source checker changes trigger its CI regression test" \
 assert "PR workflow keeps VM smoke checks independent" \
   "grep -q 'bash .github/scripts/ci-checks.sh build vm-pr' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check matrix is capped at six concurrent runners" \
-  "grep -q 'max-parallel: 6' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "PR check shards contain at most four checks" \
-  "grep -q 'batchSize:4' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
-assert "four-check PR shards have a twenty-five-minute budget" \
-  "grep -q 'timeout-minutes: 25' '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+test_validate_job="$(extract_job test-and-validate)"
+discover_checks_job="$(extract_job discover-checks)"
+check_planning_step="$(extract_step 'Plan changed PR checks' <<< "$discover_checks_job")"
+assert_exact_line "test-and-validate caps concurrency at exactly six runners" \
+  "$test_validate_job" "      max-parallel: 6"
+assert_exact_line "PR planner batches exactly four checks" \
+  "$check_planning_step" "            '{batchSize:4,checkPrefixes:\$prefixes}')"
+assert_exact_line "four-check PR shards keep a twenty-five-minute budget" \
+  "$test_validate_job" "    timeout-minutes: 25"
 assert "PR workflow omits full role-package VM tests" \
   "! grep -Eq 'vm-role-(foundation|developer)' \
   '$REPO_ROOT/.github/workflows/pr-validation.yml'"
