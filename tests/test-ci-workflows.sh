@@ -77,6 +77,9 @@ assert "PR workflow builds check shards with the standalone Nix helper" \
 assert "PR check discovery selects checks from changed files" \
   "grep -q 'select-pr-checks.sh' \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
+assert "PR workflow runs PR validation path-selection regression tests" \
+  "grep -q 'bash tests/test-ci-pr-validation-selection.sh' \
+    '$REPO_ROOT/.github/workflows/pr-validation.yml'"
 assert "non-VM PR checks run when selected prefixes are non-empty" \
   "grep -Fq \"check-prefixes != '[]'\" \
     '$REPO_ROOT/.github/workflows/pr-validation.yml'"
