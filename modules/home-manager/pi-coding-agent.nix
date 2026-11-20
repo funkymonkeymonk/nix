@@ -131,7 +131,7 @@ with lib; let
       text = builtins.toJSON {
         "opencode-go" = {
           type = "api_key";
-          key = "!cat ${opencodeGoSecretPath}";
+          key = "!cat ~/${opencodeGoSecretPath}";
         };
       };
       force = true;

@@ -121,7 +121,7 @@ in {
         else throw "Pi auth.json must be declared through Home Manager"
       }
 
-      if ${lib.boolToString (lib.hasInfix ''key = "!cat ''${opencodeGoSecretPath}"'' piHomeManagerModuleText)}; then
+      if ${lib.boolToString (lib.hasInfix ''key = "!cat ~/$'' piHomeManagerModuleText)}; then
         echo "  auth.json uses the OpNix-managed secret file: OK"
       else
         echo "  auth.json does not use the OpNix-managed secret file"
