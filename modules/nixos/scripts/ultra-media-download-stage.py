@@ -842,18 +842,12 @@ def write_staged_torrent_receipt(
     return {**receipt, "receipt_path": str(path)}
 
 
-def read_pending_torrent_receipts(
-    queue_root: str | Path,
-    *,
-    now_ns: int,
-) -> list[dict[str, Any]]:
-    """Read only valid, due receipts; malformed or symlinked entries fail closed."""
+def _read_valid_torrent_receipts(queue_root: str | Path) -> list[dict[str, Any]]:
+    """Read valid receipts regardless of retry time; skip malformed and symlinked files."""
     root = Path(queue_root)
-    if not root.exists():
+    if not root.exists() or root.is_symlink() or not root.is_dir():
         return []
-    if root.is_symlink() or not root.is_dir():
-        return []
-    pending = []
+    receipts = []
     for path in sorted(root.glob("*.json")):
         try:
             if not stat.S_ISREG(os.lstat(path).st_mode):
@@ -870,7 +864,9 @@ def read_pending_torrent_receipts(
         attempts = receipt.get("attempts")
         next_attempt_ns = receipt.get("next_attempt_ns")
         if (
-            receipt.get("version") != 1
+            not isinstance(receipt.get("version"), int)
+            or isinstance(receipt.get("version"), bool)
+            or receipt.get("version") != 1
             or not isinstance(torrent_id, int)
             or isinstance(torrent_id, bool)
             or torrent_id <= 0
@@ -888,11 +884,23 @@ def read_pending_torrent_receipts(
             or isinstance(next_attempt_ns, bool)
             or next_attempt_ns < staged_at_ns
             or path != _receipt_path(root, torrent_id)
-            or next_attempt_ns > now_ns
         ):
             continue
-        pending.append(dict(receipt))
-    return sorted(pending, key=lambda receipt: (receipt["next_attempt_ns"], receipt["staged_at_ns"]))
+        receipts.append(dict(receipt))
+    return sorted(receipts, key=lambda receipt: (receipt["next_attempt_ns"], receipt["staged_at_ns"]))
+
+
+def read_pending_torrent_receipts(
+    queue_root: str | Path,
+    *,
+    now_ns: int,
+) -> list[dict[str, Any]]:
+    """Read only valid, due receipts; malformed or symlinked entries fail closed."""
+    return [
+        receipt
+        for receipt in _read_valid_torrent_receipts(queue_root)
+        if receipt["next_attempt_ns"] <= now_ns
+    ]
 
 
 def defer_staged_torrent_receipt(
@@ -1187,7 +1195,7 @@ def stage_completed_downloads(
     source_stat: Callable[[str], Mapping[str, Any] | None] | None = None,
     progress_reporter: StageProgressReporter | None = None,
     on_torrent_staged: Callable[[Mapping[str, Any]], None] | None = None,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     """Copy each complete mapped torrent as an atomic, independently reportable unit."""
     plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
     reporter = progress_reporter or StageProgressReporter(plan["totals"])
@@ -1268,6 +1276,18 @@ def stage_completed_downloads(
         failed_torrents=result["failed"],
         event="staging_completed" if result["failed"] == 0 else "staging_failed",
         force=True,
+    )
+    result.update(
+        {
+            "torrents_total": plan["totals"].get("torrents"),
+            "files_total": plan["totals"].get("files"),
+            "bytes_total": plan["totals"].get("bytes"),
+            "files_transferred": counters["files_done"],
+            "bytes_transferred": counters["bytes_done"],
+            "files_reused": counters["files_reused"],
+            "bytes_reused": counters["bytes_reused"],
+            "receipts_created": counters["receipts_created"],
+        }
     )
     return result
 

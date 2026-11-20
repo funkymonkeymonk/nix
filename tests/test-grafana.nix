@@ -287,10 +287,28 @@ in {
         echo "FAIL: dashboard must display aggregate progress and ETA fields"; exit 1
       fi
 
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-cleanup-start") and contains("cleanup_queue_summary") and contains("pending_after_run") and contains("removed"))' "$DASHBOARD" > /dev/null; then
-        echo "dashboard exposes cleanup queue and removal counts: OK"
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start") and contains("cleanup_queue_summary") and contains("pending_after_run") and contains("removed"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard exposes cleanup queue and removal counts from the unified worker: OK"
       else
-        echo "FAIL: dashboard must show aggregate cleanup queue results"; exit 1
+        echo "FAIL: dashboard must show aggregate cleanup queue results from the unified worker"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start") and contains("sync_run_summary") and contains("staging_status") and contains("cleanup_status") and contains("run_status") and contains("bytes_transferred") and contains("cleanup_removed") and contains("cleanup_blocked"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard shows the combined JSON run metrics: OK"
+      else
+        echo "FAIL: dashboard must show combined sync and cleanup JSON metrics"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | all(.[]; (contains("ultra-media-cleanup-start") | not))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard no longer queries a separate cleanup worker: OK"
+      else
+        echo "FAIL: dashboard must not query the removed cleanup service label"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr | select(contains("sync_run_summary"))] | length > 0 and all(.[]; (contains("torrent_id") | not) and (contains("remote_path") | not) and (contains("source_path") | not))' "$DASHBOARD" > /dev/null; then
+        echo "run summary panel uses aggregate fields only: OK"
+      else
+        echo "FAIL: run summary logs must not display torrent identifiers or paths"; exit 1
       fi
 
       if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .datasource.uid] | length >= 3 and all(. == "P8E80F9AEF21F6940")' "$DASHBOARD" > /dev/null; then
@@ -340,10 +358,10 @@ in {
       if
         (nixosGrafanaAlertRule.uid or null)
         == "ultra-media-sync-failure"
-        && (nixosGrafanaAlertRule.title or null) == "Ultra download staging failed"
+        && (nixosGrafanaAlertRule.title or null) == "Ultra sync and cleanup failed"
         && (nixosGrafanaAlertRule.condition or null) == "A"
-      then ''echo "Grafana provisions the stable Ultra sync failure rule: OK"''
-      else ''echo "FAIL: Grafana must provision the Ultra media sync failure alert rule"; exit 1''
+      then ''echo "Grafana provisions the stable unified Ultra sync/cleanup failure rule: OK"''
+      else ''echo "FAIL: Grafana must provision the unified Ultra sync/cleanup failure alert rule"; exit 1''
     }
 
     ${
