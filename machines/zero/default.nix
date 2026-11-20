@@ -8,12 +8,16 @@
   modulesPath,
   ...
 }: let
+  sshPublicKey = import ../../library/ssh-public-key.nix;
   sshKeyRegistry = import ../../library/ssh-key-registry.nix;
   nixBuilderKeys =
     map
     (clientName: sshKeyRegistry.clients.${clientName}.publicKey)
     (builtins.filter (clientName: clientName != "zero") sshKeyRegistry.clientNames);
 in {
+  # Key-only root SSH access, same approved key as the other desktop targets.
+  users.users.root.openssh.authorizedKeys.keys = [sshPublicKey];
+
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
