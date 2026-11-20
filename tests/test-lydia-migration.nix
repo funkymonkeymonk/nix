@@ -137,7 +137,14 @@
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.owner == "monkey"
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.mode == "0600"
           && megamanx.services.onepassword-secrets.secrets.monkeyPiopencodeGoApiKey.path == "Users/monkey/.pi/agent/secrets/opencode-go-apikey"
-          && !(builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after)
+          && megamanx.home-manager.users.monkey.home.file.".pi/agent/auth.json".text
+          == builtins.toJSON {
+            "opencode-go" = {
+              type = "api_key";
+              key = "!cat ~/.pi/agent/secrets/opencode-go-apikey";
+            };
+          }
+          && !(megamanx.home-manager.users.monkey.home.activation ? piOpenCodeGoAuth)
           && megamanx.services.onepassword-secrets.enable
           && megamanx.myConfig.pi.pluginsSource != null
           && megamanx.myConfig.zellij.enable

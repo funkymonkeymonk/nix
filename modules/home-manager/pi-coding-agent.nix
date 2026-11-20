@@ -127,6 +127,15 @@ with lib; let
 
   # Core configuration files
   coreFiles = {
+    ".pi/agent/auth.json" = mkIf (cfg.opencodeGoOnePasswordItem != "") {
+      text = builtins.toJSON {
+        "opencode-go" = {
+          type = "api_key";
+          key = "!cat ~/${opencodeGoSecretPath}";
+        };
+      };
+      force = true;
+    };
     ".pi/agent/settings.json" = mkIf (settingsWithPackages != {}) {
       text = builtins.toJSON settingsWithPackages;
       force = true;
@@ -372,23 +381,5 @@ in {
       enable = true;
       secrets = allOpnixSecrets;
     };
-
-    # Configure Pi's native OpenCode Go provider without putting the API key in
-    # the Nix store or auth.json.
-    home.activation.piOpenCodeGoAuth = mkIf (cfg.opencodeGoOnePasswordItem != "") (lib.hm.dag.entryAfter ["installPackages"] ''
-      secret_file="$HOME/${opencodeGoSecretPath}"
-      auth_file="$HOME/.pi/agent/auth.json"
-      if [ -f "$secret_file" ]; then
-        mkdir -p "$HOME/.pi/agent"
-        if [ -f "$auth_file" ]; then
-          auth_input="$auth_file"
-        else
-          auth_input=/dev/null
-        fi
-        ${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}' "$auth_input" > "$auth_file.tmp"
-        chmod 600 "$auth_file.tmp"
-        mv "$auth_file.tmp" "$auth_file"
-      fi
-    '');
   };
 }
