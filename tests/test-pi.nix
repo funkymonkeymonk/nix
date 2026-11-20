@@ -116,24 +116,22 @@ in {
       echo "=== Testing Pi auth.json initialization ==="
 
       ${
-        if lib.hasInfix "jq -s --arg key" piHomeManagerModuleText
-        then ''echo "  jq slurp handles missing and empty auth files: OK"''
-        else throw "Pi auth activation must use jq -s to initialize absent/empty auth.json"
+        if lib.hasInfix ''".pi/agent/auth.json"'' piHomeManagerModuleText
+        then ''echo "  auth.json is declared as a Home Manager file: OK"''
+        else throw "Pi auth.json must be declared through Home Manager"
       }
 
-      empty_auth=$(${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}' </dev/null)
-      if [ "$(${pkgs.jq}/bin/jq -r '."opencode-go".key' <<<"$empty_auth")" = "!cat ~/.pi/agent/secrets/opencode-go-apikey" ]; then
-        echo "  missing auth.json produces a valid Go credential: OK"
+      if ${lib.boolToString (lib.hasInfix ''key = "!cat ~/$'' piHomeManagerModuleText)}; then
+        echo "  auth.json uses the OpNix-managed secret file: OK"
       else
-        echo "  missing auth.json did not produce a Go credential"
+        echo "  auth.json does not use the OpNix-managed secret file"
         exit 1
       fi
 
-      existing_auth=$(printf '%s\n' '{"openai":{"type":"api_key","key":"keep"}}' | ${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}')
-      if [ "$(${pkgs.jq}/bin/jq -r '.openai.key' <<<"$existing_auth")" = "keep" ] && [ "$(${pkgs.jq}/bin/jq -r '."opencode-go".type' <<<"$existing_auth")" = "api_key" ]; then
-        echo "  existing credentials are preserved while adding Go: OK"
+      if ${lib.boolToString (!(lib.hasInfix "home.activation.piOpenCodeGoAuth" piHomeManagerModuleText))}; then
+        echo "  auth.json activation job is removed: OK"
       else
-        echo "  existing auth.json credentials were not preserved"
+        echo "  auth.json activation job is still present"
         exit 1
       fi
 

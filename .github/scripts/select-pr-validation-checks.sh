@@ -19,14 +19,14 @@ elif (($# > 0)); then
 else
   while IFS= read -r path; do
     case "$path" in
-      flake.nix|flake.lock|library/machines/catalog.nix|library/machines/modules.nix|library/machines/flake-parts.nix)
+      flake.nix|flake.lock|library/machines/catalog.nix|library/machines/modules.nix|library/machines/flake-parts.nix|library/machines/flake-configurations.nix)
         disko_files=true
         vm_smoke_checks=true
         ;;
       disk-configs/*)
         disko_files=true
         ;;
-      machines/*|modules/common/*|modules/nixos/*|modules/roles/*|packages/*|overlays/*|tests/default.nix|tests/vm/*)
+      library/outputs.nix|machines/*|modules/common/*|modules/nixos/*|modules/roles/*|packages/*|overlays/*|tests/default.nix|tests/vm/*)
         vm_smoke_checks=true
         ;;
       scripts/install-machine.sh)

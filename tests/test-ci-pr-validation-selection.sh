@@ -54,6 +54,12 @@ if [[ -f "$SELECTOR" ]]; then
   assert_selection "Flake lock changes" \
     $'disko-files=true\ninstall-machine-script=false\nvm-smoke-checks=true' \
     "flake.lock"
+  assert_selection "Machine configuration construction changes" \
+    $'disko-files=true\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "library/machines/flake-configurations.nix"
+  assert_selection "VM check output changes" \
+    $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
+    "library/outputs.nix"
   assert_selection "VM user module changes" \
     $'disko-files=false\ninstall-machine-script=false\nvm-smoke-checks=true' \
     "modules/common/users.nix"
@@ -101,8 +107,8 @@ installer_step="$(workflow_step "Validate installation script")"
 
 assert_contains "workflow selection step has the expected id" \
   "$selection_step" "id: changed-checks"
-assert_contains "workflow reads the pull request's changed paths" \
-  "$selection_step" 'git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt'
+assert_contains "renaming the installer reports its old path as well as its new path" \
+  "$selection_step" 'git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA" > changed-files.txt'
 assert_contains "workflow selection step invokes the path selector" \
   "$selection_step" "bash .github/scripts/select-pr-validation-checks.sh"
 assert_contains "workflow feeds changed paths to the selector and writes outputs" \

@@ -111,7 +111,7 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed-files.txt
+            git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA" > changed-files.txt
             bash .github/scripts/select-pr-checks.sh \
               < changed-files.txt > check-prefixes.json
             bash .github/scripts/select-pr-validation-checks.sh \
@@ -127,11 +127,9 @@ jobs:
     name: Discover Build Targets
     runs-on: ubuntu-24.04
     needs: [lint, changes]
-    if: >
-      ${{
-        needs.changes.outputs.nix-files == 'true' ||
-        needs.changes.outputs.workflows == 'true'
-      }}
+    if: >-
+      needs.changes.outputs.nix-files == 'true' ||
+      needs.changes.outputs.workflows == 'true'
     outputs:
       darwin-configs: ${{ steps.discover.outputs.darwin-configs }}
       nixos-configs: ${{ steps.discover.outputs.nixos-configs }}
@@ -517,11 +515,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     needs: [lint, changes, discover-checks]
-    if: >
-      ${{
-        needs.changes.outputs.check-prefixes != '[]' &&
-        needs.discover-checks.outputs.matrix != ''
-      }}
+    if: >-
+      needs.changes.outputs.check-prefixes != '[]' &&
+      needs.discover-checks.outputs.matrix != ''
     strategy:
       fail-fast: false
       max-parallel: 6

@@ -47,7 +47,6 @@
     ../modules/services/caddy/nixos.nix
     ../os/nixos.nix
     ../disk-configs/zero.nix
-    ../library/archetypes/desktop-machine.nix
     ../modules/nixos/ghostty-terminfo.nix
     ../machines/zero
   ];

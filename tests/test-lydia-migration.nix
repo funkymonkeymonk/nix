@@ -137,7 +137,14 @@
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.owner == "monkey"
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.mode == "0600"
           && megamanx.services.onepassword-secrets.secrets.monkeyPiopencodeGoApiKey.path == "Users/monkey/.pi/agent/secrets/opencode-go-apikey"
-          && !(builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after)
+          && megamanx.home-manager.users.monkey.home.file.".pi/agent/auth.json".text
+          == builtins.toJSON {
+            "opencode-go" = {
+              type = "api_key";
+              key = "!cat ~/.pi/agent/secrets/opencode-go-apikey";
+            };
+          }
+          && !(megamanx.home-manager.users.monkey.home.activation ? piOpenCodeGoAuth)
           && megamanx.services.onepassword-secrets.enable
           && megamanx.myConfig.pi.pluginsSource != null
           && megamanx.myConfig.zellij.enable
@@ -177,6 +184,18 @@
         else ''echo "FAIL: MegamanX should be a minimal remotely accessible headless server"; exit 1''
     }
     echo "  MegamanX: headless inference server without Temporal ✓"
+
+    ${
+      let
+        opnixService = self.darwinConfigurations.MegamanX.config.launchd.daemons.opnix-secrets.serviceConfig;
+      in
+        if
+          (opnixService.RunAtLoad or false)
+          && (opnixService.KeepAlive or null) == false
+        then ""
+        else ''echo "FAIL: MegamanX Opnix must not restart after a failed secret resolution"; exit 1''
+    }
+    echo "  MegamanX Opnix runs at load without failure restarts ✓"
 
     ${
       let
