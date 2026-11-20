@@ -134,7 +134,6 @@ with lib; let
           key = "!cat ${opencodeGoSecretPath}";
         };
       };
-      mode = "0600";
       force = true;
     };
     ".pi/agent/settings.json" = mkIf (settingsWithPackages != {}) {
