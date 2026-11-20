@@ -45,7 +45,6 @@
         fzf
         ripgrep
         fd
-        devenv
         direnv
         rclone
         bat
@@ -62,7 +61,7 @@
       echo "=== Testing Foundation Packages ==="
 
       # Spot-check key foundation tools are on PATH
-      for cmd in hx jq gh delta rg fd fzf zoxide bat devenv direnv zellij; do
+      for cmd in hx jq gh delta rg fd fzf zoxide bat direnv zellij; do
         if command -v "$cmd" > /dev/null 2>&1; then
           echo "  $cmd: found"
         else
