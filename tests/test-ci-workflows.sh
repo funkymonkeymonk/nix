@@ -218,9 +218,9 @@ discover_checks_job="$(extract_job discover-checks)"
 check_planning_step="$(extract_step 'Plan changed PR checks' <<< "$discover_checks_job")"
 assert_exact_line "test-and-validate caps concurrency at exactly six runners" \
   "$test_validate_job" "      max-parallel: 6"
-assert_exact_line "PR planner batches exactly four checks" \
-  "$check_planning_step" "            '{batchSize:4,checkPrefixes:\$prefixes}')"
-assert_exact_line "four-check PR shards keep a twenty-five-minute budget" \
+assert_exact_line "PR planner batches exactly two checks" \
+  "$check_planning_step" "            '{batchSize:2,checkPrefixes:\$prefixes}')"
+assert_exact_line "PR check shards keep a twenty-five-minute budget" \
   "$test_validate_job" "    timeout-minutes: 25"
 assert "PR workflow omits full role-package VM tests" \
   "! grep -Eq 'vm-role-(foundation|developer)' \
