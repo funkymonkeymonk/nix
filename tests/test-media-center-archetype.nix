@@ -377,18 +377,17 @@
           path = drlight.services.bazarr.dataDir;
         }
       ];
-      nonTailnetInterfacePorts = lib.concatLists (lib.mapAttrsToList
-        (name: interface:
-          if name == "tailscale0"
-          then []
-          else (interface.allowedTCPPorts or []))
-        (drlight.networking.firewall.interfaces or {}));
       mediaManagementServicesReachableOverTailscale =
         builtins.all (app: builtins.elem app.port (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [])) mediaManagementApps;
       mediaManagementServicesNotGlobal =
         builtins.all (app: !(builtins.elem app.port (drlight.networking.firewall.allowedTCPPorts or []))) mediaManagementApps;
-      mediaManagementServicesNotReachableOnOtherInterfaces =
-        builtins.all (app: !(builtins.elem app.port nonTailnetInterfacePorts)) mediaManagementApps;
+      mediaManagementServicesReachableOnLan =
+        builtins.all (app: builtins.elem app.port (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or [])) mediaManagementApps;
+      mediaManagementServicesNotReachableOnOtherInterfaces = builtins.all (app:
+        builtins.all
+        (interface: builtins.elem interface ["eno1" "tailscale0"] || !(builtins.elem app.port ((drlight.networking.firewall.interfaces.${interface}).allowedTCPPorts or [])))
+        (builtins.attrNames (drlight.networking.firewall.interfaces or {})))
+      mediaManagementApps;
       nonDrlightMachines = builtins.removeAttrs (self.nixosConfigurations or {}) ["drlight"];
       nonDrlightHasNoMediaManagers =
         lib.all
@@ -443,7 +442,8 @@
         ${checkTrue "Bazarr can read and write the Drlight-local Sonarr library root" (builtins.elem "/srv/media/shows" ((mediaManagementServiceConfig "bazarr").ReadWritePaths or []))}
         ${checkTrue "media-manager API ports are allowed on tailscale0 only" mediaManagementServicesReachableOverTailscale}
         ${checkTrue "media-manager API ports are not opened globally" mediaManagementServicesNotGlobal}
-        ${checkTrue "media-manager API ports are not opened on other interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
+         ${checkTrue "media-manager API ports are reachable on eno1" mediaManagementServicesReachableOnLan}
+         ${checkTrue "media-manager API ports are not opened on unrelated interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
         ${checkFalse "Radarr firewall opening is disabled globally" (drlight.services.radarr.openFirewall or false)}
         ${checkFalse "Sonarr firewall opening is disabled globally" (drlight.services.sonarr.openFirewall or false)}
         ${checkFalse "Lidarr firewall opening is disabled globally" (drlight.services.lidarr.openFirewall or false)}

@@ -57,8 +57,7 @@ in {
         touch $out
       '';
 
-  # Test: Zero remains enabled for the shared OAuth enrollment policy without
-  # configuring a static Tailscale auth key in its machine module.
+  # Test: Zero is no longer a Tailscale-enabled machine and has no static key.
   zeroTailscaleOAuthConfigTest =
     if self == null
     then
@@ -72,9 +71,9 @@ in {
       pkgs.runCommand "test-zero-tailscale-oauth-config" {} ''
         echo "=== Testing Zero Tailscale OAuth configuration ==="
         ${
-          if zero.myConfig.tailscale.enable && zero.myConfig.tailscale.authKeyTags == ["tag:home-lab"]
-          then ''echo "Zero uses the catalogued home-lab OAuth policy: OK"''
-          else ''echo "FAIL: Zero must use the catalogued home-lab OAuth policy"; exit 1''
+          if !(zero.myConfig.tailscale.enable or false)
+          then ''echo "Zero is Tailscale-disabled: OK"''
+          else ''echo "FAIL: Zero must be Tailscale-disabled"; exit 1''
         }
         ${
           if !(zero.myConfig.tailscale ? authKeyOpnixItem) && !(zero.myConfig.tailscale ? authKeyMode) && !(zero.myConfig.onepassword.secrets ? tailscaleAuthKey)

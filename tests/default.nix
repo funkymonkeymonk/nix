@@ -162,6 +162,7 @@ in
     tailscale-oauth-auth-key = testTailscaleOauthAuthKey.tailscaleOauthAuthKey;
     tailscale-darwin-autoconnect = testTailscaleConfig.tailscaleDarwinAutoconnect;
     tailscale-enrollment-policy = testTailscaleConfig.tailscaleEnrollmentPolicy;
+    tailscale-gateway-policy = testTailscaleConfig.tailscaleGatewayPolicy;
     email-option-ownership = testEmailOptionOwnership.emailOptionOwnership;
     skills-option-ownership = testSkillsOptionOwnership.skillsOptionOwnership;
     agent-option-ownership = testAgentOptionOwnership.agentOptionOwnership;
