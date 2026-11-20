@@ -520,7 +520,7 @@ or changing a `myConfig.*` option.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `cleanup.enable` | boolean | `false` | Whether to enable automatic Ultra seedbox cleanup after verified local imports. |
+| `cleanup.enable` | boolean | `false` | Whether to enable remove retention-eligible seedbox torrents after verified staging. |
 | `cleanup.privateTrackerRatioProtection.enable` | boolean | `false` | Whether to enable future private-tracker account-ratio cleanup gate (unknown trackers fail closed). |
 | `enable` | boolean | `false` | Whether to enable completed Ultra download staging timer. |
 | `remoteDisk.capacityBytes` | positive integer, meaning >0 | `4000000000000` | Nominal remote seedbox account capacity in decimal bytes. |
