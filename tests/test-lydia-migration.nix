@@ -188,6 +188,18 @@
 
     ${
       let
+        opnixService = self.darwinConfigurations.MegamanX.config.launchd.daemons.opnix-secrets.serviceConfig;
+      in
+        if
+          (opnixService.RunAtLoad or false)
+          && (opnixService.KeepAlive or null) == false
+        then ""
+        else ''echo "FAIL: MegamanX Opnix must not restart after a failed secret resolution"; exit 1''
+    }
+    echo "  MegamanX Opnix runs at load without failure restarts ✓"
+
+    ${
+      let
         megamanx = self.darwinConfigurations.MegamanX.config;
         sshConfig = megamanx.environment.etc."ssh/sshd_config.d/100-nix-darwin.conf".text;
       in
