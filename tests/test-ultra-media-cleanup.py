@@ -44,6 +44,21 @@ staging = importlib.util.module_from_spec(staging_spec)
 staging_spec.loader.exec_module(staging)
 
 
+def load_sync_module():
+    sync_path = SCRIPT_DIR / "ultra-media-sync.py"
+    spec = importlib.util.spec_from_file_location("ultra_media_sync", sync_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load unified sync module")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(spec.name, None)
+        raise
+    return module
+
+
 class FakeRPCResponse(io.BytesIO):
     def __enter__(self):
         return self
@@ -661,6 +676,150 @@ class RetentionPolicyTests(unittest.TestCase):
 
 
 class CleanupRuntimeTests(unittest.TestCase):
+    def staged_candidate(self, staged_path, *, expected_size=1024):
+        return {
+            "complete": True,
+            "done_date": 1_700_000_000,
+            "torrent_ratio": 3.0,
+            "runtime_config_available": True,
+            "rpc_available": True,
+            "trackers": [{"classification": "public"}],
+            "files": [
+                {
+                    "mapped": True,
+                    "source_mapping_verified": True,
+                    "source_identity": "/seedbox/complete/episode.mkv",
+                    "source_ownership_verified": True,
+                    "source_owner_count": 1,
+                    "remote_path": "/seedbox/complete/episode.mkv",
+                    "staged_path": str(staged_path),
+                    "expected_size": expected_size,
+                    "shared_safe": True,
+                }
+            ],
+        }
+
+    def test_cleanup_proves_staging_without_arr_state(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staging_root = Path(temporary_directory) / ".arr-staging"
+            staging_root.mkdir()
+            staged_file = staging_root / "episode.mkv"
+            staged_file.write_bytes(b"x" * 1024)
+            expected_mtime = 1_700_000_000_000_000_000
+            os.utime(staged_file, ns=(expected_mtime, expected_mtime))
+            candidate = self.staged_candidate(staged_file)
+            source_stat = lambda _path: {
+                "regular_file": True,
+                "size": 1024,
+                "mtime_ns": expected_mtime,
+            }
+
+            report = policy.build_cleanup_report(
+                True,
+                [candidate],
+                staged_copy_prover=policy.make_staged_copy_prover(
+                    source_stat, staging_root=str(staging_root)
+                ),
+                staged_file_verifier=lambda file_record: policy.verify_local_staged_file(
+                    file_record, staging_root=str(staging_root)
+                ),
+            )
+
+        self.assertEqual(report["eligible"], 1)
+        self.assertEqual(report["reasons"], {})
+
+    def test_staged_copy_proof_rejects_remote_size_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staging_root = Path(temporary_directory) / ".arr-staging"
+            staging_root.mkdir()
+            staged_file = staging_root / "episode.mkv"
+            staged_file.write_bytes(b"x" * 1024)
+            candidate = self.staged_candidate(staged_file)
+            proof = policy.make_staged_copy_prover(
+                lambda _path: {
+                    "regular_file": True,
+                    "size": 1023,
+                    "mtime_ns": 1_700_000_000_000_000_000,
+                },
+                staging_root=str(staging_root),
+            )(candidate)
+
+        self.assertEqual(proof.status, "unverified")
+
+    def test_staged_copy_proof_rejects_mtime_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staging_root = Path(temporary_directory) / ".arr-staging"
+            staging_root.mkdir()
+            staged_file = staging_root / "episode.mkv"
+            staged_file.write_bytes(b"x" * 1024)
+            os.utime(staged_file, ns=(1_700_000_000_000_000_000,) * 2)
+            candidate = self.staged_candidate(staged_file)
+            proof = policy.make_staged_copy_prover(
+                lambda _path: {
+                    "regular_file": True,
+                    "size": 1024,
+                    "mtime_ns": 1_700_000_000_000_000_001,
+                },
+                staging_root=str(staging_root),
+            )(candidate)
+
+        self.assertEqual(proof.status, "unverified")
+
+    def test_staged_copy_proof_rejects_missing_or_symlinked_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            staging_root = root / ".arr-staging"
+            staging_root.mkdir()
+            outside_file = root / "outside.mkv"
+            outside_file.write_bytes(b"x" * 1024)
+            expected_mtime = 1_700_000_000_000_000_000
+            os.utime(outside_file, ns=(expected_mtime, expected_mtime))
+            source_stat = lambda _path: {
+                "regular_file": True,
+                "size": 1024,
+                "mtime_ns": expected_mtime,
+            }
+            missing = policy.make_staged_copy_prover(
+                source_stat, staging_root=str(staging_root)
+            )(self.staged_candidate(staging_root / "missing.mkv"))
+            symlink = staging_root / "linked.mkv"
+            symlink.symlink_to(outside_file)
+            linked = policy.make_staged_copy_prover(
+                source_stat, staging_root=str(staging_root)
+            )(self.staged_candidate(symlink))
+            outside = policy.make_staged_copy_prover(
+                source_stat, staging_root=str(staging_root)
+            )(self.staged_candidate(outside_file))
+
+        self.assertEqual(missing.status, "unverified")
+        self.assertEqual(linked.status, "unverified")
+        self.assertEqual(outside.status, "unverified")
+
+    def test_cleanup_candidates_need_no_arr_import_path_mapping(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            staging_root = str(Path(temporary_directory) / ".arr-staging")
+            torrent = {
+                "id": 17,
+                "done_date": 1_700_000_000,
+                "candidate": {"complete": True, "files": [{}]},
+                "download_directory": "/seedbox/complete",
+                "file_paths": ["Series/episode.mkv"],
+                "file_paths_valid": True,
+                "file_sizes": [1024],
+                "file_sizes_valid": True,
+            }
+            candidates = policy.build_cleanup_candidates(
+                [torrent],
+                [{"remoteRoot": "/seedbox/complete", "stagingSubpath": ""}],
+                staging_root=staging_root,
+                path_mapper=staging.map_remote_path_to_staging,
+            )
+
+        file_record = candidates[0]["files"][0]
+        self.assertEqual(file_record["staged_path"], f"{staging_root}/Series/episode.mkv")
+        self.assertNotIn("local_path", file_record)
+        self.assertNotIn("arr_state_available", candidates[0])
+
     def test_stale_receipt_ack_skips_busy_torrent_without_blocking(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -705,240 +864,6 @@ class CleanupRuntimeTests(unittest.TestCase):
                 self.assertEqual(module.VALUE, 42)
             finally:
                 sys.modules.pop(module_name, None)
-
-    def test_arr_import_proof_requires_source_size_and_staged_mtime_match(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            staged_file = Path(temporary_directory) / "episode.mkv"
-            staged_file.write_bytes(b"x" * 1024)
-            expected_mtime = 1_700_000_000_000_000_000
-            os.utime(staged_file, ns=(expected_mtime, expected_mtime))
-            candidate = {
-                "files": [
-                    {
-                        "remote_path": "/seedbox/complete/episode.mkv",
-                        "staged_path": str(staged_file),
-                        "local_path": "/srv/media/shows/episode.mkv",
-                        "expected_size": 1024,
-                    }
-                ]
-            }
-            source_stat = lambda _path: {
-                "regular_file": True,
-                "size": 1024,
-                "mtime_ns": expected_mtime,
-            }
-            with patch.object(policy, "STAGING_ROOT", temporary_directory):
-                proof = policy.make_arr_import_prover(source_stat)(candidate)
-            self.assertEqual(proof.status, "verified")
-            self.assertEqual(proof.imported_paths, frozenset({"/srv/media/shows/episode.mkv"}))
-            self.assertEqual(candidate["files"][0]["expected_mtime_ns"], expected_mtime)
-
-    def test_arr_import_proof_rejects_symlinked_staged_copy(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            outside_file = root / "outside.mkv"
-            outside_file.write_bytes(b"x" * 1024)
-            expected_mtime = 1_700_000_000_000_000_000
-            os.utime(outside_file, ns=(expected_mtime, expected_mtime))
-            staged_file = root / "stage" / "episode.mkv"
-            staged_file.parent.mkdir()
-            staged_file.symlink_to(outside_file)
-            candidate = {
-                "files": [
-                    {
-                        "remote_path": "/seedbox/complete/episode.mkv",
-                        "staged_path": str(staged_file),
-                        "local_path": "/srv/media/shows/episode.mkv",
-                        "expected_size": 1024,
-                    }
-                ]
-            }
-            source_stat = lambda _path: {
-                "regular_file": True,
-                "size": 1024,
-                "mtime_ns": expected_mtime,
-            }
-            with patch.object(policy, "STAGING_ROOT", str(root / "stage")):
-                proof = policy.make_arr_import_prover(source_stat)(candidate)
-        self.assertEqual(proof.status, "unverified")
-
-    def test_arr_import_proof_rejects_staged_copy_mtime_mismatch(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            staged_file = Path(temporary_directory) / "episode.mkv"
-            staged_file.write_bytes(b"x" * 1024)
-            os.utime(staged_file, ns=(1_700_000_000_000_000_000, 1_700_000_000_000_000_000))
-            candidate = {
-                "files": [
-                    {
-                        "remote_path": "/seedbox/complete/episode.mkv",
-                        "staged_path": str(staged_file),
-                        "local_path": "/srv/media/shows/episode.mkv",
-                        "expected_size": 1024,
-                    }
-                ]
-            }
-            source_stat = lambda _path: {
-                "regular_file": True,
-                "size": 1024,
-                "mtime_ns": 1_700_000_000_000_000_001,
-            }
-            with patch.object(policy, "STAGING_ROOT", temporary_directory):
-                proof = policy.make_arr_import_prover(source_stat)(candidate)
-        self.assertEqual(proof.status, "unverified")
-
-    def test_arr_import_proof_fails_closed_when_source_stat_size_changed(self):
-        candidate = {
-            "files": [
-                {
-                    "remote_path": "/seedbox/complete/episode.mkv",
-                    "staged_path": "/srv/media/.arr-staging/episode.mkv",
-                    "local_path": "/srv/media/shows/episode.mkv",
-                    "expected_size": 1024,
-                }
-            ]
-        }
-        proof = policy.make_arr_import_prover(
-            lambda _path: {"regular_file": True, "size": 1023, "mtime_ns": 17}
-        )(candidate)
-        self.assertEqual(proof.status, "unverified")
-
-    def test_import_history_maps_only_supported_import_events_within_library_roots(self):
-        records = [
-            {
-                "eventType": "downloadFolderImported",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/episode.mkv",
-                    "importedPath": "/srv/media/shows/series/episode.mkv",
-                },
-            },
-            {
-                "eventType": "grabbed",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/ignored.mkv",
-                    "importedPath": "/srv/media/shows/ignored.mkv",
-                },
-            },
-            {
-                "eventType": "trackFileImported",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/music.flac",
-                    "importedPath": "/srv/media/music/artist/album/music.flac",
-                },
-            },
-        ]
-        imported = policy.build_import_path_map(
-            records,
-            ["/srv/media/shows", "/srv/media/music"],
-        )
-        self.assertEqual(
-            imported,
-            {
-                "/srv/media/.arr-staging/episode.mkv": "/srv/media/shows/series/episode.mkv",
-                "/srv/media/.arr-staging/music.flac": "/srv/media/music/artist/album/music.flac",
-            },
-        )
-
-    def test_cleanup_candidates_require_unambiguous_mapping_and_carry_safe_metadata(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            stage_root = str(Path(temporary_directory) / ".arr-staging")
-            staged_path = str(Path(stage_root) / "Series" / "episode.mkv")
-            torrent = {
-                "id": 17,
-                "done_date": 1_700_000_000,
-                "candidate": {
-                    "complete": True,
-                    "seeding_seconds": 864000,
-                    "torrent_ratio": 1.5,
-                    "trackers": [{"classification": "public"}],
-                    "files": [{}],
-                },
-                "download_directory": "/seedbox/complete",
-                "file_paths": ["Series/episode.mkv"],
-                "file_paths_valid": True,
-                "file_sizes": [1024],
-                "file_sizes_valid": True,
-            }
-            candidates = policy.build_cleanup_candidates(
-                [torrent],
-                [{"remoteRoot": "/seedbox/complete", "stagingSubpath": ""}],
-                {staged_path: "/srv/media/shows/Series/episode.mkv"},
-                staging_root=stage_root,
-                path_mapper=staging.map_remote_path_to_staging,
-            )
-        self.assertEqual(len(candidates), 1)
-        candidate = candidates[0]
-        self.assertEqual(candidate["torrent_id"], 17)
-        self.assertEqual(candidate["done_date"], 1_700_000_000)
-        self.assertEqual(candidate["files"][0]["local_path"], "/srv/media/shows/Series/episode.mkv")
-        self.assertEqual(candidate["files"][0]["staged_path"], staged_path)
-        self.assertEqual(candidate["files"][0]["remote_path"], "/seedbox/complete/Series/episode.mkv")
-        self.assertEqual(candidate["files"][0]["expected_size"], 1024)
-        self.assertTrue(candidate["files"][0]["source_mapping_verified"])
-        self.assertTrue(candidate["files"][0]["source_ownership_verified"])
-
-    def test_arr_history_fetch_reads_all_pages_with_runtime_api_key_header(self):
-        first = {
-            "eventType": "downloadFolderImported",
-            "data": {
-                "droppedPath": "/srv/media/.arr-staging/episode-1.mkv",
-                "importedPath": "/srv/media/shows/episode-1.mkv",
-            },
-        }
-        second = {
-            "eventType": "downloadFolderImported",
-            "data": {
-                "droppedPath": "/srv/media/.arr-staging/episode-2.mkv",
-                "importedPath": "/srv/media/shows/episode-2.mkv",
-            },
-        }
-        pages = [
-            {"records": [first], "totalRecords": 2},
-            {"records": [second], "totalRecords": 2},
-        ]
-        requests = []
-
-        def fake_urlopen(request, timeout):
-            requests.append(request)
-            return FakeRPCResponse(json.dumps(pages[len(requests) - 1]).encode())
-
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            api_key_path = Path(temporary_directory) / "api-key"
-            api_key_path.write_text("runtime-api-key")
-            with patch.object(policy, "urlopen", side_effect=fake_urlopen):
-                imported = policy.fetch_arr_import_paths(
-                    [
-                        {
-                            "baseUrl": "http://127.0.0.1:7878/api/v3",
-                            "apiKeyFile": str(api_key_path),
-                        }
-                    ],
-                    ["/srv/media/shows"],
-                    page_size=1,
-                )
-
-        self.assertEqual(len(requests), 2)
-        self.assertTrue(all("apikey=" not in request.full_url.lower() for request in requests))
-        self.assertTrue(all(request.get_header("X-api-key") == "runtime-api-key" for request in requests))
-        self.assertEqual(len(imported), 2)
-
-    def test_arr_history_fetch_rejects_malformed_records(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            api_key_path = Path(temporary_directory) / "api-key"
-            api_key_path.write_text("runtime-api-key")
-            response = FakeRPCResponse(
-                json.dumps({"records": [None], "totalRecords": 1}).encode()
-            )
-            with patch.object(policy, "urlopen", return_value=response):
-                with self.assertRaises(RuntimeError):
-                    policy.fetch_arr_import_paths(
-                        [
-                            {
-                                "baseUrl": "http://127.0.0.1:7878/api/v3",
-                                "apiKeyFile": str(api_key_path),
-                            }
-                        ],
-                        ["/srv/media/shows"],
-                    )
 
     def test_app_stats_disk_usage_parser_uses_decimal_gigabytes(self):
         output = (
@@ -1093,23 +1018,15 @@ class CleanupRuntimeTests(unittest.TestCase):
         self.assertEqual(command_words[-2], "--")
         self.assertEqual(observed["size"], 1024)
 
-    def test_runtime_apply_keeps_verified_local_import_and_removes_seedbox_copy_via_rpc(self):
-        import os
-
+    def test_runtime_apply_removes_seedbox_copy_after_verified_staging(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             stage_root = root / ".arr-staging"
-            library_root = root / "library"
             stage_root.mkdir()
-            library_root.mkdir()
             staged_file = stage_root / "episode.mkv"
             staged_file.write_bytes(b"payload")
-            os.utime(staged_file, ns=(1_700_000_000_000_000_000,) * 2)
-            local_file = library_root / "episode.mkv"
-            local_file.write_bytes(b"payload")
-            os.utime(local_file, ns=(1_700_000_000_000_000_000 + 86_400_000_000_000,) * 2)
-            staged_path = str(stage_root / "episode.mkv")
-            local_path = str(local_file)
+            source_mtime = 1_700_000_000_000_000_000
+            os.utime(staged_file, ns=(source_mtime, source_mtime))
             secret_paths = {}
             secret_values = {
                 "rpc_url": "https://rpc.example.test/transmission/rpc",
@@ -1126,28 +1043,12 @@ class CleanupRuntimeTests(unittest.TestCase):
                 secret_paths[name] = str(secret_file)
             ssh_key = root / "ssh-key"
             ssh_key.write_text("private-key-fixture", encoding="utf-8")
-            arr_config = root / "arr-config.json"
             queue_root = root / "cleanup-queue"
-            arr_config.write_text(
-                json.dumps(
-                    {
-                        "libraryRoots": [str(library_root)],
-                        "arrApis": [
-                            {
-                                "baseUrl": "http://127.0.0.1:7878/api/v3",
-                                "apiKeyFile": str(root / "api-key"),
-                            }
-                        ],
-                    }
-                ),
-                encoding="utf-8",
-            )
             torrent = {
                 "id": 17,
                 "done_date": 1_700_000_000,
                 "candidate": {
                     "complete": True,
-                    "seeding_seconds": 240 * 60 * 60,
                     "torrent_ratio": 0.5,
                     "trackers": [{"classification": "public"}],
                     "files": [{}],
@@ -1177,7 +1078,7 @@ class CleanupRuntimeTests(unittest.TestCase):
                     torrent,
                     [{"remoteRoot": "/seedbox/complete", "stagingSubpath": ""}],
                 ),
-                staged_at_ns=1_700_000_000_000_000_000,
+                staged_at_ns=source_mtime,
             )
             rpc_module = SimpleNamespace(TransmissionRPC=FakeTransmission)
 
@@ -1194,69 +1095,26 @@ class CleanupRuntimeTests(unittest.TestCase):
                     )
                 raise AssertionError("unexpected cleanup subprocess")
 
-            now_ns = 1_800_000_000_000_000_000
             with patch.object(policy, "_load_runtime_module", side_effect=load_module):
-                with patch.object(
-                    policy,
-                    "fetch_arr_import_paths",
-                    side_effect=[{}, {staged_path: local_path}, {staged_path: local_path}],
-                ):
-                    deferred = policy.run_runtime_cleanup(
-                        secret_paths,
-                        str(ssh_key),
-                        str(arr_config),
-                        ssh_executable="fake-ssh",
-                        ssh_keygen_executable="fake-ssh-keygen",
-                        apply=True,
-                        staging_root=str(stage_root),
-                        queue_root=str(queue_root),
-                        runtime_root=str(root / "runtime"),
-                        process_runner=process_runner,
-                        now_ns=now_ns,
-                    )
-                    self.assertEqual(deferred["removed"], 0)
-                    self.assertEqual(len(list(queue_root.glob("*.json"))), 1)
-                    report = policy.run_runtime_cleanup(
-                        secret_paths,
-                        str(ssh_key),
-                        str(arr_config),
-                        ssh_executable="fake-ssh",
-                        ssh_keygen_executable="fake-ssh-keygen",
-                        apply=True,
-                        staging_root=str(stage_root),
-                        queue_root=str(queue_root),
-                        runtime_root=str(root / "runtime"),
-                        process_runner=process_runner,
-                        now_ns=now_ns + 60_000_000_000,
-                    )
-            self.assertEqual(removals, [(17, True)])
-            self.assertEqual(report["removed"], 1)
-            self.assertFalse(list(queue_root.glob("*.json")))
-            self.assertTrue(local_file.exists())
-            self.assertEqual(local_file.read_bytes(), b"payload")
-            self.assertNotIn("episode.mkv", json.dumps(report))
+                report = policy.run_runtime_cleanup(
+                    secret_paths,
+                    str(ssh_key),
+                    ssh_executable="fake-ssh",
+                    ssh_keygen_executable="fake-ssh-keygen",
+                    apply=True,
+                    staging_root=str(stage_root),
+                    queue_root=str(queue_root),
+                    runtime_root=str(root / "runtime"),
+                    process_runner=process_runner,
+                    now_ns=1_800_000_000_000_000_000,
+                )
+            staged_copy_retained = staged_file.exists()
 
-    def test_local_import_verifier_rejects_symlinks_and_paths_outside_library_roots(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory) / "library"
-            root.mkdir()
-            payload = root / "episode.mkv"
-            payload.write_bytes(b"fixture")
-            alias = root / "alias.mkv"
-            alias.symlink_to(payload)
-            outside = Path(temporary_directory) / "outside.mkv"
-            outside.write_bytes(b"outside")
-            self.assertIsNone(
-                policy.verify_local_imported_file({"local_path": str(alias)}, [str(root)])
-            )
-            self.assertIsNone(
-                policy.verify_local_imported_file({"local_path": str(outside)}, [str(root)])
-            )
-            observed = policy.verify_local_imported_file(
-                {"local_path": str(payload)}, [str(root)]
-            )
-        self.assertTrue(observed["regular_file"])
-        self.assertEqual(observed["size"], 7)
+        self.assertEqual(removals, [(17, True)])
+        self.assertEqual(report["removed"], 1)
+        self.assertFalse(list(queue_root.glob("*.json")))
+        self.assertTrue(staged_copy_retained)
+        self.assertNotIn("episode.mkv", json.dumps(report))
 
     def test_remote_stat_parser_preserves_nanosecond_mtime(self):
         observed = policy.parse_remote_stat(
@@ -1271,64 +1129,6 @@ class CleanupRuntimeTests(unittest.TestCase):
             },
         )
 
-    def test_import_from_stage_into_unapproved_root_fails_closed(self):
-        record = {
-            "eventType": "downloadFolderImported",
-            "data": {
-                "droppedPath": "/srv/media/.arr-staging/outside.mkv",
-                "importedPath": "/tmp/outside.mkv",
-            },
-        }
-        with self.assertRaises(ValueError):
-            policy.build_import_path_map([record], ["/srv/media/shows"])
-
-    def test_malformed_supported_import_history_fails_closed(self):
-        with self.assertRaises(ValueError):
-            policy.build_import_path_map(
-                [{"eventType": "downloadFolderImported", "data": None}],
-                ["/srv/media/shows"],
-            )
-
-    def test_duplicate_import_destinations_are_not_accepted(self):
-        records = [
-            {
-                "eventType": "downloadFolderImported",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/first.mkv",
-                    "importedPath": "/srv/media/shows/episode.mkv",
-                },
-            },
-            {
-                "eventType": "downloadFolderImported",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/second.mkv",
-                    "importedPath": "/srv/media/shows/episode.mkv",
-                },
-            },
-        ]
-        self.assertEqual(policy.build_import_path_map(records, ["/srv/media/shows"]), {})
-
-    def test_ambiguous_import_history_does_not_prove_a_local_import(self):
-        records = [
-            {
-                "eventType": "downloadFolderImported",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/episode.mkv",
-                    "importedPath": "/srv/media/shows/first/episode.mkv",
-                },
-            },
-            {
-                "eventType": "downloadFolderImported",
-                "data": {
-                    "droppedPath": "/srv/media/.arr-staging/episode.mkv",
-                    "importedPath": "/srv/media/shows/second/episode.mkv",
-                },
-            },
-        ]
-        imported = policy.build_import_path_map(records, ["/srv/media/shows"])
-        self.assertEqual(imported, {})
-
-
 class CleanupExecutionTests(unittest.TestCase):
     def candidate(self):
         return {
@@ -1338,7 +1138,6 @@ class CleanupExecutionTests(unittest.TestCase):
             "torrent_ratio": 0.2,
             "runtime_config_available": True,
             "rpc_available": True,
-            "arr_state_available": True,
             "trackers": [{"classification": "public"}],
             "files": [
                 {
@@ -1347,7 +1146,7 @@ class CleanupExecutionTests(unittest.TestCase):
                     "source_identity": "source-path-17",
                     "source_ownership_verified": True,
                     "source_owner_count": 1,
-                    "local_path": "/library/movie.mkv",
+                    "staged_path": "/srv/media/.arr-staging/movie.mkv",
                     "expected_size": 1024,
                     "expected_mtime_ns": 1_700_000_000_000_000_000,
                 }
@@ -1355,9 +1154,9 @@ class CleanupExecutionTests(unittest.TestCase):
         }
 
     def proof(self, _candidate):
-        return policy.ArrImportProof.verified(["/library/movie.mkv"])
+        return policy.StagedCopyProof.verified(["/srv/media/.arr-staging/movie.mkv"])
 
-    def local_file(self, _file):
+    def staged_file(self, _file):
         return {
             "regular_file": True,
             "size": 1024,
@@ -1402,8 +1201,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             [self.candidate()],
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1423,8 +1222,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             [self.candidate()],
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: False,
@@ -1445,7 +1244,7 @@ class CleanupExecutionTests(unittest.TestCase):
         second = self.candidate()
         second["torrent_id"] = 18
         second["files"][0]["source_identity"] = "source-path-18"
-        second["files"][0]["local_path"] = "/library/second.mkv"
+        second["files"][0]["staged_path"] = "/srv/media/.arr-staging/second.mkv"
 
         @contextmanager
         def candidate_lock(torrent_id):
@@ -1456,10 +1255,10 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             [first, second],
-            arr_import_prover=lambda candidate: policy.ArrImportProof.verified(
-                [candidate["files"][0]["local_path"]]
+            staged_copy_prover=lambda candidate: policy.StagedCopyProof.verified(
+                [candidate["files"][0]["staged_path"]]
             ),
-            local_file_verifier=self.local_file,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1494,8 +1293,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             [self.candidate()],
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1515,7 +1314,7 @@ class CleanupExecutionTests(unittest.TestCase):
             ],
         )
 
-    def test_apply_blocks_candidates_that_share_an_imported_local_path(self):
+    def test_apply_blocks_candidates_that_share_an_imported_staged_path(self):
         removals = []
         rpc = SimpleNamespace(
             remove_torrent=lambda torrent_id, *, delete_local_data: removals.append(
@@ -1529,8 +1328,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             [first, second],
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1550,15 +1349,15 @@ class CleanupExecutionTests(unittest.TestCase):
         second = self.candidate()
         second["torrent_id"] = 18
         second["files"][0]["source_identity"] = "source-path-18"
-        second["files"][0]["local_path"] = "/library/second.mkv"
+        second["files"][0]["staged_path"] = "/srv/media/.arr-staging/second.mkv"
 
         report = policy.execute_cleanup(
             True,
             [first, second],
-            arr_import_prover=lambda candidate: policy.ArrImportProof.verified(
-                [candidate["files"][0]["local_path"]]
+            staged_copy_prover=lambda candidate: policy.StagedCopyProof.verified(
+                [candidate["files"][0]["staged_path"]]
             ),
-            local_file_verifier=self.local_file,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1599,7 +1398,6 @@ class CleanupExecutionTests(unittest.TestCase):
             candidates = policy.build_cleanup_candidates(
                 [complete_torrent, incomplete_torrent],
                 [{"remoteRoot": "/seedbox/complete", "stagingSubpath": ""}],
-                {f"{staging_root}/movie.mkv": "/library/movie.mkv"},
                 staging_root=staging_root,
                 path_mapper=lambda _directory, _file, _mappings, *, staging_root: (
                     f"{staging_root}/movie.mkv"
@@ -1609,8 +1407,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             candidates,
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1652,7 +1450,6 @@ class CleanupExecutionTests(unittest.TestCase):
                     {"remoteRoot": "/seedbox/complete", "stagingSubpath": ""},
                     {"remoteRoot": "/seedbox/incomplete", "stagingSubpath": ""},
                 ],
-                {f"{staging_root}/movie.mkv": "/library/movie.mkv"},
                 staging_root=staging_root,
                 path_mapper=lambda _directory, file_path, _mappings, *, staging_root: (
                     f"{staging_root}/{file_path}"
@@ -1690,7 +1487,6 @@ class CleanupExecutionTests(unittest.TestCase):
             candidates = policy.build_cleanup_candidates(
                 [complete_torrent, unknown_scope_torrent],
                 [{"remoteRoot": "/seedbox/complete", "stagingSubpath": ""}],
-                {f"{staging_root}/movie.mkv": "/library/movie.mkv"},
                 staging_root=staging_root,
                 path_mapper=lambda _directory, file_path, _mappings, *, staging_root: (
                     f"{staging_root}/{file_path}"
@@ -1712,15 +1508,15 @@ class CleanupExecutionTests(unittest.TestCase):
         second = self.candidate()
         second["torrent_id"] = 18
         second["files"][0]["source_identity"] = first["files"][0]["source_identity"]
-        second["files"][0]["local_path"] = "/library/second.mkv"
+        second["files"][0]["staged_path"] = "/srv/media/.arr-staging/second.mkv"
 
         report = policy.execute_cleanup(
             True,
             [first, second],
-            arr_import_prover=lambda candidate: policy.ArrImportProof.verified(
-                [candidate["files"][0]["local_path"]]
+            staged_copy_prover=lambda candidate: policy.StagedCopyProof.verified(
+                [candidate["files"][0]["staged_path"]]
             ),
-            local_file_verifier=self.local_file,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -1741,8 +1537,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             True,
             [self.candidate()],
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=False,
         )
@@ -1760,8 +1556,8 @@ class CleanupExecutionTests(unittest.TestCase):
         report = policy.execute_cleanup(
             False,
             [self.candidate()],
-            arr_import_prover=self.proof,
-            local_file_verifier=self.local_file,
+            staged_copy_prover=self.proof,
+            staged_file_verifier=self.staged_file,
             transmission_rpc=rpc,
             apply=True,
             revalidate_candidate=lambda _candidate: True,
@@ -2172,101 +1968,6 @@ class DownloadStagingTests(unittest.TestCase):
             self.assertFalse(staging.ack_staged_torrent_receipt(queue_root, receipt))
             self.assertTrue(staging.ack_staged_torrent_receipt(queue_root, duplicate))
 
-    def test_reset_receipt_retry_times_makes_all_valid_receipts_due_and_preserves_history(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            queue_root = Path(temporary_directory) / "cleanup-queue"
-            receipt = staging.write_staged_torrent_receipt(
-                queue_root, 17, "a" * 64, staged_at_ns=1_000_000_000
-            )
-            deferred = staging.defer_staged_torrent_receipt(
-                queue_root,
-                receipt,
-                now_ns=2_000_000_000,
-                reason="arr_import_pending",
-            )
-            original_retry_time = deferred["next_attempt_ns"]
-
-            reset_count = staging.reset_staged_torrent_receipt_retry_times(queue_root)
-
-            self.assertEqual(reset_count, 1)
-            due_receipts = staging.read_pending_torrent_receipts(
-                queue_root, now_ns=2_000_000_000
-            )
-            self.assertEqual(len(due_receipts), 1)
-            reset_receipt = due_receipts[0]
-            self.assertEqual(reset_receipt["next_attempt_ns"], receipt["staged_at_ns"])
-            self.assertLess(reset_receipt["next_attempt_ns"], original_retry_time)
-            self.assertEqual(reset_receipt["attempts"], deferred["attempts"])
-            self.assertEqual(reset_receipt["receipt_id"], receipt["receipt_id"])
-            self.assertEqual(reset_receipt["fingerprint"], receipt["fingerprint"])
-
-    def test_reset_receipt_retry_times_skips_malformed_and_symlinked_entries(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            queue_root = root / "cleanup-queue"
-            receipt = staging.write_staged_torrent_receipt(
-                queue_root, 17, "a" * 64, staged_at_ns=1_000_000_000
-            )
-            deferred = staging.defer_staged_torrent_receipt(
-                queue_root,
-                receipt,
-                now_ns=2_000_000_000,
-                reason="arr_import_pending",
-            )
-            malformed_path = staging._receipt_path(queue_root, 18)
-            malformed_path.write_text("not json", encoding="utf-8")
-            outside_path = root / "outside.json"
-            outside_path.write_text("leave this untouched", encoding="utf-8")
-            symlink_path = staging._receipt_path(queue_root, 19)
-            symlink_path.symlink_to(outside_path)
-
-            reset_count = staging.reset_staged_torrent_receipt_retry_times(queue_root)
-
-            self.assertEqual(reset_count, 1)
-            self.assertEqual(malformed_path.read_text(encoding="utf-8"), "not json")
-            self.assertTrue(symlink_path.is_symlink())
-            self.assertEqual(outside_path.read_text(encoding="utf-8"), "leave this untouched")
-            self.assertEqual(
-                staging.read_pending_torrent_receipts(
-                    queue_root, now_ns=receipt["staged_at_ns"]
-                ),
-                [
-                    {
-                        **{key: value for key, value in deferred.items() if key != "receipt_path"},
-                        "next_attempt_ns": receipt["staged_at_ns"],
-                    }
-                ],
-            )
-
-    def test_reset_receipt_retry_times_skips_boolean_version(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            queue_root = Path(temporary_directory) / "cleanup-queue"
-            receipt = staging.write_staged_torrent_receipt(
-                queue_root, 17, "a" * 64, staged_at_ns=1_000_000_000
-            )
-            deferred = staging.defer_staged_torrent_receipt(
-                queue_root,
-                receipt,
-                now_ns=2_000_000_000,
-                reason="arr_import_pending",
-            )
-            receipt_path = Path(receipt["receipt_path"])
-            malformed = json.loads(receipt_path.read_text(encoding="utf-8"))
-            malformed["version"] = True
-            receipt_path.write_text(json.dumps(malformed), encoding="utf-8")
-            before = receipt_path.read_bytes()
-
-            reset_count = staging.reset_staged_torrent_receipt_retry_times(queue_root)
-
-            self.assertEqual(reset_count, 0)
-            self.assertEqual(receipt_path.read_bytes(), before)
-            self.assertEqual(
-                staging.read_pending_torrent_receipts(
-                    queue_root, now_ns=2_000_000_000
-                ),
-                [],
-            )
-
     def test_queue_receipt_updates_serialize_on_the_state_directory_lock(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             queue_root = Path(temporary_directory) / "cleanup-queue"
@@ -2308,7 +2009,7 @@ class DownloadStagingTests(unittest.TestCase):
                 queue_root,
                 old_receipt,
                 now_ns=3_000_000_000,
-                reason="arr_import_pending",
+                reason="staged_copy_pending",
             )
 
             self.assertIsNone(result)
@@ -2325,11 +2026,11 @@ class DownloadStagingTests(unittest.TestCase):
                 queue_root, 18, fingerprint, staged_at_ns=1_000_000_000
             )
             first_retry = staging.defer_staged_torrent_receipt(
-                queue_root, receipt, now_ns=2_000_000_000, reason="arr_import_pending"
+                queue_root, receipt, now_ns=2_000_000_000, reason="staged_copy_pending"
             )
             self.assertEqual(first_retry["next_attempt_ns"], 62_000_000_000)
             second_retry = staging.defer_staged_torrent_receipt(
-                queue_root, first_retry, now_ns=63_000_000_000, reason="arr_import_pending"
+                queue_root, first_retry, now_ns=63_000_000_000, reason="staged_copy_pending"
             )
             self.assertEqual(second_retry["next_attempt_ns"], 183_000_000_000)
             policy_retry = staging.defer_staged_torrent_receipt(
@@ -2629,6 +2330,14 @@ class DownloadStagingTests(unittest.TestCase):
                     "completed_candidates": 3,
                     "staged": 1,
                     "reused_files": 0,
+                    "torrents_total": 1,
+                    "files_total": 1,
+                    "bytes_total": 1,
+                    "files_transferred": 1,
+                    "bytes_transferred": 16,
+                    "files_reused": 0,
+                    "bytes_reused": 0,
+                    "receipts_created": 0,
                     "skipped_incomplete": 1,
                     "skipped_unknown_path": 1,
                     "skipped_malformed_path": 1,
@@ -2986,6 +2695,10 @@ class DownloadStagingTests(unittest.TestCase):
                 server.close()
 
             self.assertEqual(result["staged"], 1)
+            self.assertEqual(result["files_transferred"], 1)
+            self.assertEqual(result["bytes_transferred"], 21)
+            self.assertEqual(result["files_reused"], 0)
+            self.assertEqual(result["bytes_reused"], 0)
             queued = staging.read_pending_torrent_receipts(
                 queue_root, now_ns=time.time_ns()
             )
@@ -3027,7 +2740,6 @@ class CleanupOrchestrationTests(unittest.TestCase):
             "torrent_ratio": 3.0,
             "runtime_config_available": True,
             "rpc_available": True,
-            "arr_state_available": True,
             "trackers": [{"classification": "public"}],
             "files": [
                 {
@@ -3036,7 +2748,7 @@ class CleanupOrchestrationTests(unittest.TestCase):
                     "source_identity": f"fixture-source-{self._source_counter}",
                     "source_ownership_verified": True,
                     "source_owner_count": 1,
-                    "local_path": "/library/movie.mkv",
+                    "staged_path": "/srv/media/.arr-staging/movie.mkv",
                     "expected_size": 1024,
                     "expected_mtime_ns": 1_700_000_000_000_000_000,
                 }
@@ -3045,17 +2757,17 @@ class CleanupOrchestrationTests(unittest.TestCase):
         value.update(overrides)
         return value
 
-    def verified_import(self, *paths):
-        return policy.ArrImportProof.verified(paths)
+    def verified_staged_copy(self, *paths):
+        return policy.StagedCopyProof.verified(paths)
 
-    def matching_local_file(self, _file):
+    def matching_staged_file(self, _file):
         return {
             "regular_file": True,
             "size": 1024,
             "mtime_ns": 1_700_000_000_000_000_000,
         }
 
-    def test_cleanup_skips_remote_import_and_file_proofs_below_retention_limits(self):
+    def test_cleanup_skips_stage_proofs_below_retention_limits(self):
         calls = []
         now_seconds = int(time.time())
         candidate = self.candidate(
@@ -3066,80 +2778,80 @@ class CleanupOrchestrationTests(unittest.TestCase):
             report = policy.build_cleanup_report(
                 True,
                 [candidate],
-                arr_import_prover=lambda _candidate: calls.append("arr"),
-                local_file_verifier=lambda _file: calls.append("local"),
+                staged_copy_prover=lambda _candidate: calls.append("stage-proof"),
+                staged_file_verifier=lambda _file: calls.append("staged-file-proof"),
             )
         self.assertEqual(calls, [])
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"below_retention_threshold": 1})
 
-    def test_cleanup_verifies_only_after_successful_staging_and_import(self):
+    def test_cleanup_verifies_only_after_successful_staging_and_copy_proof(self):
         events = ["stage-succeeded"]
         candidate = self.candidate()
 
         def prove_import(_candidate):
-            events.append("arr-import-proof")
-            return self.verified_import("/library/movie.mkv")
+            events.append("staged-copy-proof")
+            return self.verified_staged_copy("/srv/media/.arr-staging/movie.mkv")
 
         def verify_file(file_record):
-            events.append("local-size-mtime-proof")
-            return self.matching_local_file(file_record)
+            events.append("staged-copy-revalidation")
+            return self.matching_staged_file(file_record)
 
         report = policy.build_cleanup_report(
             True,
             [candidate],
-            arr_import_prover=prove_import,
-            local_file_verifier=verify_file,
+            staged_copy_prover=prove_import,
+            staged_file_verifier=verify_file,
         )
 
         self.assertEqual(
             events,
-            ["stage-succeeded", "arr-import-proof", "local-size-mtime-proof"],
+            ["stage-succeeded", "staged-copy-proof", "staged-copy-revalidation"],
         )
         self.assertEqual(report["mode"], "report-only")
         self.assertEqual(report["eligible"], 1)
 
-    def test_failed_staging_prevents_import_and_local_verification(self):
+    def test_failed_staging_prevents_copy_verification(self):
         calls = []
         report = policy.build_cleanup_report(
             False,
             [self.candidate()],
-            arr_import_prover=lambda _candidate: calls.append("arr"),
-            local_file_verifier=lambda _file: calls.append("local"),
+            staged_copy_prover=lambda _candidate: calls.append("stage-proof"),
+            staged_file_verifier=lambda _file: calls.append("staged-file-proof"),
         )
         self.assertEqual(calls, [])
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"staging_not_successful": 1})
 
-    def test_missing_runtime_config_blocks_before_import_or_file_verification(self):
+    def test_missing_runtime_config_blocks_before_copy_verification(self):
         calls = []
         candidate = self.candidate(runtime_config_available=False)
         report = policy.build_cleanup_report(
             True,
             [candidate],
-            arr_import_prover=lambda _candidate: calls.append("arr"),
-            local_file_verifier=lambda _file: calls.append("local"),
+            staged_copy_prover=lambda _candidate: calls.append("stage-proof"),
+            staged_file_verifier=lambda _file: calls.append("staged-file-proof"),
         )
         self.assertEqual(calls, [])
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"runtime_configuration_unavailable": 1})
 
-    def test_unavailable_transmission_or_arr_state_fails_closed(self):
+    def test_unavailable_transmission_state_fails_closed(self):
         missing_rpc = self.candidate()
         missing_rpc.pop("rpc_available")
-        for status_name, status in (
-            ("transmission_state_unavailable", {"rpc_available": False, "arr_state_available": True}),
-            ("transmission_state_unavailable", {"candidate": missing_rpc}),
-            ("arr_state_unavailable", {"rpc_available": True, "arr_state_available": False}),
+        for status in (
+            {"rpc_available": False},
+            {"candidate": missing_rpc},
         ):
+            status_name = "transmission_state_unavailable"
             with self.subTest(status=status):
                 calls = []
                 candidate = status.pop("candidate") if "candidate" in status else self.candidate(**status)
                 report = policy.build_cleanup_report(
                     True,
                     [candidate],
-                    arr_import_prover=lambda _candidate: calls.append("arr"),
-                    local_file_verifier=lambda _file: calls.append("local"),
+                    staged_copy_prover=lambda _candidate: calls.append("stage-proof"),
+                    staged_file_verifier=lambda _file: calls.append("staged-file-proof"),
                 )
                 self.assertEqual(calls, [])
                 self.assertEqual(report["eligible"], 0)
@@ -3157,8 +2869,8 @@ class CleanupOrchestrationTests(unittest.TestCase):
                 report = policy.build_cleanup_report(
                     True,
                     [candidate],
-                    arr_import_prover=lambda _candidate: calls.append("arr"),
-                    local_file_verifier=lambda _file: calls.append("local"),
+                    staged_copy_prover=lambda _candidate: calls.append("stage-proof"),
+                    staged_file_verifier=lambda _file: calls.append("staged-file-proof"),
                 )
                 self.assertEqual(calls, [])
                 self.assertEqual(report["eligible"], 0)
@@ -3171,43 +2883,43 @@ class CleanupOrchestrationTests(unittest.TestCase):
         report = policy.build_cleanup_report(
             True,
             [candidate],
-            arr_import_prover=lambda _candidate: calls.append("arr"),
-            local_file_verifier=lambda _file: calls.append("local"),
+            staged_copy_prover=lambda _candidate: calls.append("stage-proof"),
+            staged_file_verifier=lambda _file: calls.append("staged-file-proof"),
         )
         self.assertEqual(calls, [])
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"source_ownership_unverified": 1})
 
-    def test_arr_import_proof_is_required_and_unverified_fails_closed(self):
+    def test_staged_copy_proof_is_required_and_unverified_fails_closed(self):
         report = policy.build_cleanup_report(
             True,
             [self.candidate()],
-            arr_import_prover=lambda _candidate: policy.ArrImportProof.unverified(),
-            local_file_verifier=self.matching_local_file,
+            staged_copy_prover=lambda _candidate: policy.StagedCopyProof.unverified(),
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
-        self.assertEqual(report["reasons"], {"arr_import_unverified": 1})
+        self.assertEqual(report["reasons"], {"staged_copy_unverified": 1})
 
-    def test_arr_import_proof_must_cover_every_payload_file(self):
+    def test_staged_copy_proof_must_cover_every_payload_file(self):
         report = policy.build_cleanup_report(
             True,
             [self.candidate()],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/another-file.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/another-file.mkv"
             ),
-            local_file_verifier=self.matching_local_file,
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
-        self.assertEqual(report["reasons"], {"arr_import_unverified": 1})
+        self.assertEqual(report["reasons"], {"staged_copy_unverified": 1})
 
-    def test_local_import_revalidation_requires_size_but_allows_import_mtime_change(self):
+    def test_staged_file_revalidation_requires_exact_size_and_mtime(self):
         mismatched_size = policy.build_cleanup_report(
             True,
             [self.candidate()],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/movie.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/movie.mkv"
             ),
-            local_file_verifier=lambda _file: {
+            staged_file_verifier=lambda _file: {
                 "regular_file": True,
                 "size": 1023,
                 "mtime_ns": 1_700_000_000_000_000_000,
@@ -3216,20 +2928,20 @@ class CleanupOrchestrationTests(unittest.TestCase):
         self.assertEqual(mismatched_size["eligible"], 0)
         self.assertEqual(mismatched_size["reasons"], {"local_file_mismatch": 1})
 
-        changed_import_mtime = policy.build_cleanup_report(
+        changed_stage_mtime = policy.build_cleanup_report(
             True,
             [self.candidate()],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/movie.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/movie.mkv"
             ),
-            local_file_verifier=lambda _file: {
+            staged_file_verifier=lambda _file: {
                 "regular_file": True,
                 "size": 1024,
                 "mtime_ns": 1_700_000_000_000_000_001,
             },
         )
-        self.assertEqual(changed_import_mtime["eligible"], 1)
-        self.assertEqual(changed_import_mtime["reasons"], {})
+        self.assertEqual(changed_stage_mtime["eligible"], 0)
+        self.assertEqual(changed_stage_mtime["reasons"], {"local_file_mismatch": 1})
 
     def test_unknown_private_account_ratio_blocks_cleanup_report(self):
         candidate = self.candidate(
@@ -3243,10 +2955,10 @@ class CleanupOrchestrationTests(unittest.TestCase):
         report = policy.build_cleanup_report(
             True,
             [candidate],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/movie.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/movie.mkv"
             ),
-            local_file_verifier=self.matching_local_file,
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"private_ratio_unavailable": 1})
@@ -3264,10 +2976,10 @@ class CleanupOrchestrationTests(unittest.TestCase):
         report = policy.build_cleanup_report(
             True,
             [candidate],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/movie.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/movie.mkv"
             ),
-            local_file_verifier=self.matching_local_file,
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"private_ratio_below_floor": 1})
@@ -3277,43 +2989,43 @@ class CleanupOrchestrationTests(unittest.TestCase):
         report = policy.build_cleanup_report(
             True,
             [candidate],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/movie.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/movie.mkv"
             ),
-            local_file_verifier=self.matching_local_file,
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"tracker_classification_unknown": 1})
 
-    def test_overlapping_local_paths_block_every_candidate_sharing_the_path(self):
+    def test_overlapping_staged_paths_block_every_candidate_sharing_the_path(self):
         first = self.candidate()
         second = self.candidate()
         report = policy.build_cleanup_report(
             True,
             [first, second],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/movie.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/movie.mkv"
             ),
-            local_file_verifier=self.matching_local_file,
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"shared_file_unsafe": 2})
 
-    def test_different_local_paths_sharing_one_source_inode_block_cleanup(self):
+    def test_different_staged_paths_sharing_one_source_inode_block_cleanup(self):
         first = self.candidate()
         second = self.candidate()
-        first["files"][0]["local_path"] = "/library/first.mkv"
-        second["files"][0]["local_path"] = "/library/renamed-copy.mkv"
+        first["files"][0]["staged_path"] = "/srv/media/.arr-staging/first.mkv"
+        second["files"][0]["staged_path"] = "/srv/media/.arr-staging/renamed-copy.mkv"
         for candidate in (first, second):
             candidate["files"][0]["source_identity"] = "fixture-same-inode"
             candidate["files"][0]["source_owner_count"] = 2
         report = policy.build_cleanup_report(
             True,
             [first, second],
-            arr_import_prover=lambda _candidate: self.verified_import(
-                "/library/first.mkv", "/library/renamed-copy.mkv"
+            staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                "/srv/media/.arr-staging/first.mkv", "/srv/media/.arr-staging/renamed-copy.mkv"
             ),
-            local_file_verifier=self.matching_local_file,
+            staged_file_verifier=self.matching_staged_file,
         )
         self.assertEqual(report["eligible"], 0)
         self.assertEqual(report["reasons"], {"source_file_shared": 2})
@@ -3552,7 +3264,6 @@ class CleanupOrchestrationTests(unittest.TestCase):
                         "--rpc-password", "/secret/rpc-password",
                         "--ssh", "fake-ssh",
                         "--ssh-keygen", "fake-ssh-keygen",
-                        "--arr-config", "/secret/arr-config",
                         "--remote-disk-capacity-bytes", "4000000000000",
                         "--remote-disk-warning-threshold-bytes", "3000000000000",
                         "--remote-disk-metrics-path", str(metrics_path),
@@ -3587,7 +3298,6 @@ class CleanupOrchestrationTests(unittest.TestCase):
                         "--rpc-password", "/secret/rpc-password",
                         "--ssh", "fake-ssh",
                         "--ssh-keygen", "fake-ssh-keygen",
-                        "--arr-config", "/secret/arr-config",
                         "--remote-disk-capacity-bytes", "4000000000000",
                         "--remote-disk-warning-threshold-bytes", "3000000000000",
                         "--remote-disk-metrics-path", str(metrics_path),
@@ -3600,58 +3310,6 @@ class CleanupOrchestrationTests(unittest.TestCase):
             self.assertFalse(event["remote_disk_probe_success"])
             self.assertIn("ultra_seedbox_storage_probe_success 0", metrics_path.read_text())
             self.assertNotIn("private", output.getvalue())
-
-    def test_reset_retry_cli_only_resets_queue_and_emits_aggregate_count(self):
-        calls = []
-        output = io.StringIO()
-
-        def reset_retry_times(queue_root):
-            calls.append(queue_root)
-            return 7
-
-        staging_module = SimpleNamespace(
-            reset_staged_torrent_receipt_retry_times=reset_retry_times
-        )
-        with patch.object(policy, "_load_runtime_module", return_value=staging_module):
-            with patch.object(
-                policy,
-                "run_runtime_cleanup",
-                side_effect=AssertionError("reset mode must not run cleanup"),
-            ):
-                with redirect_stdout(output):
-                    try:
-                        status = policy.main([
-                            "--reset-retry-times",
-                            "--queue-root",
-                            "/var/lib/ultra-media/cleanup-queue",
-                        ])
-                    except SystemExit as error:
-                        self.fail(f"reset mode should return a status, not exit: {error}")
-
-        self.assertEqual(status, 0)
-        self.assertEqual(calls, ["/var/lib/ultra-media/cleanup-queue"])
-        event = json.loads(output.getvalue())
-        self.assertEqual(event, {"event": "cleanup_retry_times_reset", "reset": 7})
-
-    def test_reset_retry_cli_rejects_cleanup_modes(self):
-        for conflicting_mode in ("--apply", "--report-only"):
-            with self.subTest(conflicting_mode=conflicting_mode):
-                output = io.StringIO()
-                with patch.object(
-                    policy,
-                    "_load_runtime_module",
-                    side_effect=AssertionError("conflicting mode must not reset queue"),
-                ):
-                    with redirect_stdout(output):
-                        try:
-                            status = policy.main([
-                                "--reset-retry-times",
-                                conflicting_mode,
-                            ])
-                        except SystemExit as error:
-                            self.fail(f"mode conflict should return a status: {error}")
-                self.assertEqual(status, 2)
-                self.assertEqual(output.getvalue().strip(), "cleanup failed reason=mode_conflict")
 
     def test_runtime_report_keeps_legacy_inventory_unverified_without_data(self):
         self.assertEqual(policy._runtime_unverified_report()["legacy_inventory_status"], "unverified")
@@ -3666,12 +3324,11 @@ class CleanupOrchestrationTests(unittest.TestCase):
         report = json.loads(output.getvalue().removeprefix("cleanup "))
         self.assertEqual(report["event"], "cleanup_queue_summary")
         self.assertEqual(report["mode"], "report-only")
-        self.assertEqual(report["arr_import_status"], "unverified")
+        self.assertEqual(report["staged_copy_status"], "unverified")
         self.assertEqual(report["legacy_inventory_status"], "unverified")
         self.assertEqual(report["source_ownership_status"], "unverified")
         self.assertEqual(report["runtime_configuration_status"], "unverified")
         self.assertEqual(report["transmission_state"], "unverified")
-        self.assertEqual(report["arr_state_status"], "unverified")
         self.assertIn("runtime_configuration_unavailable", report["reasons"])
         self.assertIn("source_ownership_unverified", report["reasons"])
         self.assertEqual(report["eligible"], 0)
@@ -3704,13 +3361,193 @@ class CleanupOrchestrationTests(unittest.TestCase):
             report = policy.build_cleanup_report(
                 True,
                 [self.candidate()],
-                arr_import_prover=lambda _candidate: self.verified_import(
-                    "/library/movie.mkv"
+                staged_copy_prover=lambda _candidate: self.verified_staged_copy(
+                    "/srv/media/.arr-staging/movie.mkv"
                 ),
-                local_file_verifier=self.matching_local_file,
+                staged_file_verifier=self.matching_staged_file,
             )
         self.assertEqual(report["mode"], "report-only")
         remove_torrent.assert_not_called()
+
+
+class SyncOrchestrationTests(unittest.TestCase):
+    def test_sync_cycle_stages_then_cleans_and_emits_aggregate_summary(self):
+        sync = load_sync_module()
+        events = []
+        stage_result = {
+            "torrents_total": 4,
+            "files_total": 7,
+            "bytes_total": 4096,
+            "staged": 2,
+            "failed": 1,
+            "files_transferred": 3,
+            "files_reused": 4,
+            "bytes_transferred": 1024,
+            "bytes_reused": 2048,
+            "receipts_created": 2,
+            "torrent_id": 99,
+            "remote_path": "/private/source.mkv",
+        }
+        cleanup_result = {
+            "mode": "apply",
+            "candidates": 1,
+            "eligible": 1,
+            "blocked": 0,
+            "removed": 1,
+            "queued": 2,
+            "pending_after_run": 1,
+            "reasons": {},
+            "torrent_id": 99,
+        }
+
+        def run_stage():
+            events.append("stage")
+            return stage_result
+
+        def run_cleanup():
+            events.append("cleanup")
+            return cleanup_result
+
+        result = sync.run_sync_cycle(run_stage, run_cleanup)
+
+        self.assertEqual(events, ["stage", "cleanup"])
+        self.assertEqual(result["summary"], {
+            "event": "sync_run_summary",
+            "staging_status": "partial",
+            "cleanup_status": "complete",
+            "run_status": "failed",
+            "cleanup_mode": "apply",
+            "torrents_total": 4,
+            "torrents_staged": 2,
+            "files_total": 7,
+            "bytes_total": 4096,
+            "torrents_failed": 1,
+            "files_transferred": 3,
+            "files_reused": 4,
+            "bytes_transferred": 1024,
+            "bytes_reused": 2048,
+            "receipts_created": 2,
+            "cleanup_candidates": 1,
+            "cleanup_removed": 1,
+            "cleanup_blocked": 0,
+            "pending_after_run": 1,
+            "cleanup_reasons": {},
+        })
+        self.assertNotIn("torrent_id", json.dumps(result["summary"]))
+        self.assertNotIn("/private/", json.dumps(result["summary"]))
+
+    def test_cleanup_operation_failures_mark_the_combined_run_failed(self):
+        sync = load_sync_module()
+        stage_result = {
+            "staged": 1,
+            "failed": 0,
+            "files_transferred": 1,
+            "files_reused": 0,
+            "bytes_transferred": 1024,
+            "bytes_reused": 0,
+            "receipts_created": 1,
+        }
+        cleanup_result = {
+            "mode": "apply",
+            "candidates": 1,
+            "eligible": 0,
+            "blocked": 1,
+            "removed": 0,
+            "reasons": {"transmission_remove_failed": 1},
+        }
+
+        result = sync.run_sync_cycle(lambda: stage_result, lambda: cleanup_result)
+
+        self.assertEqual(result["summary"]["cleanup_status"], "failed")
+        self.assertEqual(result["summary"]["run_status"], "failed")
+        self.assertEqual(result["summary"]["cleanup_reasons"], {"transmission_remove_failed": 1})
+
+    def test_policy_blocks_are_reported_without_failing_the_worker(self):
+        sync = load_sync_module()
+        result = sync.run_sync_cycle(
+            lambda: {"staged": 1, "failed": 0},
+            lambda: {
+                "mode": "apply",
+                "candidates": 1,
+                "eligible": 0,
+                "blocked": 1,
+                "removed": 0,
+                "reasons": {"below_retention_threshold": 1},
+            },
+        )
+
+        self.assertEqual(result["summary"]["cleanup_status"], "blocked")
+        self.assertEqual(result["summary"]["run_status"], "complete")
+
+    def test_main_returns_failure_when_cleanup_removal_fails(self):
+        sync = load_sync_module()
+        output = io.StringIO()
+        stage_module = SimpleNamespace(
+            RUNTIME_ROOT="/run/ultra-media",
+            _stage_from_runtime_files=lambda *_args, **_kwargs: {
+                "staged": 1,
+                "failed": 0,
+                "files_transferred": 1,
+                "files_reused": 0,
+                "bytes_transferred": 1024,
+                "bytes_reused": 0,
+                "receipts_created": 1,
+            },
+        )
+        cleanup_module = SimpleNamespace(
+            run_runtime_cleanup=lambda *_args, **_kwargs: {
+                "mode": "apply",
+                "candidates": 1,
+                "eligible": 0,
+                "blocked": 1,
+                "removed": 0,
+                "reasons": {"transmission_remove_failed": 1},
+            }
+        )
+        with patch.object(
+            sync,
+            "_load_runtime_module",
+            side_effect=lambda name, _filename: (
+                stage_module if name == "ultra_media_download_stage" else cleanup_module
+            ),
+        ):
+            with redirect_stdout(output):
+                status = sync.main([
+                    "--rpc-url", "/run/secrets/rpc-url",
+                    "--download-root", "/run/secrets/download-root",
+                    "--ssh-host", "/run/secrets/ssh-host",
+                    "--ssh-username", "/run/secrets/ssh-username",
+                    "--known-hosts", "/run/secrets/known-hosts",
+                    "--ssh-key", "/run/secrets/ssh-key",
+                    "--rpc-username", "/run/secrets/rpc-username",
+                    "--rpc-password", "/run/secrets/rpc-password",
+                    "--ssh", "ssh",
+                    "--ssh-keygen", "ssh-keygen",
+                    "--rsync", "rsync",
+                    "--cleanup-enabled",
+                ])
+
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        summary = next(event for event in events if event.get("event") == "sync_run_summary")
+        self.assertEqual(status, 1)
+        self.assertEqual(summary["cleanup_status"], "failed")
+        self.assertEqual(summary["run_status"], "failed")
+
+    def test_sync_cycle_does_not_cleanup_after_fatal_staging_error(self):
+        sync = load_sync_module()
+        events = []
+
+        def fail_stage():
+            events.append("stage")
+            raise RuntimeError("safe staging failure")
+
+        def cleanup():
+            events.append("cleanup")
+            return {"removed": 0}
+
+        with self.assertRaisesRegex(RuntimeError, "safe staging failure"):
+            sync.run_sync_cycle(fail_stage, cleanup)
+        self.assertEqual(events, ["stage"])
 
 
 if __name__ == "__main__":

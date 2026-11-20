@@ -903,23 +903,6 @@ def read_pending_torrent_receipts(
     ]
 
 
-def reset_staged_torrent_receipt_retry_times(queue_root: str | Path) -> int:
-    """Make every valid staged receipt due while preserving its retry history."""
-    root = Path(queue_root)
-    if not root.exists() or root.is_symlink() or not root.is_dir():
-        return 0
-    reset_count = 0
-    with cleanup_queue_lock(root):
-        for receipt in _read_valid_torrent_receipts(root):
-            staged_at_ns = receipt["staged_at_ns"]
-            if receipt["next_attempt_ns"] == staged_at_ns:
-                continue
-            receipt["next_attempt_ns"] = staged_at_ns
-            _write_receipt_atomic(_receipt_path(root, receipt["torrent_id"]), receipt)
-            reset_count += 1
-    return reset_count
-
-
 def defer_staged_torrent_receipt(
     queue_root: str | Path,
     receipt: Mapping[str, Any],
@@ -1212,7 +1195,7 @@ def stage_completed_downloads(
     source_stat: Callable[[str], Mapping[str, Any] | None] | None = None,
     progress_reporter: StageProgressReporter | None = None,
     on_torrent_staged: Callable[[Mapping[str, Any]], None] | None = None,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     """Copy each complete mapped torrent as an atomic, independently reportable unit."""
     plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
     reporter = progress_reporter or StageProgressReporter(plan["totals"])
@@ -1293,6 +1276,18 @@ def stage_completed_downloads(
         failed_torrents=result["failed"],
         event="staging_completed" if result["failed"] == 0 else "staging_failed",
         force=True,
+    )
+    result.update(
+        {
+            "torrents_total": plan["totals"].get("torrents"),
+            "files_total": plan["totals"].get("files"),
+            "bytes_total": plan["totals"].get("bytes"),
+            "files_transferred": counters["files_done"],
+            "bytes_transferred": counters["bytes_done"],
+            "files_reused": counters["files_reused"],
+            "bytes_reused": counters["bytes_reused"],
+            "receipts_created": counters["receipts_created"],
+        }
     )
     return result
 
