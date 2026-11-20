@@ -214,6 +214,9 @@
           system.stateVersion = 4;
           system.primaryUser = "monkey";
 
+          # Rate-limit failures must not make launchd restart Opnix in a tight loop.
+          launchd.daemons.opnix-secrets.serviceConfig.KeepAlive = lib.mkForce false;
+
           # This hidden account exposes only the Nix daemon protocol to registered builder clients.
           users.knownUsers = ["nixbuilder"];
           users.users.nixbuilder = {
