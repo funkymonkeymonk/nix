@@ -57,6 +57,45 @@ in {
         touch $out
       '';
 
+  # Home Manager secrets stored under Zero's home must be owned by the user.
+  zeroHomeManagerSecretOwnershipTest =
+    if self == null
+    then
+      pkgs.runCommand "test-zero-home-secret-ownership-skipped" {} ''
+        echo "Skipped: self not provided"
+        touch $out
+      ''
+    else let
+      secrets = builtins.attrValues self.nixosConfigurations.zero.config.home-manager.users.monkey.programs.onepassword-secrets.secrets;
+      expectedPaths = [
+        ".config/opencode/secrets/opencode-go-apikey"
+        ".pi/agent/secrets/opencode-go-apikey"
+        ".pi/agent/secrets/typesafe_api_key"
+      ];
+      ownershipCorrect =
+        builtins.all (
+          expectedPath:
+            lib.any (
+              secret:
+                secret.path
+                == expectedPath
+                && secret.owner == "monkey"
+                && secret.group == "users"
+            )
+            secrets
+        )
+        expectedPaths;
+    in
+      pkgs.runCommand "test-zero-home-secret-ownership" {} ''
+        echo "=== Testing Zero Home Manager secret ownership ==="
+        ${
+          if ownershipCorrect
+          then ''echo "All configured Home Manager secrets are owned by monkey:users: OK"''
+          else ''echo "FAIL: Home Manager secrets under Zero's home must be owned by monkey:users"; exit 1''
+        }
+        touch $out
+      '';
+
   # Test: Zero is no longer a Tailscale-enabled machine and has no static key.
   zeroTailscaleOAuthConfigTest =
     if self == null

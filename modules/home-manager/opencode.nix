@@ -1,4 +1,5 @@
 {
+  config,
   osConfig,
   lib,
   ...
@@ -61,8 +62,9 @@ with lib; let
     providersWithBaseURLSecrets
   );
 
-  # Combined opnix secrets (API keys + base URLs)
-  allOpnixSecrets = opnixSecrets // opnixBaseURLSecrets;
+  # Home Manager runs as the user, so secrets written under their home must
+  # be owned by that user rather than root.
+  allOpnixSecrets = lib.mapAttrs (_: secret: secret // {owner = config.home.username;}) (opnixSecrets // opnixBaseURLSecrets);
 
   # Providers that want their model list fetched at runtime (e.g. LiteLLM
   # proxies). Model discovery itself is handled by the opencode-models-discovery

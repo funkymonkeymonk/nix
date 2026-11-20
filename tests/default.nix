@@ -258,6 +258,7 @@ in
     opencode-jj-workspace-access-install = testHomeManager.opencodeWorkspaceAccessInstallTest;
     opencode-jj-workspace-access = testJjWorkspaceAccess;
     opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
+    opencode-secret-owner = testHomeManager.opencodeSecretOwnerTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
     onepassword-ssh-agent-config = testHomeManager.onepasswordSshAgentConfigTest;
@@ -305,6 +306,7 @@ in
     zero-tailscale-secret-file = testZero.zeroTailscaleSecretFileTest;
     zero-tailscale-missing-oauth-key = testZero.zeroTailscaleMissingOAuthKeyTest;
     zero-tailscale-oauth-config = testZero.zeroTailscaleOAuthConfigTest;
+    zero-home-secret-ownership = testZero.zeroHomeManagerSecretOwnershipTest;
     zero-hardware-packages = testZero.zeroHardwarePackagesTest;
     zero-media-config-not-enabled = testZero.zeroNoMediaConfigTest;
     zero-cloud-only-config = testZero.zeroCloudOnlyConfigTest;
