@@ -8,7 +8,6 @@
   inherit (pkgs) lib;
   stubs = import ./stubs.nix {inherit pkgs;};
   catalog = import ../library/machines/catalog.nix {inherit inputs;};
-  manifest = builtins.fromTOML (builtins.readFile ../secretspec.toml);
 
   machine = name: entry: systemConfig: expectedTags: {
     inherit name expectedTags;
@@ -18,12 +17,76 @@
   };
 
   enabledMachines = [
-    (machine "type-nas" catalog.type-nas self.nixosConfigurations.type-nas.config ["tag:home-lab"])
-    (machine "type-server" catalog.type-server self.nixosConfigurations.type-server.config ["tag:home-lab"])
-    (machine "zero" catalog.zero self.nixosConfigurations.zero.config ["tag:home-lab"])
     (machine "drlight" catalog.drlight self.nixosConfigurations.drlight.config ["tag:home-lab" "tag:media-center"])
-    (machine "MegamanX" catalog.MegamanX self.darwinConfigurations.MegamanX.config ["tag:home-lab"])
   ];
+
+  gatewayMachines = [
+    {
+      name = "type-nas";
+      config = self.nixosConfigurations.type-nas.config;
+    }
+    {
+      name = "type-server";
+      config = self.nixosConfigurations.type-server.config;
+    }
+    {
+      name = "type-server-arm";
+      config = self.nixosConfigurations.type-server-arm.config;
+    }
+    {
+      name = "type-desktop";
+      config = self.nixosConfigurations.type-desktop.config;
+    }
+    {
+      name = "zero";
+      config = self.nixosConfigurations.zero.config;
+    }
+    {
+      name = "drlight";
+      config = self.nixosConfigurations.drlight.config;
+    }
+    {
+      name = "wweaver";
+      config = self.darwinConfigurations.wweaver.config;
+    }
+    {
+      name = "MegamanX";
+      config = self.darwinConfigurations.MegamanX.config;
+    }
+  ];
+
+  drlightGateway = self.nixosConfigurations.drlight.config;
+  drlightLanFirewall = drlightGateway.networking.firewall.interfaces.eno1 or {};
+  drlightTailnetFirewall = drlightGateway.networking.firewall.interfaces.tailscale0 or {};
+  drlightDnsmasq = drlightGateway.services.dnsmasq.settings or {};
+  gatewayCatalogValid =
+    lib.all
+    (
+      machine:
+        if machine.name == "drlight"
+        then machine.config.myConfig.tailscale.enable
+        else !(machine.config.myConfig.tailscale.enable or false)
+    )
+    gatewayMachines;
+  nonDrlightServeDisabled =
+    lib.all
+    (
+      machine:
+        machine.name
+        == "drlight"
+        || (machine.config.myConfig.tailscale.serve or {}) == {}
+    )
+    gatewayMachines;
+  drlightTailnetTcpPorts = drlightTailnetFirewall.allowedTCPPorts or [];
+  drlightTailnetUdpPorts = drlightTailnetFirewall.allowedUDPPorts or [];
+  drlightLanMirrorsTailnetTcp = lib.all (port: builtins.elem port (drlightLanFirewall.allowedTCPPorts or [])) drlightTailnetTcpPorts;
+  drlightLanMirrorsTailnetUdp = lib.all (port: builtins.elem port (drlightLanFirewall.allowedUDPPorts or [])) drlightTailnetUdpPorts;
+  drlightLanPortsNotGlobal =
+    lib.all
+    (port: !(builtins.elem port (drlightGateway.networking.firewall.allowedTCPPorts or [])))
+    (drlightLanFirewall.allowedTCPPorts or []);
+  drlightNodeExporterLanEnabled =
+    builtins.elem "eno1" (drlightGateway.myConfig.nodeExporter.openFirewallInterfaces or []);
 
   machinePolicyValid = item:
     (item.catalogPolicy.enable or false)
@@ -44,22 +107,7 @@
     == false
     && armServerConfig.myConfig.tailscale.enable == false;
 
-  megamanxProfile = manifest.profiles.MegamanX or {};
-  validSecretRef = name: field: let
-    secret = megamanxProfile.${name} or null;
-  in
-    secret
-    != null
-    && secret.ref.item == "Tailscale Oauth"
-    && secret.ref.field == field
-    && secret.providers == ["opnix"];
-
-  credentialsScoped =
-    validSecretRef "TAILSCALE_OAUTH_CLIENT_ID" "Client ID"
-    && validSecretRef "TAILSCALE_OAUTH_CLIENT_SECRET" "Client secret";
-
-  zeroConfig = self.nixosConfigurations.zero.config;
-  zeroAuthDaemon = zeroConfig.systemd.services."tailscale-autoconnect" or {};
+  zeroAuthDaemon = drlightGateway.systemd.services."tailscale-autoconnect" or {};
   zeroAuthScript = zeroAuthDaemon.script or "";
   mockSleep = pkgs.writeShellScriptBin "sleep" ''exit 0'';
   unknownStatusScript =
@@ -68,7 +116,7 @@
     ["\"$TMPDIR/auth-key\""]
     zeroAuthScript;
   zeroAuthAdapterValid =
-    zeroConfig.services.tailscale.enable
+    drlightGateway.services.tailscale.enable
     && (zeroAuthDaemon.serviceConfig.Type or null) == "oneshot"
     && lib.hasInfix "/run/devenv/tailscale-auth-key" zeroAuthScript
     && lib.hasInfix "tailscale status --json" zeroAuthScript
@@ -80,24 +128,18 @@
   megamanxConfig = self.darwinConfigurations.MegamanX.config;
   megamanxAuthDaemon = megamanxConfig.launchd.daemons."tailscale-autoconnect" or {};
   megamanxAuthScript = megamanxAuthDaemon.command or "";
-  megamanxAuthServiceConfig = megamanxAuthDaemon.serviceConfig or {};
   megamanxAuthAdapterValid =
-    megamanxConfig.services.tailscale.enable
-    && (megamanxConfig.launchd.daemons.tailscaled.serviceConfig.KeepAlive or false)
-    && (megamanxAuthServiceConfig.RunAtLoad or false)
-    && builtins.elem "/tmp/devenv-tailscale-auth-key" (megamanxAuthServiceConfig.WatchPaths or [])
-    && megamanxAuthScript != "";
+    !(megamanxConfig.services.tailscale.enable or false)
+    && !(megamanxConfig.launchd.daemons ? tailscaled)
+    && !(megamanxConfig.launchd.daemons ? "tailscale-autoconnect");
 
   megamanxServeMapping = (megamanxConfig.myConfig.tailscale.serve or {}).bifrost or {};
   megamanxServeDaemon = megamanxConfig.launchd.daemons."tailscale-serve-bifrost" or {};
   megamanxServeScript = megamanxServeDaemon.command or "";
   megamanxServeValid =
-    (megamanxServeMapping.port or null)
-    == 8081
-    && (megamanxServeMapping.target or null) == "http://127.0.0.1:8081"
-    && (megamanxServeMapping.readinessUrl or null) == "http://127.0.0.1:8081/v1/models"
-    && (megamanxServeDaemon.serviceConfig.RunAtLoad or false)
-    && megamanxServeScript != "";
+    megamanxServeMapping
+    == {}
+    && !(megamanxConfig.launchd.daemons ? tailscale-serve-bifrost);
 
   darwinScriptChecks =
     if pkgs.stdenv.hostPlatform.isDarwin
@@ -178,6 +220,47 @@
     && !(lib.hasInfix "sudo tailscale up" enrollmentGuide)
     && !(lib.hasInfix "sudo /run/current-system/sw/bin/tailscale up" enrollmentGuide);
 in {
+  tailscaleGatewayPolicy = pkgs.runCommand "test-tailscale-gateway-policy" {} ''
+    echo "=== Checking Drlight Tailscale gateway policy ==="
+    if ${lib.boolToString gatewayCatalogValid}; then
+      echo "  Drlight is the only Tailscale-enabled catalog machine: OK"
+    else
+      echo "FAIL: only Drlight may have Tailscale enabled"
+      exit 1
+    fi
+    if ${lib.boolToString nonDrlightServeDisabled}; then
+      echo "  non-Drlight Tailscale Serve mappings are removed: OK"
+    else
+      echo "FAIL: non-Drlight machines must not retain Tailscale Serve mappings"
+      exit 1
+    fi
+    if ${lib.boolToString (drlightLanMirrorsTailnetTcp && drlightLanMirrorsTailnetUdp)}; then
+      echo "  Drlight mirrors Tailscale-only firewall ports onto eno1: OK"
+    else
+      echo "FAIL: Drlight LAN firewall must mirror Tailscale-only ports"
+      exit 1
+    fi
+    if ${lib.boolToString drlightLanPortsNotGlobal}; then
+      echo "  Drlight gateway ports remain non-global: OK"
+    else
+      echo "FAIL: Drlight gateway ports must not be opened globally"
+      exit 1
+    fi
+    if ${lib.boolToString drlightNodeExporterLanEnabled}; then
+      echo "  Drlight node exporter is reachable on the LAN: OK"
+    else
+      echo "FAIL: Drlight node exporter must allow eno1"
+      exit 1
+    fi
+    if ${lib.boolToString (builtins.elem "eno1" (drlightDnsmasq.interface or []) && builtins.elem "tailscale0" (drlightDnsmasq.interface or []))}; then
+      echo "  Drlight DNS listens on LAN and Tailscale: OK"
+    else
+      echo "FAIL: Drlight DNS must listen on eno1 and tailscale0"
+      exit 1
+    fi
+    touch $out
+  '';
+
   tailscaleDarwinAutoconnect =
     pkgs.runCommand "test-tailscale-darwin-autoconnect" {
       nativeBuildInputs = [pkgs.bash pkgs.coreutils];
@@ -211,26 +294,20 @@ in {
       echo "FAIL: type-server-arm must remain Tailscale-disabled"
       exit 1
     fi
-    if ${lib.boolToString credentialsScoped}; then
-      echo "  MegamanX OAuth references use the approved Opnix provider: OK"
-    else
-      echo "FAIL: MegamanX must reference both existing Tailscale OAuth fields through Opnix"
-      exit 1
-    fi
     if ${lib.boolToString zeroAuthAdapterValid}; then
-      echo "  NixOS keeps the idempotent deployment-key adapter: OK"
+      echo "  Drlight keeps the idempotent deployment-key adapter: OK"
     else
       echo "FAIL: NixOS must use the deployment key only when disconnected"
       exit 1
     fi
     if ${lib.boolToString megamanxAuthAdapterValid}; then
-      echo "  Darwin watches and consumes the staged OAuth key: OK"
+      echo "  MegamanX has no Tailscale daemon or auth adapter: OK"
     else
       echo "FAIL: Darwin needs a privileged launchd OAuth adapter"
       exit 1
     fi
     if ${lib.boolToString megamanxServeValid}; then
-      echo "  Bifrost Serve is declared by central Tailscale policy: OK"
+      echo "  MegamanX has no obsolete Tailscale Serve mapping: OK"
     else
       echo "FAIL: Tailscale policy must own Bifrost's tailnet-only Serve mapping"
       exit 1

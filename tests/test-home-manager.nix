@@ -115,6 +115,51 @@
   opencodeWorkspaceAccessPlugin =
     opencodeHome.home.file.".config/opencode/plugin/jj-workspace-access.js";
 
+  opencodeSecretOsConfig = lib.recursiveUpdate opencodeRole {
+    isDarwin = false;
+    onepassword = {
+      enable = true;
+      defaultVault = "Opnix";
+    };
+    opencode.providers.secret-provider = {
+      name = "Secret Provider";
+      onePasswordItem = "Secret Item/credential";
+      baseURLOpnixItem = "";
+    };
+  };
+  opencodeSecretsHome =
+    (lib.evalModules {
+      modules = [
+        {
+          options.home = {
+            username = lib.mkOption {type = lib.types.str;};
+            file = lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
+              default = {};
+            };
+            sessionVariables = lib.mkOption {
+              type = lib.types.attrsOf lib.types.str;
+              default = {};
+            };
+          };
+          options.programs = lib.mkOption {
+            type = lib.types.attrsOf lib.types.anything;
+            default = {};
+          };
+          config = {
+            home.username = "hm-test";
+            _module.args = {
+              inherit pkgs;
+              osConfig = {myConfig = opencodeSecretOsConfig;};
+            };
+          };
+        }
+        ../modules/home-manager/opencode.nix
+      ];
+    }).config;
+  opencodeSecretFiles = builtins.attrValues opencodeSecretsHome.programs.onepassword-secrets.secrets;
+  opencodeSecret = lib.findFirst (secret: secret.path == ".config/opencode/secrets/secret-provider-apikey") null opencodeSecretFiles;
+
   # --- shell aliases test ---
   # Import aliases.nix as a home-manager module to check it defines shellAliases
   # Note: aliases.nix reads from config.myConfig which needs the options module
@@ -382,6 +427,22 @@ in {
       }
 
       echo "All OpenCode Bifrost defaults verified"
+      touch $out
+    '';
+
+  # Home Manager API-key files under the user's home must be owned by that user.
+  opencodeSecretOwnerTest =
+    pkgs.runCommand "test-opencode-secret-owner"
+    {}
+    ''
+      echo "=== Testing OpenCode API-key secret ownership ==="
+
+      ${
+        if opencodeSecret != null && opencodeSecret.owner == "hm-test"
+        then ''echo "  API-key file owner matches Home Manager user: OK"''
+        else ''echo "  API-key file must be owned by the Home Manager user"; exit 1''
+      }
+
       touch $out
     '';
 

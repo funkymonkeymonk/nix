@@ -1,6 +1,7 @@
 # Home Manager module for pi-coding-agent
 # Manages pi configuration files in ~/.pi/agent/
 {
+  config,
   osConfig,
   lib,
   pkgs,
@@ -40,7 +41,9 @@ with lib; let
       };
     }
   );
-  allOpnixSecrets = opnixSecrets // opencodeGoOpnixSecrets // jevOpnixSecrets;
+  # These files live under the user's home and are created during the
+  # unprivileged Home Manager activation.
+  allOpnixSecrets = lib.mapAttrs (_: secret: secret // {owner = config.home.username;}) (opnixSecrets // opencodeGoOpnixSecrets // jevOpnixSecrets);
 
   # Build models config for pi v0.75.4+ schema
   # Maps our per-model options to the nested provider+models format pi expects

@@ -1,4 +1,5 @@
 {
+  config,
   osConfig,
   lib,
   pkgs,
@@ -14,13 +15,13 @@ with lib; let
   mcpServersWithSecrets = lib.filterAttrs (_name: server: server.onePasswordItem != "") cfg.mcpServers;
 
   # Build opnix secrets configuration using shared helper
-  opnixSecrets = hmLib.mkOpnixSecrets "claudeCode" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
+  opnixSecrets = lib.mapAttrs (_: secret: secret // {owner = config.home.username;}) (hmLib.mkOpnixSecrets "claudeCode" osConfig.myConfig.onepassword.defaultVault osConfig.myConfig.isDarwin (
     lib.mapAttrs (name: server: {
       inherit (server) onePasswordItem;
       secretPath = ".config/claude-code/secrets/${name}-apikey";
     })
     mcpServersWithSecrets
-  );
+  ));
 
   # Build MCP server config with API key references
   mcpServerConfig =

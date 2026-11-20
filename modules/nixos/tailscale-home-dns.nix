@@ -24,7 +24,7 @@ in {
     enable = true;
     resolveLocalQueries = false;
     settings = {
-      interface = ["tailscale0"];
+      interface = ["eno1" "tailscale0"];
       bind-dynamic = true;
       no-resolv = true;
       domain-needed = true;
