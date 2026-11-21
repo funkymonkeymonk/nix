@@ -51,10 +51,7 @@
       ];
       overrides = {
         autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-nas";
-        tailscale = {
-          enable = true;
-          authKeyTags = ["tag:home-lab"];
-        };
+        tailscale.enable = false;
       };
     };
 
@@ -72,10 +69,7 @@
       ];
       overrides = {
         autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#type-server";
-        tailscale = {
-          enable = true;
-          authKeyTags = ["tag:home-lab"];
-        };
+        tailscale.enable = false;
       };
     };
 
@@ -148,10 +142,7 @@
       extraSpecialArgs = {mkUser = import ../lib/mk-user.nix;};
       overrides = {
         autoUpgrade.flakeUrl = "github:funkymonkeymonk/nix#zero";
-        tailscale = {
-          enable = true;
-          authKeyTags = ["tag:home-lab"];
-        };
+        tailscale.enable = false;
       };
     };
 
@@ -213,6 +204,9 @@
         in {
           system.stateVersion = 4;
           system.primaryUser = "monkey";
+
+          # Rate-limit failures must not make launchd restart Opnix in a tight loop.
+          launchd.daemons.opnix-secrets.serviceConfig.KeepAlive = lib.mkForce false;
 
           # This hidden account exposes only the Nix daemon protocol to registered builder clients.
           users.knownUsers = ["nixbuilder"];
@@ -276,16 +270,7 @@
             sudoPasswordRef = "MegamanX Sudo Password/password";
           };
           ssh.enable = true;
-          tailscale = {
-            enable = true;
-            authKeyTags = ["tag:home-lab"];
-            serve.bifrost = {
-              port = 8081;
-              target = "http://127.0.0.1:8081";
-              readinessUrl = "http://127.0.0.1:8081/v1/models";
-            };
-          };
-          nodeExporter.listenOnTailscale = true;
+          tailscale.enable = false;
           collector.destinationHostname = "drlight";
           vector = {
             enable = true;

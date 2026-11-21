@@ -1,8 +1,8 @@
 """Retention policy and guarded Ultra.cc seedbox cleanup controller.
 
 Cleanup consumes per-torrent staging receipts and uses Transmission RPC only
-after local Arr import and size/mtime proofs; the Drlight library is never
-mutated by this controller.
+after exact source-to-staging and ownership proofs. Drlight library imports
+are handled independently by the local Arr applications.
 """
 
 import argparse
@@ -16,9 +16,6 @@ import subprocess
 import sys
 import time
 import tempfile
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
 from contextlib import ExitStack, nullcontext
 from ultra_media_file_stat import (
     make_remote_disk_usage_probe,
@@ -31,7 +28,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
 
 
-MIN_SEEDING_SECONDS = 240 * 60 * 60
+MIN_COMPLETION_AGE_SECONDS = 240 * 60 * 60
 MIN_TORRENT_RATIO = 3.0
 MIN_PRIVATE_ACCOUNT_RATIO = 0.6
 STAGING_ROOT = "/srv/media/.arr-staging"
@@ -43,24 +40,24 @@ REMOTE_DISK_WARNING_THRESHOLD_BYTES = 3_000_000_000_000
 
 
 @dataclass(frozen=True)
-class ArrImportProof:
-    """Normalized import proof; the runtime has no verified Arr adapter yet."""
+class StagedCopyProof:
+    """Proof that every staged payload file matches its live seedbox source."""
 
     status: str
-    imported_paths: frozenset[str]
+    staged_paths: frozenset[str]
 
     @classmethod
-    def unverified(cls) -> "ArrImportProof":
-        return cls(status="unverified", imported_paths=frozenset())
+    def unverified(cls) -> "StagedCopyProof":
+        return cls(status="unverified", staged_paths=frozenset())
 
     @classmethod
-    def verified(cls, imported_paths: Sequence[str]) -> "ArrImportProof":
-        if not isinstance(imported_paths, (list, tuple, set, frozenset)) or any(
+    def verified(cls, staged_paths: Sequence[str]) -> "StagedCopyProof":
+        if not isinstance(staged_paths, (list, tuple, set, frozenset)) or any(
             not isinstance(path, str) or not path or "\0" in path
-            for path in imported_paths
+            for path in staged_paths
         ):
             return cls.unverified()
-        return cls(status="verified", imported_paths=frozenset(imported_paths))
+        return cls(status="verified", staged_paths=frozenset(staged_paths))
 
 
 def write_remote_disk_metrics(
@@ -160,13 +157,17 @@ def _finite_number(value: Any) -> bool:
         return False
 
 
-def evaluate_retention(candidate: Mapping[str, Any]) -> dict[str, Any]:
+def evaluate_retention(
+    candidate: Mapping[str, Any],
+    *,
+    now_seconds: int | float | None = None,
+) -> dict[str, Any]:
     """Return an eligibility decision and safe reason codes for normalized metadata.
 
     Candidate schema:
       - ``complete``: true only when the torrent is complete.
-      - ``seeding_seconds`` and ``torrent_ratio``: accumulated seeding duration
-        in seconds and the torrent's upload/download ratio.
+      - ``done_date`` and ``torrent_ratio``: Transmission's completion time
+        as a Unix timestamp and the torrent's upload/download ratio.
       - ``trackers``: records with ``classification`` equal to ``public`` or
         ``private``. Private records also require ``ratio_source_available``
         and ``account_ratio``.
@@ -190,18 +191,26 @@ def evaluate_retention(candidate: Mapping[str, Any]) -> dict[str, Any]:
     if candidate.get("complete") is not True:
         block("incomplete_torrent")
 
-    seeding_seconds = candidate.get("seeding_seconds")
-    torrent_ratio = candidate.get("torrent_ratio")
-    reached_seeding_limit = (
-        _finite_number(seeding_seconds)
-        and seeding_seconds >= MIN_SEEDING_SECONDS
+    done_date = candidate.get("done_date")
+    if now_seconds is None:
+        now_seconds = time.time()
+    done_date_valid = _valid_integer(done_date) and done_date > 0
+    now_valid = _finite_number(now_seconds)
+    reached_completion_age = (
+        done_date_valid
+        and now_valid
+        and now_seconds - done_date >= MIN_COMPLETION_AGE_SECONDS
     )
+    torrent_ratio = candidate.get("torrent_ratio")
     reached_torrent_ratio = (
         _finite_number(torrent_ratio)
         and torrent_ratio >= MIN_TORRENT_RATIO
     )
-    if not (reached_seeding_limit or reached_torrent_ratio):
-        block("below_retention_threshold")
+    if not (reached_completion_age or reached_torrent_ratio):
+        if not done_date_valid or not now_valid:
+            block("completion_time_unknown")
+        else:
+            block("below_retention_threshold")
 
     trackers = candidate.get("trackers")
     if not isinstance(trackers, (list, tuple)) or not trackers:
@@ -264,7 +273,7 @@ def _valid_integer(value: Any, *, nonnegative: bool = False) -> bool:
 
 
 def local_file_matches(file_record: Mapping[str, Any], observed: Any) -> bool:
-    """Require exact regular-file size and nanosecond-mtime evidence."""
+    """Require the staged regular file to match source size and nanosecond mtime."""
     if not isinstance(observed, Mapping):
         return False
     expected_size = file_record.get("expected_size")
@@ -308,162 +317,9 @@ def _path_is_within(path: str, roots: Sequence[str]) -> bool:
     return False
 
 
-def build_import_path_map(
-    records: Sequence[Any],
-    library_roots: Sequence[str],
-    *,
-    staging_root: str = STAGING_ROOT,
-) -> dict[str, str]:
-    """Map imported staging paths to unique library paths from Arr history."""
-    if not isinstance(records, Sequence) or isinstance(records, (str, bytes)):
-        return {}
-    if not isinstance(library_roots, Sequence) or isinstance(library_roots, (str, bytes)):
-        return {}
-    normalized_stage_root = os.path.normpath(staging_root)
-    allowed_events = {"downloadFolderImported", "trackFileImported"}
-    mappings: dict[str, str] = {}
-    ambiguous: set[str] = set()
-
-    for record in records:
-        if not isinstance(record, Mapping):
-            raise ValueError("arr_history_malformed")
-        if record.get("eventType") not in allowed_events:
-            continue
-        data = record.get("data")
-        if not isinstance(data, Mapping):
-            raise ValueError("arr_history_malformed")
-        dropped_path = data.get("droppedPath")
-        imported_path = data.get("importedPath")
-        if (
-            not isinstance(dropped_path, str)
-            or not dropped_path.startswith("/")
-            or "\0" in dropped_path
-            or not isinstance(imported_path, str)
-            or not imported_path.startswith("/")
-            or "\0" in imported_path
-        ):
-            raise ValueError("arr_history_malformed")
-        dropped_path = os.path.normpath(dropped_path)
-        imported_path = os.path.normpath(imported_path)
-        if not _path_is_within(dropped_path, [normalized_stage_root]):
-            continue
-        if not _path_is_within(imported_path, library_roots):
-            raise ValueError("arr_history_malformed")
-        if dropped_path in ambiguous:
-            continue
-        previous = mappings.get(dropped_path)
-        if previous is not None and previous != imported_path:
-            mappings.pop(dropped_path, None)
-            ambiguous.add(dropped_path)
-        else:
-            mappings[dropped_path] = imported_path
-
-    imported_destinations: dict[str, list[str]] = {}
-    for dropped_path, imported_path in mappings.items():
-        imported_destinations.setdefault(imported_path, []).append(dropped_path)
-    for dropped_paths in imported_destinations.values():
-        if len(dropped_paths) > 1:
-            for dropped_path in dropped_paths:
-                mappings.pop(dropped_path, None)
-
-    return mappings
-
-
-def fetch_arr_import_paths(
-    arr_apis: Sequence[Mapping[str, Any]],
-    library_roots: Sequence[str],
-    *,
-    page_size: int = 1000,
-    request_timeout: float = 20,
-) -> dict[str, str]:
-    """Read paged local Arr histories and map only supported import events."""
-    if not isinstance(arr_apis, Sequence) or isinstance(arr_apis, (str, bytes)) or not arr_apis:
-        raise RuntimeError("arr_state_unavailable")
-    if not isinstance(page_size, int) or isinstance(page_size, bool) or page_size < 1:
-        raise RuntimeError("arr_state_unavailable")
-
-    all_records: list[Mapping[str, Any]] = []
-    for app in arr_apis:
-        if not isinstance(app, Mapping):
-            raise RuntimeError("arr_state_unavailable")
-        base_url = app.get("baseUrl")
-        api_key_path = app.get("apiKeyFile")
-        if not isinstance(base_url, str) or not isinstance(api_key_path, str):
-            raise RuntimeError("arr_state_unavailable")
-        try:
-            parsed = urlsplit(base_url)
-            if (
-                parsed.scheme != "http"
-                or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
-                or parsed.username is not None
-                or parsed.password is not None
-                or parsed.query
-                or parsed.fragment
-                or parsed.port is None
-            ):
-                raise RuntimeError("arr_state_unavailable")
-            api_key = Path(api_key_path).read_text(encoding="utf-8").strip()
-        except (OSError, UnicodeError, ValueError):
-            raise RuntimeError("arr_state_unavailable") from None
-        if not api_key or any(character in api_key for character in "\r\n\0"):
-            raise RuntimeError("arr_state_unavailable")
-
-        page = 1
-        total_records: int | None = None
-        while True:
-            query = urlencode(
-                {
-                    "page": page,
-                    "pageSize": page_size,
-                    "sortKey": "date",
-                    "sortDirection": "descending",
-                }
-            )
-            request = Request(
-                base_url.rstrip("/") + "/history?" + query,
-                headers={"X-Api-Key": api_key, "Accept": "application/json"},
-                method="GET",
-            )
-            try:
-                with urlopen(request, timeout=request_timeout) as response:
-                    payload = json.load(response)
-            except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
-                raise RuntimeError("arr_state_unavailable") from None
-            if not isinstance(payload, Mapping):
-                raise RuntimeError("arr_state_unavailable")
-            records = payload.get("records")
-            total = payload.get("totalRecords")
-            if (
-                not isinstance(records, list)
-                or not isinstance(total, int)
-                or isinstance(total, bool)
-                or total < 0
-            ):
-                raise RuntimeError("arr_state_unavailable")
-            if total_records is None:
-                total_records = total
-            elif total != total_records:
-                raise RuntimeError("arr_state_unavailable")
-            if any(not isinstance(record, Mapping) for record in records):
-                raise RuntimeError("arr_state_unavailable")
-            all_records.extend(records)
-            if not records:
-                if page * page_size < total_records:
-                    raise RuntimeError("arr_state_unavailable")
-                break
-            if page * page_size >= total_records:
-                break
-            page += 1
-            if page > 10000:
-                raise RuntimeError("arr_state_unavailable")
-
-    return build_import_path_map(all_records, library_roots)
-
-
 def build_cleanup_candidates(
     torrents: Sequence[Mapping[str, Any]],
     mappings: Any,
-    imported_paths: Mapping[str, str],
     *,
     staging_root: str,
     path_mapper: Callable[..., str],
@@ -472,25 +328,33 @@ def build_cleanup_candidates(
     if not isinstance(torrents, Sequence) or isinstance(torrents, (str, bytes)):
         return []
     source_path_counts: dict[str, int] = {}
-    inventory_valid = bool(torrents)
+    incomplete_source_roots: set[str] = set()
+    ownership_scope_unknown = not torrents
     for torrent in torrents:
         if not isinstance(torrent, Mapping):
-            inventory_valid = False
+            ownership_scope_unknown = True
             continue
         directory = torrent.get("download_directory")
         paths = torrent.get("file_paths")
+        directory_valid = (
+            isinstance(directory, str)
+            and directory.startswith("/")
+            and ".." not in directory.split("/")
+            and "\0" not in directory
+        )
+        if not directory_valid:
+            ownership_scope_unknown = True
+            continue
+
+        normalized_directory = posixpath.normpath(directory)
         if (
             torrent.get("file_paths_valid") is not True
-            or not isinstance(directory, str)
             or not isinstance(paths, list)
             or not paths
-            or not directory.startswith("/")
-            or ".." in directory.split("/")
-            or "\0" in directory
         ):
-            inventory_valid = False
+            incomplete_source_roots.add(normalized_directory)
+        if not isinstance(paths, list):
             continue
-        normalized_directory = posixpath.normpath(directory)
         for file_path in paths:
             if (
                 not isinstance(file_path, str)
@@ -499,7 +363,7 @@ def build_cleanup_candidates(
                 or ".." in file_path.split("/")
                 or "\0" in file_path
             ):
-                inventory_valid = False
+                incomplete_source_roots.add(normalized_directory)
                 continue
             source_path = posixpath.normpath(posixpath.join(normalized_directory, file_path))
             source_path_counts[source_path] = source_path_counts.get(source_path, 0) + 1
@@ -534,7 +398,6 @@ def build_cleanup_candidates(
             mapped = False
             staged_path = None
             remote_path = None
-            local_path = None
             source_size = file_sizes[index] if sizes_valid and index < len(file_sizes) else None
             source_identity = None
             owner_count = None
@@ -552,10 +415,9 @@ def build_cleanup_candidates(
                     source_identity = remote_path
                     owner_count = (
                         source_path_counts.get(remote_path, 0)
-                        if inventory_valid
+                        if not ownership_scope_unknown
                         else None
                     )
-                    local_path = imported_paths.get(staged_path)
                 except Exception:
                     mapped = False
             source_file.update(
@@ -563,11 +425,18 @@ def build_cleanup_candidates(
                     "mapped": mapped,
                     "source_mapping_verified": mapped,
                     "source_identity": source_identity,
-                    "source_ownership_verified": mapped and owner_count is not None,
+                    "source_ownership_verified": (
+                        mapped
+                        and owner_count is not None
+                        and not any(
+                            remote_path == incomplete_root
+                            or remote_path.startswith(f"{incomplete_root.rstrip('/')}/")
+                            for incomplete_root in incomplete_source_roots
+                        )
+                    ),
                     "source_owner_count": owner_count,
                     "staged_path": staged_path,
                     "remote_path": remote_path,
-                    "local_path": local_path,
                     "expected_size": source_size,
                     "expected_mtime_ns": None,
                     "local_match": False,
@@ -578,9 +447,9 @@ def build_cleanup_candidates(
 
         candidate["files"] = files
         candidate["torrent_id"] = torrent.get("id")
+        candidate["done_date"] = torrent.get("done_date")
         candidate["runtime_config_available"] = True
         candidate["rpc_available"] = True
-        candidate["arr_state_available"] = True
         candidate["remote_download_directory"] = directory
         candidate["remote_file_paths"] = list(file_paths) if isinstance(file_paths, list) else []
         candidates.append(candidate)
@@ -588,10 +457,10 @@ def build_cleanup_candidates(
     return candidates
 
 
-def _has_import_proof(candidate: Mapping[str, Any], proof: Any) -> bool:
-    if not isinstance(proof, ArrImportProof) or proof.status != "verified":
+def _has_staged_copy_proof(candidate: Mapping[str, Any], proof: Any) -> bool:
+    if not isinstance(proof, StagedCopyProof) or proof.status != "verified":
         return False
-    if not isinstance(proof.imported_paths, frozenset):
+    if not isinstance(proof.staged_paths, frozenset):
         return False
     files = candidate.get("files")
     if not isinstance(files, (list, tuple)) or not files:
@@ -600,36 +469,38 @@ def _has_import_proof(candidate: Mapping[str, Any], proof: Any) -> bool:
     for file_record in files:
         if not isinstance(file_record, Mapping):
             return False
-        path = file_record.get("local_path")
-        if not isinstance(path, str) or not path or "\0" in path:
+        path = file_record.get("staged_path")
+        if not isinstance(path, str) or not path.startswith("/") or "\0" in path:
             return False
         paths.append(path)
-    return set(paths).issubset(proof.imported_paths)
+    return set(paths).issubset(proof.staged_paths)
 
 
-def make_arr_import_prover(
+def make_staged_copy_prover(
     source_stat: Callable[[str], Mapping[str, Any] | None],
-) -> Callable[[Mapping[str, Any]], ArrImportProof]:
-    """Build an import proof only when each imported file matches its source."""
-    def prove(candidate: Mapping[str, Any]) -> ArrImportProof:
+    *,
+    staging_root: str | None = None,
+) -> Callable[[Mapping[str, Any]], StagedCopyProof]:
+    """Prove that every staged regular file matches its live seedbox source."""
+    def prove(candidate: Mapping[str, Any]) -> StagedCopyProof:
         files = candidate.get("files") if isinstance(candidate, Mapping) else None
         if not isinstance(files, (list, tuple)) or not files:
-            return ArrImportProof.unverified()
-        imported_paths = []
+            return StagedCopyProof.unverified()
+        staged_paths = []
         for file_record in files:
             if not isinstance(file_record, dict):
-                return ArrImportProof.unverified()
+                return StagedCopyProof.unverified()
             source_path = file_record.get("remote_path")
-            local_path = file_record.get("local_path")
+            staged_path = file_record.get("staged_path")
             expected_size = file_record.get("expected_size")
             if (
                 not isinstance(source_path, str)
                 or not source_path.startswith("/")
-                or not isinstance(local_path, str)
-                or not local_path.startswith("/")
+                or not isinstance(staged_path, str)
+                or not staged_path.startswith("/")
                 or not _valid_integer(expected_size, nonnegative=True)
             ):
-                return ArrImportProof.unverified()
+                return StagedCopyProof.unverified()
             try:
                 observed = source_stat(source_path)
             except Exception:
@@ -637,30 +508,40 @@ def make_arr_import_prover(
             if (
                 not isinstance(observed, Mapping)
                 or observed.get("regular_file") is not True
+                or not _valid_integer(observed.get("size"), nonnegative=True)
                 or observed.get("size") != expected_size
                 or not _valid_integer(observed.get("mtime_ns"))
             ):
-                return ArrImportProof.unverified()
+                return StagedCopyProof.unverified()
+            staged_observed = verify_local_staged_file(
+                file_record, staging_root=staging_root
+            )
+            if (
+                not isinstance(staged_observed, Mapping)
+                or staged_observed.get("regular_file") is not True
+                or staged_observed.get("size") != expected_size
+                or staged_observed.get("mtime_ns") != observed.get("mtime_ns")
+            ):
+                return StagedCopyProof.unverified()
             file_record["expected_mtime_ns"] = observed["mtime_ns"]
-            imported_paths.append(local_path)
-        return ArrImportProof.verified(imported_paths)
+            staged_paths.append(staged_path)
+        return StagedCopyProof.verified(staged_paths)
 
     return prove
 
 
-def verify_local_imported_file(
-    file_record: Mapping[str, Any], library_roots: Sequence[str]
+def _observe_local_regular_file(
+    path: Any, allowed_roots: Sequence[str]
 ) -> Mapping[str, Any] | None:
-    """Read-only size/mtime observation for one path from Arr import history."""
-    path = file_record.get("local_path") if isinstance(file_record, Mapping) else None
-    if not isinstance(path, str) or not _path_is_within(path, library_roots):
+    """Return read-only metadata for a regular, non-symlink file inside trusted roots."""
+    if not isinstance(path, str) or not _path_is_within(path, allowed_roots):
         return None
     try:
         path_object = Path(path)
         if path_object.is_symlink():
             return None
         resolved = path_object.resolve(strict=True)
-        if not _path_is_within(str(resolved), library_roots):
+        if not _path_is_within(str(resolved), allowed_roots):
             return None
         observed = os.lstat(resolved)
     except OSError:
@@ -670,6 +551,15 @@ def verify_local_imported_file(
         "size": observed.st_size,
         "mtime_ns": observed.st_mtime_ns,
     }
+
+
+def verify_local_staged_file(
+    file_record: Mapping[str, Any], *, staging_root: str | None = None
+) -> Mapping[str, Any] | None:
+    """Read-only metadata for one exact staged copy under the trusted stage root."""
+    path = file_record.get("staged_path") if isinstance(file_record, Mapping) else None
+    trusted_staging_root = STAGING_ROOT if staging_root is None else staging_root
+    return _observe_local_regular_file(path, [trusted_staging_root])
 
 
 def _path_counts(candidates: Sequence[Any]) -> dict[str, int]:
@@ -683,7 +573,7 @@ def _path_counts(candidates: Sequence[Any]) -> dict[str, int]:
         for file_record in files:
             if not isinstance(file_record, Mapping):
                 continue
-            path = file_record.get("local_path")
+            path = file_record.get("staged_path")
             if isinstance(path, str) and path and "\0" not in path:
                 normalized_path = os.path.normpath(path)
                 counts[normalized_path] = counts.get(normalized_path, 0) + 1
@@ -715,7 +605,7 @@ def _source_identity_counts(candidates: Sequence[Any]) -> dict[str, int]:
 def _source_ownership_reason(
     file_record: Mapping[str, Any], identity_counts: Mapping[str, int]
 ) -> str | None:
-    """Require explicit verified, unique ownership across torrent/library paths."""
+    """Require explicit verified, unique ownership of each remote source path."""
     identity = file_record.get("source_identity")
     owner_count = file_record.get("source_owner_count")
     if (
@@ -851,6 +741,7 @@ def _retention_preflight_reasons(candidate: Mapping[str, Any]) -> list[str]:
     preflight_reasons = {
         "incomplete_torrent",
         "below_retention_threshold",
+        "completion_time_unknown",
         "tracker_classification_unknown",
         "private_ratio_unavailable",
         "private_ratio_missing",
@@ -870,8 +761,8 @@ def build_cleanup_report(
     stage_succeeded: bool,
     candidates: Sequence[Mapping[str, Any]],
     *,
-    arr_import_prover: Callable[[Mapping[str, Any]], ArrImportProof],
-    local_file_verifier: Callable[[Mapping[str, Any]], Mapping[str, Any] | None],
+    staged_copy_prover: Callable[[Mapping[str, Any]], StagedCopyProof],
+    staged_file_verifier: Callable[[Mapping[str, Any]], Mapping[str, Any] | None],
 ) -> dict[str, Any]:
     """Return aggregate eligibility only; this function has no side effects."""
     candidate_count = len(candidates) if isinstance(candidates, Sequence) else 0
@@ -899,8 +790,6 @@ def build_cleanup_report(
             reasons = ["runtime_configuration_unavailable"]
         elif candidate.get("rpc_available") is not True:
             reasons = ["transmission_state_unavailable"]
-        elif candidate.get("arr_state_available") is not True:
-            reasons = ["arr_state_unavailable"]
         elif not _has_verified_source_mapping(candidate):
             reasons = ["source_mapping_unverified"]
         elif (
@@ -911,8 +800,8 @@ def build_cleanup_report(
             reasons = [source_ownership_reason]
         elif any(
             isinstance(file_record, Mapping)
-            and isinstance(file_record.get("local_path"), str)
-            and path_counts.get(os.path.normpath(file_record["local_path"]), 0) != 1
+            and isinstance(file_record.get("staged_path"), str)
+            and path_counts.get(os.path.normpath(file_record["staged_path"]), 0) != 1
             for file_record in candidate.get("files", [])
         ):
             reasons = ["shared_file_unsafe"]
@@ -920,12 +809,12 @@ def build_cleanup_report(
             reasons = preflight_reasons
         else:
             try:
-                proof = arr_import_prover(candidate)
+                proof = staged_copy_prover(candidate)
             except Exception:
-                proof = ArrImportProof.unverified()
+                proof = StagedCopyProof.unverified()
 
-            if not _has_import_proof(candidate, proof):
-                reasons = ["arr_import_unverified"]
+            if not _has_staged_copy_proof(candidate, proof):
+                reasons = ["staged_copy_unverified"]
             else:
                 candidate_with_proofs = dict(candidate)
                 verified_files = []
@@ -935,9 +824,9 @@ def build_cleanup_report(
                         verified_files.append(file_record)
                         continue
                     verified_file = dict(file_record)
-                    path = verified_file.get("local_path")
+                    path = verified_file.get("staged_path")
                     try:
-                        observation = local_file_verifier(verified_file)
+                        observation = staged_file_verifier(verified_file)
                     except Exception:
                         observation = None
                     verified_file["local_match"] = local_file_matches(
@@ -994,7 +883,7 @@ def _prepare_cleanup_candidates(
                     normalized_files.append(file_record)
                     continue
                 normalized_file = dict(file_record)
-                path = normalized_file.get("local_path")
+                path = normalized_file.get("staged_path")
                 if isinstance(path, str) and path and path_counts.get(os.path.normpath(path), 0) != 1:
                     normalized_file["shared_safe"] = False
                 identity = normalized_file.get("source_identity")
@@ -1017,8 +906,8 @@ def execute_cleanup(
     stage_succeeded: bool,
     candidates: Sequence[Mapping[str, Any]],
     *,
-    arr_import_prover: Callable[[Mapping[str, Any]], ArrImportProof],
-    local_file_verifier: Callable[[Mapping[str, Any]], Mapping[str, Any] | None],
+    staged_copy_prover: Callable[[Mapping[str, Any]], StagedCopyProof],
+    staged_file_verifier: Callable[[Mapping[str, Any]], Mapping[str, Any] | None],
     transmission_rpc: Any,
     apply: bool,
     revalidate_candidate: Callable[[Mapping[str, Any]], bool] | None = None,
@@ -1080,8 +969,8 @@ def execute_cleanup(
             report = build_cleanup_report(
                 stage_succeeded,
                 [candidate],
-                arr_import_prover=arr_import_prover,
-                local_file_verifier=local_file_verifier,
+                staged_copy_prover=staged_copy_prover,
+                staged_file_verifier=staged_file_verifier,
             )
             if report["eligible"] != 1:
                 counts["blocked"] += 1
@@ -1147,17 +1036,15 @@ def _runtime_unverified_report() -> dict[str, Any]:
         "blocked": 0,
         "decision": "ineligible",
         "runtime_configuration_status": "unverified",
-        "arr_import_status": "unverified",
+        "staged_copy_status": "unverified",
         "source_ownership_status": "unverified",
         "transmission_state": "unverified",
-        "arr_state_status": "unverified",
         "tracker_ratio_state": "unverified",
         "reasons": [
             "runtime_configuration_unavailable",
-            "arr_import_unverified",
+            "staged_copy_unverified",
             "source_ownership_unverified",
             "transmission_state_unavailable",
-            "arr_state_unavailable",
             "tracker_ratio_unavailable",
         ],
     }
@@ -1288,26 +1175,6 @@ def _probe_remote_disk_usage_from_runtime(
         return None
 
 
-def _read_arr_config(path: str) -> dict[str, Any]:
-    try:
-        config = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        raise RuntimeError("runtime_configuration_unavailable") from None
-    if not isinstance(config, dict):
-        raise RuntimeError("runtime_configuration_unavailable")
-    roots = config.get("libraryRoots")
-    apis = config.get("arrApis")
-    if (
-        not isinstance(roots, list)
-        or not roots
-        or any(not isinstance(root, str) or not root.startswith("/") or "\0" in root for root in roots)
-        or not isinstance(apis, list)
-        or not apis
-    ):
-        raise RuntimeError("runtime_configuration_unavailable")
-    return config
-
-
 def ack_stale_receipt_if_unlocked(
     staging: Any,
     queue_root: str | Path,
@@ -1383,7 +1250,6 @@ def _queue_has_receipt_files(queue_root: str | Path) -> bool:
 def run_runtime_cleanup(
     secret_paths: Mapping[str, str],
     ssh_key_path: str,
-    arr_config_path: str,
     *,
     ssh_executable: str,
     ssh_keygen_executable: str,
@@ -1396,7 +1262,7 @@ def run_runtime_cleanup(
     process_runner: Callable[..., Any] = subprocess.run,
     now_ns: int | None = None,
 ) -> dict[str, Any]:
-    """Read live state, prove staged Arr imports, and optionally clean the seedbox."""
+    """Read live state, prove Drlight staging copies, and optionally clean the seedbox."""
     if type(private_tracker_ratio_protection) is not bool:
         raise RuntimeError("runtime_configuration_unavailable")
     if now_ns is None:
@@ -1460,13 +1326,6 @@ def run_runtime_cleanup(
     ):
         raise RuntimeError("ssh_config_missing")
 
-    arr_config = _read_arr_config(arr_config_path)
-    library_roots = arr_config["libraryRoots"]
-    try:
-        imported_paths = fetch_arr_import_paths(arr_config["arrApis"], library_roots)
-    except Exception:
-        raise RuntimeError("arr_state_unavailable") from None
-
     tracker_classifier = None
     if not private_tracker_ratio_protection:
         # User-confirmed current state: no private-account trackers. Keep the
@@ -1518,7 +1377,6 @@ def run_runtime_cleanup(
     candidates = build_cleanup_candidates(
         torrents,
         mappings,
-        imported_paths,
         staging_root=staging_root,
         path_mapper=staging.map_remote_path_to_staging,
     )
@@ -1562,9 +1420,11 @@ def run_runtime_cleanup(
             ssh_host,
             process_runner=process_runner,
         )
-        arr_import_prover = make_arr_import_prover(source_stat)
-        local_file_verifier = lambda file_record: verify_local_imported_file(
-            file_record, library_roots
+        staged_copy_prover = make_staged_copy_prover(
+            source_stat, staging_root=staging_root
+        )
+        staged_file_verifier = lambda file_record: verify_local_staged_file(
+            file_record, staging_root=staging_root
         )
 
         def revalidate_candidate(previous: Mapping[str, Any]) -> bool:
@@ -1595,11 +1455,9 @@ def run_runtime_cleanup(
                 != expected_receipt.get("fingerprint")
             ):
                 return False
-            fresh_imported_paths = fetch_arr_import_paths(arr_config["arrApis"], library_roots)
             fresh_candidates = build_cleanup_candidates(
                 fresh_torrents,
                 mappings,
-                fresh_imported_paths,
                 staging_root=staging_root,
                 path_mapper=staging.map_remote_path_to_staging,
             )
@@ -1618,8 +1476,8 @@ def run_runtime_cleanup(
             report = build_cleanup_report(
                 True,
                 [current],
-                arr_import_prover=arr_import_prover,
-                local_file_verifier=local_file_verifier,
+                staged_copy_prover=staged_copy_prover,
+                staged_file_verifier=staged_file_verifier,
             )
             return report["eligible"] == 1
 
@@ -1645,8 +1503,8 @@ def run_runtime_cleanup(
         report = execute_cleanup(
             True,
             candidates,
-            arr_import_prover=arr_import_prover,
-            local_file_verifier=local_file_verifier,
+            staged_copy_prover=staged_copy_prover,
+            staged_file_verifier=staged_file_verifier,
             transmission_rpc=rpc,
             apply=apply,
             revalidate_candidate=revalidate_candidate if apply else None,
@@ -1732,7 +1590,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--rpc-password")
     parser.add_argument("--ssh")
     parser.add_argument("--ssh-keygen")
-    parser.add_argument("--arr-config")
     parser.add_argument("--remote-disk-capacity-bytes", type=int, default=REMOTE_DISK_CAPACITY_BYTES)
     parser.add_argument(
         "--remote-disk-warning-threshold-bytes",
@@ -1759,7 +1616,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.rpc_password,
                 args.ssh,
                 args.ssh_keygen,
-                args.arr_config,
             )
             if any(not value for value in required_paths):
                 raise RuntimeError("runtime_configuration_unavailable")
@@ -1789,7 +1645,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "rpc_password": args.rpc_password,
                 },
                 args.ssh_key,
-                args.arr_config,
                 ssh_executable=args.ssh,
                 ssh_keygen_executable=args.ssh_keygen,
                 ssh_port=args.ssh_port,
@@ -1805,7 +1660,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     except Exception as error:
         reason = str(error)
         safe_reasons = {
-            "arr_state_unavailable",
             "download_root_malformed",
             "download_root_missing",
             "rpc_password_missing",

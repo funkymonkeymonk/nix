@@ -105,7 +105,7 @@
       if name == "Opnix"
       then ["OPNIX_SERVICE_ACCOUNT_TOKEN" "TAILSCALE_OAUTH_CLIENT_ID" "TAILSCALE_OAUTH_CLIENT_SECRET" "defaults"]
       else if name == "MegamanX"
-      then ["MEGAMANX_SUDO_PASSWORD" "OPNIX_SERVICE_ACCOUNT_TOKEN" "TAILSCALE_OAUTH_CLIENT_ID" "TAILSCALE_OAUTH_CLIENT_SECRET" "defaults"]
+      then ["MEGAMANX_SUDO_PASSWORD" "OPNIX_SERVICE_ACCOUNT_TOKEN" "defaults"]
       else if name == "BuilderClients"
       then ["OPNIX_SERVICE_ACCOUNT_TOKEN" "defaults"]
       else ["defaults"];
@@ -138,20 +138,6 @@
     && (megamanxSudoPassword.providers or []) == ["opnix"]
     && (megamanxSudoPassword ? description)
     && !(megamanxSudoPassword ? value);
-  megamanxTailscaleOAuthReference = name: field: let
-    secret = (profiles.MegamanX or {}).${name} or {};
-  in
-    (secret.ref or {})
-    == {
-      item = "Tailscale Oauth";
-      inherit field;
-    }
-    && (secret.providers or []) == ["opnix"]
-    && (secret ? description)
-    && !(secret ? value);
-  megamanxTailscaleOAuthCredentialsAreReferenceOnly =
-    megamanxTailscaleOAuthReference "TAILSCALE_OAUTH_CLIENT_ID" "Client ID"
-    && megamanxTailscaleOAuthReference "TAILSCALE_OAUTH_CLIENT_SECRET" "Client secret";
   profilesHaveNoResolvedValuesOrCredentials =
     builtins.all
     (profile: let
@@ -198,7 +184,6 @@ in {
     ${assertResult "SecretSpec routes the MegamanX sudo profile through Opnix" (manifestExists && profileRoutesTo "MegamanX" "Opnix")}
     ${assertResult "Employee has no empty SecretSpec profile" (manifestExists && !(profiles ? Employee))}
     ${assertResult "MegamanX sudo password is referenced from Opnix without embedding a value" megamanxSudoPasswordIsReferenceOnly}
-    ${assertResult "MegamanX Tailscale OAuth credentials are Opnix references without embedded values" megamanxTailscaleOAuthCredentialsAreReferenceOnly}
     ${assertResult "SecretSpec providers contain only 1Password vault URIs" (manifestExists && providersAreUriOnly)}
     ${assertResult "SecretSpec profiles declare the expected Opnix and MegamanX fields" (manifestExists && profilesDeclareExpectedFields && profilesHaveNoResolvedValuesOrCredentials)}
     ${assertResult "Opnix service-account token is a reference-only field" opnixServiceAccountTokenIsReferenceOnly}

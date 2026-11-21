@@ -1,6 +1,7 @@
 # Home Manager module for pi-coding-agent
 # Manages pi configuration files in ~/.pi/agent/
 {
+  config,
   osConfig,
   lib,
   pkgs,
@@ -40,7 +41,9 @@ with lib; let
       };
     }
   );
-  allOpnixSecrets = opnixSecrets // opencodeGoOpnixSecrets // jevOpnixSecrets;
+  # These files live under the user's home and are created during the
+  # unprivileged Home Manager activation.
+  allOpnixSecrets = lib.mapAttrs (_: secret: secret // {owner = config.home.username;}) (opnixSecrets // opencodeGoOpnixSecrets // jevOpnixSecrets);
 
   # Build models config for pi v0.75.4+ schema
   # Maps our per-model options to the nested provider+models format pi expects
@@ -127,6 +130,15 @@ with lib; let
 
   # Core configuration files
   coreFiles = {
+    ".pi/agent/auth.json" = mkIf (cfg.opencodeGoOnePasswordItem != "") {
+      text = builtins.toJSON {
+        "opencode-go" = {
+          type = "api_key";
+          key = "!cat ~/${opencodeGoSecretPath}";
+        };
+      };
+      force = true;
+    };
     ".pi/agent/settings.json" = mkIf (settingsWithPackages != {}) {
       text = builtins.toJSON settingsWithPackages;
       force = true;
@@ -372,23 +384,5 @@ in {
       enable = true;
       secrets = allOpnixSecrets;
     };
-
-    # Configure Pi's native OpenCode Go provider without putting the API key in
-    # the Nix store or auth.json.
-    home.activation.piOpenCodeGoAuth = mkIf (cfg.opencodeGoOnePasswordItem != "") (lib.hm.dag.entryAfter ["installPackages"] ''
-      secret_file="$HOME/${opencodeGoSecretPath}"
-      auth_file="$HOME/.pi/agent/auth.json"
-      if [ -f "$secret_file" ]; then
-        mkdir -p "$HOME/.pi/agent"
-        if [ -f "$auth_file" ]; then
-          auth_input="$auth_file"
-        else
-          auth_input=/dev/null
-        fi
-        ${pkgs.jq}/bin/jq -s --arg key "!cat ~/.pi/agent/secrets/opencode-go-apikey" '(.[0] // {}) + {"opencode-go": {"type": "api_key", "key": $key}}' "$auth_input" > "$auth_file.tmp"
-        chmod 600 "$auth_file.tmp"
-        mv "$auth_file.tmp" "$auth_file"
-      fi
-    '');
   };
 }
