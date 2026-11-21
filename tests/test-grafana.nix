@@ -281,6 +281,12 @@ in {
         echo "FAIL: dashboard must query staging progress events"; exit 1
       fi
 
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("line_format \\\"{{.message}}\\\" | json") and contains("staging_progress"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard parses nested worker JSON messages: OK"
+      else
+        echo "FAIL: dashboard must parse worker JSON from journald message fields"; exit 1
+      fi
+
       if jq -e '[.. | objects | .expr? // empty] | any(contains("bytes_transferred") and contains("bytes_reused") and contains("files_reused") and contains("percent_complete") and contains("bytes_per_second") and contains("torrents_published") and contains("eta_seconds"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard exposes bytes-done and ETA fields: OK"
       else

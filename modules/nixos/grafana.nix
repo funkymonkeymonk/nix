@@ -234,7 +234,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="staging_progress" | line_format "torrents={{.torrents_published}}/{{.torrents_total}} files={{.files_transferred}}+{{.files_reused}} reused/{{.files_total}} bytes={{.bytes_transferred}}+{{.bytes_reused}} reused/{{.bytes_total}} percent={{.percent_complete}} rate={{.bytes_per_second}} eta={{.eta_seconds}} lag={{.time_behind_seconds}} unorderable={{.unorderable_completed_torrents}} receipts={{.receipts_created}}"'';
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | event="staging_progress" | line_format "torrents={{.torrents_published}}/{{.torrents_total}} files={{.files_transferred}}+{{.files_reused}} reused/{{.files_total}} bytes={{.bytes_transferred}}+{{.bytes_reused}} reused/{{.bytes_total}} percent={{.percent_complete}} rate={{.bytes_per_second}} eta={{.eta_seconds}} lag={{.time_behind_seconds}} unorderable={{.unorderable_completed_torrents}} receipts={{.receipts_created}}"'';
           }
         ];
       }
@@ -254,7 +254,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}} reasons={{.reasons}}"'';
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}} reasons={{.reasons}}"'';
           }
         ];
       }
@@ -275,7 +275,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | unwrap time_behind_seconds | __error__="" [24h])'';
+            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | unwrap time_behind_seconds | __error__="" [24h])'';
           }
         ];
       }
@@ -296,7 +296,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | unwrap time_behind_seconds | __error__="" [24h])'';
+            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | unwrap time_behind_seconds | __error__="" [24h])'';
           }
         ];
       }
@@ -353,7 +353,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="sync_run_summary" | line_format "stage={{.staging_status}} torrents={{.torrents_staged}}/{{.torrents_total}} failed={{.torrents_failed}} files={{.files_transferred}}+{{.files_reused}} reused bytes={{.bytes_transferred}}+{{.bytes_reused}} reused cleanup={{.cleanup_status}} result={{.run_status}} removed={{.cleanup_removed}} blocked={{.cleanup_blocked}} pending={{.pending_after_run}} reasons={{.cleanup_reasons}}"'';
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | event="sync_run_summary" | line_format "stage={{.staging_status}} torrents={{.torrents_staged}}/{{.torrents_total}} failed={{.torrents_failed}} files={{.files_transferred}}+{{.files_reused}} reused bytes={{.bytes_transferred}}+{{.bytes_reused}} reused cleanup={{.cleanup_status}} result={{.run_status}} removed={{.cleanup_removed}} blocked={{.cleanup_blocked}} pending={{.pending_after_run}} reasons={{.cleanup_reasons}}"'';
           }
         ];
       }
