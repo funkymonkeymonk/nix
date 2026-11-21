@@ -432,6 +432,33 @@ run_scoped_machine_operation() {
   "$secretspec_bin" run --profile "$profile" -- "$devenv_bin" machines "$operation" "$@"
 }
 
+emit_new_plan_id() {
+  local machine=$1
+  local marker=$2
+  local dotfile=${DEVENV_DOTFILE:-"$repo_root/.devenv"}
+  local plan_file plan_id plan_machine
+
+  plan_file=$(find "$dotfile/machine-plans" -type f -name plan.json -newer "$marker" -print 2>/dev/null \
+    | while IFS= read -r candidate; do
+        plan_machine=$(jq -er 'if type == "object" and (.machines | type == "object" and length == 1) then (.machines | keys[0]) else empty end' "$candidate" 2>/dev/null || true)
+        if [[ "$plan_machine" == "$machine" ]]; then
+          printf '%s\n' "$candidate"
+        fi
+      done \
+    | sort -r \
+    | head -n 1)
+  [[ -n "$plan_file" ]] || {
+    printf 'ERROR: machine plan completed without saving a single-machine plan for %s\n' "$machine" >&2
+    return 65
+  }
+  plan_id=$(basename "$(dirname "$plan_file")")
+  [[ "$plan_id" =~ ^plan-[A-Za-z0-9-]+$ ]] || {
+    printf 'ERROR: saved machine plan ID is malformed: %s\n' "$plan_id" >&2
+    return 65
+  }
+  printf 'planId=%s\n' "$plan_id"
+}
+
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_root"
 operation=${1:-}
@@ -479,7 +506,19 @@ case "$operation" in
     [[ $# -eq 1 ]] || fail "$operation requires exactly one machine name"
     machine=$1
     valid_machine_name "$machine" || fail 'machine name is malformed'
-    run_scoped_machine_operation "$operation" "$machine" "$machine"
+    if [[ "$operation" == plan ]]; then
+      plan_marker=$(mktemp "${TMPDIR:-/tmp}/machine-plan.XXXXXX")
+      if run_scoped_machine_operation "$operation" "$machine" "$machine"; then
+        emit_new_plan_id "$machine" "$plan_marker"
+      else
+        plan_status=$?
+        rm -f "$plan_marker"
+        exit "$plan_status"
+      fi
+      rm -f "$plan_marker"
+    else
+      run_scoped_machine_operation "$operation" "$machine" "$machine"
+    fi
     ;;
   deploy)
     [[ $# -ge 1 ]] || fail 'deploy requires one machine name'

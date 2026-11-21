@@ -16,6 +16,7 @@ from urllib.request import HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm
 
 BASE_TORRENT_FIELDS = (
     "id",
+    "name",
     "status",
     "doneDate",
     "secondsSeeding",
@@ -297,6 +298,7 @@ def normalize_torrent(
 
     return {
         "id": torrent_id,
+        "name": torrent.get("name") if isinstance(torrent.get("name"), str) else str(torrent_id),
         "done_date": done_date,
         "candidate": {
             "complete": complete,

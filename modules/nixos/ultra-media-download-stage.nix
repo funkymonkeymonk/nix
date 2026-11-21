@@ -22,6 +22,7 @@
   remoteDiskEnabled = remoteDiskConfig.enable;
   remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
   remoteDiskMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox.prom";
+  syncMetricsPath = "${remoteDiskMetricsDirectory}/ultra-media-sync.prom";
   remoteDiskArgs =
     (lib.optionalString remoteDiskEnabled "--remote-disk-monitoring ")
     + "--remote-disk-capacity-bytes ${toString remoteDiskConfig.capacityBytes} "
@@ -160,7 +161,8 @@ in {
         --ssh ${pkgs.openssh}/bin/ssh \
         --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
         --rsync ${pkgs.rsync}/bin/rsync \
-        --queue-root ${lib.escapeShellArg cleanupQueueRoot} \
+         --queue-root ${lib.escapeShellArg cleanupQueueRoot} \
+         --metrics-path ${lib.escapeShellArg syncMetricsPath} \
         ${lib.optionalString cleanupEnabled "--cleanup-enabled "}\
         ${lib.optionalString stageCfg.cleanup.privateTrackerRatioProtection.enable "--private-tracker-ratio-protection "}\
         ${remoteDiskArgs}
@@ -173,6 +175,8 @@ in {
       OnCalendar = "hourly";
       Persistent = false;
       RandomizedDelaySec = "5m";
+      AccuracySec = "1min";
+      DeferReactivation = true;
       Unit = "ultra-media-download-stage.service";
     };
   };
