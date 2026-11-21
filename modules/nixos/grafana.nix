@@ -275,7 +275,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | unwrap time_behind_seconds | __error__="" [24h])'';
+            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | event="staging_progress" | unwrap time_behind_seconds | __error__="" [24h])'';
           }
         ];
       }
@@ -296,7 +296,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | unwrap time_behind_seconds | __error__="" [24h])'';
+            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | event="staging_progress" | unwrap time_behind_seconds | __error__="" [24h])'';
           }
         ];
       }

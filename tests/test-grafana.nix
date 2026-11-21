@@ -341,6 +341,12 @@ in {
         echo "FAIL: dashboard must show oldest-first sync time behind"; exit 1
       fi
 
+      if jq -e '[.panels[] | select(.title == "Oldest unstaged completion age" or .title == "Sync time behind history") | .targets[]?.expr] | all(contains("event=\"staging_progress\"") and contains("unwrap time_behind_seconds"))' "$DASHBOARD" > /dev/null; then
+        echo "sync time panels restrict unwrapped values to staging progress events: OK"
+      else
+        echo "FAIL: sync time panels must filter to staging_progress before unwrapping time_behind_seconds"; exit 1
+      fi
+
       if jq -e '[.panels[] | select(.title == "Remote seedbox disk usage") | .targets[]? | select(.datasource.type? == "prometheus") | .expr] | any(contains("ultra_seedbox_storage_used_bytes") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard graphs account-level Ultra storage metrics: OK"
       else
