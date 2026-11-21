@@ -252,7 +252,6 @@ in {
             inherit (cfg) theme;
           };
         };
-
       }
       // (optionalAttrs (cfg.agentsMd != "") {
         ".config/opencode/AGENTS.md" = {

@@ -287,9 +287,13 @@
       diskoDisk = diskoDisks.main or {};
       diskoPartitions = (diskoDisk.content or {}).partitions or {};
       jellyfinMountRequirements = drlight.systemd.services.jellyfin.unitConfig.RequiresMountsFor or [];
-      expectedMediaManagerHomepageHrefs = builtins.sort builtins.lessThan (map
-        (app: "http://drlight.uaru-daggertooth.ts.net:${toString app.port}")
-        mediaManagementApps);
+      expectedMediaManagerHomepageHrefs = builtins.sort builtins.lessThan [
+        "https://bazarr.home.buildingbananas.com"
+        "https://lidarr.home.buildingbananas.com"
+        "https://mylar.home.buildingbananas.com"
+        "https://radarr.home.buildingbananas.com"
+        "https://sonarr.home.buildingbananas.com"
+      ];
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan (
         [
           "https://grafana.home.buildingbananas.com"
@@ -302,15 +306,34 @@
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
+        "bazarr.home.buildingbananas.com"
         "dashboard.home.buildingbananas.com"
         "grafana.home.buildingbananas.com"
         "jellyfin.home.buildingbananas.com"
+        "lidarr.home.buildingbananas.com"
+        "mylar.home.buildingbananas.com"
+        "radarr.home.buildingbananas.com"
+        "sonarr.home.buildingbananas.com"
       ];
-      expectedLocalCaddyApps = builtins.sort builtins.lessThan ["dashboard" "grafana" "jellyfin"];
+      expectedLocalCaddyApps = builtins.sort builtins.lessThan [
+        "bazarr"
+        "dashboard"
+        "grafana"
+        "jellyfin"
+        "lidarr"
+        "mylar3"
+        "radarr"
+        "sonarr"
+      ];
       expectedLocalCaddyUpstreams = {
+        bazarr = "http://127.0.0.1:6767";
         dashboard = "http://127.0.0.1:8082";
         grafana = "http://127.0.0.1:3000";
         jellyfin = "http://127.0.0.1:8096";
+        lidarr = "http://127.0.0.1:8686";
+        mylar3 = "http://127.0.0.1:8090";
+        radarr = "http://127.0.0.1:7878";
+        sonarr = "http://127.0.0.1:8989";
       };
       actualLocalCaddyUpstreams = lib.mapAttrs (_: app: app.upstream) (drlight.myConfig.caddy.apps or {});
       mediaManagementApps = [
@@ -584,8 +607,8 @@
 
         ${checkEqual "Homepage allows its Tailscale Serve hostname" "dashboard.home.buildingbananas.com,drlight.uaru-daggertooth.ts.net:8443" (drlight.services.homepage-dashboard.allowedHosts or null)}
         ${checkTrue "Homepage includes every enabled Caddy app" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedCaddyHomepageHrefs)}
-        ${checkTrue "Homepage links all five Arr apps directly over Tailscale" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedMediaManagerHomepageHrefs)}
-        ${checkEqual "Homepage includes Caddy apps and direct Tailscale media links" expectedLocalHomepageHrefs sortedHomepageHrefs}
+        ${checkTrue "Homepage links all five media apps through Caddy" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedMediaManagerHomepageHrefs)}
+        ${checkEqual "Homepage includes each service exactly once through canonical URLs" expectedLocalHomepageHrefs sortedHomepageHrefs}
         ${checkTrue "Homepage automatically includes a newly added Caddy app" (builtins.elem "https://synthetic.home.buildingbananas.com" syntheticHomepageHrefs)}
         ${checkEqual "Homepage preserves per-app native widget metadata" [
           {
@@ -597,9 +620,9 @@
         ${checkEqual "Grafana widget credentials come from systemd credentials" ["%d/grafana-username" "%d/grafana-password"] [grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_USERNAME or null grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_PASSWORD or null]}
         ${checkEqual "Homepage loads Grafana credential files through systemd" (builtins.sort builtins.lessThan ["grafana-username:/run/secrets/grafana-username" "grafana-password:/run/secrets/grafana-password"]) (builtins.sort builtins.lessThan grafanaHomepageCredentials)}
         ${checkEqual "Homepage exposes only local Jellyfin and Grafana" expectedLocalHomepageHrefs sortedHomepageHrefs}
-        ${checkEqual "Caddy routes only dashboard and local Jellyfin/Grafana" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
-        ${checkEqual "Caddy app configuration only includes dashboard and local Jellyfin/Grafana" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
-        ${checkEqual "Caddy proxies only to local Homepage, Grafana, and Jellyfin" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
+        ${checkEqual "Caddy routes all local services" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
+        ${checkEqual "Caddy app configuration includes all local services" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
+        ${checkEqual "Caddy proxies all services to local upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media presentation tests passed"
