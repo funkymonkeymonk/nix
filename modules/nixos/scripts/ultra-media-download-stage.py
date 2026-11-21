@@ -994,6 +994,24 @@ def torrent_operation_lock(
             os.close(descriptor)
 
 
+@contextmanager
+def stage_worker_lock(runtime_root: str | Path) -> Iterator[None]:
+    """Serialize complete sync workers, including manual invocations."""
+    lock_root = Path(runtime_root)
+    lock_root.mkdir(parents=True, mode=0o700, exist_ok=True)
+    lock_path = lock_root / "worker.lock"
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        with os.fdopen(descriptor, "r+") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            yield
+    finally:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+
+
 def cleanup_legacy_stage_workspaces(staging_root: str | Path) -> int:
     """Remove only unmanifested workspaces left by the pre-resume staging runner."""
     root = Path(staging_root).absolute()
@@ -1326,6 +1344,40 @@ def _stage_from_runtime_files(
     runtime_root: str | Path | None = None,
     cleanup_queue_root: str | Path | None = None,
 ) -> dict[str, int]:
+    worker_lock = stage_worker_lock(runtime_root) if runtime_root is not None else nullcontext()
+    try:
+        with worker_lock:
+            return _stage_from_runtime_files_locked(
+                secret_paths,
+                key_path,
+                ssh_port=ssh_port,
+                ssh_executable=ssh_executable,
+                ssh_keygen_executable=ssh_keygen_executable,
+                rsync_executable=rsync_executable,
+                process_runner=process_runner,
+                progress_runner=progress_runner,
+                staging_root=staging_root,
+                runtime_root=runtime_root,
+                cleanup_queue_root=cleanup_queue_root,
+            )
+    except BlockingIOError:
+        return {"status": "busy", "staged": 0, "failed": 0}
+
+
+def _stage_from_runtime_files_locked(
+    secret_paths: Mapping[str, str],
+    key_path: str,
+    *,
+    ssh_port: Any,
+    ssh_executable: str,
+    ssh_keygen_executable: str,
+    rsync_executable: str,
+    process_runner: Callable[..., Any],
+    progress_runner: Callable[[Sequence[str], Callable[[int], None]], None],
+    staging_root: str | Path,
+    runtime_root: str | Path | None,
+    cleanup_queue_root: str | Path | None,
+) -> dict[str, int]:
     try:
         rpc_url = _read_secret_file(secret_paths["rpc_url"])
         download_root = _read_secret_file(secret_paths["download_root"])
@@ -1337,10 +1389,10 @@ def _stage_from_runtime_files(
     except (KeyError, TypeError):
         raise StagingConfigurationError("credential_unavailable") from None
 
-    rpc_url, mappings = validate_staging_config(
-        rpc_url, download_root, rpc_username, rpc_password
-    )
     try:
+        rpc_url, mappings = validate_staging_config(
+            rpc_url, download_root, rpc_username, rpc_password
+        )
         port = normalize_ssh_port(ssh_port)
     except StagingConfigurationError:
         raise
@@ -1427,7 +1479,7 @@ def _stage_from_runtime_files(
                 staged_at_ns=time.time_ns(),
             )
 
-        return stage_completed_downloads(
+        result = stage_completed_downloads(
             torrents,
             mappings,
             transfer,
@@ -1436,6 +1488,7 @@ def _stage_from_runtime_files(
             source_stat=source_stat,
             on_torrent_staged=enqueue_staged_torrent if cleanup_queue_root is not None else None,
         )
+        return result
 
 
 def main(argv: Sequence[str] | None = None) -> int:

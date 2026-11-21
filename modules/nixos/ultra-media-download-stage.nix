@@ -173,6 +173,8 @@ in {
       OnCalendar = "hourly";
       Persistent = false;
       RandomizedDelaySec = "5m";
+      AccuracySec = "1min";
+      DeferReactivation = true;
       Unit = "ultra-media-download-stage.service";
     };
   };

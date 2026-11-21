@@ -3371,6 +3371,18 @@ class CleanupOrchestrationTests(unittest.TestCase):
 
 
 class SyncOrchestrationTests(unittest.TestCase):
+    def test_sync_cycle_skips_cleanup_when_stage_reports_busy(self):
+        sync = load_sync_module()
+        cleanup_called = []
+
+        result = sync.run_sync_cycle(
+            lambda: {"status": "busy", "staged": 0, "failed": 0},
+            lambda: cleanup_called.append(True),
+        )
+
+        self.assertEqual(cleanup_called, [])
+        self.assertEqual(result["summary"]["run_status"], "busy")
+
     def test_sync_cycle_stages_then_cleans_and_emits_aggregate_summary(self):
         sync = load_sync_module()
         events = []

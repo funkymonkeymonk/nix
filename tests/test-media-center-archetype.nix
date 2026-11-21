@@ -713,6 +713,7 @@
            ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
+           ${checkTrue "completed-download staging timer defers while its service is active" (ultraDownloadStageTimerConfig.DeferReactivation or false)}
            ${checkTrue "Drlight enables account-level seedbox disk monitoring" (ultraRemoteDiskConfig.enable or false)}
            ${checkEqual "seedbox capacity uses the configured decimal 4 TB" 4000000000000 (ultraRemoteDiskConfig.capacityBytes or null)}
            ${checkEqual "seedbox warning threshold uses decimal 3 TB" 3000000000000 (ultraRemoteDiskConfig.warningThresholdBytes or null)}

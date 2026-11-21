@@ -109,6 +109,17 @@ def run_sync_cycle(
     stage_result = stage_runner()
     if not isinstance(stage_result, Mapping):
         raise RuntimeError("staging_result_unavailable")
+    if stage_result.get("status") == "busy":
+        return {
+            "staging": dict(stage_result),
+            "cleanup": {"mode": "skipped"},
+            "summary": {
+                "event": "sync_run_summary",
+                "staging_status": "busy",
+                "cleanup_status": "skipped",
+                "run_status": "busy",
+            },
+        }
     cleanup_result = cleanup_runner()
     if not isinstance(cleanup_result, Mapping):
         raise RuntimeError("cleanup_result_unavailable")
