@@ -33,7 +33,7 @@ in {
       import os
       import xml.etree.ElementTree as ET
 
-      path = os.path.join(${lib.escapeShellArg config.services.jellyfin.configDir}, "system.xml")
+      path = os.path.join(${builtins.toJSON config.services.jellyfin.configDir}, "system.xml")
       try:
           tree = ET.parse(path)
           root = tree.getroot()

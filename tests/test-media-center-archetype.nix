@@ -769,6 +769,7 @@
            ${checkTrue "Nix prepares media folders after ZFS mount and before Jellyfin" (builtins.elem "zfs-mount.service" (mediaLibraryFoldersService.after or []) && builtins.elem "jellyfin.service" (mediaLibraryFoldersService.before or []) && builtins.elem "media-library-folders.service" (jellyfinService.after or []))}
             ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
             ${checkTrue "Jellyfin enables its native Prometheus metrics endpoint declaratively" (lib.hasInfix "EnableMetrics" jellyfinPreStart && lib.hasInfix "true" jellyfinPreStart)}
+            ${checkTrue "Jellyfin metrics pre-start script quotes its config path" (lib.hasInfix "os.path.join(\"/var/lib/jellyfin/config\"" jellyfinPreStart && !(lib.hasInfix "os.path.join(/var/lib/jellyfin/config" jellyfinPreStart))}
             ${checkTrue "Prometheus scrapes Jellyfin's native metrics endpoint" (lib.any (scrape: scrape.job_name == "jellyfin" && builtins.any (static: builtins.elem "127.0.0.1:8096" (static.targets or [])) (scrape.static_configs or [])) jellyfinScrapeConfigs)}
            ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
            ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
