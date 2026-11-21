@@ -450,6 +450,10 @@
         ];
         transformations = [
           {
+            id = "labelsToFields";
+            options = {mode = "columns";};
+          }
+          {
             id = "joinByField";
             options = {
               byField = "torrent_id";
