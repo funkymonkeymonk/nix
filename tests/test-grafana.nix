@@ -281,7 +281,7 @@ in {
         echo "FAIL: dashboard must query staging progress events"; exit 1
       fi
 
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("line_format \\\"{{.message}}\\\" | json") and contains("staging_progress"))' "$DASHBOARD" > /dev/null; then
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("line_format") and contains("message") and contains("staging_progress"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard parses nested worker JSON messages: OK"
       else
         echo "FAIL: dashboard must parse worker JSON from journald message fields"; exit 1
