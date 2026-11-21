@@ -1,25 +1,11 @@
-{
-  config,
-  lib,
-  ...
-}:
+{lib, ...}:
 with lib; let
-  caddyApps = config.myConfig.caddy.apps or {};
-  homeCaddyHosts =
-    mapAttrsToList
-    (_name: app: app.host)
-    (filterAttrs (_name: app: hasSuffix ".home.buildingbananas.com" app.host) caddyApps);
-  caddyRecords = map (host: "${host},100.89.187.92") homeCaddyHosts;
-  homeRecords =
-    caddyRecords
-    ++ [
-      # Zero still owns the Sunshine route in the home domain.
-      "sunshine.home.buildingbananas.com,100.71.97.28"
-    ];
+  # Route all private service names to Drlight's LAN address. Caddy provides
+  # the service-specific routing after DNS reaches this host.
+  homeRecords = ["*.home.buildingbananas.com,192.168.1.23"];
 in {
-  # Tailscale's restricted DNS route for home.buildingbananas.com points at
-  # Drlight. Resolve its Caddy app hostnames to Drlight's stable Tailscale IP,
-  # while preserving the existing Zero-hosted Sunshine route.
+  # Serve the private home zone locally. The router must delegate this zone to
+  # Drlight or advertise Drlight as a DNS server for LAN clients.
   services.dnsmasq = {
     enable = true;
     resolveLocalQueries = false;
@@ -29,7 +15,6 @@ in {
       no-resolv = true;
       domain-needed = true;
       server = [
-        "/home.buildingbananas.com/192.168.1.1"
         "100.100.100.100"
       ];
       host-record = homeRecords;

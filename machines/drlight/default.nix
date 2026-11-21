@@ -95,6 +95,51 @@ in {
           upstream = "http://127.0.0.1:8082";
           homepage.enable = false;
         };
+        apps.radarr = {
+          host = "radarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.radarr.settings.server.port}";
+          homepage = {
+            title = "Radarr";
+            group = "Media Management";
+            description = "Movie library manager";
+          };
+        };
+        apps.sonarr = {
+          host = "sonarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}";
+          homepage = {
+            title = "Sonarr";
+            group = "Media Management";
+            description = "TV series library manager";
+          };
+        };
+        apps.lidarr = {
+          host = "lidarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.lidarr.settings.server.port}";
+          homepage = {
+            title = "Lidarr";
+            group = "Media Management";
+            description = "Music library manager";
+          };
+        };
+        apps.mylar3 = {
+          host = "mylar.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.mylar3.port}";
+          homepage = {
+            title = "Mylar3";
+            group = "Media Management";
+            description = "Comic book library manager";
+          };
+        };
+        apps.bazarr = {
+          host = "bazarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.bazarr.settings.general.port}";
+          homepage = {
+            title = "Bazarr";
+            group = "Media Management";
+            description = "Subtitle manager";
+          };
+        };
       };
       onepassword = {
         enable = true;
