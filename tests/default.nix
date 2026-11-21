@@ -26,7 +26,6 @@
   testMotd = import ./test-motd.nix {inherit pkgs;};
   testSketchybarRemoved = import ./test-sketchybar-removed.nix {inherit pkgs;};
   testHomeManager = import ./test-home-manager.nix {inherit pkgs;};
-  testJjWorkspaceAccess = import ./test-jj-workspace-access.nix {inherit pkgs;};
   testAgentUser = import ./test-agent-user.nix {inherit pkgs;};
   testWorkspaceSwitch = import ./test-workspace-switch.nix {inherit pkgs;};
   testSwitchTask = import ./test-switch-task.nix {inherit pkgs;};
@@ -259,8 +258,6 @@ in
     # Home-manager module tests
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
-    opencode-jj-workspace-access-install = testHomeManager.opencodeWorkspaceAccessInstallTest;
-    opencode-jj-workspace-access = testJjWorkspaceAccess;
     opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
     opencode-secret-owner = testHomeManager.opencodeSecretOwnerTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
