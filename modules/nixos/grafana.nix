@@ -357,6 +357,107 @@
           }
         ];
       }
+      {
+        id = 13;
+        title = "Current sync state";
+        type = "stat";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 0;
+          y = 62;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_active{job="node",instance="drlight:9100"}'';
+            legendFormat = "active";
+          }
+        ];
+      }
+      {
+        id = 14;
+        title = "Sync queue progress";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 6;
+          y = 62;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrents_published{job="node",instance="drlight:9100"}'';
+            legendFormat = "published";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrents_total{job="node",instance="drlight:9100"}'';
+            legendFormat = "total";
+          }
+        ];
+      }
+      {
+        id = 15;
+        title = "Sync rate and overall ETA";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 12;
+          y = 62;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_bytes_per_second{job="node",instance="drlight:9100"}'';
+            legendFormat = "bytes/sec";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_eta_seconds{job="node",instance="drlight:9100"} >= 0'';
+            legendFormat = "ETA seconds";
+          }
+        ];
+      }
+      {
+        id = 16;
+        title = "Torrent queue: size, remaining, ETA";
+        type = "table";
+        gridPos = {
+          h = 12;
+          w = 24;
+          x = 0;
+          y = 68;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_total_bytes{job="node",instance="drlight:9100"}'';
+            legendFormat = "size";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_remaining_bytes{job="node",instance="drlight:9100"}'';
+            legendFormat = "remaining";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_eta_seconds{job="node",instance="drlight:9100"} >= 0'';
+            legendFormat = "ETA";
+          }
+        ];
+        transformations = [
+          {
+            id = "joinByField";
+            options = {
+              byField = "torrent_id";
+              mode = "outer";
+            };
+          }
+        ];
+      }
     ];
   });
 

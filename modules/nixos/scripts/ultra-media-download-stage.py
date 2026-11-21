@@ -25,6 +25,118 @@ import time
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
+
+
+def _prometheus_label(value: Any) -> str:
+    text = str(value)
+    return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
+def render_stage_metrics(
+    torrents: Sequence[Mapping[str, Any]],
+    *,
+    status: str,
+    torrents_published: int,
+    bytes_transferred: int,
+    bytes_reused: int,
+    bytes_per_second: float | None,
+    current_torrent_remaining_bytes: int | None,
+    sample_timestamp_seconds: int,
+) -> str:
+    """Render aggregate and current-queue sync metrics for Prometheus."""
+    published = max(0, torrents_published)
+    rate = bytes_per_second if isinstance(bytes_per_second, (int, float)) and bytes_per_second > 0 else None
+    rows: list[tuple[Mapping[str, Any], int | None, int | None]] = []
+    total_bytes = 0
+    remaining_bytes = 0
+    for index, torrent in enumerate(torrents):
+        total = torrent.get("total_bytes")
+        if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+            total = None
+        if total is not None:
+            total_bytes += total
+        if index < published:
+            remaining = 0
+        elif index == published:
+            remaining = current_torrent_remaining_bytes
+        else:
+            remaining = total
+        if remaining is not None:
+            remaining_bytes += max(0, remaining)
+        rows.append((torrent, total, remaining))
+
+    aggregate_eta = -1 if rate is None else math.ceil(remaining_bytes / rate)
+    lines = [
+        "# HELP ultra_media_sync_active Whether the sync worker is active.",
+        "# TYPE ultra_media_sync_active gauge",
+        f"ultra_media_sync_active {1 if status == 'running' else 0}",
+        "# HELP ultra_media_sync_status Current sync worker state.",
+        "# TYPE ultra_media_sync_status gauge",
+        f'ultra_media_sync_status{{state="{_prometheus_label(status)}"}} 1',
+        "# HELP ultra_media_sync_sample_timestamp_seconds Unix time of the snapshot.",
+        "# TYPE ultra_media_sync_sample_timestamp_seconds gauge",
+        f"ultra_media_sync_sample_timestamp_seconds {max(0, sample_timestamp_seconds)}",
+        "# HELP ultra_media_sync_torrents_total Torrents in the current sync queue.",
+        "# TYPE ultra_media_sync_torrents_total gauge",
+        f"ultra_media_sync_torrents_total {len(torrents)}",
+        "# HELP ultra_media_sync_torrents_published Torrents atomically published locally.",
+        "# TYPE ultra_media_sync_torrents_published gauge",
+        f"ultra_media_sync_torrents_published {published}",
+        "# HELP ultra_media_sync_bytes_total Bytes in the current sync queue.",
+        "# TYPE ultra_media_sync_bytes_total gauge",
+        f"ultra_media_sync_bytes_total {total_bytes}",
+        "# HELP ultra_media_sync_bytes_transferred Bytes transferred in the current run.",
+        "# TYPE ultra_media_sync_bytes_transferred gauge",
+        f"ultra_media_sync_bytes_transferred {max(0, bytes_transferred)}",
+        "# HELP ultra_media_sync_bytes_reused Bytes reused from existing verified staging files.",
+        "# TYPE ultra_media_sync_bytes_reused gauge",
+        f"ultra_media_sync_bytes_reused {max(0, bytes_reused)}",
+        "# HELP ultra_media_sync_bytes_remaining Bytes remaining in the current queue.",
+        "# TYPE ultra_media_sync_bytes_remaining gauge",
+        f"ultra_media_sync_bytes_remaining {remaining_bytes}",
+        "# HELP ultra_media_sync_bytes_per_second Current smoothed transfer rate.",
+        "# TYPE ultra_media_sync_bytes_per_second gauge",
+        f"ultra_media_sync_bytes_per_second {rate or 0}",
+        "# HELP ultra_media_sync_eta_seconds Estimated seconds until the queue is complete; -1 means unknown.",
+        "# TYPE ultra_media_sync_eta_seconds gauge",
+        f"ultra_media_sync_eta_seconds {aggregate_eta}",
+        "# HELP ultra_media_sync_torrent_total_bytes Bytes in one queued torrent.",
+        "# TYPE ultra_media_sync_torrent_total_bytes gauge",
+        "# HELP ultra_media_sync_torrent_remaining_bytes Bytes remaining in one queued torrent.",
+        "# TYPE ultra_media_sync_torrent_remaining_bytes gauge",
+        "# HELP ultra_media_sync_torrent_eta_seconds Estimated seconds until one queued torrent completes; -1 means unknown.",
+        "# TYPE ultra_media_sync_torrent_eta_seconds gauge",
+    ]
+    cumulative_remaining = 0
+    for position, (torrent, total, remaining) in enumerate(rows, 1):
+        labels = (
+            f'category="{_prometheus_label(torrent.get("category", "unknown"))}",'
+            f'queue_position="{position}",'
+            f'title="{_prometheus_label(torrent.get("title", "unknown"))}",'
+            f'torrent_id="{_prometheus_label(torrent.get("id", "unknown"))}"'
+        )
+        lines.append(f"ultra_media_sync_torrent_total_bytes{{{labels}}} {total if total is not None else -1}")
+        lines.append(f"ultra_media_sync_torrent_remaining_bytes{{{labels}}} {remaining if remaining is not None else -1}")
+        if remaining is None:
+            cumulative_remaining = -1
+        elif cumulative_remaining >= 0:
+            cumulative_remaining += remaining
+        eta = -1 if rate is None or cumulative_remaining < 0 else math.ceil(cumulative_remaining / rate)
+        lines.append(f"ultra_media_sync_torrent_eta_seconds{{{labels}}} {eta}")
+    return "\n".join(lines) + "\n"
+
+
+def write_stage_metrics_atomic(path: str | Path, content: str) -> None:
+    """Atomically replace a Prometheus snapshot without exposing partial output."""
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=destination.parent, prefix=f".{destination.name}.", delete=False) as temporary:
+        temporary.write(content)
+        temporary.flush()
+        os.fsync(temporary.fileno())
+        temporary_path = Path(temporary.name)
+    os.chmod(temporary_path, 0o640)
+    os.replace(temporary_path, destination)
 from urllib.parse import urlsplit
 
 from ultra_media_file_stat import make_remote_source_stat
@@ -1213,10 +1325,41 @@ def stage_completed_downloads(
     source_stat: Callable[[str], Mapping[str, Any] | None] | None = None,
     progress_reporter: StageProgressReporter | None = None,
     on_torrent_staged: Callable[[Mapping[str, Any]], None] | None = None,
+    metrics_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Copy each complete mapped torrent as an atomic, independently reportable unit."""
     plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
-    reporter = progress_reporter or StageProgressReporter(plan["totals"])
+    metric_queue = []
+    for planned in plan["torrents"]:
+        torrent = planned["torrent"]
+        sizes = [transfer.get("size_bytes") for transfer in planned["transfers"]]
+        total_bytes = sum(size for size in sizes if isinstance(size, int) and not isinstance(size, bool)) if all(size is not None for size in sizes) else None
+        download_directory = str(torrent.get("download_directory", ""))
+        category = next((part for part in reversed(download_directory.split("/")) if part), "unknown")
+        metric_queue.append({"id": planned["torrent_id"], "title": torrent.get("name", str(planned["torrent_id"])), "category": category, "total_bytes": total_bytes})
+    metric_state = {"current_remaining": metric_queue[0].get("total_bytes") if metric_queue else None}
+    reporter = progress_reporter
+    if reporter is None:
+        def emit_progress(event: Mapping[str, Any]) -> None:
+            StageProgressReporter._emit_json(event)
+            if metrics_path is not None:
+                write_stage_metrics_atomic(
+                    metrics_path,
+                    render_stage_metrics(
+                        metric_queue,
+                        status={
+                            "staging_failed": "failed",
+                            "staging_completed": "complete",
+                        }.get(event["event"], "running"),
+                        torrents_published=event["torrents_published"],
+                        bytes_transferred=event["bytes_transferred"],
+                        bytes_reused=event["bytes_reused"],
+                        bytes_per_second=event["bytes_per_second"],
+                        current_torrent_remaining_bytes=metric_state["current_remaining"],
+                        sample_timestamp_seconds=int(time.time()),
+                    ),
+                )
+        reporter = StageProgressReporter(plan["totals"], emit=emit_progress)
     reporter.set_completion_context(
         [planned["done_date"] for planned in plan["torrents"]],
         plan["counts"]["skipped_unknown_completion_time"],
@@ -1274,6 +1417,11 @@ def stage_completed_downloads(
                     counters["receipts_created"] += 1
             result["staged"] += 1
             counters["torrents_done"] += 1
+            metric_state["current_remaining"] = (
+                metric_queue[counters["torrents_done"]].get("total_bytes")
+                if counters["torrents_done"] < len(metric_queue)
+                else 0
+            )
             reporter.update(
                 **counters,
                 event="torrent_staged",
@@ -1343,6 +1491,7 @@ def _stage_from_runtime_files(
     staging_root: str | Path = STAGING_ROOT,
     runtime_root: str | Path | None = None,
     cleanup_queue_root: str | Path | None = None,
+    metrics_path: str | Path | None = None,
 ) -> dict[str, int]:
     worker_lock = stage_worker_lock(runtime_root) if runtime_root is not None else nullcontext()
     try:
@@ -1359,6 +1508,7 @@ def _stage_from_runtime_files(
                 staging_root=staging_root,
                 runtime_root=runtime_root,
                 cleanup_queue_root=cleanup_queue_root,
+                metrics_path=metrics_path,
             )
     except BlockingIOError:
         return {"status": "busy", "staged": 0, "failed": 0}
@@ -1377,6 +1527,7 @@ def _stage_from_runtime_files_locked(
     staging_root: str | Path,
     runtime_root: str | Path | None,
     cleanup_queue_root: str | Path | None,
+    metrics_path: str | Path | None,
 ) -> dict[str, int]:
     try:
         rpc_url = _read_secret_file(secret_paths["rpc_url"])
@@ -1487,6 +1638,7 @@ def _stage_from_runtime_files_locked(
             runtime_root=runtime_root,
             source_stat=source_stat,
             on_torrent_staged=enqueue_staged_torrent if cleanup_queue_root is not None else None,
+            metrics_path=metrics_path,
         )
         return result
 
@@ -1507,6 +1659,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--ssh-keygen", required=True)
     parser.add_argument("--rsync", required=True)
     parser.add_argument("--cleanup-queue-root")
+    parser.add_argument("--metrics-path")
     args = parser.parse_args(argv)
     if not args.stage_downloads:
         print("staging failed reason=operation_required", file=sys.stderr)
@@ -1531,6 +1684,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             rsync_executable=args.rsync,
             runtime_root=RUNTIME_ROOT,
             cleanup_queue_root=args.cleanup_queue_root,
+            metrics_path=args.metrics_path,
         )
     except StagingConfigurationError as error:
         print(f"staging failed reason={error.reason}", file=sys.stderr)

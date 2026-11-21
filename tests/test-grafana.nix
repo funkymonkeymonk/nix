@@ -347,6 +347,18 @@ in {
         echo "FAIL: remote disk dashboard must mark the 3 TB warning threshold"; exit 1
       fi
 
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "prometheus") | .expr] as $exprs | any($exprs[]; contains("ultra_media_sync_torrents_published") and contains("drlight:9100")) and any($exprs[]; contains("ultra_media_sync_torrents_total") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard shows live sync queue progress: OK"
+      else
+        echo "FAIL: dashboard must show live sync queue progress"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Torrent queue: size, remaining, ETA") | .targets[]?.expr] | all(contains("ultra_media_sync_torrent_total_bytes") or contains("ultra_media_sync_torrent_remaining_bytes") or contains("ultra_media_sync_torrent_eta_seconds"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard shows per-torrent size, remaining bytes, and ETA: OK"
+      else
+        echo "FAIL: dashboard must show per-torrent queue metrics"; exit 1
+      fi
+
       echo "Ultra download staging dashboard tests passed"
       touch $out
     '';

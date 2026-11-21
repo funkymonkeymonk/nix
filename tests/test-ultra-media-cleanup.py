@@ -112,6 +112,7 @@ class FakeTransmissionRPCServer:
             else:
                 torrent = {
                     "id": 17,
+                    "name": "Example release",
                     "status": 6,
                     "doneDate": 1_700_000_000,
                     "secondsSeeding": 86400,
@@ -182,6 +183,7 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
+        self.assertEqual(torrent["name"], "Example release")
         self.assertEqual(torrent["done_date"], 1_700_000_000)
         self.assertTrue(torrent["candidate"]["complete"])
         self.assertEqual(torrent["candidate"]["seeding_seconds"], 86400)
@@ -324,6 +326,7 @@ class TransmissionRPCTests(unittest.TestCase):
             set(request["arguments"]["fields"]),
             {
                 "id",
+                "name",
                 "status",
                 "isFinished",
                 "leftUntilDone",
@@ -1568,6 +1571,49 @@ class CleanupExecutionTests(unittest.TestCase):
 
 
 class DownloadStagingTests(unittest.TestCase):
+    def test_stage_metrics_render_queue_etAs_from_current_rate(self):
+        metrics = staging.render_stage_metrics(
+            [
+                {"id": 11, "title": "First", "category": "tv", "total_bytes": 100},
+                {"id": 12, "title": "Second", "category": "movie", "total_bytes": 300},
+            ],
+            status="running",
+            torrents_published=0,
+            bytes_transferred=0,
+            bytes_reused=0,
+            bytes_per_second=10,
+            current_torrent_remaining_bytes=100,
+            sample_timestamp_seconds=123,
+        )
+
+        self.assertIn('ultra_media_sync_active 1', metrics)
+        self.assertIn('ultra_media_sync_torrents_total 2', metrics)
+        self.assertIn('ultra_media_sync_torrent_eta_seconds{category="tv",queue_position="1",title="First",torrent_id="11"} 10', metrics)
+        self.assertIn('ultra_media_sync_torrent_eta_seconds{category="movie",queue_position="2",title="Second",torrent_id="12"} 40', metrics)
+
+    def test_stage_metrics_escape_labels_and_mark_unknown_eta(self):
+        metrics = staging.render_stage_metrics(
+            [{"id": 13, "title": 'A "quoted"\\name', "category": "tv", "total_bytes": None}],
+            status="running",
+            torrents_published=0,
+            bytes_transferred=0,
+            bytes_reused=0,
+            bytes_per_second=0,
+            current_torrent_remaining_bytes=None,
+            sample_timestamp_seconds=456,
+        )
+
+        self.assertIn('title="A \\\"quoted\\\"\\\\name"', metrics)
+        self.assertIn('ultra_media_sync_torrent_eta_seconds{category="tv",queue_position="1",title="A \\\"quoted\\\"\\\\name",torrent_id="13"} -1', metrics)
+
+    def test_stage_metrics_write_replaces_snapshot_atomically(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "sync.prom"
+            staging.write_stage_metrics_atomic(path, "old\\n")
+            staging.write_stage_metrics_atomic(path, "new\\n")
+            self.assertEqual(path.read_text(encoding="utf-8"), "new\\n")
+            self.assertFalse(list(Path(temporary_directory).glob(".sync.prom.*")))
+
     def test_stage_main_passes_private_queue_root_and_emits_json_summary(self):
         captured = {}
         result = {

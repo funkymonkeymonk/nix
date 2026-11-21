@@ -183,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ssh-keygen", required=True)
     parser.add_argument("--rsync", required=True)
     parser.add_argument("--queue-root", default="/var/lib/ultra-media/cleanup-queue")
+    parser.add_argument("--metrics-path", default="/run/ultra-media-metrics/ultra-media-sync.prom")
     parser.add_argument("--cleanup-enabled", action="store_true")
     parser.add_argument("--private-tracker-ratio-protection", action="store_true")
     parser.add_argument("--remote-disk-monitoring", action="store_true")
@@ -222,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
                 rsync_executable=args.rsync,
                 runtime_root=staging.RUNTIME_ROOT,
                 cleanup_queue_root=args.queue_root if args.cleanup_enabled else None,
+                metrics_path=args.metrics_path,
             )
             _emit_json({"event": "staging_run_result", **result})
             return result
