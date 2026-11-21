@@ -253,11 +253,6 @@ in {
           };
         };
 
-        # Global OpenCode plugins are discovered from ~/.config/opencode/plugin.
-        ".config/opencode/plugin/jj-workspace-access.js" = {
-          force = true;
-          source = ./opencode/jj-workspace-access.js;
-        };
       }
       // (optionalAttrs (cfg.agentsMd != "") {
         ".config/opencode/AGENTS.md" = {
