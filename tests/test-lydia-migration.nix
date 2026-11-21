@@ -80,7 +80,7 @@
     }
     echo "  Lydia workstation profile and SSH access: ✓"
 
-    # Pi clients use MegamanX's published Bifrost only when Tailscale is enabled.
+    # Pi clients fall back to their local Bifrost endpoints without Tailscale.
     ${
       let
         megamanx = self.darwinConfigurations.MegamanX.config;
@@ -92,14 +92,14 @@
       in
         if
           megamanx.myConfig.pi.models.bifrost.baseUrl
-          == "http://megamanx:8081/v1"
-          && zero.myConfig.pi.models.bifrost.baseUrl == "http://megamanx:8081/v1"
+          == "http://127.0.0.1:8081/v1"
+          && zero.myConfig.pi.models.bifrost.baseUrl == "http://127.0.0.1:8080/v1"
           && zero.myConfig.pi.models ? opencode-go
           && zero.myConfig.pi.settings.defaultProvider == "opencode-go"
           && megamanx.myConfig.pi.settings.defaultProvider == "opencode-go"
           && builtins.hasAttr discoveryExtension megamanx.home-manager.users.monkey.home.file
           && builtins.hasAttr metadataExtension megamanx.home-manager.users.monkey.home.file
-          && pkgs.lib.hasInfix "http://megamanx:8081/v1" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
+          && pkgs.lib.hasInfix "http://127.0.0.1:8081/v1" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
           && pkgs.lib.hasInfix "model-metadata.mjs" megamanx.home-manager.users.monkey.home.file.${discoveryExtension}.text
           && !(lydia.myConfig.tailscale.enable or false)
           && !(wweaver.myConfig.tailscale.enable or false)
@@ -137,7 +137,14 @@
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.owner == "monkey"
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.mode == "0600"
           && megamanx.services.onepassword-secrets.secrets.monkeyPiopencodeGoApiKey.path == "Users/monkey/.pi/agent/secrets/opencode-go-apikey"
-          && !(builtins.elem "retrieveOpnixSecrets" megamanx.home-manager.users.monkey.home.activation.piOpenCodeGoAuth.after)
+          && megamanx.home-manager.users.monkey.home.file.".pi/agent/auth.json".text
+          == builtins.toJSON {
+            "opencode-go" = {
+              type = "api_key";
+              key = "!cat ~/.pi/agent/secrets/opencode-go-apikey";
+            };
+          }
+          && !(megamanx.home-manager.users.monkey.home.activation ? piOpenCodeGoAuth)
           && megamanx.services.onepassword-secrets.enable
           && megamanx.myConfig.pi.pluginsSource != null
           && megamanx.myConfig.zellij.enable
@@ -147,14 +154,9 @@
           && megamanx.myConfig.omlx.maxConcurrentRequests == 4
           && megamanx.launchd.daemons ? omlx
           && !(megamanx.launchd.user.agents ? omlx)
-          && megamanx.services.tailscale.enable
-          && megamanx.myConfig.tailscale.authKeyTags == ["tag:home-lab"]
-          && !(megamanx.myConfig.tailscale ? authKeyMode)
-          && !(megamanx.myConfig.tailscale ? authKeyOpnixItem)
-          && !(megamanx.myConfig.onepassword.secrets ? tailscaleAuthKey)
-          && megamanx.launchd.daemons ? tailscaled
-          && megamanx.launchd.daemons.tailscaled.serviceConfig.KeepAlive
-          && (megamanx.myConfig.nodeExporter.listenOnTailscale or false)
+          && !(megamanx.services.tailscale.enable or false)
+          && !(megamanx.launchd.daemons ? tailscaled)
+          && !(megamanx.myConfig.nodeExporter.listenOnTailscale or false)
           && (megamanx.myConfig.vector.enable or false)
           && megamanx.myConfig.collector.destinationHostname == "drlight"
           && (megamanx.myConfig.vector.hostLabel or "") == "MegamanX"
@@ -165,11 +167,8 @@
           && megamanx.myConfig.bifrost.upstreams."opencode-go".apiKeyFile == ".pi/agent/secrets/opencode-go-apikey"
           && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".contextLength == 128000
           && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".maxOutputTokens == 30720
-          && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).port or null) == 8081
-          && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).target or null) == "http://127.0.0.1:8081"
-          && (((megamanx.myConfig.tailscale.serve or {}).bifrost or {}).readinessUrl or null) == "http://127.0.0.1:8081/v1/models"
-          && builtins.hasAttr "tailscale-serve-bifrost" megamanx.launchd.daemons
-          && !(builtins.hasAttr "bifrost-tailscale-serve" megamanx.launchd.daemons)
+          && (megamanx.myConfig.tailscale.serve or {}) == {}
+          && !(builtins.hasAttr "tailscale-serve-bifrost" megamanx.launchd.daemons)
           && !(megamanx.myConfig.prometheus.enable or false)
           && !(megamanx.launchd.daemons ? prometheus)
           && megamanx.myConfig.nodeExporter.enable
@@ -185,6 +184,18 @@
         else ''echo "FAIL: MegamanX should be a minimal remotely accessible headless server"; exit 1''
     }
     echo "  MegamanX: headless inference server without Temporal ✓"
+
+    ${
+      let
+        opnixService = self.darwinConfigurations.MegamanX.config.launchd.daemons.opnix-secrets.serviceConfig;
+      in
+        if
+          (opnixService.RunAtLoad or false)
+          && (opnixService.KeepAlive or null) == false
+        then ""
+        else ''echo "FAIL: MegamanX Opnix must not restart after a failed secret resolution"; exit 1''
+    }
+    echo "  MegamanX Opnix runs at load without failure restarts ✓"
 
     ${
       let

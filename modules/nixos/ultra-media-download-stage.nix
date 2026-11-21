@@ -14,15 +14,19 @@
   rpcPasswordPath = "/run/secrets/ultra-media-stage-rpc-password";
   stagingRoot = "/srv/media/.arr-staging";
   cleanupQueueRoot = "/var/lib/ultra-media/cleanup-queue";
-  cleanupQueueArgument = lib.optionalString cleanupEnabled "--cleanup-queue-root ${lib.escapeShellArg cleanupQueueRoot} ";
   sshPort = 22;
   stageCfg = config.myConfig.ultraMediaDownloadStage;
   stageServices = ["ultra-media-download-stage"];
-  cleanupServices = ["ultra-media-cleanup"];
   cleanupEnabled = stageCfg.cleanup.enable or false;
   remoteDiskConfig = stageCfg.remoteDisk;
   remoteDiskEnabled = remoteDiskConfig.enable;
   remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
+  remoteDiskMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox.prom";
+  remoteDiskArgs =
+    (lib.optionalString remoteDiskEnabled "--remote-disk-monitoring ")
+    + "--remote-disk-capacity-bytes ${toString remoteDiskConfig.capacityBytes} "
+    + "--remote-disk-warning-threshold-bytes ${toString remoteDiskConfig.warningThresholdBytes} "
+    + "--remote-disk-metrics-path ${lib.escapeShellArg remoteDiskMetricsPath}";
   arrSyncServices = [
     "radarr-media-config-sync"
     "sonarr-media-config-sync"
@@ -33,23 +37,22 @@
     mode = "0400";
     owner = "ultra-sync";
     group = "users";
-    services = stageServices ++ lib.optionals cleanupEnabled cleanupServices;
+    services = stageServices;
   };
   mkSharedSecret = reference: path: {
     inherit reference path;
     mode = "0440";
     owner = "root";
     group = "media-management-secrets";
-    services = stageServices ++ lib.optionals cleanupEnabled cleanupServices ++ arrSyncServices;
+    services = stageServices ++ arrSyncServices;
   };
 in {
   imports = [
-    ./ultra-media-cleanup.nix
     ({lib, ...}: {
       options.myConfig.ultraMediaDownloadStage = {
         enable = lib.mkEnableOption "completed Ultra download staging timer";
         cleanup = {
-          enable = lib.mkEnableOption "automatic Ultra seedbox cleanup after verified local imports";
+          enable = lib.mkEnableOption "remove retention-eligible seedbox torrents after verified staging";
           privateTrackerRatioProtection.enable = lib.mkEnableOption "future private-tracker account-ratio cleanup gate (unknown trackers fail closed)";
         };
         remoteDisk = {
@@ -86,7 +89,7 @@ in {
   assertions = [
     {
       assertion = !remoteDiskEnabled || cleanupEnabled;
-      message = "Ultra remote disk monitoring requires the cleanup timer to be enabled";
+      message = "Ultra remote disk monitoring requires automatic cleanup to be enabled";
     }
     {
       assertion = !remoteDiskEnabled || remoteDiskConfig.warningThresholdBytes <= remoteDiskConfig.capacityBytes;
@@ -115,7 +118,7 @@ in {
   };
 
   systemd.services.ultra-media-download-stage = {
-    description = "Stage completed Transmission payloads for local Arr imports";
+    description = "Sync completed downloads to Drlight and clean retention-eligible seedbox torrents";
     after = ["network-online.target" "zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"];
     wants = ["network-online.target"];
     requires = ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"];
@@ -127,22 +130,24 @@ in {
       Type = "exec";
       User = "ultra-sync";
       Group = "users";
-      SupplementaryGroups = ["media-management-secrets"];
+      SupplementaryGroups = ["media-management-secrets"] ++ lib.optionals remoteDiskEnabled ["ultra-media-metrics"];
       UMask = "0002";
       ProtectSystem = "strict";
+      ProtectHome = true;
+      NoNewPrivileges = true;
+      RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
       RuntimeDirectory = "ultra-media";
       RuntimeDirectoryMode = "0700";
       RuntimeDirectoryPreserve = "yes";
       StateDirectory = "ultra-media";
       StateDirectoryMode = "0700";
-      ReadWritePaths = [stagingRoot "/run/ultra-media"];
+      ReadWritePaths = [stagingRoot "/run/ultra-media"] ++ lib.optionals remoteDiskEnabled [remoteDiskMetricsDirectory];
     };
     environment.TMPDIR = "/run/ultra-media";
     script = ''
       set -euo pipefail
       export PYTHONPATH=${./scripts}
-      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-download-stage.py} \
-        --stage-downloads \
+      exec ${pkgs.python3}/bin/python ${./scripts/ultra-media-sync.py} \
         --rpc-url ${lib.escapeShellArg rpcUrlPath} \
         --download-root ${lib.escapeShellArg downloadRootPath} \
         --ssh-host ${lib.escapeShellArg hostPath} \
@@ -154,7 +159,11 @@ in {
         --rpc-password ${lib.escapeShellArg rpcPasswordPath} \
         --ssh ${pkgs.openssh}/bin/ssh \
         --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
-        ${cleanupQueueArgument}--rsync ${pkgs.rsync}/bin/rsync
+        --rsync ${pkgs.rsync}/bin/rsync \
+        --queue-root ${lib.escapeShellArg cleanupQueueRoot} \
+        ${lib.optionalString cleanupEnabled "--cleanup-enabled "}\
+        ${lib.optionalString stageCfg.cleanup.privateTrackerRatioProtection.enable "--private-tracker-ratio-protection "}\
+        ${remoteDiskArgs}
     '';
   };
 

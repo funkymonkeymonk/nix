@@ -103,7 +103,7 @@
     panels = [
       {
         id = 1;
-        title = "Recent rsync logs";
+        title = "Recent sync and cleanup JSON logs";
         type = "logs";
         gridPos = {
           h = 10;
@@ -164,7 +164,7 @@
       }
       {
         id = 4;
-        title = "Rsync log activity (5m)";
+        title = "Sync worker log activity (5m)";
         type = "timeseries";
         gridPos = {
           h = 6;
@@ -240,7 +240,7 @@
       }
       {
         id = 8;
-        title = "Per-torrent cleanup queue";
+        title = "Cleanup queue and removal results";
         type = "logs";
         gridPos = {
           h = 8;
@@ -254,7 +254,7 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''{host="drlight",service="ultra-media-cleanup-start"} | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}}"'';
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}} reasons={{.reasons}}"'';
           }
         ];
       }
@@ -337,6 +337,26 @@
           }
         ];
       }
+      {
+        id = 12;
+        title = "Combined sync and cleanup run summary";
+        type = "logs";
+        gridPos = {
+          h = 8;
+          w = 24;
+          x = 0;
+          y = 54;
+        };
+        targets = [
+          {
+            datasource = {
+              type = "loki";
+              uid = lokiDatasourceUid;
+            };
+            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="sync_run_summary" | line_format "stage={{.staging_status}} torrents={{.torrents_staged}}/{{.torrents_total}} failed={{.torrents_failed}} files={{.files_transferred}}+{{.files_reused}} reused bytes={{.bytes_transferred}}+{{.bytes_reused}} reused cleanup={{.cleanup_status}} result={{.run_status}} removed={{.cleanup_removed}} blocked={{.cleanup_blocked}} pending={{.pending_after_run}} reasons={{.cleanup_reasons}}"'';
+          }
+        ];
+      }
     ];
   });
 
@@ -351,7 +371,7 @@
         rules = [
           {
             uid = "ultra-media-sync-failure";
-            title = "Ultra download staging failed";
+            title = "Ultra sync and cleanup failed";
             condition = "A";
             data = [
               {
@@ -380,8 +400,8 @@
             execErrState = "Error";
             for = "0s";
             annotations = {
-              summary = "Ultra download staging failed on drlight";
-              description = "systemd reported JOB_RESULT=failed for ultra-media-download-stage.service. See the Ultra Download Staging dashboard for logs.";
+              summary = "Ultra sync and cleanup failed on drlight";
+              description = "systemd reported JOB_RESULT=failed for ultra-media-download-stage.service. See the Ultra Download Staging dashboard for the JSON run summary.";
             };
             labels = {
               severity = "critical";

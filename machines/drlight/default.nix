@@ -17,6 +17,22 @@ in {
   boot.zfs.forceImportRoot = false;
   boot.zfs.forceImportAll = false;
 
+  # Drlight is the Tailscale gateway. Keep tailnet-only service ports
+  # reachable from the physical home LAN without opening them globally.
+  networking.firewall.interfaces.eno1 = {
+    allowedTCPPorts = [
+      53
+      config.myConfig.loki.port
+      config.services.radarr.settings.server.port
+      config.services.sonarr.settings.server.port
+      config.services.lidarr.settings.server.port
+      config.services.bazarr.settings.general.port
+      config.services.mylar3.port
+      config.myConfig.nodeExporter.port
+    ];
+    allowedUDPPorts = [53];
+  };
+
   # Disko provisions the Patriot OS disk and Samsung NVMe cache. The existing
   # media ZFS mirror remains outside the Disko layout.
 
@@ -28,6 +44,7 @@ in {
     mkUser "monkey" "me@willweaver.dev"
     // {
       roles.developer.enable = true;
+      nodeExporter.openFirewallInterfaces = ["tailscale0" "eno1"];
       ultraMediaDownloadStage = {
         enable = true;
         cleanup = {
