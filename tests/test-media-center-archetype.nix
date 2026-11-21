@@ -161,6 +161,7 @@
       nodeExporterExtraFlags = drlight.services.prometheus.exporters.node.extraFlags or [];
       nodeExporterExtraGroups = drlight.users.users.node-exporter.extraGroups or [];
       ultraPrometheusRules = builtins.concatStringsSep "\n" (drlight.services.prometheus.rules or []);
+      jellyfinScrapeConfigs = builtins.filter (scrape: scrape.job_name == "jellyfin") (drlight.services.prometheus.scrapeConfigs or []);
       ultraMetricsTmpfiles = drlight.systemd.tmpfiles.rules or [];
       ultraStageSecretNames = [
         "ultraMediaStageHost"
@@ -275,6 +276,7 @@
       localStorageFilesystem = drlight.fileSystems."/srv/local" or {};
       jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
       jellyfinService = drlight.systemd.services.jellyfin or {};
+      jellyfinPreStart = drlight.systemd.services.jellyfin.preStart or "";
       mediaLibraryFoldersService = drlight.systemd.services.media-library-folders or {};
       mediaLibraryFoldersScript = mediaLibraryFoldersService.script or "";
       diskoDevices = (drlight.disko or {}).devices or {};
@@ -765,7 +767,9 @@
            ${checkTrue "Nix prepares the six media folders including comics" (builtins.all (path: lib.hasInfix path mediaLibraryFoldersScript) ["/srv/media/audiobooks" "/srv/media/books" "/srv/media/comics" "/srv/media/movies" "/srv/media/music" "/srv/media/shows"])}
            ${checkFalse "Nix does not create a Podcasts folder" (lib.hasInfix "/srv/media/podcasts" mediaLibraryFoldersScript)}
            ${checkTrue "Nix prepares media folders after ZFS mount and before Jellyfin" (builtins.elem "zfs-mount.service" (mediaLibraryFoldersService.after or []) && builtins.elem "jellyfin.service" (mediaLibraryFoldersService.before or []) && builtins.elem "media-library-folders.service" (jellyfinService.after or []))}
-           ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
+            ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
+            ${checkTrue "Jellyfin enables its native Prometheus metrics endpoint declaratively" (lib.hasInfix "EnableMetrics" jellyfinPreStart && lib.hasInfix "true" jellyfinPreStart)}
+            ${checkTrue "Prometheus scrapes Jellyfin's native metrics endpoint" (lib.any (scrape: scrape.job_name == "jellyfin" && builtins.any (static: builtins.elem "127.0.0.1:8096" (static.targets or [])) (scrape.static_configs or [])) jellyfinScrapeConfigs)}
            ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
            ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
            ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
