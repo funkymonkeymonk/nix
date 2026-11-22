@@ -156,10 +156,13 @@ _media_status_spec = importlib.util.spec_from_file_location(
 )
 if _media_status_spec is not None and _media_status_spec.loader is not None:
     _media_status = importlib.util.module_from_spec(_media_status_spec)
-    _media_status_spec.loader.exec_module(_media_status)
-    ArrClient = _media_status.ArrClient
-    JellyfinClient = _media_status.JellyfinClient
-    collect_statuses = _media_status.collect_statuses
+    try:
+        _media_status_spec.loader.exec_module(_media_status)
+        ArrClient = _media_status.ArrClient
+        JellyfinClient = _media_status.JellyfinClient
+        collect_statuses = _media_status.collect_statuses
+    except OSError:
+        ArrClient = JellyfinClient = collect_statuses = None
 else:
     ArrClient = JellyfinClient = collect_statuses = None
 
