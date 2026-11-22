@@ -154,13 +154,14 @@ from ultra_media_file_stat import make_remote_source_stat
 _media_status_spec = importlib.util.spec_from_file_location(
     "ultra_media_library_status", Path(__file__).with_name("media-library-status.py")
 )
-if _media_status_spec is None or _media_status_spec.loader is None:
-    raise RuntimeError("runtime_dependency_unavailable")
-_media_status = importlib.util.module_from_spec(_media_status_spec)
-_media_status_spec.loader.exec_module(_media_status)
-ArrClient = _media_status.ArrClient
-JellyfinClient = _media_status.JellyfinClient
-collect_statuses = _media_status.collect_statuses
+if _media_status_spec is not None and _media_status_spec.loader is not None:
+    _media_status = importlib.util.module_from_spec(_media_status_spec)
+    _media_status_spec.loader.exec_module(_media_status)
+    ArrClient = _media_status.ArrClient
+    JellyfinClient = _media_status.JellyfinClient
+    collect_statuses = _media_status.collect_statuses
+else:
+    ArrClient = JellyfinClient = collect_statuses = None
 
 
 STAGING_ROOT = "/srv/media/.arr-staging"
@@ -1636,7 +1637,7 @@ def _stage_from_runtime_files_locked(
             raise StagingConfigurationError("rpc_unavailable") from None
 
         library_statuses = {}
-        if library_status_config:
+        if library_status_config and collect_statuses is not None:
             try:
                 arr_clients = [
                     ArrClient(library_status_config[name], _read_secret_file(secret_paths[key]))
