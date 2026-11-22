@@ -38,7 +38,7 @@
     "sonarr-media-config-sync"
     "lidarr-media-config-sync"
   ];
-  mediaStatusServices = arrSyncServices ++ ["radarr-media-api-key" "sonarr-media-api-key" "lidarr-media-api-key"];
+  mediaStatusServices = map (service: "${service}.service") (arrSyncServices ++ ["radarr-media-api-key" "sonarr-media-api-key" "lidarr-media-api-key"]);
   mkSecret = reference: path: {
     inherit reference path;
     mode = "0400";
