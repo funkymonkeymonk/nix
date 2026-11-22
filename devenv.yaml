@@ -1,3 +1,4 @@
+---
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
 inputs:
   nixpkgs:
@@ -47,6 +48,9 @@ inputs:
   personal-skills:
     url: github:funkymonkeymonk/skills
     flake: false
+  grafana-skills:
+    url: github:grafana/skills
+    flake: false
   zellij-pane-tracker:
     url: github:funkymonkeymonk/zellij-pane-tracker/7c8df56c94ad2a9f80d5a3fbfb0e8bfe5f3e2f89
   opnix:
@@ -54,6 +58,5 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
-
 secretspec:
   enable: false
