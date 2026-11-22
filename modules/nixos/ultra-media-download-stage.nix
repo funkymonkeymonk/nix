@@ -27,7 +27,7 @@
   radarrUrl = "http://127.0.0.1:${toString config.services.radarr.settings.server.port}/api/v3";
   sonarrUrl = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}/api/v3";
   lidarrUrl = "http://127.0.0.1:${toString config.services.lidarr.settings.server.port}/api/v1";
-  jellyfinUrl = "http://127.0.0.1:${toString config.services.jellyfin.port}";
+  jellyfinUrl = "http://127.0.0.1:8096";
   remoteDiskArgs =
     (lib.optionalString remoteDiskEnabled "--remote-disk-monitoring ")
     + "--remote-disk-capacity-bytes ${toString remoteDiskConfig.capacityBytes} "
