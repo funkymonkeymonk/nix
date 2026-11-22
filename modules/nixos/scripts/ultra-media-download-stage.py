@@ -8,6 +8,7 @@ per-torrent and remote-path details.
 import argparse
 import fcntl
 import hashlib
+import importlib.util
 import ipaddress
 import json
 import math
@@ -42,6 +43,7 @@ def render_stage_metrics(
     bytes_per_second: float | None,
     current_torrent_remaining_bytes: int | None,
     sample_timestamp_seconds: int,
+    library_statuses: Mapping[str, tuple[int, int]] | None = None,
 ) -> str:
     """Render aggregate and current-queue sync metrics for Prometheus."""
     published = max(0, torrents_published)
@@ -106,6 +108,10 @@ def render_stage_metrics(
         "# TYPE ultra_media_sync_torrent_remaining_bytes gauge",
         "# HELP ultra_media_sync_torrent_eta_seconds Estimated seconds until one queued torrent completes; -1 means unknown.",
         "# TYPE ultra_media_sync_torrent_eta_seconds gauge",
+        "# HELP ultra_media_sync_torrent_imported Whether Arr imported one queued torrent; -1 means unavailable.",
+        "# TYPE ultra_media_sync_torrent_imported gauge",
+        "# HELP ultra_media_sync_torrent_jellyfin Whether Jellyfin contains one queued title; -1 means unavailable.",
+        "# TYPE ultra_media_sync_torrent_jellyfin gauge",
     ]
     cumulative_remaining = 0
     for position, (torrent, total, remaining) in enumerate(rows, 1):
@@ -123,6 +129,11 @@ def render_stage_metrics(
             cumulative_remaining += remaining
         eta = -1 if rate is None or cumulative_remaining < 0 else math.ceil(cumulative_remaining / rate)
         lines.append(f"ultra_media_sync_torrent_eta_seconds{{{labels}}} {eta}")
+        imported, jellyfin = (library_statuses or {}).get(
+            str(torrent.get("id", "")), (-1, -1)
+        )
+        lines.append(f"ultra_media_sync_torrent_imported{{{labels}}} {imported}")
+        lines.append(f"ultra_media_sync_torrent_jellyfin{{{labels}}} {jellyfin}")
     return "\n".join(lines) + "\n"
 
 
@@ -140,6 +151,16 @@ def write_stage_metrics_atomic(path: str | Path, content: str) -> None:
 from urllib.parse import urlsplit
 
 from ultra_media_file_stat import make_remote_source_stat
+_media_status_spec = importlib.util.spec_from_file_location(
+    "ultra_media_library_status", Path(__file__).with_name("media-library-status.py")
+)
+if _media_status_spec is None or _media_status_spec.loader is None:
+    raise RuntimeError("runtime_dependency_unavailable")
+_media_status = importlib.util.module_from_spec(_media_status_spec)
+_media_status_spec.loader.exec_module(_media_status)
+ArrClient = _media_status.ArrClient
+JellyfinClient = _media_status.JellyfinClient
+collect_statuses = _media_status.collect_statuses
 
 
 STAGING_ROOT = "/srv/media/.arr-staging"
@@ -1326,6 +1347,7 @@ def stage_completed_downloads(
     progress_reporter: StageProgressReporter | None = None,
     on_torrent_staged: Callable[[Mapping[str, Any]], None] | None = None,
     metrics_path: str | Path | None = None,
+    library_statuses: Mapping[str, tuple[int, int]] | None = None,
 ) -> dict[str, Any]:
     """Copy each complete mapped torrent as an atomic, independently reportable unit."""
     plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
@@ -1357,6 +1379,7 @@ def stage_completed_downloads(
                         bytes_per_second=event["bytes_per_second"],
                         current_torrent_remaining_bytes=metric_state["current_remaining"],
                         sample_timestamp_seconds=int(time.time()),
+                        library_statuses=library_statuses,
                     ),
                 )
         reporter = StageProgressReporter(plan["totals"], emit=emit_progress)
@@ -1492,6 +1515,7 @@ def _stage_from_runtime_files(
     runtime_root: str | Path | None = None,
     cleanup_queue_root: str | Path | None = None,
     metrics_path: str | Path | None = None,
+    library_status_config: Mapping[str, str] | None = None,
 ) -> dict[str, int]:
     worker_lock = stage_worker_lock(runtime_root) if runtime_root is not None else nullcontext()
     try:
@@ -1509,6 +1533,7 @@ def _stage_from_runtime_files(
                 runtime_root=runtime_root,
                 cleanup_queue_root=cleanup_queue_root,
                 metrics_path=metrics_path,
+                library_status_config=library_status_config,
             )
     except BlockingIOError:
         return {"status": "busy", "staged": 0, "failed": 0}
@@ -1528,6 +1553,7 @@ def _stage_from_runtime_files_locked(
     runtime_root: str | Path | None,
     cleanup_queue_root: str | Path | None,
     metrics_path: str | Path | None,
+    library_status_config: Mapping[str, str] | None,
 ) -> dict[str, int]:
     try:
         rpc_url = _read_secret_file(secret_paths["rpc_url"])
@@ -1609,6 +1635,33 @@ def _stage_from_runtime_files_locked(
         except Exception:
             raise StagingConfigurationError("rpc_unavailable") from None
 
+        library_statuses = {}
+        if library_status_config:
+            try:
+                arr_clients = [
+                    ArrClient(library_status_config[name], _read_secret_file(secret_paths[key]))
+                    for name, key in (
+                        ("radarr_url", "radarr_api_key"),
+                        ("sonarr_url", "sonarr_api_key"),
+                        ("lidarr_url", "lidarr_api_key"),
+                    )
+                    if library_status_config.get(name) and secret_paths.get(key)
+                ]
+                jellyfin = JellyfinClient(
+                    library_status_config["jellyfin_url"],
+                    _read_secret_file(secret_paths["jellyfin_username"]),
+                    _read_secret_file(secret_paths["jellyfin_password"]),
+                )
+                library_statuses = collect_statuses(
+                    [{"id": torrent.get("id"), "title": torrent.get("name", "")} for torrent in torrents],
+                    arr_clients=arr_clients,
+                    jellyfin_client=jellyfin,
+                )
+            except (KeyError, OSError, ValueError, TypeError):
+                library_statuses = {
+                    str(torrent.get("id")): (-1, -1) for torrent in torrents
+                }
+
         def transfer(
             remote_source: str,
             local_temporary: Path,
@@ -1639,6 +1692,7 @@ def _stage_from_runtime_files_locked(
             source_stat=source_stat,
             on_torrent_staged=enqueue_staged_torrent if cleanup_queue_root is not None else None,
             metrics_path=metrics_path,
+            library_statuses=library_statuses,
         )
         return result
 
@@ -1660,6 +1714,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--rsync", required=True)
     parser.add_argument("--cleanup-queue-root")
     parser.add_argument("--metrics-path")
+    parser.add_argument("--radarr-url")
+    parser.add_argument("--sonarr-url")
+    parser.add_argument("--lidarr-url")
+    parser.add_argument("--jellyfin-url")
+    parser.add_argument("--radarr-api-key-file")
+    parser.add_argument("--sonarr-api-key-file")
+    parser.add_argument("--lidarr-api-key-file")
+    parser.add_argument("--jellyfin-username-file")
+    parser.add_argument("--jellyfin-password-file")
     args = parser.parse_args(argv)
     if not args.stage_downloads:
         print("staging failed reason=operation_required", file=sys.stderr)
@@ -1676,6 +1739,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "known_hosts": args.known_hosts,
                 "rpc_username": args.rpc_username,
                 "rpc_password": args.rpc_password,
+                "radarr_api_key": args.radarr_api_key_file,
+                "sonarr_api_key": args.sonarr_api_key_file,
+                "lidarr_api_key": args.lidarr_api_key_file,
+                "jellyfin_username": args.jellyfin_username_file,
+                "jellyfin_password": args.jellyfin_password_file,
             },
             args.ssh_key,
             ssh_port=args.ssh_port,
@@ -1685,6 +1753,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             runtime_root=RUNTIME_ROOT,
             cleanup_queue_root=args.cleanup_queue_root,
             metrics_path=args.metrics_path,
+            library_status_config={
+                key: value
+                for key, value in {
+                    "radarr_url": args.radarr_url,
+                    "sonarr_url": args.sonarr_url,
+                    "lidarr_url": args.lidarr_url,
+                    "jellyfin_url": args.jellyfin_url,
+                }.items()
+                if value
+            },
         )
     except StagingConfigurationError as error:
         print(f"staging failed reason={error.reason}", file=sys.stderr)

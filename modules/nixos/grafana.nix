@@ -311,6 +311,96 @@
           }
         ];
       }
+      {
+        id = 16;
+        title = "Current media sync queue";
+        type = "table";
+        gridPos = {
+          h = 10;
+          w = 24;
+          x = 0;
+          y = 25;
+        };
+        fieldConfig.defaults = {
+          custom = {
+            inspect = false;
+          };
+          mappings = [
+            {
+              type = "value";
+              options = {
+                "-1" = {text = "Unknown";};
+                "0" = {text = "No";};
+                "1" = {text = "Yes";};
+              };
+            }
+          ];
+        };
+        transformations = [
+          {
+            id = "joinByField";
+            options = {
+              byField = "torrent_id";
+              mode = "outer";
+            };
+          }
+          {
+            id = "organize";
+            options = {
+              excludeByName = {
+                Time = true;
+                Value = true;
+              };
+              indexByName = {
+                title = 0;
+                category = 1;
+                torrent_id = 2;
+                ultra_media_sync_torrent_eta_seconds = 3;
+                ultra_media_sync_torrent_imported = 4;
+                ultra_media_sync_torrent_jellyfin = 5;
+              };
+              renameByName = {
+                ultra_media_sync_torrent_eta_seconds = "ETA seconds";
+                ultra_media_sync_torrent_imported = "Imported";
+                ultra_media_sync_torrent_jellyfin = "In Jellyfin";
+              };
+            };
+          }
+        ];
+        options = {
+          sortBy = [
+            {
+              desc = false;
+              displayName = "ETA seconds";
+            }
+          ];
+          cellHeight = "sm";
+          footer = {show = false;};
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_eta_seconds{job="node",instance="drlight:9100"}'';
+            format = "table";
+            instant = true;
+            refId = "A";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_imported{job="node",instance="drlight:9100"}'';
+            format = "table";
+            instant = true;
+            refId = "B";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_jellyfin{job="node",instance="drlight:9100"}'';
+            format = "table";
+            instant = true;
+            refId = "C";
+          }
+        ];
+      }
     ];
   });
 

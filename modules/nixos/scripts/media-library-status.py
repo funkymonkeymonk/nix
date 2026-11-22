@@ -1,0 +1,152 @@
+"""Read-only Arr and Jellyfin status collection for the media sync snapshot."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
+from enum import IntEnum
+from pathlib import Path
+from typing import Any, Callable, Mapping, Sequence
+
+
+class Status(IntEnum):
+    NO = 0
+    YES = 1
+    UNKNOWN = -1
+
+
+def normalize_title(value: str) -> str:
+    """Normalize presentation punctuation without lossy substring matching."""
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", value, flags=re.UNICODE)).strip().casefold()
+
+
+def _read_secret(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8").strip()
+
+
+def _http_json(
+    url: str,
+    *,
+    method: str = "GET",
+    headers: Mapping[str, str] | None = None,
+    body: Mapping[str, Any] | None = None,
+    timeout: float = 5.0,
+) -> Any:
+    payload = None if body is None else json.dumps(body).encode("utf-8")
+    request = urllib.request.Request(url, data=payload, method=method, headers=dict(headers or {}))
+    if body is not None:
+        request.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.load(response)
+
+
+Request = Callable[..., Any]
+
+
+class ArrClient:
+    def __init__(self, base_url: str, api_key: str, *, request: Request = _http_json) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.request = request
+
+    def import_status(self, download_id: str) -> Status:
+        try:
+            query = urllib.parse.urlencode({"downloadId": download_id, "pageSize": "100"})
+            payload = self.request(
+                f"{self.base_url}/history?{query}",
+                headers={"X-Api-Key": self.api_key},
+                timeout=5.0,
+            )
+            records = payload.get("records", []) if isinstance(payload, Mapping) else []
+            for record in records if isinstance(records, list) else []:
+                if not isinstance(record, Mapping):
+                    continue
+                if str(record.get("downloadId", "")) == download_id and record.get("eventType") in {
+                    "DownloadFolderImported",
+                    "DownloadFailedImport",
+                }:
+                    return Status.YES if record["eventType"] == "DownloadFolderImported" else Status.NO
+            return Status.NO
+        except (OSError, ValueError, TypeError, KeyError, urllib.error.URLError):
+            return Status.UNKNOWN
+
+
+class JellyfinClient:
+    def __init__(
+        self,
+        base_url: str,
+        username: str,
+        password: str,
+        *,
+        request: Request = _http_json,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.username = username
+        self.password = password
+        self.request = request
+
+    def _items(self) -> list[Mapping[str, Any]]:
+        auth = self.request(
+            f"{self.base_url}/Users/AuthenticateByName",
+            method="POST",
+            body={"Username": self.username, "Pw": self.password},
+            headers={"X-Emby-Authorization": 'MediaBrowser Client="ultra-media-sync", Device="drlight"'},
+            timeout=5.0,
+        )
+        if isinstance(auth, Mapping) and isinstance(auth.get("Items"), list):
+            return [item for item in auth["Items"] if isinstance(item, Mapping)]
+        token = auth.get("AccessToken") if isinstance(auth, Mapping) else None
+        if not isinstance(token, str) or not token:
+            raise ValueError("jellyfin_authentication_failed")
+        payload = self.request(
+            f"{self.base_url}/Items?Recursive=true&Fields=Name&Limit=10000",
+            headers={"X-Emby-Token": token},
+            timeout=5.0,
+        )
+        items = payload.get("Items", []) if isinstance(payload, Mapping) else []
+        if not isinstance(items, list):
+            raise ValueError("jellyfin_items_invalid")
+        return [item for item in items if isinstance(item, Mapping)]
+
+    def title_status(self, title: str) -> Status:
+        try:
+            expected = normalize_title(title)
+            return Status.YES if any(
+                normalize_title(item.get("Name", "")) == expected for item in self._items()
+            ) else Status.NO
+        except (OSError, ValueError, TypeError, KeyError, urllib.error.URLError):
+            return Status.UNKNOWN
+
+
+def collect_statuses(
+    torrents: Sequence[Mapping[str, Any]],
+    *,
+    arr_clients: Sequence[ArrClient],
+    jellyfin_client: JellyfinClient,
+) -> dict[str, tuple[Status, Status]]:
+    """Return status by opaque torrent id; failures are represented as UNKNOWN."""
+    statuses: dict[str, tuple[Status, Status]] = {}
+    for torrent in torrents:
+        torrent_id = str(torrent.get("id", ""))
+        arr = Status.NO
+        for client in arr_clients:
+            result = client.import_status(torrent_id)
+            if result is Status.YES:
+                arr = Status.YES
+                break
+            if result is Status.UNKNOWN:
+                arr = Status.UNKNOWN
+        jellyfin = jellyfin_client.title_status(str(torrent.get("title", "")))
+        statuses[torrent_id] = (arr, jellyfin)
+    return statuses
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--title", action="append", default=[])
+    parser.parse_args(argv)
+    return 0
