@@ -41,13 +41,16 @@ class MediaLibraryStatusTests(unittest.TestCase):
         self.assertEqual(client.import_status("missing"), module.Status.NO)
 
     def test_jellyfin_requires_one_exact_normalized_title(self):
+        def request(url, **_kwargs):
+            return {"AccessToken": "token"} if "AuthenticateByName" in url else {
+                "Items": [{"Name": "The Matrix"}, {"Name": "Aliens"}]
+            }
+
         client = module.JellyfinClient(
             "http://jellyfin.invalid",
             "user",
             "password",
-            request=lambda *_args, **_kwargs: {
-                "Items": [{"Name": "The Matrix"}, {"Name": "Aliens"}]
-            },
+            request=request,
         )
         self.assertEqual(client.title_status("The.Matrix"), module.Status.YES)
         self.assertEqual(client.title_status("Alien"), module.Status.NO)
@@ -62,6 +65,23 @@ class MediaLibraryStatusTests(unittest.TestCase):
             module.JellyfinClient("http://jellyfin.invalid", "user", "password", request=failing).title_status("Title"),
             module.Status.UNKNOWN,
         )
+
+    def test_malformed_api_payloads_are_unknown(self):
+        self.assertEqual(
+            module.ArrClient("http://arr.invalid", "secret", request=lambda *_args, **_kwargs: []).import_status("abc"),
+            module.Status.UNKNOWN,
+        )
+        self.assertEqual(
+            module.JellyfinClient("http://jellyfin.invalid", "user", "password", request=lambda *_args, **_kwargs: {}).title_status("Title"),
+            module.Status.UNKNOWN,
+        )
+
+    def test_empty_titles_never_match_missing_jellyfin_names(self):
+        client = module.JellyfinClient(
+            "http://jellyfin.invalid", "user", "password",
+            request=lambda url, **_kwargs: {"AccessToken": "token"} if "AuthenticateByName" in url else {"Items": [{}]},
+        )
+        self.assertEqual(client.title_status(""), module.Status.NO)
 
     def test_metrics_add_status_gauges_without_changing_existing_queue_metrics(self):
         content = stage.render_stage_metrics(

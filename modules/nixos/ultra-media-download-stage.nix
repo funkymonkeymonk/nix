@@ -127,8 +127,8 @@ in {
   systemd.services.ultra-media-download-stage = {
     description = "Sync completed downloads to Drlight and clean retention-eligible seedbox torrents";
     after = ["network-online.target" "zfs-mount.service" "media-management-roots.service" "opnix-secrets.service" "jellyfin.service"] ++ mediaStatusServices;
-    wants = ["network-online.target"];
-    requires = ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service" "jellyfin.service"] ++ mediaStatusServices;
+    wants = ["network-online.target" "jellyfin.service"] ++ mediaStatusServices;
+    requires = ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"];
     unitConfig = {
       ConditionPathIsMountPoint = "/srv/media";
       RequiresMountsFor = ["/srv/media"];

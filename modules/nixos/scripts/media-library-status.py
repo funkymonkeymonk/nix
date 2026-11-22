@@ -61,8 +61,10 @@ class ArrClient:
                 headers={"X-Api-Key": self.api_key},
                 timeout=5.0,
             )
-            records = payload.get("records", []) if isinstance(payload, Mapping) else []
-            for record in records if isinstance(records, list) else []:
+            if not isinstance(payload, Mapping) or not isinstance(payload.get("records"), list):
+                return Status.UNKNOWN
+            records = payload["records"]
+            for record in records:
                 if not isinstance(record, Mapping):
                     continue
                 if str(record.get("downloadId", "")) == download_id and record.get("eventType") in {
@@ -88,6 +90,7 @@ class JellyfinClient:
         self.username = username
         self.password = password
         self.request = request
+        self._items_cache: list[Mapping[str, Any]] | None = None
 
     def _items(self) -> list[Mapping[str, Any]]:
         auth = self.request(
@@ -97,8 +100,6 @@ class JellyfinClient:
             headers={"X-Emby-Authorization": 'MediaBrowser Client="ultra-media-sync", Device="drlight"'},
             timeout=5.0,
         )
-        if isinstance(auth, Mapping) and isinstance(auth.get("Items"), list):
-            return [item for item in auth["Items"] if isinstance(item, Mapping)]
         token = auth.get("AccessToken") if isinstance(auth, Mapping) else None
         if not isinstance(token, str) or not token:
             raise ValueError("jellyfin_authentication_failed")
@@ -107,16 +108,19 @@ class JellyfinClient:
             headers={"X-Emby-Token": token},
             timeout=5.0,
         )
-        items = payload.get("Items", []) if isinstance(payload, Mapping) else []
-        if not isinstance(items, list):
+        if not isinstance(payload, Mapping) or not isinstance(payload.get("Items"), list):
             raise ValueError("jellyfin_items_invalid")
-        return [item for item in items if isinstance(item, Mapping)]
+        return [item for item in payload["Items"] if isinstance(item, Mapping)]
 
     def title_status(self, title: str) -> Status:
         try:
             expected = normalize_title(title)
+            if not expected:
+                return Status.NO
+            if self._items_cache is None:
+                self._items_cache = self._items()
             return Status.YES if any(
-                normalize_title(item.get("Name", "")) == expected for item in self._items()
+                normalize_title(item.get("Name", "")) == expected for item in self._items_cache
             ) else Status.NO
         except (OSError, ValueError, TypeError, KeyError, urllib.error.URLError):
             return Status.UNKNOWN
