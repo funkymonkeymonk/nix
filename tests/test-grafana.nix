@@ -269,11 +269,23 @@ in {
         echo "FAIL: dashboard must use title Ultra Download Staging and retain UID drlight-ultra-media-sync"; exit 1
       fi
 
-      if jq -e '[.panels[].id] | sort == [3, 4, 5, 6, 10, 11, 13, 14, 15]' "$DASHBOARD" > /dev/null; then
+       if jq -e '[.panels[].id] | sort == [3, 4, 5, 6, 10, 11, 13, 14, 15, 16]' "$DASHBOARD" > /dev/null; then
         echo "dashboard contains the manually selected compact panel set: OK"
       else
         echo "FAIL: dashboard panel set must match the manually selected compact layout"; exit 1
-      fi
+       fi
+
+       if jq -e '[.panels[] | select(.title == "Current media sync queue") | .targets[]?.expr] | any(contains("ultra_media_sync_torrent_imported")) and any(contains("ultra_media_sync_torrent_jellyfin")) and any(contains("ultra_media_sync_torrent_eta_seconds"))' "$DASHBOARD" > /dev/null; then
+         echo "dashboard displays import, Jellyfin, and ETA queue metrics: OK"
+       else
+         echo "FAIL: dashboard must display import, Jellyfin, and ETA queue metrics"; exit 1
+       fi
+
+       if jq -e '[.panels[] | select(.title == "Current media sync queue") | .fieldConfig.defaults.mappings[]?.options] | any(. == {"-1":{"text":"Unknown"},"0":{"text":"No"},"1":{"text":"Yes"}})' "$DASHBOARD" > /dev/null; then
+         echo "dashboard maps status gauges to Yes, No, and Unknown: OK"
+       else
+         echo "FAIL: dashboard must map status gauges to Yes, No, and Unknown"; exit 1
+       fi
 
       if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard includes the rsync job logs: OK"
