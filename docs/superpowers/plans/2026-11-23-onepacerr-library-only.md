@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-23-drlight-media-automation-design.md`
 
+**Dependency:** Execute after `docs/superpowers/plans/2026-11-23-local-prowlarr-flaresolverr.md`; both plans update shared Drlight test registration and different sections of the media migration guide.
+
 **Dependency:** Execute after `docs/superpowers/plans/2026-11-23-local-prowlarr-flaresolverr.md`; both plans update separate sections of the migration how-to.
 
 ## Global Constraints
