@@ -14,7 +14,6 @@
 
 - Execute tasks in order. Tasks 2–4 share central files and must not run concurrently.
 - Follow RED → GREEN for each behavior: add the automated test first, run it and confirm failure, then implement the smallest change and rerun it.
-- Use the approved spec as the source of acceptance criteria: `docs/superpowers/specs/2026-10-25-machines-first-deployment-design.md`.
 - Do not create or guess a 1Password item/field reference for an opnix token. Implement provider profiles without embedding credentials. If a concrete secret mapping is required and its default-vault item is unknown, stop and ask the user.
 - Never put resolved SecretSpec values, 1Password service-account tokens, or private SSH keys in Nix expressions, logs, the ISO, or Git.
 - Nix flake evaluation reads the committed Git tree. Before pre-commit Nix checks, stage newly created source/test files as required by the repository instructions; use `--impure` only for pre-commit local feedback. After describing the JJ commit, run final validation without `--impure`.

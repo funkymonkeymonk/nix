@@ -12,7 +12,6 @@
 
 ## Source of truth and global constraints
 
-- Binding design: `docs/superpowers/specs/2026-10-31-type-observability-media-archetypes-design.md`.
 - Preserve machine outputs `type-server-arm`, `type-nas`, and `drlight`; do not rename hosts.
 - Catalog exporter metadata is the single source for both node-exporter enablement and Prometheus target generation. Do not derive one machine's Nix configuration by evaluating another machine's `self.*Configurations` output.
 - Default scrape address is the catalog hostname. An optional address field overrides it with a hostname or IP. Default node-exporter port is 9100; use a machine's configured port if overridden.

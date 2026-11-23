@@ -65,7 +65,6 @@ Expose only upstream-supported settings needed for the local comics destination,
 - Modify: `docs/explanation/index.md`
 - Create: `docs/explanation/api-reconciliation.md`
 - Create: `docs/adr/0003-declarative-media-app-reconciliation.md`
-- Create: `docs/superpowers/specs/2026-11-10-media-app-api-reconciliation-design.md`
 - Create: `docs/plans/2026-11-10-media-app-api-reconciliation.md`
 - Modify: `docs/how-to/migrate-ultra-media-apps-to-drlight.md`
 
