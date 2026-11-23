@@ -14,6 +14,7 @@ Move Prowlarr and FlareSolverr from Ultra.cc to Drlight, alongside the existing 
 - Connect Prowlarr to Drlight-local Sonarr and Radarr over loopback, and connect FlareSolverr over loopback.
 - Route Prowlarr indexer traffic through Ultra's HTTP proxy on port 8080. Configure its credentials from the `Ultra.cc HTTP Proxy` item in Drlight's default `Opnix` vault; never put secret values or live endpoints in Git or logs.
 - Keep Prowlarr's UI available only on private interfaces. Do not publish either service through public Caddy or the public firewall.
+- Update the current Drlight migration runbook so it no longer directs operators to keep Prowlarr and FlareSolverr on Ultra.
 
 ## Non-goals
 
@@ -34,6 +35,7 @@ Move Prowlarr and FlareSolverr from Ultra.cc to Drlight, alongside the existing 
 - Configure Prowlarr's own server URL as `http://127.0.0.1:9696` and its Sonarr/Radarr application URLs as their Drlight loopback endpoints. Enable proxy bypass for local addresses so these app API calls remain local.
 - Configure Prowlarr's General HTTP Proxy with the Ultra service hostname/IP, port `8080`, service username, and dedicated HTTP-proxy password from the `Ultra.cc HTTP Proxy` Opnix item. Enable local-address bypass so loopback Arr/FlareSolverr calls stay local. Keep credentials in Prowlarr runtime state only, not Nix expressions, command lines, or logs.
 - The pinned Prowlarr `2.6.5.5623` FlareSolverr integration forwards its configured general-proxy URL and credentials to FlareSolverr for challenge requests. No separate proxy credential injection into the FlareSolverr systemd service is needed; verify both ordinary and FlareSolverr-backed requests during cutover.
+- Keep Prowlarr's runtime app and proxy settings operator-managed in its restored application state; Nix owns service availability, private network exposure, and backup/recovery documentation, not indexer credentials or endpoint literals.
 - The proxy hop from Drlight to Ultra is plain HTTP with Basic authentication. An on-path observer could recover the dedicated proxy password and see the CONNECT destination. HTTPS indexer contents remain TLS-encrypted after CONNECT; Ultra sees the source and proxy destinations, and indexers see Ultra's egress IP. This risk is explicitly accepted for this setup. The proxy password is separate from UCP/SSH credentials.
 - Back up Prowlarr using its supported backup workflow to a protected location outside the repository. Restore only after comparing source and destination versions and confirming the supported restore path. Keep the Ultra source copy intact. At cutover, avoid having both Prowlarr instances sync the same Arr apps simultaneously; retain Ultra for rollback until local proxy, indexer, FlareSolverr, and Arr tests pass.
 
