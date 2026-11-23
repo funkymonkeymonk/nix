@@ -112,6 +112,7 @@ class FakeTransmissionRPCServer:
             else:
                 torrent = {
                     "id": 17,
+                    "hashString": "a" * 40,
                     "name": "Example release",
                     "status": 6,
                     "doneDate": 1_700_000_000,
@@ -183,6 +184,7 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
+        self.assertEqual(torrent["download_id"], "a" * 40)
         self.assertEqual(torrent["name"], "Example release")
         self.assertEqual(torrent["done_date"], 1_700_000_000)
         self.assertTrue(torrent["candidate"]["complete"])
@@ -326,6 +328,7 @@ class TransmissionRPCTests(unittest.TestCase):
             set(request["arguments"]["fields"]),
             {
                 "id",
+                "hashString",
                 "name",
                 "status",
                 "isFinished",
@@ -1571,6 +1574,14 @@ class CleanupExecutionTests(unittest.TestCase):
 
 
 class DownloadStagingTests(unittest.TestCase):
+    def test_torrent_is_imported_only_for_explicit_imported_status(self):
+        self.assertTrue(staging.torrent_is_imported(17, {"17": (1, 0)}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": (0, 0)}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": (0, 1)}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": (-1, -1)}))
+        self.assertFalse(staging.torrent_is_imported(17, {}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": ("1", 0)}))
+
     def test_stage_metrics_render_queue_etAs_from_current_rate(self):
         metrics = staging.render_stage_metrics(
             [
@@ -1967,6 +1978,46 @@ class DownloadStagingTests(unittest.TestCase):
             self.assertEqual(final["files_transferred"], 1)
             self.assertEqual(final["bytes_transferred"], 5)
             self.assertNotIn("torrent_id", final)
+
+    def test_imported_torrents_skip_transfer_but_failed_and_unknown_retry(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            torrents = []
+            for torrent_id in (31, 32, 33):
+                torrents.append({
+                    "id": torrent_id,
+                    "done_date": 1_700_000_000 + torrent_id,
+                    "candidate": {"complete": True, "files": [{}]},
+                    "download_directory": "/seedbox/complete downloads/Season 1",
+                    "file_paths": [f"episode-{torrent_id}.mkv"],
+                    "file_paths_valid": True,
+                    "file_sizes": [5],
+                    "file_sizes_valid": True,
+                })
+            transferred = []
+            receipts = []
+
+            def transfer(remote, local_temporary, _report_progress):
+                transferred.append(remote)
+                Path(local_temporary).write_bytes(b"12345")
+
+            result = staging.stage_completed_downloads(
+                torrents,
+                self.mappings,
+                transfer,
+                staging_root=root / ".arr-staging",
+                library_statuses={"31": (1, 0), "32": (0, 0), "33": (-1, -1)},
+                on_torrent_staged=lambda torrent: receipts.append(torrent["id"]),
+            )
+
+            self.assertEqual(transferred, [
+                "/seedbox/complete downloads/Season 1/episode-32.mkv",
+                "/seedbox/complete downloads/Season 1/episode-33.mkv",
+            ])
+            self.assertEqual(receipts, [32, 33])
+            self.assertEqual(result["skipped_imported"], 1)
+            self.assertEqual(result["staged"], 2)
+            self.assertEqual(result["torrents_total"], 2)
 
     def test_torrent_fingerprint_changes_when_remote_mapping_changes(self):
         torrent = {
@@ -2384,6 +2435,7 @@ class DownloadStagingTests(unittest.TestCase):
                     "files_reused": 0,
                     "bytes_reused": 0,
                     "receipts_created": 0,
+                    "skipped_imported": 0,
                     "skipped_incomplete": 1,
                     "skipped_unknown_path": 1,
                     "skipped_malformed_path": 1,

@@ -17,6 +17,7 @@ class Status(IntEnum):
     NO = 0
     YES = 1
     UNKNOWN = -1
+    FAILED = -2
 
 
 def normalize_title(value: str) -> str:
@@ -55,23 +56,46 @@ class ArrClient:
 
     def import_status(self, download_id: str) -> Status:
         try:
-            query = urllib.parse.urlencode({"downloadId": download_id, "pageSize": "100"})
-            payload = self.request(
-                f"{self.base_url}/history?{query}",
-                headers={"X-Api-Key": self.api_key},
-                timeout=5.0,
-            )
-            if not isinstance(payload, Mapping) or not isinstance(payload.get("records"), list):
-                return Status.UNKNOWN
-            records = payload["records"]
-            for record in records:
-                if not isinstance(record, Mapping):
-                    continue
-                if str(record.get("downloadId", "")) == download_id and record.get("eventType") in {
-                    "DownloadFolderImported",
-                    "DownloadFailedImport",
-                }:
-                    return Status.YES if record["eventType"] == "DownloadFolderImported" else Status.NO
+            imported = False
+            page = 1
+            records_read = 0
+            while True:
+                query = urllib.parse.urlencode(
+                    {"downloadId": download_id, "page": str(page), "pageSize": "100"}
+                )
+                payload = self.request(
+                    f"{self.base_url}/history?{query}",
+                    headers={"X-Api-Key": self.api_key},
+                    timeout=5.0,
+                )
+                if not isinstance(payload, Mapping) or not isinstance(payload.get("records"), list):
+                    return Status.UNKNOWN
+                records = payload["records"]
+                records_read += len(records)
+                failed = False
+                for record in records:
+                    if not isinstance(record, Mapping):
+                        continue
+                    if str(record.get("downloadId", "")) != download_id:
+                        continue
+                    event_type = str(record.get("eventType", "")).casefold()
+                    if event_type == "downloadfolderimported":
+                        imported = True
+                    elif event_type == "downloadfailedimport":
+                        failed = True
+                if failed:
+                    return Status.FAILED
+                total_records = payload.get("totalRecords")
+                if (
+                    not records
+                    or not isinstance(total_records, int)
+                    or isinstance(total_records, bool)
+                    or records_read >= total_records
+                ):
+                    break
+                page += 1
+            if imported:
+                return Status.YES
             return Status.NO
         except (OSError, ValueError, TypeError, KeyError, urllib.error.URLError):
             return Status.UNKNOWN
@@ -136,14 +160,18 @@ def collect_statuses(
     statuses: dict[str, tuple[Status, Status]] = {}
     for torrent in torrents:
         torrent_id = str(torrent.get("id", ""))
-        arr = Status.NO
-        for client in arr_clients:
-            result = client.import_status(torrent_id)
-            if result is Status.YES:
-                arr = Status.YES
-                break
-            if result is Status.UNKNOWN:
+        download_id = torrent.get("download_id")
+        arr = Status.UNKNOWN
+        if isinstance(download_id, str) and re.fullmatch(r"[0-9a-fA-F]{40}", download_id):
+            client_results = [client.import_status(download_id) for client in arr_clients]
+            if any(result is Status.UNKNOWN for result in client_results):
                 arr = Status.UNKNOWN
+            elif any(result is Status.FAILED for result in client_results):
+                arr = Status.NO
+            elif any(result is Status.YES for result in client_results):
+                arr = Status.YES
+            else:
+                arr = Status.NO
         jellyfin = jellyfin_client.title_status(str(torrent.get("title", "")))
         statuses[torrent_id] = (arr, jellyfin)
     return statuses

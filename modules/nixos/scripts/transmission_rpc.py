@@ -7,6 +7,7 @@ separate verifier proves them.
 
 import json
 import math
+import re
 from numbers import Real
 from typing import Any, Callable, Mapping
 from urllib.error import HTTPError, URLError
@@ -16,6 +17,7 @@ from urllib.request import HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm
 
 BASE_TORRENT_FIELDS = (
     "id",
+    "hashString",
     "name",
     "status",
     "doneDate",
@@ -298,6 +300,12 @@ def normalize_torrent(
 
     return {
         "id": torrent_id,
+        "download_id": (
+            torrent.get("hashString")
+            if isinstance(torrent.get("hashString"), str)
+            and re.fullmatch(r"[0-9a-fA-F]{40}", torrent["hashString"])
+            else None
+        ),
         "name": torrent.get("name") if isinstance(torrent.get("name"), str) else str(torrent_id),
         "done_date": done_date,
         "candidate": {

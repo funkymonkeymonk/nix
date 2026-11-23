@@ -33,6 +33,18 @@ def _prometheus_label(value: Any) -> str:
     return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
+def torrent_is_imported(
+    torrent_id: int,
+    library_statuses: Mapping[str, tuple[int, int]] | None,
+) -> bool:
+    """Return true only when an Arr client explicitly confirms an import."""
+    status = (library_statuses or {}).get(str(torrent_id))
+    if not isinstance(status, tuple) or len(status) != 2:
+        return False
+    imported = status[0]
+    return isinstance(imported, int) and not isinstance(imported, bool) and imported == 1
+
+
 def render_stage_metrics(
     torrents: Sequence[Mapping[str, Any]],
     *,
@@ -1355,6 +1367,35 @@ def stage_completed_downloads(
 ) -> dict[str, Any]:
     """Copy each complete mapped torrent as an atomic, independently reportable unit."""
     plan = build_staging_plan(torrents, mappings, staging_root=staging_root)
+    pending_torrents = [
+        planned
+        for planned in plan["torrents"]
+        if not torrent_is_imported(planned["torrent_id"], library_statuses)
+    ]
+    skipped_imported = len(plan["torrents"]) - len(pending_torrents)
+    if skipped_imported:
+        plan["torrents"] = pending_torrents
+        plan["counts"]["skipped_imported"] = skipped_imported
+        pending_transfers = [
+            transfer
+            for planned in pending_torrents
+            for transfer in planned["transfers"]
+        ]
+        unknown_size_files = sum(
+            transfer.get("size_bytes") is None for transfer in pending_transfers
+        )
+        known_bytes = sum(
+            transfer["size_bytes"]
+            for transfer in pending_transfers
+            if isinstance(transfer.get("size_bytes"), int)
+            and not isinstance(transfer.get("size_bytes"), bool)
+        )
+        plan["totals"] = {
+            "torrents": len(pending_torrents),
+            "files": len(pending_transfers),
+            "bytes": known_bytes if unknown_size_files == 0 else None,
+            "unknown_size_files": unknown_size_files,
+        }
     metric_queue = []
     for planned in plan["torrents"]:
         torrent = planned["torrent"]
@@ -1400,6 +1441,7 @@ def stage_completed_downloads(
 
     result = {
         **plan["counts"],
+        "skipped_imported": skipped_imported,
         "staged": 0,
         "failed": 0,
         "reused_files": 0,
@@ -1657,7 +1699,14 @@ def _stage_from_runtime_files_locked(
                     _read_secret_file(secret_paths["jellyfin_password"]),
                 )
                 library_statuses = collect_statuses(
-                    [{"id": torrent.get("id"), "title": torrent.get("name", "")} for torrent in torrents],
+                    [
+                        {
+                            "id": torrent.get("id"),
+                            "download_id": torrent.get("download_id"),
+                            "title": torrent.get("name", ""),
+                        }
+                        for torrent in torrents
+                    ],
                     arr_clients=arr_clients,
                     jellyfin_client=jellyfin,
                 )
