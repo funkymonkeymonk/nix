@@ -22,6 +22,7 @@
       prowlarrUpdate = prowlarrSettings.update or {};
       flaresolverr = drlight.services.flaresolverr;
       prowlarrPort = prowlarrServer.port or 9696;
+      prowlarrVersion = prowlarr.package.version;
       flaresolverrPort = flaresolverr.port or 8191;
       globalPorts = drlight.networking.firewall.allowedTCPPorts or [];
       interfaces = drlight.networking.firewall.interfaces or {};
@@ -39,6 +40,7 @@
         echo "=== Testing Drlight-local Prowlarr and FlareSolverr ==="
 
         ${assertTrue "Prowlarr enabled on Drlight" prowlarr.enable}
+        ${assertTrue "Prowlarr package meets the seedbox backup version floor" (lib.versionAtLeast prowlarrVersion "3.0.2.5780")}
         ${assertEqual "Prowlarr uses port 9696" 9696 prowlarrPort}
         ${assertEqual "Prowlarr binds its UI to all interfaces behind the firewall" "*" (prowlarrServer.bindaddress or null)}
         ${assertEqual "Prowlarr uses Forms authentication" "Forms" (prowlarrAuth.method or null)}
