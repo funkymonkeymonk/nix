@@ -63,7 +63,7 @@ Expected: FAIL because OnePacerr is not imported/enabled on Drlight and the runt
 
 **Files:**
 - Modify: `modules/nixos/onepacerr.nix`
-- Create: `modules/nixos/scripts/onepacerr-env.py`
+- Create: `modules/nixos/onepacerr-env.py`
 - Modify: `library/machines/catalog.nix`
 - Modify: `tests/test-drlight-onepacerr.nix`
 

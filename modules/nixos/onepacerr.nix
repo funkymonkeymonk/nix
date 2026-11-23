@@ -11,7 +11,7 @@
   uid = 1500;
   credentialEnvFile = "/run/onepacerr/credentials.env";
   credentialRenderer = pkgs.writeShellScript "render-onepacerr-credentials" ''
-    exec ${pkgs.python3}/bin/python ${./scripts/onepacerr-env.py} \
+    exec ${pkgs.python3}/bin/python ${./onepacerr-env.py} \
       --username-file /run/secrets/jellyfin-admin-username \
       --password-file /run/secrets/jellyfin-admin-password \
       --output ${lib.escapeShellArg credentialEnvFile}

@@ -50,7 +50,8 @@
       seriesName = onepacerr.seriesName or "";
       groupGid = toString (groups.users.gid or 100);
       arrStagingRoot = "/srv/media/.arr-staging";
-      envScriptSource = "${toString ../modules/nixos/scripts}/onepacerr-env.py";
+      envScriptSource = "${toString ../modules/nixos}/onepacerr-env.py";
+      sharedMediaScripts = builtins.readDir ../modules/nixos/scripts;
       envScript =
         if builtins.pathExists envScriptSource
         then
@@ -101,6 +102,7 @@
         ${assertTrue "OnePacerr has no published ports" ((container.ports or []) == [])}
         ${assertTrue "OnePacerr doesn't use host networking" (!(builtins.elem "host" (container.networks or [])) && !(lib.any (option: lib.hasInfix "--network=host" option) (container.extraOptions or [])))}
         ${assertTrue "OnePacerr runtime env renderer is present" (envScript != null)}
+        ${assertTrue "OnePacerr renderer stays outside shared media service script bundles" (!(sharedMediaScripts ? "onepacerr-env.py"))}
         ${assertEqual "Arr apps keep their direct Ultra Transmission integrations" [true true true] (map (app: configuredDrlight.myConfig.mediaManagement.${app}.transmission.enable) ["radarr" "sonarr" "lidarr"])}
         ${assertEqual "Arr apps retain the existing local staging root" [arrStagingRoot arrStagingRoot arrStagingRoot] (map (app: configuredDrlight.myConfig.mediaManagement.${app}.transmission.localPath) ["radarr" "sonarr" "lidarr"])}
         ${assertEqual "Arr apps retain the existing Ultra RPC endpoint file" ["/run/secrets/ultra-media-stage-rpc-url" "/run/secrets/ultra-media-stage-rpc-url" "/run/secrets/ultra-media-stage-rpc-url"] (map (app: configuredDrlight.myConfig.mediaManagement.${app}.transmission.rpcUrlFile) ["radarr" "sonarr" "lidarr"])}
