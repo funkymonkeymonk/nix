@@ -1,6 +1,6 @@
 # Drlight Media Automation: Prowlarr, FlareSolverr, OnePacerr, and Ultra Transmission
 
-**Status:** Draft for user approval  
+**Status:** Approved; shared Nixpkgs update added by user direction  
 **Date:** 2026-11-23
 
 ## Intent
@@ -38,11 +38,12 @@ Complete Drlight's media automation stack by moving Prowlarr and FlareSolverr fr
 ### Prowlarr and FlareSolverr
 
 - Enable the pinned nixpkgs `services.prowlarr` and `services.flaresolverr` modules on Drlight. Current pinned package evaluation reports Prowlarr `2.6.5.5623` and FlareSolverr `3.5.2`; verify deployed Ultra versions and restore compatibility before importing state.
+- Update the shared `nixpkgs` flake input (not a package-only pin) so the Drlight package set provides Prowlarr `3.0.2.5780` or newer before restoring the seedbox backup. This update affects package evaluation for every repository system, though this deployment targets Drlight only.
 - Keep Prowlarr's UI available only on Drlight's existing home-LAN and Tailscale interfaces, with no global firewall opening or Caddy route. Do not open FlareSolverr's port to LAN, tailnet, or the public internet; Prowlarr reaches it at `127.0.0.1:8191`.
 - Configure Prowlarr's server URL as `http://127.0.0.1:9696` and its Sonarr/Radarr application URLs as their Drlight loopback endpoints. Bypass the proxy for local addresses so Arr API calls and FlareSolverr's local API remain local.
 - Configure Prowlarr's General HTTP Proxy with the Ultra service host from the UCP Connect page, port `8080`, service username, and dedicated HTTP-proxy password from the Opnix item. Keep those values in Prowlarr runtime state only, not Nix expressions, command lines, or logs.
 - The public Ultra proxy uses HTTP Basic authentication. An on-path observer could recover the dedicated proxy password and see the CONNECT destination. HTTPS indexer contents remain TLS-encrypted after CONNECT; Ultra sees the source and proxy destinations, while indexers see Ultra's egress IP. This transport risk is explicitly accepted for this setup. The proxy password is separate from UCP/SSH credentials.
-- The pinned Prowlarr `2.6.5.5623` FlareSolverr integration forwards its configured General Proxy URL and credentials to FlareSolverr for challenge requests. No separate proxy credential injection into the FlareSolverr service is needed; verify ordinary and FlareSolverr-backed requests during cutover.
+- The Prowlarr `3.0.2.5780` or newer FlareSolverr integration must forward its configured General Proxy URL and credentials to FlareSolverr for challenge requests. No separate proxy credential injection into the FlareSolverr service is needed; verify ordinary and FlareSolverr-backed requests during cutover.
 
 ### OnePacerr
 
