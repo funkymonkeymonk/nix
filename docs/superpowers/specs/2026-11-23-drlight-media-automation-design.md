@@ -5,7 +5,7 @@
 
 ## Intent
 
-Complete Drlight's media automation stack by moving Prowlarr and FlareSolverr from Ultra.cc to Drlight and enabling OnePacerr for the existing Jellyfin One Pace library. Keep Transmission on Ultra.cc. Keep indexer egress on Ultra by configuring Prowlarr to use Ultra's authenticated HTTP proxy.
+Complete Drlight's media automation stack by moving Prowlarr and FlareSolverr from Ultra.cc to Drlight and enabling OnePacerr for its existing Jellyfin series. Keep Transmission on Ultra.cc. Keep indexer egress on Ultra by configuring Prowlarr to use Ultra's authenticated HTTP proxy.
 
 ## Goals
 
@@ -13,7 +13,7 @@ Complete Drlight's media automation stack by moving Prowlarr and FlareSolverr fr
 - Preserve existing Prowlarr settings/indexers with its supported backup and restore workflow.
 - Connect Prowlarr to Drlight-local Sonarr/Radarr over loopback and FlareSolverr over loopback.
 - Route indexer requests through Ultra's HTTP proxy using the `Ultra.cc HTTP Proxy` item in Drlight's default `Opnix` vault. Keep secret values and live endpoint details out of Git and logs.
-- Enable OnePacerr on Drlight for the existing Jellyfin One Pace library. Disable downloads initially, but allow it to organize existing files and update Jellyfin metadata.
+- Enable OnePacerr on Drlight for its existing Jellyfin series. Disable downloads initially, but allow it to organize existing files and update Jellyfin metadata.
 - Preserve the existing Arr-to-Ultra Transmission RPC setup and completed-download staging. Verify those integrations rather than moving Transmission or changing the cleanup policy.
 - Keep service UIs private and FlareSolverr internal; do not publish them through public Caddy or the public firewall.
 - Update the Drlight migration guide and mark superseded OnePacerr/Ultra placement notes so they describe the new ownership and rollback behavior.
@@ -47,12 +47,12 @@ Complete Drlight's media automation stack by moving Prowlarr and FlareSolverr fr
 ### OnePacerr
 
 - Import and enable the existing `modules/nixos/onepacerr.nix` module on Drlight, replacing its current minimal stub. The stub only sets a series name, torrent-client type, and `localhost` Jellyfin URL; it lacks Jellyfin credentials, library mounts, and working container-to-host network configuration.
-- Pin the OnePacerr container to a reviewed release/digest rather than `latest`. Configure `LIBRARY_MEDIA_SERVER=jellyfin`, the existing One Pace series, and a Jellyfin URL reachable from the container. Do not publish OnePacerr's status/UI port.
-- Reuse Drlight's existing Jellyfin admin credentials from the default `Opnix` vault, delivered to the container only as runtime secrets. Do not create a new Jellyfin identity in this change, place credentials in the Nix store, or put secret values in OCI environment literals.
-- Verify the existing One Pace series and filesystem path before enabling the container. Mount only the required library subtree read/write and configure explicit library path mappings if Jellyfin's path differs from the container mount. Fail closed if the existing series is absent rather than creating a duplicate library entry.
-- Set `PIPELINE_SKIP_DOWNLOADS=true`; omit OnePacerr's torrent-client credentials and URL in this phase. Enable existing-file organization and metadata updates, as selected by the user. Before its first mutating run, verify a restorable backup or snapshot of the affected One Pace library.
+- Pin OnePacerr to the upstream `v1.8.16` release instead of `latest`. Drlight's OCI backend currently evaluates to Podman; use its generated `podman-onepacerr` systemd service and bridge network. Configure `LIBRARY_MEDIA_SERVER=jellyfin`, the existing One Pace series, and a Jellyfin URL reachable from the container (for example, the verified `host.containers.internal` gateway). Do not use host networking or publish OnePacerr's status/UI port.
+- Reuse Drlight's existing Jellyfin admin credentials from the default `Opnix` vault, delivered to the container through a mode-restricted runtime environment file generated from Opnix secret files. Do not create a new Jellyfin identity in this change, place credentials in the Nix store, or put secret values in OCI environment literals.
+- Verify the existing Jellyfin series and filesystem path before enabling the container. Mount only the required library subtree read/write and configure explicit library path mappings if Jellyfin's path differs from the container mount. Fail closed if the existing series is absent rather than creating a duplicate library entry.
+- Set `PIPELINE_SKIP_DOWNLOADS=true`; omit OnePacerr's torrent-client credentials and URL in this phase. Enable existing-file organization and metadata updates, as selected by the user. Before its first mutating run, verify a restorable backup or snapshot of the affected library.
 - OnePacerr will auto-start in this library-only mode after the backup/path preflight passes. Keep verification hashing at the upstream default unless implementation testing finds a reason to change it.
-- Since OnePacerr will modify files under its library path, verify the resulting One Pace folder will not conflict with a Sonarr-managed series. Keep Drlight's existing Arr roots and library data intact.
+- Since OnePacerr will modify files under its library path, verify that the target folder will not conflict with a Sonarr-managed series. Keep Drlight's existing Arr roots and library data intact.
 - Container-to-host Jellyfin access must use a reachable bridge host address, not `localhost` inside the container. Do not use broad host networking; publish no container ports and grant only the required library mount.
 
 ### Transmission and staging
@@ -65,7 +65,7 @@ Complete Drlight's media automation stack by moving Prowlarr and FlareSolverr fr
 
 - Inventory source and pinned destination versions before restoring Prowlarr. Create and verify a Prowlarr-native backup outside the repository; stop if restore would require an unsupported downgrade or conversion.
 - Keep Ultra Prowlarr/FlareSolverr installed and retain their state. Avoid having both Prowlarr instances sync the same Arr apps simultaneously at cutover; preserve Ultra as the rollback copy until local proxy/indexer/FlareSolverr/Arr tests pass.
-- Before OnePacerr's first organization/metadata run, verify the existing One Pace library path and a restorable backup/snapshot. If validation fails, disable OnePacerr and retain the original data and Ultra services.
+- Before OnePacerr's first organization/metadata run, verify the existing library path and a restorable backup/snapshot. If validation fails, disable OnePacerr and retain the original data and Ultra services.
 - No Transmission removal, download cleanup, staging policy change, or OnePacerr torrent submission is part of this phase.
 
 ## Validation gates
