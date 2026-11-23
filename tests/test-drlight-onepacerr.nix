@@ -93,7 +93,7 @@
         ${assertEqual "OnePacerr reads its credential env file at runtime" ["/run/onepacerr/credentials.env"] containerEnvironmentFiles}
         ${assertTrue "OnePacerr renders credentials before Podman starts" (lib.any (command: lib.hasInfix "render-onepacerr-credentials" (toString command)) containerStartPre)}
         ${assertTrue "Jellyfin credentials are not embedded in OCI environment literals" (!(containerEnvironment ? JELLYFIN_USERNAME) && !(containerEnvironment ? JELLYFIN_PASSWORD))}
-        ${assertTrue "Jellyfin Opnix references are unqualified" ((jellyfinUsernameSecret.reference or null) == "Jellyfin/username" && (jellyfinPasswordSecret.reference or null) == "Jellyfin/password")}
+        ${assertTrue "Jellyfin Opnix references are unqualified" ((jellyfinUsernameSecret.reference or null) == "Jellyfin - Monkey/username" && (jellyfinPasswordSecret.reference or null) == "Jellyfin - Monkey/password")}
         ${assertTrue "Opnix restarts OnePacerr when Jellyfin credentials rotate" (builtins.elem "podman-onepacerr" (jellyfinUsernameSecret.services or []) && builtins.elem "podman-onepacerr" (jellyfinPasswordSecret.services or []))}
         ${assertTrue "OnePacerr waits for Opnix, ZFS, Jellyfin, and verified admin auth" (builtins.all (unit: builtins.elem unit (containerService.after or [])) ["opnix-secrets.service" "zfs-mount.service" "jellyfin.service" "jellyfin-admin-auth.service"] && builtins.all (unit: builtins.elem unit (containerService.requires or [])) ["opnix-secrets.service" "zfs-mount.service" "jellyfin.service" "jellyfin-admin-auth.service"])}
         ${assertEqual "OnePacerr refuses to start without the media ZFS mount" "/srv/media" (containerServiceUnitConfig.ConditionPathIsMountPoint or null)}

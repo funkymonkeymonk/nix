@@ -77,7 +77,7 @@ Add options for enablement, auto-start, verified Jellyfin library root/name, and
 
 - [ ] **Step 2: Render Jellyfin credentials at runtime**
 
-Reuse the existing unqualified `Jellyfin/username` and `Jellyfin/password` Opnix references. When auto-start is approved, extend their dependent-service lists with `podman-onepacerr` so rotations restart the container; do not add a restart dependency for the disabled preflight configuration. Require `jellyfin-admin-auth.service` before starting the container. Add the renderer as an `ExecStartPre` for `podman-onepacerr.service`; it writes `/run/onepacerr/credentials.env` atomically with mode `0600` from the existing secret files. Point the OCI `environmentFiles` option there. Do not interpolate secret values into Nix or log them.
+Reuse the unqualified `Jellyfin - Monkey/username` and `Jellyfin - Monkey/password` references from the default Opnix vault. When auto-start is approved, extend their dependent-service lists with `podman-onepacerr` so rotations restart the container; do not add a restart dependency for the disabled preflight configuration. Require `jellyfin-admin-auth.service` before starting the container. Add the renderer as an `ExecStartPre` for `podman-onepacerr.service`; it writes `/run/onepacerr/credentials.env` atomically with mode `0600` from the existing secret files. Point the OCI `environmentFiles` option there. Do not interpolate secret values into Nix or log them.
 
 - [ ] **Step 3: Configure the OnePacerr container**
 

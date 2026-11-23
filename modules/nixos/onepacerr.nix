@@ -74,7 +74,7 @@ in {
         message = "OnePacerr requires the verified Jellyfin library name; do not guess it.";
       }
       {
-        assertion = !cfg.autoStart || (config.services.jellyfin.enable && config.myConfig.onepassword.secrets.jellyfinAdminUsername.reference == "Jellyfin/username" && config.myConfig.onepassword.secrets.jellyfinAdminPassword.reference == "Jellyfin/password");
+        assertion = !cfg.autoStart || (config.services.jellyfin.enable && config.myConfig.onepassword.secrets.jellyfinAdminUsername.reference == "Jellyfin - Monkey/username" && config.myConfig.onepassword.secrets.jellyfinAdminPassword.reference == "Jellyfin - Monkey/password");
         message = "OnePacerr auto-start requires the existing Jellyfin admin credentials from the default Opnix vault.";
       }
     ];

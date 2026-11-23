@@ -39,7 +39,7 @@
     }
     {
       name = "jellyfin";
-      item = "Jellyfin";
+      item = "Jellyfin - Monkey";
       passwordField = "password";
     }
   ];

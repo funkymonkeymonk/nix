@@ -235,8 +235,8 @@
         "Bazaar/password"
         "Mylar3/username"
         "Mylar3/password"
-        "Jellyfin/username"
-        "Jellyfin/password"
+        "Jellyfin - Monkey/username"
+        "Jellyfin - Monkey/password"
       ];
       mediaAuthSecrets = map (name: onePasswordSecrets.${name} or {}) mediaAuthSecretNames;
       opnixMediaAuthSecrets = map (name: opnixSecrets.${name} or {}) mediaAuthSecretNames;
@@ -774,9 +774,9 @@
             ${checkTrue "Jellyfin enables its native Prometheus metrics endpoint declaratively" (lib.hasInfix "EnableMetrics" jellyfinPreStart && lib.hasInfix "true" jellyfinPreStart)}
             ${checkTrue "Jellyfin metrics pre-start script quotes its config path" (lib.hasInfix "os.path.join(\"/var/lib/jellyfin/config\"" jellyfinPreStart && !(lib.hasInfix "os.path.join(/var/lib/jellyfin/config" jellyfinPreStart))}
             ${checkTrue "Prometheus scrapes Jellyfin's native metrics endpoint" (lib.any (scrape: scrape.job_name == "jellyfin" && builtins.any (static: builtins.elem "127.0.0.1:8096" (static.targets or [])) (scrape.static_configs or [])) jellyfinScrapeConfigs)}
-           ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
-           ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
-           ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
+           ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin - Monkey/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
+           ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin - Monkey/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
+           ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin - Monkey/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
            ${checkTrue "Jellyfin admin auth verifier runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (drlight.systemd.services.jellyfin-admin-auth.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (drlight.systemd.services.jellyfin-admin-auth.wantedBy or []))}
            ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
 
