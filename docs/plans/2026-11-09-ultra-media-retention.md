@@ -1,5 +1,7 @@
 # Drlight Media-Manager Migration and Ultra.cc Retention Implementation Plan
 
+> **Architecture update:** This historical plan's Prowlarr/FlareSolverr-on-Ultra placement is superseded by [ADR 0004](../adr/0004-drlight-local-indexer-egress.md). Transmission remains on Ultra; the retention and staging policies below remain in force.
+
 > **Note:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Make Drlight the authoritative local media library and run its media-management apps locally, while retaining Ultra.cc as the torrent/indexer host and reclaiming seedbox space only after safe local import and seeding-policy checks.
