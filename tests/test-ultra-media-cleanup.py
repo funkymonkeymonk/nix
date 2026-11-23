@@ -184,7 +184,7 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
-        self.assertEqual(torrent["download_id"], "a" * 40)
+        self.assertEqual(torrent["download_id"], "A" * 40)
         self.assertEqual(torrent["name"], "Example release")
         self.assertEqual(torrent["done_date"], 1_700_000_000)
         self.assertTrue(torrent["candidate"]["complete"])

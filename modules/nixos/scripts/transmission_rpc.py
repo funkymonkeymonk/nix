@@ -301,7 +301,7 @@ def normalize_torrent(
     return {
         "id": torrent_id,
         "download_id": (
-            torrent.get("hashString")
+            torrent["hashString"].upper()
             if isinstance(torrent.get("hashString"), str)
             and re.fullmatch(r"[0-9a-fA-F]{40}", torrent["hashString"])
             else None

@@ -51,6 +51,22 @@ class MediaLibraryStatusTests(unittest.TestCase):
         )
         self.assertEqual(client.import_status("abc"), module.Status.YES)
 
+    def test_arr_history_matches_hash_case_insensitively(self):
+        requests = []
+
+        def request(url, **_kwargs):
+            requests.append(url)
+            return {
+                "records": [
+                    {"downloadId": "A" * 40, "eventType": "downloadFolderImported"}
+                ]
+            }
+
+        client = module.ArrClient("http://radarr.invalid/api/v3", "secret", request=request)
+        self.assertEqual(client.import_status("a" * 40), module.Status.YES)
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(requests[0]).query)
+        self.assertEqual(query["downloadId"], ["A" * 40])
+
     def test_arr_failed_import_is_distinct_from_no_matching_history(self):
         client = module.ArrClient(
             "http://sonarr.invalid/api/v3",

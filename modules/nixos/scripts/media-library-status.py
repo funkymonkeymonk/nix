@@ -56,6 +56,7 @@ class ArrClient:
 
     def import_status(self, download_id: str) -> Status:
         try:
+            download_id = download_id.upper()
             imported = False
             page = 1
             records_read = 0
@@ -76,7 +77,7 @@ class ArrClient:
                 for record in records:
                     if not isinstance(record, Mapping):
                         continue
-                    if str(record.get("downloadId", "")) != download_id:
+                    if str(record.get("downloadId", "")).upper() != download_id:
                         continue
                     event_type = str(record.get("eventType", "")).casefold()
                     if event_type == "downloadfolderimported":

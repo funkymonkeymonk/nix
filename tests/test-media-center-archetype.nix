@@ -146,6 +146,7 @@
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
       secretValues = builtins.attrValues onePasswordSecrets;
       ultraSyncStagingSource = builtins.readFile ../modules/nixos/scripts/ultra-media-download-stage.py;
+      mediaLibraryStatusSource = builtins.readFile ../modules/nixos/scripts/media-library-status.py;
       ultraSyncPolicySource = builtins.readFile ../modules/nixos/scripts/ultra-media-cleanup.py;
       ultraDownloadStageService = drlight.systemd.services.ultra-media-download-stage or {};
       ultraDownloadStageServiceConfig = ultraDownloadStageService.serviceConfig or {};
@@ -723,7 +724,7 @@
            ${checkTrue "node_exporter reads the dedicated metrics group" (builtins.elem "ultra-media-metrics" nodeExporterExtraGroups && builtins.elem "--collector.textfile.directory=/run/ultra-media-metrics" nodeExporterExtraFlags)}
            ${checkTrue "the unified worker writes remote usage metrics only through its private group path" (builtins.elem ultraRemoteDiskMetricsDirectory (ultraDownloadStageServiceConfig.ReadWritePaths or []) && builtins.elem "ultra-media-metrics" (ultraDownloadStageServiceConfig.SupplementaryGroups or []) && builtins.elem "ultra-media-metrics" (builtins.attrNames (drlight.users.groups or {})) && builtins.elem "d /run/ultra-media-metrics 2750 ultra-sync ultra-media-metrics - -" ultraMetricsTmpfiles && builtins.elem "z /run/ultra-media-metrics 2750 ultra-sync ultra-media-metrics - -" ultraMetricsTmpfiles)}
             ${checkTrue "the unified worker publishes live per-torrent Prometheus metrics" (lib.hasInfix "--metrics-path /run/ultra-media-metrics/ultra-media-sync.prom" ultraDownloadStageCommand && lib.hasInfix "render_stage_metrics" ultraSyncStagingSource && lib.hasInfix "write_stage_metrics_atomic" ultraSyncStagingSource)}
-            ${checkTrue "per-torrent metrics include Arr import and Jellyfin status" (lib.hasInfix "ultra_media_sync_torrent_imported" ultraSyncStagingSource && lib.hasInfix "ultra_media_sync_torrent_jellyfin" ultraSyncStagingSource && lib.hasInfix "normalize_title" ultraSyncStagingSource)}
+             ${checkTrue "per-torrent metrics include Arr import and Jellyfin status" (lib.hasInfix "ultra_media_sync_torrent_imported" ultraSyncStagingSource && lib.hasInfix "ultra_media_sync_torrent_jellyfin" ultraSyncStagingSource && lib.hasInfix "normalize_title" mediaLibraryStatusSource)}
             ${checkTrue "Drlight passes media API credentials to the sync exporter" (lib.hasInfix "--radarr-api-key-file" ultraDownloadStageCommand && lib.hasInfix "--jellyfin-username-file" ultraDownloadStageCommand && lib.hasInfix "media-auth-jellyfin" (builtins.concatStringsSep " " (ultraDownloadStageServiceConfig.SupplementaryGroups or [])))}
            ${checkTrue "Prometheus alerts when Ultra storage exceeds 3 TB" (lib.hasInfix "UltraSeedboxStorageHigh" ultraPrometheusRules && lib.hasInfix "3000000000000" ultraPrometheusRules)}
            ${checkTrue "Prometheus alerts if Ultra storage telemetry is unavailable" (lib.hasInfix "UltraSeedboxStorageTelemetryUnavailable" ultraPrometheusRules)}
