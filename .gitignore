@@ -54,3 +54,6 @@ profiling/
 
 # Subagent runtime artifacts
 .pi-subagents/
+
+# Superpowers planning documents
+/docs/superpowers/
