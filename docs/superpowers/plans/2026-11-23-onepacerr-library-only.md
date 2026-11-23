@@ -10,8 +10,6 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-23-drlight-media-automation-design.md`
 
-**Dependency:** Execute after `docs/superpowers/plans/2026-11-23-local-prowlarr-flaresolverr.md`; both plans update shared Drlight test registration and different sections of the media migration guide.
-
 **Dependency:** Execute after `docs/superpowers/plans/2026-11-23-local-prowlarr-flaresolverr.md`; both plans update separate sections of the migration how-to.
 
 ## Global Constraints
@@ -19,6 +17,7 @@
 - Keep Transmission on Ultra; Radarr/Sonarr/Lidarr continue to manage it through existing Drlight RPC settings and local completed-download staging.
 - Set `PIPELINE_SKIP_DOWNLOADS=true`; omit OnePacerr `TORRENT_URL`, `TORRENT_USER`, and `TORRENT_PASSWORD` in this phase.
 - Enable existing-file organization and Jellyfin metadata updates, as approved. OnePacerr auto-starts only after the OnePacerr library path and a restorable backup/snapshot are verified.
+- Keep the Drlight OnePacerr service disabled and non-autostarting until a read-only Jellyfin admin-auth/library-path preflight passes. Do not guess the Jellyfin library name or start the mutating container until the existing Opnix credentials are verified and the library identity/path is confirmed.
 - Pin OnePacerr to `ghcr.io/eltharynd/onepacerr:v1.8.16`, not `latest`.
 - Use Drlight's existing Jellyfin admin username/password from the default `Opnix` vault, delivered only through a runtime env file. Never put values in Nix expressions, OCI environment literals, command lines, logs, tests, or docs.
 - Use the existing Podman OCI backend; run OnePacerr with a dedicated numeric user in the shared `users` group, mount only the verified target library subtree, use the bridge host gateway for Jellyfin, and publish no container ports.
@@ -29,6 +28,7 @@
 
 - OnePacerr accidentally gets a Transmission URL/credentials despite downloads being disabled — assert all `TORRENT_*` values are absent (Tasks 1–2).
 - Jellyfin paths differ from container paths — verify the existing series and exact root before setting the path map (Task 3).
+- The dedicated OnePacerr UID collides with a host account — reserve UID `1500` only after confirming it remains unused on Drlight (Tasks 1–3).
 - Secret values leak into the Nix store, OCI environment literals, or logs — test the runtime env-file renderer and restrict its mode (Tasks 1–2).
 - Container-local `localhost` points at OnePacerr, not Jellyfin — use and test `host.containers.internal` through Podman's bridge (Tasks 1–2).
 - OnePacerr mutates the wrong series or library root — fail closed when the target series/path is missing and require a backup/snapshot before apply (Task 3).
@@ -48,7 +48,7 @@
 
 - [ ] **Step 1: Write the failing Nix evaluation test**
 
-Assert Drlight enables OnePacerr, uses the Podman backend and pinned `v1.8.16` image, has `PIPELINE_SKIP_DOWNLOADS=true`, enables existing-file organization and metadata updates, omits all `TORRENT_*` variables, uses a host-gateway Jellyfin URL, mounts only the configured library path, publishes no ports, runs with the configured `onepacerr:users` numeric identity, and orders its container unit after ZFS/Jellyfin/Opnix secret setup. Also assert Arr Transmission settings remain enabled and unchanged.
+Assert Drlight keeps OnePacerr disabled until preflight. In an extended test configuration, enable it with synthetic library values and assert the Podman backend and pinned `v1.8.16` image, `PIPELINE_SKIP_DOWNLOADS=true`, existing-file organization/metadata updates, no `TORRENT_*` variables, host-gateway Jellyfin URL, one narrow library mount, no published ports, UID `1500` with shared `users` GID, runtime env-file path, and systemd ordering after ZFS/Jellyfin/Opnix/admin-auth checks. Also assert Arr Transmission settings, RPC secret paths, and staging roots remain unchanged.
 
 - [ ] **Step 2: Add runtime env-renderer behavior checks**
 
@@ -64,26 +64,24 @@ Expected: FAIL because OnePacerr is not imported/enabled on Drlight and the runt
 **Files:**
 - Modify: `modules/nixos/onepacerr.nix`
 - Create: `modules/nixos/scripts/onepacerr-env.py`
-- Modify: `modules/nixos/media-app-reconciliation.nix`
 - Modify: `library/machines/catalog.nix`
-- Modify: `machines/drlight/default.nix`
 - Modify: `tests/test-drlight-onepacerr.nix`
 
 **Interfaces:**
 - Consumes: the verified Jellyfin library name/path, existing `/run/secrets/jellyfin-admin-username` and `jellyfin-admin-password`, and the OCI unit `podman-onepacerr.service`.
-- Produces: `myConfig.onePacerr.enable`, explicit host/container library-path options, an Opnix-backed runtime env file, and an auto-starting OnePacerr container with downloads disabled.
+- Produces: a Drlight-imported OnePacerr module with disabled-by-default activation, explicit host/container library-path options, an Opnix-backed runtime env file, and a tested opt-in container configuration with downloads disabled.
 
 - [ ] **Step 1: Add OnePacerr options, service user, and Drlight wiring**
 
-Add options for enablement, verified Jellyfin library root/name, and the corresponding container path. Create an unprivileged `onepacerr` system user in the existing `users` group. Import the module only for Drlight and enable it in `machines/drlight/default.nix`; do not add it to Zero or shared media-center targets.
+Add options for enablement, auto-start, verified Jellyfin library root/name, and the corresponding container path. Create an unprivileged `onepacerr` system user with UID `1500` and the existing `users` group; use the group GID from Nix rather than hardcoding it in the module. Import the module only for Drlight, but leave `enable=false` and `autoStart=false` until the Jellyfin credentials and library preflight pass. Do not add it to Zero or shared media-center targets. Recheck UID `1500` is unused during the pre-deployment host preflight.
 
 - [ ] **Step 2: Render Jellyfin credentials at runtime**
 
-Reuse the existing unqualified `Jellyfin/username` and `Jellyfin/password` Opnix references. Extend their dependent-service lists with the env renderer and `podman-onepacerr` so rotations refresh the runtime env file and container. Generate `/run/onepacerr/credentials.env` atomically with mode `0600` from the existing secret files; do not interpolate secret values into Nix. Make `podman-onepacerr.service` require/order after the env renderer, Opnix, ZFS mount, and Jellyfin services. Ensure no values are logged.
+Reuse the existing unqualified `Jellyfin/username` and `Jellyfin/password` Opnix references. When auto-start is approved, extend their dependent-service lists with `podman-onepacerr` so rotations restart the container; do not add a restart dependency for the disabled preflight configuration. Require `jellyfin-admin-auth.service` before starting the container. Add the renderer as an `ExecStartPre` for `podman-onepacerr.service`; it writes `/run/onepacerr/credentials.env` atomically with mode `0600` from the existing secret files. Point the OCI `environmentFiles` option there. Do not interpolate secret values into Nix or log them.
 
 - [ ] **Step 3: Configure the OnePacerr container**
 
-Set `virtualisation.oci-containers.containers.onepacerr` to image `ghcr.io/eltharynd/onepacerr:v1.8.16`, Podman bridge networking, container user `onepacerr:<users-gid>`, a single writable bind mount for the verified library subtree, the runtime environment file, and the required OnePacerr/Jellyfin settings. Use `http://host.containers.internal:8096` for Jellyfin, `LIBRARY_CREATE_SHOW_IF_NOT_FOUND=false`, `PIPELINE_SKIP_DOWNLOADS=true`, and the user-approved existing-file organize/metadata flags. Do not set torrent-client variables or publish ports.
+Set `virtualisation.oci-containers.containers.onepacerr` to image `ghcr.io/eltharynd/onepacerr:v1.8.16`, Podman bridge networking, container user `1500:${toString config.users.groups.users.gid}`, a single writable bind mount for the verified library subtree, the runtime environment file, and the required OnePacerr/Jellyfin settings. Use `http://host.containers.internal:8096` for Jellyfin, `LIBRARY_CREATE_SHOW_IF_NOT_FOUND=false`, `PIPELINE_SKIP_DOWNLOADS=true`, and the user-approved existing-file organize/metadata flags. Do not set torrent-client variables or publish ports.
 
 - [ ] **Step 4: Run the focused check to verify GREEN**
 
@@ -94,6 +92,7 @@ Expected: PASS for service enablement, runtime secret handling, container user/n
 
 **Files:**
 - Modify: `docs/how-to/migrate-ultra-media-apps-to-drlight.md`
+- Modify: `docs/reference/options.md`
 - Modify: `docs/plans/2026-10-31-type-observability-media-archetypes.md`
 - Modify: `tests/test-zero.nix`
 
@@ -103,7 +102,7 @@ Update the current how-to with the OnePacerr Opnix credential source, private co
 
 - [ ] **Step 2: Clarify Transmission ownership and superseded decisions**
 
-Update the current migration how-to to say Arr apps continue using Ultra Transmission via RPC and staging. Mark the old OnePacerr prohibition as superseded for Drlight, while leaving completed plans historical. Remove the unregistered `zeroMediaAutomationTest` and its stale Zero/Nixarr/OnePacerr assertions; Task 1's Drlight evaluation assertions own those checks and prove remote Arr Transmission integrations remain enabled with unchanged Opnix references/mappings.
+Update the current migration how-to to say Arr apps continue using Ultra Transmission via RPC and staging. Mark the old OnePacerr prohibition as superseded for Drlight, while leaving completed plans historical. Regenerate the options reference after adding `myConfig.onePacerr`. Remove the unregistered `zeroMediaAutomationTest` and its stale Zero/Nixarr/OnePacerr assertions; Task 1's Drlight evaluation assertions own those checks and prove remote Arr Transmission integrations remain enabled and the existing RPC/staging paths remain unchanged.
 
 - [ ] **Step 3: Run validation and commit**
 
@@ -111,8 +110,8 @@ Run `devenv tasks run check:lint`, the focused OnePacerr check, `devenv tasks ru
 
 ## Operational handoff (not executed by these plans)
 
-1. Read-only verify Jellyfin's existing target series/library root and OnePacerr/Jellyfin compatibility. Keep the discovered path/name out of Git, logs, and reports.
-2. Create and verify a restorable snapshot/backup of the affected library subtree before any OnePacerr organization/metadata run.
+1. Repair the existing Opnix Jellyfin admin credential reference and verify admin authentication read-only. Then verify the target Jellyfin library name, series, exact filesystem path, OnePacerr/Jellyfin compatibility, permissions, and that the target does not conflict with a Sonarr-managed series. Keep discovered path/name out of logs and reports; encode only the required operational path/name in reviewed Nix configuration.
+2. Create and verify a restorable snapshot/backup of the affected library subtree before enabling OnePacerr auto-start or running it manually.
 3. Confirm the existing Arr-to-Ultra Transmission RPC reconciliation and stage mapping using the current Opnix fields; do not configure OnePacerr's torrent client in this phase.
 4. Build and commit the reviewed Nix changes, then run `devenv tasks run machines:plan --input machine=drlight`; inspect the exact plan before a separately approved apply.
 5. After apply, verify Jellyfin credentials, OnePacerr path mapping, organizer/metadata results, Prowlarr proxy egress, FlareSolverr, and Arr Transmission tests. Keep the Ultra services and data intact for rollback.

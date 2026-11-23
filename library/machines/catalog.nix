@@ -160,6 +160,7 @@
         ../../modules/nixos/media-storage.nix
         ../../modules/nixos/media-management.nix
         ../../modules/nixos/media-indexers.nix
+        ../../modules/nixos/onepacerr.nix
         ../../modules/nixos/ultra-media-download-stage.nix
         ../../modules/nixos/tailscale-home-dns.nix
         ../../modules/nixos/ghostty-terminfo.nix

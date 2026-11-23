@@ -59,6 +59,7 @@
   testServerArchetypes = import ./test-server-archetypes.nix {inherit pkgs self inputs;};
   testMediaCenterArchetype = import ./test-media-center-archetype.nix {inherit pkgs self inputs;};
   testDrlightMediaIndexers = import ./test-drlight-media-indexers.nix {inherit pkgs self;};
+  testDrlightOnePacerr = import ./test-drlight-onepacerr.nix {inherit pkgs self;};
   testZero = import ./test-zero.nix {inherit pkgs self;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
@@ -321,6 +322,7 @@ in
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
     drlight-media-management = testMediaCenterArchetype.drlightMediaManagementTest;
     drlight-media-indexers = testDrlightMediaIndexers.drlightMediaIndexersTest;
+    drlight-onepacerr = testDrlightOnePacerr.drlightOnePacerrTest;
     media-app-api-reconciliation = testMediaAppReconciliation.mediaAppApiReconciliation;
     media-library-status = testMediaLibraryStatus;
     devenv-grafana-skills = testDevenvGrafanaSkills;

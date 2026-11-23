@@ -106,6 +106,17 @@ Obtain separate cutover approval. Keep downloads paused during the transition. P
 3. Start the Drlight apps. Verify their service and database health, library refreshes and aggregate counts, Transmission integration, local Prowlarr connectivity/sync, Ultra proxy egress, FlareSolverr, and Bazarr connections. Verify Bazarr synchronization only for integrations explicitly enabled in Nix. Confirm no Arr API is publicly reachable and only the local Prowlarr instance is syncing indexers.
 4. If any check fails, stop and use **Roll back**. Do not start completed-download staging to work around a failure.
 
+### OnePacerr existing-library preflight
+
+The Drlight OnePacerr module is imported but remains disabled and non-autostarting by default. Its first run can reorganize files and update Jellyfin metadata; do not enable or manually start it until every preflight below passes.
+
+1. Confirm `jellyfin-admin-auth.service` succeeds with the existing unqualified `Jellyfin/username` and `Jellyfin/password` references in Drlight's default **Opnix** vault. If authentication fails, repair those references and repeat the read-only check. Do not create a cross-vault exception or expose the credentials.
+2. Through Jellyfin's read-only API, verify the existing series, exact library name, and filesystem root(s). Confirm the OnePacerr host mount contains only the intended series subtree, its container-path mapping resolves to the same files, and the target does not conflict with a Sonarr-managed series. Do not create a duplicate Jellyfin entry.
+3. Verify a restorable snapshot/backup of the affected subtree, permissions for UID `1500` and the shared `users` group, and that UID `1500` is still unused on Drlight. Keep discovered media names/paths and backup details in private operational notes; add only required library settings to reviewed Nix configuration.
+4. After these checks pass, separately review and deploy a Nix change that sets `myConfig.onePacerr.enable = true` and `myConfig.onePacerr.autoStart = true` with the verified library settings. The container uses `PIPELINE_SKIP_DOWNLOADS=true`, does not connect to Transmission, and may organize existing files and update Jellyfin metadata. Verify its first run before considering any later change.
+
+**Stop if:** Jellyfin admin authentication fails, the library/series cannot be identified unambiguously, a restorable backup is unavailable, UID/path/permissions checks fail, or the target is managed by Sonarr. Do not start OnePacerr manually to bypass these gates.
+
 ## 7. Validate staging before enabling its timer
 
 Keep the staging timer disabled while validating runtime settings and cutover health. The oneshot staging service can be tested deliberately while its recurring timer remains disabled.
