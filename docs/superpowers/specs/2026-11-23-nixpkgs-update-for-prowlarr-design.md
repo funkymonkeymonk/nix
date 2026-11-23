@@ -9,7 +9,7 @@ Move the repository's shared Nixpkgs input forward so the Drlight-managed Prowla
 
 ## Decision
 
-Update the existing shared `nixpkgs` flake input to a revision that packages Prowlarr `3.0.2.5780` (or newer). Do not add a second package-specific nixpkgs input or local package override. The current nixpkgs unstable package recipe already contains `3.0.2.5780` and uses .NET 10.
+Update the existing shared `nixpkgs` flake input to a revision that packages Prowlarr `3.0.2.5780` (or newer). Synchronize `devenv.yaml` and `devenv.lock` with the shared revision as required by the repository's machine-inventory check, while leaving the separate Devenv CLI input at its pinned stable release. Do not add a second package-specific nixpkgs input or local package override. The current nixpkgs unstable package recipe already contains `3.0.2.5780` and uses .NET 10.
 
 ## Scope and validation
 

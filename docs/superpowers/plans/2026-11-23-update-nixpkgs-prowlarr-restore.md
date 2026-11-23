@@ -51,14 +51,16 @@ Run `nix build .#checks.x86_64-linux.drlight-media-indexers --no-link --impure`.
 
 **Files:**
 - Modify: `flake.lock`
+- Modify: `devenv.yaml`
+- Modify: `devenv.lock`
 
 - [ ] **Step 1: Update only the shared Nixpkgs input**
 
-Run `nix flake update nixpkgs`. Review the lockfile diff and confirm the intended shared input moved; do not update unrelated inputs unless Nix reports a required follow edge.
+Run `nix flake update nixpkgs`, then `./scripts/sync-devenv-inputs.sh` and `devenv update` to synchronize the project Devenv lock. Review both lockfiles and `devenv.yaml`; confirm Nixpkgs and follow-dependent metadata moved. The synchronization script may pin a previously floating `devenv.yaml` URL to the revision already locked in `flake.lock`, but it must not change that input's locked revision. Keep the separate `devenv` CLI pinned at `v2.4.0`.
 
 - [ ] **Step 2: Check the evaluated Drlight package version**
 
-Run `nix eval --raw .#nixosConfigurations.drlight.config.services.prowlarr.package.version`. Confirm it is `3.0.2.5780` or newer, then rerun the focused Drlight media-indexer check to verify GREEN.
+Run `nix eval --raw .#nixosConfigurations.drlight.config.services.prowlarr.package.version` and `nix eval --raw .#nixosConfigurations.drlight.pkgs.path`. Confirm the Prowlarr package is `3.0.2.5780` or newer and the `machines-inventory` assertion sees the same Nixpkgs revision in both lockfiles. Then rerun the focused Drlight media-indexer check to verify GREEN.
 
 ### Task 3: Validate the full repository against the new package set
 
