@@ -55,7 +55,10 @@ live seedbox.
   responsible for using only indexers, accounts, and content they are
   authorized to access under applicable law and service terms.
 - Do not apply the Nix generation, contact live Prowlarr/Arr APIs, or modify
-  1Password as part of implementation or build tests.
+  1Password secret values as part of implementation or build tests. After
+  design approval, create only the empty `Prowlarr` item skeleton in the
+  `Opnix` vault if 1Password access is available; the user fills in its values.
+  Never read or print those values.
 
 ## Approaches considered
 
@@ -97,11 +100,12 @@ live seedbox.
 
 - Use unqualified Opnix item/field references so the shared helper resolves
   them from `myConfig.onepassword.defaultVault` (Drlight currently selects
-  `Opnix`). The proposed single item is `Prowlarr Drlight Integration`, with
-  fields `prowlarrUrl`, `prowlarrApiKey`, `radarrUrl`, `sonarrUrl`, and
-  `lidarrUrl`. These are references only; their values must never appear in
-  Git. At minimum, runtime secrets must supply the remote Prowlarr URL,
-  Prowlarr API key, and private target URLs for Radarr, Sonarr, and Lidarr.
+  `Opnix`). Create or specify one item named `Prowlarr` with fields `url`,
+  `apiKey`, `radarrUrl`, `sonarrUrl`, and `lidarrUrl`. Nix references them as
+  `Prowlarr/url`, `Prowlarr/apiKey`, `Prowlarr/radarrUrl`,
+  `Prowlarr/sonarrUrl`, and `Prowlarr/lidarrUrl`. These are references only;
+  their values must never appear in Git. The runtime fields supply the remote
+  Prowlarr URL/API key and private target URLs for Radarr, Sonarr, and Lidarr.
 - If any needed item is outside the default vault, stop and ask the user to
   move it or explicitly change the machine's default vault; do not add a
   cross-vault exception.
@@ -170,8 +174,8 @@ live seedbox.
   verified against the API contract before writing the adapter. The builder
   may choose the narrowest compatible API sequence while preserving the
   ownership and no-delete guarantees above.
-- The user must provide the required unqualified 1Password item/field
-  fields (proposed item/fields are listed above) in Drlight's default vault
-  before live deployment. This design does not assume that the item exists or
-  modify 1Password. If the existing values are in another vault, they must be
-  moved to `Opnix` before the module references them.
+- The user must populate the five listed fields on the `Prowlarr` item in
+  Drlight's default vault before live deployment. Do not read or expose those
+  values. If 1Password access is unavailable, provide the exact item/field
+  names for the user to create. If any existing value is in another vault, it
+  must be moved to `Opnix` before the module references it.
