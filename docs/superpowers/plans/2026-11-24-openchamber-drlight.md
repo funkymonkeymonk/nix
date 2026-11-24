@@ -36,6 +36,7 @@
 - Modify: `tests/test-bifrost.nix`
 - Modify: `tests/default.nix`
 - Modify: `modules/services/bifrost/darwin.nix`
+- Generated: `docs/reference/options.md`
 
 **Interfaces:**
 - Consumes: existing `myConfig.bifrost.upstreams`, launcher `configJson`, and Opnix-created secret files.
@@ -52,7 +53,7 @@
 
 - [ ] **Step 3: Implement `myConfig.bifrost.auth` in `modules/services/bifrost/darwin.nix`**
 
-  Add typed auth options and validation for required secret paths. Extend generated JSON with `client.enforce_auth_on_inference`, `governance.auth_config` (admin username/password references; `disable_auth_on_inference = false`), and one virtual key with the configured ID/name and allowed providers. Export the setup-token file as `BIFROST_SETUP_TOKEN`, as supported by Bifrost; extend the launcher to read the secret files into the matching `BIFROST_*` environment variables. Never interpolate secret values into Nix-generated JSON or scripts.
+  Add typed auth options and validation for required secret paths. Extend generated JSON with `client.enforce_auth_on_inference`, `governance.auth_config` (admin username/password references; `disable_auth_on_inference = false`), and one virtual key with the configured ID/name and allowed providers. Export the setup-token file as `BIFROST_SETUP_TOKEN`, as supported by Bifrost; extend the launcher to read the secret files into the matching `BIFROST_*` environment variables. Never interpolate secret values into Nix-generated JSON or scripts. Run `devenv tasks run docs:generate-options` and include the generated option reference update, because build checks verify it is current.
 
 - [ ] **Step 4: Run the check to verify it passes**
 

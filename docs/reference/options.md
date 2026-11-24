@@ -61,6 +61,16 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `appDir` | string | `"$HOME/.config/bifrost"` | Directory for Bifrost data (config.json, SQLite DB, request logs) |
+| `auth` | submodule | `{ }` | Bifrost dashboard and inference authentication, populated from runtime secret files. |
+| `auth.adminPasswordFile` | null or string | `null` | Runtime file containing the Bifrost dashboard/admin password. |
+| `auth.adminUsernameFile` | null or string | `null` | Runtime file containing the Bifrost dashboard/admin username. |
+| `auth.enable` | boolean | `false` | Enable Bifrost dashboard authentication and inference virtual-key enforcement. |
+| `auth.setupTokenFile` | null or string | `null` | Runtime file containing the first-admin setup token, exported as BIFROST_SETUP_TOKEN. |
+| `auth.virtualKey` | null or (submodule) | `null` | Optional inference virtual key, required when auth.enable is true. |
+| `auth.virtualKey.id` | string | *required* | Stable Bifrost virtual-key ID. |
+| `auth.virtualKey.name` | string | *required* | Human-readable Bifrost virtual-key name. |
+| `auth.virtualKey.providers` | list of string | `[ ]` | Bifrost providers permitted for this virtual key. |
+| `auth.virtualKey.valueFile` | string | *required* | Runtime file containing the virtual-key value. |
 | `enable` | boolean | `false` | Enable Bifrost AI gateway for unified LLM access across all local inference servers |
 | `host` | string | `"0.0.0.0"` | Host to bind Bifrost to |
 | `logLevel` | one of "debug", "info", "warn", "error" | `"info"` | Bifrost log level |
