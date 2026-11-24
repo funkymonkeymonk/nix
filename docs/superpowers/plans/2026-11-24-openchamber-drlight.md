@@ -43,7 +43,7 @@
 
 - [ ] **Step 1: Write the failing Bifrost auth-config test**
 
-  Add `bifrostNetworkAuthConfigTest` in `tests/test-bifrost.nix` and register it as `bifrost-network-auth` in `tests/default.nix`. Evaluate Bifrost with its existing `omlx` and `opencode-go` upstreams plus auth files and virtual key providers `['omlx' 'opencode-go']`. Parse the generated launcher `config.json` and assert `client.enforce_auth_on_inference == true`, dashboard/admin auth is enabled with inference auth not disabled, the admin/setup/key values are `env.*` references, and both existing provider entries remain. Assert the generated launcher reads each configured secret file and contains none of the fixture secret values.
+  Add `bifrostNetworkAuthConfigTest` in `tests/test-bifrost.nix` and register it as `bifrost-network-auth` in `tests/default.nix`. Evaluate Bifrost with its existing `omlx` and `opencode-go` upstreams plus auth files and virtual key providers `['omlx' 'opencode-go']`. Parse the generated launcher `config.json` and assert `client.enforce_auth_on_inference == true`, dashboard/admin auth is enabled with inference auth not disabled, admin values are `env.*` references, and both existing provider entries remain. Assert the launcher exports `BIFROST_SETUP_TOKEN`, reads each configured secret file, and contains none of the fixture secret values.
 
 - [ ] **Step 2: Run the check to verify it fails**
 
@@ -52,7 +52,7 @@
 
 - [ ] **Step 3: Implement `myConfig.bifrost.auth` in `modules/services/bifrost/darwin.nix`**
 
-  Add typed auth options and validation for required secret paths. Extend generated JSON with `client.enforce_auth_on_inference`, `governance.auth_config` (admin username/password/setup token references; `disable_auth_on_inference = false`), and one virtual key with the configured ID/name and allowed providers. Extend the launcher to read the secret files into the matching `BIFROST_*` environment variables; never interpolate secret values into Nix-generated JSON or scripts.
+  Add typed auth options and validation for required secret paths. Extend generated JSON with `client.enforce_auth_on_inference`, `governance.auth_config` (admin username/password references; `disable_auth_on_inference = false`), and one virtual key with the configured ID/name and allowed providers. Export the setup-token file as `BIFROST_SETUP_TOKEN`, as supported by Bifrost; extend the launcher to read the secret files into the matching `BIFROST_*` environment variables. Never interpolate secret values into Nix-generated JSON or scripts.
 
 - [ ] **Step 4: Run the check to verify it passes**
 

@@ -385,6 +385,7 @@ in
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
     bifrost-package-version = testBifrost.bifrostPackageVersionTest;
     bifrost-tailscale-serve = testBifrost.bifrostTailscaleServeTest;
+    bifrost-network-auth = testBifrost.bifrostNetworkAuthConfigTest;
 
     # Caddy reverse proxy module tests
     caddy-options = testCaddy.caddyOptionsTest;
