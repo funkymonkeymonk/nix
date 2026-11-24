@@ -1,5 +1,7 @@
 # Server, Media-Center, and Observability Archetypes Implementation Plan
 
+> **Decision update:** This historical plan's OnePacerr-on-Drlight prohibition is superseded by the approved [OnePacerr library-only plan](../superpowers/plans/2026-11-23-onepacerr-library-only.md). OnePacerr remains disabled until the Jellyfin authentication, library path, and backup preflight gates pass; the other historical decisions remain unchanged.
+
 > **Note:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** Refactor the machine profiles into reusable server, media-center, and observability archetypes, centralize telemetry on drlight, and retire Darwin Grafana and inactive local seed-box configuration.

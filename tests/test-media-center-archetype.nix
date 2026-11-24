@@ -235,11 +235,13 @@
         "Bazaar/password"
         "Mylar3/username"
         "Mylar3/password"
-        "Jellyfin/username"
-        "Jellyfin/password"
+        "Jellyfin - Monkey/username"
+        "Jellyfin - Monkey/password"
       ];
       mediaAuthSecrets = map (name: onePasswordSecrets.${name} or {}) mediaAuthSecretNames;
       opnixMediaAuthSecrets = map (name: opnixSecrets.${name} or {}) mediaAuthSecretNames;
+      mylarApiKeySecret = onePasswordSecrets.mylar3ApiKey or {};
+      opnixMylarApiKeySecret = opnixSecrets.mylar3ApiKey or {};
       mediaAuthApps = [
         {
           name = "radarr";
@@ -478,6 +480,8 @@
         ${checkEqual "Mylar3 preserves its Forms authentication mode" 2 (drlight.services.mylar3.settings.Interface.AUTHENTICATION or null)}
         ${checkEqual "Mylar3 admin username comes from its runtime Opnix file" "/run/secrets/mylar3-admin-username" (drlight.services.mylar3.settings.Interface.HTTP_USERNAME.secret or null)}
         ${checkEqual "Mylar3 admin password comes from its runtime Opnix file" "/run/secrets/mylar3-admin-password" (drlight.services.mylar3.settings.Interface.HTTP_PASSWORD.secret or null)}
+        ${checkTrue "Mylar3 API access is explicitly enabled" ((drlight.services.mylar3.settings.API or {}).API_ENABLED or false)}
+        ${checkEqual "Mylar3 API key is read from its runtime secret file" "/run/secrets/mylar3-api-key" (drlight.services.mylar3.settings.API.API_KEY.secret or null)}
         ${checkTrue "Mylar3 waits for Opnix secrets before rendering its protected config" (builtins.elem "opnix-secrets.service" ((mediaManagementService "mylar3").after or []) && builtins.elem "opnix-secrets.service" ((mediaManagementService "mylar3").requires or []))}
         ${checkEqual "Mylar3 retains its non-torrent downloader mode" 0 (drlight.services.mylar3.settings.Client.TORRENT_DOWNLOADER or null)}
         ${checkFalse "Mylar3 does not enable torrent downloads or search" (drlight.services.mylar3.settings.Torrents.ENABLE_TORRENTS or true || drlight.services.mylar3.settings.Torrents.ENABLE_TORRENT_SEARCH or true)}
@@ -519,6 +523,11 @@
         ] (map (secret: secret.group or null) mediaAuthSecrets)}
         ${checkTrue "media app login secrets are owned by root with mode 0440" (builtins.all (secret: (secret.owner or null) == "root" && (secret.mode or null) == "0440") mediaAuthSecrets)}
         ${checkEqual "media app login secrets trigger only their owning app and the status collector for Jellyfin" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage"] ["jellyfin" "ultra-media-download-stage"]] (map (secret: secret.services or []) mediaAuthSecrets)}
+        ${checkEqual "Mylar API key uses the existing default-vault item field" "Mylar3/api-key" (mylarApiKeySecret.reference or null)}
+        ${checkEqual "Mylar API key resolves through the default Opnix vault" "op://Opnix/Mylar3/api-key" (opnixMylarApiKeySecret.reference or null)}
+        ${checkEqual "Mylar API key uses a restricted runtime file" "/run/secrets/mylar3-api-key" (mylarApiKeySecret.path or null)}
+        ${checkTrue "Mylar API key is root-owned and readable by the Mylar secret group only" ((mylarApiKeySecret.owner or null) == "root" && (mylarApiKeySecret.group or null) == "media-auth-mylar3" && (mylarApiKeySecret.mode or null) == "0440")}
+        ${checkEqual "Mylar API key changes trigger only Mylar" ["mylar3"] (mylarApiKeySecret.services or [])}
         ${checkTrue "each media app account can read only its own login secret group" (builtins.all (app: builtins.elem "media-auth-${app.name}" (drlight.users.users.${app.name}.extraGroups or [])) mediaAuthApps)}
         ${checkTrue "media credential reconciliation waits for Opnix and its app" (builtins.all (app: let
           after = drlight.systemd.services.${app.sync}.after or [];
@@ -774,9 +783,9 @@
             ${checkTrue "Jellyfin enables its native Prometheus metrics endpoint declaratively" (lib.hasInfix "EnableMetrics" jellyfinPreStart && lib.hasInfix "true" jellyfinPreStart)}
             ${checkTrue "Jellyfin metrics pre-start script quotes its config path" (lib.hasInfix "os.path.join(\"/var/lib/jellyfin/config\"" jellyfinPreStart && !(lib.hasInfix "os.path.join(/var/lib/jellyfin/config" jellyfinPreStart))}
             ${checkTrue "Prometheus scrapes Jellyfin's native metrics endpoint" (lib.any (scrape: scrape.job_name == "jellyfin" && builtins.any (static: builtins.elem "127.0.0.1:8096" (static.targets or [])) (scrape.static_configs or [])) jellyfinScrapeConfigs)}
-           ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
-           ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
-           ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
+           ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin - Monkey/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
+           ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin - Monkey/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
+           ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin - Monkey/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
            ${checkTrue "Jellyfin admin auth verifier runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (drlight.systemd.services.jellyfin-admin-auth.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (drlight.systemd.services.jellyfin-admin-auth.wantedBy or []))}
            ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
 
