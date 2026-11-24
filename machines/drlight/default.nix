@@ -152,6 +152,14 @@ in {
           group = "root";
           services = ["caddy-cloudflare-env" "caddy"];
         };
+        secrets.jellyfinDiscordWebhook = {
+          reference = "Jellyfin Discord Webhook/url";
+          path = "/run/secrets/jellyfin-discord-webhook";
+          mode = "0440";
+          owner = "root";
+          group = "media-auth-jellyfin";
+          services = ["jellyfin-discord-webhook-config-sync"];
+        };
       };
     };
 }

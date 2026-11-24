@@ -159,6 +159,7 @@
         ../../disk-configs/drlight.nix
         ../../modules/nixos/media-storage.nix
         ../../modules/nixos/media-management.nix
+        ../../modules/nixos/jellyfin-discord-notifications.nix
         ../../modules/nixos/media-indexers.nix
         ../../modules/nixos/onepacerr.nix
         ../../modules/nixos/ultra-media-download-stage.nix

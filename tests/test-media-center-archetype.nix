@@ -144,6 +144,7 @@
       resticJobs = drlight.services.restic.backups or {};
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
+      jellyfinDiscordWebhookSecret = onePasswordSecrets.jellyfinDiscordWebhook or {};
       secretValues = builtins.attrValues onePasswordSecrets;
       ultraSyncStagingSource = builtins.readFile ../modules/nixos/scripts/ultra-media-download-stage.py;
       mediaLibraryStatusSource = builtins.readFile ../modules/nixos/scripts/media-library-status.py;
@@ -280,6 +281,12 @@
       jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
       jellyfinService = drlight.systemd.services.jellyfin or {};
       jellyfinPreStart = drlight.systemd.services.jellyfin.preStart or "";
+      jellyfinDiscordConfigService = drlight.systemd.services.jellyfin-discord-webhook-config-sync or {};
+      jellyfinDiscordConfigServiceConfig = jellyfinDiscordConfigService.serviceConfig or {};
+      jellyfinDiscordConfigCommand = jellyfinDiscordConfigServiceConfig.ExecStart or "";
+      jellyfinDiscordConfigPath = lib.last (lib.splitString "--config " jellyfinDiscordConfigCommand);
+      jellyfinDiscordConfigJson = builtins.fromJSON (builtins.readFile jellyfinDiscordConfigPath);
+      jellyfinPluginTmpfilesRules = drlight.systemd.tmpfiles.rules or [];
       mediaLibraryFoldersService = drlight.systemd.services.media-library-folders or {};
       mediaLibraryFoldersScript = mediaLibraryFoldersService.script or "";
       diskoDevices = (drlight.disko or {}).devices or {};
@@ -545,7 +552,7 @@
           "media-auth-jellyfin"
         ] (map (secret: secret.group or null) mediaAuthSecrets)}
         ${checkTrue "media app login secrets are owned by root with mode 0440" (builtins.all (secret: (secret.owner or null) == "root" && (secret.mode or null) == "0440") mediaAuthSecrets)}
-        ${checkEqual "media app login secrets trigger only their owning app and the status collector for Jellyfin" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage"] ["jellyfin" "ultra-media-download-stage"]] (map (secret: secret.services or []) mediaAuthSecrets)}
+        ${checkEqual "media app login secrets trigger their owning app and declared Jellyfin dependents" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"]] (map (secret: secret.services or []) mediaAuthSecrets)}
         ${checkEqual "Mylar API key uses the existing default-vault item field" "Mylar3/api-key" (mylarApiKeySecret.reference or null)}
         ${checkEqual "Mylar API key resolves through the default Opnix vault" "op://Opnix/Mylar3/api-key" (opnixMylarApiKeySecret.reference or null)}
         ${checkEqual "Mylar API key uses a restricted runtime file" "/run/secrets/mylar3-api-key" (mylarApiKeySecret.path or null)}
@@ -810,7 +817,20 @@
            ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin - Monkey/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
            ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin - Monkey/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
            ${checkTrue "Jellyfin admin auth verifier runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (drlight.systemd.services.jellyfin-admin-auth.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (drlight.systemd.services.jellyfin-admin-auth.wantedBy or []))}
-           ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
+            ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
+            ${checkTrue "Drlight selects the Jellyfin Discord notification module" (hasModule "/modules/nixos/jellyfin-discord-notifications.nix" drlightMachine)}
+            ${checkFalse "other machines do not select Drlight Jellyfin Discord notifications" (lib.any (machine: hasModule "/modules/nixos/jellyfin-discord-notifications.nix" machine) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
+            ${checkEqual "Jellyfin Discord webhook uses the default Opnix item field" "Jellyfin Discord Webhook/url" (jellyfinDiscordWebhookSecret.reference or null)}
+            ${checkEqual "Jellyfin Discord webhook secret uses its runtime-only path" "/run/secrets/jellyfin-discord-webhook" (jellyfinDiscordWebhookSecret.path or null)}
+            ${checkEqual "Jellyfin Discord webhook secret is scoped to its reconciler" ["jellyfin-discord-webhook-config-sync"] (jellyfinDiscordWebhookSecret.services or [])}
+            ${checkEqual "Jellyfin Discord webhook secret uses restricted ownership" ["root" "media-auth-jellyfin" "0440"] [(jellyfinDiscordWebhookSecret.owner or null) (jellyfinDiscordWebhookSecret.group or null) (jellyfinDiscordWebhookSecret.mode or null)]}
+            ${checkTrue "Jellyfin installs the pinned webhook plugin through tmpfiles" (lib.any (rule: lib.hasInfix "/plugins/Webhook_" rule && lib.hasInfix "jellyfin-webhook-plugin" rule) jellyfinPluginTmpfilesRules)}
+            ${checkTrue "Jellyfin restarts when the webhook plugin package changes" (lib.any (trigger: lib.hasInfix "jellyfin-webhook-plugin" trigger) (jellyfinService.restartTriggers or []))}
+            ${checkTrue "Jellyfin Discord reconciler runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (jellyfinDiscordConfigService.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (jellyfinDiscordConfigService.wantedBy or []))}
+            ${checkTrue "Jellyfin Discord reconciler uses its runtime Python helper" (lib.hasInfix "jellyfin_webhook_config.py" jellyfinDiscordConfigCommand && lib.hasInfix "--config" jellyfinDiscordConfigCommand)}
+            ${checkTrue "Jellyfin Discord reconciler receives secret paths, not values" ((jellyfinDiscordConfigJson.webhookUrlFile or null) == "/run/secrets/jellyfin-discord-webhook" && !(lib.hasInfix "https://discord.com/api/webhooks/" (builtins.toJSON jellyfinDiscordConfigJson)))}
+            ${checkEqual "Jellyfin Discord reconciler runs as the Jellyfin account" "jellyfin" (jellyfinDiscordConfigServiceConfig.User or null)}
+            ${checkTrue "Jellyfin Discord reconciler can read only the required media-auth group" (builtins.elem "media-auth-jellyfin" (jellyfinDiscordConfigServiceConfig.SupplementaryGroups or []))}
 
            if ${pkgs.fakeroot}/bin/fakeroot ${pkgs.bash}/bin/bash <<'EOF'
           set -e
