@@ -46,7 +46,7 @@ Assert API enablement, the runtime key path, the unqualified Opnix reference and
 
 - [ ] **Step 2: Confirm RED**
 
-Run: `nix build .#checks.x86_64-linux.media-center-archetype --no-link --impure`
+Run: `nix build .#checks.x86_64-linux.drlight-media-management --no-link --impure`
 
 Expected: fail on the missing Mylar API settings and Opnix API-key secret assertions.
 
@@ -56,7 +56,7 @@ Declare the new secret alongside the existing media auth secrets, accessible to 
 
 - [ ] **Step 4: Verify focused checks**
 
-Run: `nix build .#checks.x86_64-linux.media-center-archetype --no-link --impure`
+Run: `nix build .#checks.x86_64-linux.drlight-media-management --no-link --impure`
 
 Expected: pass, including the runtime secret path and preserved torrent-disabled assertions.
 
