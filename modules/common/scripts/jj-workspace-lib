@@ -61,3 +61,54 @@ is_jj_workspace() {
   local repo_root="$2"
   [[ "$workspace_root" != "$repo_root" ]] && [[ -d "$workspace_root/.jj" ]]
 }
+
+# resolve_jj_flake_ref
+#
+# Resolve an immutable Git flake reference for tasks that run from the main
+# repo root on behalf of a Jujutsu workspace. An explicit empty or invalid
+# workspace root must fail rather than silently selecting the main checkout.
+resolve_jj_flake_ref() {
+  local workspace_root repo_root commit_id
+
+  if [[ -n "${JJ_WORKSPACE_ROOT+x}" ]]; then
+    workspace_root="$JJ_WORKSPACE_ROOT"
+    if [[ -z "$workspace_root" ]]; then
+      echo "JJ_WORKSPACE_ROOT is explicitly empty" >&2
+      return 1
+    fi
+  else
+    workspace_root="$PWD"
+  fi
+
+  if [[ ! -f "$workspace_root/flake.nix" ]]; then
+    echo "JJ_WORKSPACE_ROOT does not contain flake.nix: $workspace_root" >&2
+    return 1
+  fi
+
+  if [[ -n "${JJ_REPO_ROOT+x}" ]]; then
+    repo_root="$JJ_REPO_ROOT"
+    if [[ -z "$repo_root" ]]; then
+      echo "JJ_REPO_ROOT is explicitly empty" >&2
+      return 1
+    fi
+  else
+    repo_root=$(detect_jj_repo_root "$workspace_root" 2>/dev/null || printf '%s' "$workspace_root")
+  fi
+
+  if [[ ! -f "$repo_root/flake.nix" ]]; then
+    echo "JJ_REPO_ROOT does not contain flake.nix: $repo_root" >&2
+    return 1
+  fi
+
+  commit_id=$(jj --ignore-working-copy --repository "$workspace_root" \
+    log -r @ --no-graph -T 'commit_id' 2>/dev/null) || {
+    echo "Unable to resolve the current jj commit in $workspace_root" >&2
+    return 1
+  }
+  if [[ ! "$commit_id" =~ ^[[:xdigit:]]+$ ]]; then
+    echo "jj returned an invalid commit ID for $workspace_root: $commit_id" >&2
+    return 1
+  fi
+
+  printf 'git+file://%s?rev=%s\n' "$repo_root" "$commit_id"
+}

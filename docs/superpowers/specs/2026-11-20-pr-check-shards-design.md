@@ -19,7 +19,7 @@ Reduce the longest PR validation shard runtime so Nix checks are less likely to 
 
 For workspace switching, three approaches were considered:
 
-1. **Pass the workspace root through the existing task. Selected.** Continue launching `system:switch` from the main repo root, but resolve every configuration lookup and rebuild against the explicit current workspace flake root. This preserves task setup while making the documented workspace behavior real.
+1. **Pass an immutable workspace flake reference through the existing task. Selected.** Continue launching `system:switch` from the main repo root, resolve the workspace's Jujutsu commit ID once, and use a `git+file` flake reference pinned with `?rev=<commit>` for every lookup and rebuild. This preserves task setup while making the documented workspace behavior real and preventing dirty-tree drift.
 2. **Run the task directly from the workspace.** Simpler at the wrapper, but leaves task-level root assumptions implicit and depends on workspace flake discovery.
 3. **Create a temporary snapshot of the workspace commit.** Strong isolation from uncommitted files, but adds per-switch snapshot and cleanup machinery.
 
@@ -28,10 +28,11 @@ For workspace switching, three approaches were considered:
 - Plan non-VM PR check shards with a batch size of two.
 - Keep `max-parallel: 6`, `timeout-minutes: 25`, check selection, and independent VM scheduling unchanged.
 - Update workflow regression coverage to pin the two-check batch size.
-- Make `system:switch` use the current workspace root for all Nix evaluations and rebuilds when invoked from a workspace; retain current-directory behavior for ordinary invocations.
-- Preserve Git-backed flake semantics so only the workspace's committed revision is selected; do not switch from an uncommitted path snapshot.
+- Make `system:switch` use an immutable flake reference for the current workspace commit across all Nix evaluations and rebuilds; retain current-directory behavior for ordinary invocations.
+- Pin the Git-backed flake reference to the commit returned by `jj log`; never use a mutable path reference that can include dirty changes or change between lookup and rebuild.
 - Fail clearly if an explicitly supplied workspace root is invalid rather than silently switching the main checkout.
-- Rebase the PR branch onto the latest `main` and push the updated branch.
+- Treat an explicitly empty `JJ_WORKSPACE_ROOT` as invalid, not as an unset variable.
+- Rebase the follow-up changes onto the latest `main` and publish them on a new branch because PR 564 has already merged.
 
 ## Non-goals
 
