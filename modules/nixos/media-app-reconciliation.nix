@@ -50,7 +50,7 @@
     owner = "root";
     group = "media-auth-${app.name}";
     mode = "0440";
-    services = [app.name];
+    services = [app.name] ++ lib.optional (app.name == "jellyfin") "ultra-media-download-stage";
   };
   mediaAuthSecrets = lib.listToAttrs (lib.concatMap (app: [
       (lib.nameValuePair "${app.name}AdminUsername" (mkMediaAuthSecret app "username" "username"))

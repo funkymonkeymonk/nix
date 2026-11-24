@@ -146,6 +146,7 @@
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
       secretValues = builtins.attrValues onePasswordSecrets;
       ultraSyncStagingSource = builtins.readFile ../modules/nixos/scripts/ultra-media-download-stage.py;
+      mediaLibraryStatusSource = builtins.readFile ../modules/nixos/scripts/media-library-status.py;
       ultraSyncPolicySource = builtins.readFile ../modules/nixos/scripts/ultra-media-cleanup.py;
       ultraDownloadStageService = drlight.systemd.services.ultra-media-download-stage or {};
       ultraDownloadStageServiceConfig = ultraDownloadStageService.serviceConfig or {};
@@ -161,6 +162,7 @@
       nodeExporterExtraFlags = drlight.services.prometheus.exporters.node.extraFlags or [];
       nodeExporterExtraGroups = drlight.users.users.node-exporter.extraGroups or [];
       ultraPrometheusRules = builtins.concatStringsSep "\n" (drlight.services.prometheus.rules or []);
+      jellyfinScrapeConfigs = builtins.filter (scrape: scrape.job_name == "jellyfin") (drlight.services.prometheus.scrapeConfigs or []);
       ultraMetricsTmpfiles = drlight.systemd.tmpfiles.rules or [];
       ultraStageSecretNames = [
         "ultraMediaStageHost"
@@ -275,6 +277,7 @@
       localStorageFilesystem = drlight.fileSystems."/srv/local" or {};
       jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
       jellyfinService = drlight.systemd.services.jellyfin or {};
+      jellyfinPreStart = drlight.systemd.services.jellyfin.preStart or "";
       mediaLibraryFoldersService = drlight.systemd.services.media-library-folders or {};
       mediaLibraryFoldersScript = mediaLibraryFoldersService.script or "";
       diskoDevices = (drlight.disko or {}).devices or {};
@@ -515,7 +518,7 @@
           "media-auth-jellyfin"
         ] (map (secret: secret.group or null) mediaAuthSecrets)}
         ${checkTrue "media app login secrets are owned by root with mode 0440" (builtins.all (secret: (secret.owner or null) == "root" && (secret.mode or null) == "0440") mediaAuthSecrets)}
-        ${checkEqual "media app login secrets trigger only their owning app" (builtins.concatLists (map (app: [[app] [app]]) ["radarr" "sonarr" "lidarr" "bazarr" "mylar3" "jellyfin"])) (map (secret: secret.services or []) mediaAuthSecrets)}
+        ${checkEqual "media app login secrets trigger only their owning app and the status collector for Jellyfin" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage"] ["jellyfin" "ultra-media-download-stage"]] (map (secret: secret.services or []) mediaAuthSecrets)}
         ${checkTrue "each media app account can read only its own login secret group" (builtins.all (app: builtins.elem "media-auth-${app.name}" (drlight.users.users.${app.name}.extraGroups or [])) mediaAuthApps)}
         ${checkTrue "media credential reconciliation waits for Opnix and its app" (builtins.all (app: let
           after = drlight.systemd.services.${app.sync}.after or [];
@@ -697,7 +700,7 @@
            ${checkTrue "Drlight selects the torrent download-staging module" (hasModule "/modules/nixos/ultra-media-download-stage.nix" drlightMachine)}
            ${checkTrue "the hourly stage worker invokes the ordered sync-and-cleanup runner" (lib.hasInfix "ultra-media-sync.py" ultraDownloadStageCommand && lib.hasInfix "--cleanup-enabled" ultraDownloadStageCommand && lib.hasInfix "--queue-root /var/lib/ultra-media/cleanup-queue" ultraDownloadStageCommand)}
            ${checkTrue "there is no separately scheduled cleanup worker" (!(drlight.systemd.services ? ultra-media-cleanup) && !(drlight.systemd.timers ? ultra-media-cleanup))}
-           ${checkFalse "the unified worker has no Arr API service dependencies or credentials groups" (builtins.any (unit: builtins.elem unit (ultraDownloadStageService.after or []) || builtins.elem unit (ultraDownloadStageService.requires or [])) ["radarr.service" "sonarr.service" "lidarr.service" "radarr-media-api-key.service" "sonarr-media-api-key.service" "lidarr-media-api-key.service"] || builtins.any (group: builtins.elem group (ultraDownloadStageServiceConfig.SupplementaryGroups or [])) ["radarr-api" "sonarr-api" "lidarr-api"])}
+           ${checkTrue "the unified worker has optional Arr API dependencies and credentials groups" (builtins.all (unit: builtins.elem unit (ultraDownloadStageService.after or []) && builtins.elem unit (ultraDownloadStageService.wants or [])) ["radarr-media-api-key.service" "sonarr-media-api-key.service" "lidarr-media-api-key.service"] && builtins.all (group: builtins.elem group (ultraDownloadStageServiceConfig.SupplementaryGroups or [])) ["radarr-api" "sonarr-api" "lidarr-api" "media-auth-jellyfin"])}
            ${checkFalse "the separate manual retry-reset worker is removed" (drlight.systemd.services ? ultra-media-cleanup-reset-retries)}
            ${checkFalse "legacy organized-library sync service is removed" (drlight.systemd.services ? ultra-media-sync)}
            ${checkFalse "legacy organized-library sync timer is removed" (drlight.systemd.timers ? ultra-media-sync)}
@@ -713,12 +716,16 @@
            ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
+           ${checkTrue "completed-download staging timer defers while its service is active" (ultraDownloadStageTimerConfig.DeferReactivation or false)}
            ${checkTrue "Drlight enables account-level seedbox disk monitoring" (ultraRemoteDiskConfig.enable or false)}
            ${checkEqual "seedbox capacity uses the configured decimal 4 TB" 4000000000000 (ultraRemoteDiskConfig.capacityBytes or null)}
            ${checkEqual "seedbox warning threshold uses decimal 3 TB" 3000000000000 (ultraRemoteDiskConfig.warningThresholdBytes or null)}
            ${checkEqual "node_exporter textfile collector uses the private Ultra metrics directory" ultraRemoteDiskMetricsDirectory nodeExporterTextfileDirectory}
            ${checkTrue "node_exporter reads the dedicated metrics group" (builtins.elem "ultra-media-metrics" nodeExporterExtraGroups && builtins.elem "--collector.textfile.directory=/run/ultra-media-metrics" nodeExporterExtraFlags)}
            ${checkTrue "the unified worker writes remote usage metrics only through its private group path" (builtins.elem ultraRemoteDiskMetricsDirectory (ultraDownloadStageServiceConfig.ReadWritePaths or []) && builtins.elem "ultra-media-metrics" (ultraDownloadStageServiceConfig.SupplementaryGroups or []) && builtins.elem "ultra-media-metrics" (builtins.attrNames (drlight.users.groups or {})) && builtins.elem "d /run/ultra-media-metrics 2750 ultra-sync ultra-media-metrics - -" ultraMetricsTmpfiles && builtins.elem "z /run/ultra-media-metrics 2750 ultra-sync ultra-media-metrics - -" ultraMetricsTmpfiles)}
+            ${checkTrue "the unified worker publishes live per-torrent Prometheus metrics" (lib.hasInfix "--metrics-path /run/ultra-media-metrics/ultra-media-sync.prom" ultraDownloadStageCommand && lib.hasInfix "render_stage_metrics" ultraSyncStagingSource && lib.hasInfix "write_stage_metrics_atomic" ultraSyncStagingSource)}
+             ${checkTrue "per-torrent metrics include Arr import and Jellyfin status" (lib.hasInfix "ultra_media_sync_torrent_imported" ultraSyncStagingSource && lib.hasInfix "ultra_media_sync_torrent_jellyfin" ultraSyncStagingSource && lib.hasInfix "normalize_title" mediaLibraryStatusSource)}
+            ${checkTrue "Drlight passes media API credentials to the sync exporter" (lib.hasInfix "--radarr-api-key-file" ultraDownloadStageCommand && lib.hasInfix "--jellyfin-username-file" ultraDownloadStageCommand && lib.hasInfix "media-auth-jellyfin" (builtins.concatStringsSep " " (ultraDownloadStageServiceConfig.SupplementaryGroups or [])))}
            ${checkTrue "Prometheus alerts when Ultra storage exceeds 3 TB" (lib.hasInfix "UltraSeedboxStorageHigh" ultraPrometheusRules && lib.hasInfix "3000000000000" ultraPrometheusRules)}
            ${checkTrue "Prometheus alerts if Ultra storage telemetry is unavailable" (lib.hasInfix "UltraSeedboxStorageTelemetryUnavailable" ultraPrometheusRules)}
            ${checkEqual "the unified worker is an exec service under the Ultra sync account" ["exec" "ultra-sync" "users"] [(ultraDownloadStageServiceConfig.Type or null) (ultraDownloadStageServiceConfig.User or null) (ultraDownloadStageServiceConfig.Group or null)]}
@@ -726,9 +733,9 @@
            ${checkTrue "the hourly worker runs the ordered sync-and-cleanup orchestrator" (lib.hasInfix "ultra-media-sync.py" ultraDownloadStageCommand && lib.hasInfix "--cleanup-enabled" ultraDownloadStageCommand && lib.hasInfix "--queue-root /var/lib/ultra-media/cleanup-queue" ultraDownloadStageCommand && lib.hasInfix "--remote-disk-metrics-path /run/ultra-media-metrics/ultra-seedbox.prom" ultraDownloadStageCommand)}
            ${checkTrue "cleanup-disabled configuration still stages without enabling cleanup" (lib.hasInfix "ultra-media-sync.py" ultraDisabledDownloadStageCommand && !(lib.hasInfix "--cleanup-enabled" ultraDisabledDownloadStageCommand))}
            ${checkTrue "no separate scheduled cleanup or retry-reset service remains" (!(drlight.systemd.services ? ultra-media-cleanup) && !(drlight.systemd.timers ? ultra-media-cleanup) && !(drlight.systemd.services ? ultra-media-cleanup-reset-retries))}
-           ${checkTrue "the unified worker has no Arr service/API-key dependencies or groups" (builtins.all (unit: !(builtins.elem unit (ultraDownloadStageService.after or [])) && !(builtins.elem unit (ultraDownloadStageService.requires or []))) ["radarr.service" "sonarr.service" "lidarr.service" "radarr-media-api-key.service" "sonarr-media-api-key.service" "lidarr-media-api-key.service"] && builtins.all (group: !(builtins.elem group (ultraDownloadStageServiceConfig.SupplementaryGroups or []))) ["radarr-api" "sonarr-api" "lidarr-api"])}
+            ${checkTrue "the unified worker has optional Arr service/API-key dependencies and groups" (builtins.all (unit: builtins.elem unit (ultraDownloadStageService.after or []) && builtins.elem unit (ultraDownloadStageService.wants or [])) ["radarr-media-api-key.service" "sonarr-media-api-key.service" "lidarr-media-api-key.service"] && builtins.all (group: builtins.elem group (ultraDownloadStageServiceConfig.SupplementaryGroups or [])) ["radarr-api" "sonarr-api" "lidarr-api"])}
            ${checkTrue "the unified worker retains protected per-torrent runtime and state directories" ((ultraDownloadStageServiceConfig.ProtectSystem or null) == "strict" && (ultraDownloadStageServiceConfig.ProtectHome or false) && (ultraDownloadStageServiceConfig.NoNewPrivileges or false) && (ultraDownloadStageServiceConfig.StateDirectory or null) == "ultra-media" && (ultraDownloadStageServiceConfig.StateDirectoryMode or null) == "0700" && (ultraDownloadStageServiceConfig.RuntimeDirectory or null) == "ultra-media" && (ultraDownloadStageServiceConfig.RuntimeDirectoryMode or null) == "0700" && (ultraDownloadStageServiceConfig.RuntimeDirectoryPreserve or null) == "yes" && builtins.elem "/run/ultra-media" (ultraDownloadStageServiceConfig.ReadWritePaths or []))}
-           ${checkTrue "the unified worker can reach Transmission/SSH but not Arr APIs" (!(ultraDownloadStageServiceConfig.PrivateNetwork or false) && (ultraDownloadStageServiceConfig.RestrictAddressFamilies or []) == ["AF_INET" "AF_INET6" "AF_UNIX"])}
+            ${checkTrue "the unified worker can reach Transmission, SSH, and local Arr APIs" (!(ultraDownloadStageServiceConfig.PrivateNetwork or false) && (ultraDownloadStageServiceConfig.RestrictAddressFamilies or []) == ["AF_INET" "AF_INET6" "AF_UNIX"])}
            ${checkTrue "the worker writes only to staging, runtime/state, and optional metrics paths" (builtins.all (path: builtins.elem path (ultraDownloadStageServiceConfig.ReadWritePaths or [])) ["/srv/media/.arr-staging" "/run/ultra-media"])}
            ${checkTrue "the worker waits for ZFS, media roots, and Opnix secrets" (builtins.all (unit: builtins.elem unit (ultraDownloadStageService.after or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"] && builtins.all (unit: builtins.elem unit (ultraDownloadStageService.requires or [])) ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"])}
            ${checkTrue "the unified worker uses the writable runtime directory for temporary files" ((ultraDownloadStageEnvironment.TMPDIR or null) == "/run/ultra-media" && lib.hasInfix "--rsync" ultraDownloadStageCommand)}
@@ -763,7 +770,10 @@
            ${checkTrue "Nix prepares the six media folders including comics" (builtins.all (path: lib.hasInfix path mediaLibraryFoldersScript) ["/srv/media/audiobooks" "/srv/media/books" "/srv/media/comics" "/srv/media/movies" "/srv/media/music" "/srv/media/shows"])}
            ${checkFalse "Nix does not create a Podcasts folder" (lib.hasInfix "/srv/media/podcasts" mediaLibraryFoldersScript)}
            ${checkTrue "Nix prepares media folders after ZFS mount and before Jellyfin" (builtins.elem "zfs-mount.service" (mediaLibraryFoldersService.after or []) && builtins.elem "jellyfin.service" (mediaLibraryFoldersService.before or []) && builtins.elem "media-library-folders.service" (jellyfinService.after or []))}
-           ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
+            ${checkFalse "Jellyfin libraries remain configured through the UI, not an API sync service" (drlight.systemd.services ? jellyfin-declarative-config)}
+            ${checkTrue "Jellyfin enables its native Prometheus metrics endpoint declaratively" (lib.hasInfix "EnableMetrics" jellyfinPreStart && lib.hasInfix "true" jellyfinPreStart)}
+            ${checkTrue "Jellyfin metrics pre-start script quotes its config path" (lib.hasInfix "os.path.join(\"/var/lib/jellyfin/config\"" jellyfinPreStart && !(lib.hasInfix "os.path.join(/var/lib/jellyfin/config" jellyfinPreStart))}
+            ${checkTrue "Prometheus scrapes Jellyfin's native metrics endpoint" (lib.any (scrape: scrape.job_name == "jellyfin" && builtins.any (static: builtins.elem "127.0.0.1:8096" (static.targets or [])) (scrape.static_configs or [])) jellyfinScrapeConfigs)}
            ${checkEqual "Jellyfin admin username uses the Opnix item field" "Jellyfin/username" (onePasswordSecrets.jellyfinAdminUsername.reference or null)}
            ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
            ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}

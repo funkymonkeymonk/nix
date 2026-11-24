@@ -109,6 +109,17 @@ def run_sync_cycle(
     stage_result = stage_runner()
     if not isinstance(stage_result, Mapping):
         raise RuntimeError("staging_result_unavailable")
+    if stage_result.get("status") == "busy":
+        return {
+            "staging": dict(stage_result),
+            "cleanup": {"mode": "skipped"},
+            "summary": {
+                "event": "sync_run_summary",
+                "staging_status": "busy",
+                "cleanup_status": "skipped",
+                "run_status": "busy",
+            },
+        }
     cleanup_result = cleanup_runner()
     if not isinstance(cleanup_result, Mapping):
         raise RuntimeError("cleanup_result_unavailable")
@@ -172,6 +183,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ssh-keygen", required=True)
     parser.add_argument("--rsync", required=True)
     parser.add_argument("--queue-root", default="/var/lib/ultra-media/cleanup-queue")
+    parser.add_argument("--metrics-path", default="/run/ultra-media-metrics/ultra-media-sync.prom")
+    parser.add_argument("--radarr-url")
+    parser.add_argument("--sonarr-url")
+    parser.add_argument("--lidarr-url")
+    parser.add_argument("--jellyfin-url")
+    parser.add_argument("--radarr-api-key-file")
+    parser.add_argument("--sonarr-api-key-file")
+    parser.add_argument("--lidarr-api-key-file")
+    parser.add_argument("--jellyfin-username-file")
+    parser.add_argument("--jellyfin-password-file")
     parser.add_argument("--cleanup-enabled", action="store_true")
     parser.add_argument("--private-tracker-ratio-protection", action="store_true")
     parser.add_argument("--remote-disk-monitoring", action="store_true")
@@ -191,6 +212,11 @@ def main(argv: list[str] | None = None) -> int:
         "known_hosts": args.known_hosts,
         "rpc_username": args.rpc_username,
         "rpc_password": args.rpc_password,
+        "radarr_api_key": args.radarr_api_key_file,
+        "sonarr_api_key": args.sonarr_api_key_file,
+        "lidarr_api_key": args.lidarr_api_key_file,
+        "jellyfin_username": args.jellyfin_username_file,
+        "jellyfin_password": args.jellyfin_password_file,
     }
     phase = "staging"
     try:
@@ -211,6 +237,17 @@ def main(argv: list[str] | None = None) -> int:
                 rsync_executable=args.rsync,
                 runtime_root=staging.RUNTIME_ROOT,
                 cleanup_queue_root=args.queue_root if args.cleanup_enabled else None,
+                metrics_path=args.metrics_path,
+                library_status_config={
+                    key: value
+                    for key, value in {
+                        "radarr_url": args.radarr_url,
+                        "sonarr_url": args.sonarr_url,
+                        "lidarr_url": args.lidarr_url,
+                        "jellyfin_url": args.jellyfin_url,
+                    }.items()
+                    if value
+                },
             )
             _emit_json({"event": "staging_run_result", **result})
             return result

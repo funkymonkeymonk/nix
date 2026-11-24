@@ -866,6 +866,22 @@
         "type": "github"
       }
     },
+    "grafana-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793134833,
+        "narHash": "sha256-PAeYV+ZJWO6eoz+w2v0TsD3TYbkfWnvVrx3yHXmtkNU=",
+        "owner": "grafana",
+        "repo": "skills",
+        "rev": "8fb72a527961f05e708f53d2a0500709e12d7970",
+        "type": "github"
+      },
+      "original": {
+        "owner": "grafana",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -1409,6 +1425,7 @@
         "devenv": "devenv",
         "disko": "disko",
         "git-hooks": "git-hooks_2",
+        "grafana-skills": "grafana-skills",
         "home-manager": "home-manager",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",

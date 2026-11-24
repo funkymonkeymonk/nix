@@ -269,6 +269,24 @@ in {
         echo "FAIL: dashboard must use title Ultra Download Staging and retain UID drlight-ultra-media-sync"; exit 1
       fi
 
+       if jq -e '[.panels[].id] | sort == [3, 4, 5, 6, 10, 11, 13, 14, 15, 16]' "$DASHBOARD" > /dev/null; then
+        echo "dashboard contains the manually selected compact panel set: OK"
+      else
+        echo "FAIL: dashboard panel set must match the manually selected compact layout"; exit 1
+       fi
+
+       if jq -e '[.panels[] | select(.title == "Current media sync queue") | .targets[]?.expr] | any(contains("ultra_media_sync_torrent_imported")) and any(contains("ultra_media_sync_torrent_jellyfin")) and any(contains("ultra_media_sync_torrent_eta_seconds"))' "$DASHBOARD" > /dev/null; then
+         echo "dashboard displays import, Jellyfin, and ETA queue metrics: OK"
+       else
+         echo "FAIL: dashboard must display import, Jellyfin, and ETA queue metrics"; exit 1
+       fi
+
+       if jq -e '[.panels[] | select(.title == "Current media sync queue") | .fieldConfig.defaults.mappings[]?.options] | any(. == {"-1":{"text":"Unknown"},"0":{"text":"No"},"1":{"text":"Yes"}})' "$DASHBOARD" > /dev/null; then
+         echo "dashboard maps status gauges to Yes, No, and Unknown: OK"
+       else
+         echo "FAIL: dashboard must map status gauges to Yes, No, and Unknown"; exit 1
+       fi
+
       if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start"))' "$DASHBOARD" > /dev/null; then
         echo "dashboard includes the rsync job logs: OK"
       else
@@ -281,34 +299,22 @@ in {
         echo "FAIL: dashboard must query staging progress events"; exit 1
       fi
 
-      if jq -e '[.. | objects | .expr? // empty] | any(contains("bytes_transferred") and contains("bytes_reused") and contains("files_reused") and contains("percent_complete") and contains("bytes_per_second") and contains("torrents_published") and contains("eta_seconds"))' "$DASHBOARD" > /dev/null; then
-        echo "dashboard exposes bytes-done and ETA fields: OK"
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("line_format") and contains("message") and contains("staging_progress"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard parses nested worker JSON messages: OK"
       else
-        echo "FAIL: dashboard must display aggregate progress and ETA fields"; exit 1
+        echo "FAIL: dashboard must parse worker JSON from journald message fields"; exit 1
       fi
 
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start") and contains("cleanup_queue_summary") and contains("pending_after_run") and contains("removed"))' "$DASHBOARD" > /dev/null; then
-        echo "dashboard exposes cleanup queue and removal counts from the unified worker: OK"
+      if jq -e '[.panels[] | select(.title == "Sync time behind history") | .targets[]?.expr] | any(contains("max(last_over_time") and contains("unwrap time_behind_seconds"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard aggregates sync-age history across Loki streams: OK"
       else
-        echo "FAIL: dashboard must show aggregate cleanup queue results from the unified worker"; exit 1
-      fi
-
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | any(contains("ultra-media-download-stage-start") and contains("sync_run_summary") and contains("staging_status") and contains("cleanup_status") and contains("run_status") and contains("bytes_transferred") and contains("cleanup_removed") and contains("cleanup_blocked"))' "$DASHBOARD" > /dev/null; then
-        echo "dashboard shows the combined JSON run metrics: OK"
-      else
-        echo "FAIL: dashboard must show combined sync and cleanup JSON metrics"; exit 1
+        echo "FAIL: dashboard must aggregate sync-age history across Loki streams"; exit 1
       fi
 
       if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr] | all(.[]; (contains("ultra-media-cleanup-start") | not))' "$DASHBOARD" > /dev/null; then
         echo "dashboard no longer queries a separate cleanup worker: OK"
       else
         echo "FAIL: dashboard must not query the removed cleanup service label"; exit 1
-      fi
-
-      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .expr | select(contains("sync_run_summary"))] | length > 0 and all(.[]; (contains("torrent_id") | not) and (contains("remote_path") | not) and (contains("source_path") | not))' "$DASHBOARD" > /dev/null; then
-        echo "run summary panel uses aggregate fields only: OK"
-      else
-        echo "FAIL: run summary logs must not display torrent identifiers or paths"; exit 1
       fi
 
       if jq -e '[.panels[].targets[]? | select(.datasource.type? == "loki") | .datasource.uid] | length >= 3 and all(. == "P8E80F9AEF21F6940")' "$DASHBOARD" > /dev/null; then
@@ -329,10 +335,10 @@ in {
         echo "FAIL: dashboard must show /srv/media capacity from drlight node metrics"; exit 1
       fi
 
-      if jq -e '[.panels[] | select(.title == "Oldest unstaged completion age") | .targets[]?.expr] | any(contains("unwrap time_behind_seconds") and contains("__error__"))' "$DASHBOARD" > /dev/null; then
-        echo "dashboard graphs the oldest pending completion age: OK"
+      if jq -e '[.panels[] | select(.title == "Oldest unstaged completion age" or .title == "Sync time behind history") | .targets[]?.expr] | all(contains("event=\"staging_progress\"") and contains("unwrap time_behind_seconds"))' "$DASHBOARD" > /dev/null; then
+        echo "sync time panels restrict unwrapped values to staging progress events: OK"
       else
-        echo "FAIL: dashboard must show oldest-first sync time behind"; exit 1
+        echo "FAIL: sync time panels must filter to staging_progress before unwrapping time_behind_seconds"; exit 1
       fi
 
       if jq -e '[.panels[] | select(.title == "Remote seedbox disk usage") | .targets[]? | select(.datasource.type? == "prometheus") | .expr] | any(contains("ultra_seedbox_storage_used_bytes") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
@@ -345,6 +351,18 @@ in {
         echo "dashboard marks the 3 TB warning threshold: OK"
       else
         echo "FAIL: remote disk dashboard must mark the 3 TB warning threshold"; exit 1
+      fi
+
+      if jq -e '[.panels[].targets[]? | select(.datasource.type? == "prometheus") | .expr] as $exprs | any($exprs[]; contains("ultra_media_sync_torrents_published") and contains("drlight:9100")) and any($exprs[]; contains("ultra_media_sync_torrents_total") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard shows live sync queue progress: OK"
+      else
+        echo "FAIL: dashboard must show live sync queue progress"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Torrent queue: size, remaining, ETA")] | length == 0' "$DASHBOARD" > /dev/null; then
+        echo "dashboard omits the manually removed per-torrent queue table: OK"
+      else
+        echo "FAIL: dashboard must omit the manually removed per-torrent queue table"; exit 1
       fi
 
       echo "Ultra download staging dashboard tests passed"

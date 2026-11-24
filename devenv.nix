@@ -16,6 +16,34 @@
   evalscope = pkgs.callPackage ./packages/benchmarks/evalscope {};
   openai-evals = pkgs.callPackage ./packages/benchmarks/openai-evals {};
   humaneval-mbpp = pkgs.callPackage ./packages/benchmarks/humaneval-mbpp {};
+  grafanaSkillPaths = [
+    "grafana-core/dashboarding"
+    "grafana-core/promql"
+    "grafana-core/grafana-oss"
+    "grafana-core/alerting-irm"
+    "grafana-core/alloy"
+    "grafana-core/beyla"
+    "grafana-core/opentelemetry"
+    "grafana-core/skill-authoring"
+    "grafana-lgtm/loki"
+    "grafana-lgtm/prometheus"
+    "grafana-datasources/datasources-provisioning"
+  ];
+  grafanaSkillVendor = pkgs.runCommand "grafana-agent-skills" {} (
+    ''      mkdir -p $out/.agents/skills
+    ''
+    + pkgs.lib.concatMapStringsSep "\n" (skillPath: let
+      skillName = builtins.baseNameOf skillPath;
+    in ''cp -R ${inputs.grafana-skills}/skills/${skillPath} $out/.agents/skills/${skillName}'')
+    grafanaSkillPaths
+  );
+  grafanaSkillFiles = pkgs.lib.listToAttrs (map (skillPath: let
+      skillName = builtins.baseNameOf skillPath;
+    in {
+      name = ".agents/skills/${skillName}";
+      value.source = "${grafanaSkillVendor}/.agents/skills/${skillName}";
+    })
+    grafanaSkillPaths);
   runWithSudoPassword = ''
     resolve_sudo_password_ref() {
       local reference="$1"
@@ -176,6 +204,8 @@ in {
       pkgs.rsync
       pkgs.sshpass
     ];
+
+  files = grafanaSkillFiles;
 
   # Shell aliases for devenv tasks
   enterShell = ''

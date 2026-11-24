@@ -1,6 +1,8 @@
 {
   config,
   lib,
+  options,
+  pkgs,
   ...
 }: let
   cfg = config.myConfig.mediaConfig;
@@ -18,6 +20,34 @@ in {
   config = lib.mkIf cfg.enable {
     services.jellyfin.enable = true;
     services.jellyfin.openFirewall = false;
+
+    services.prometheus.scrapeConfigs = lib.mkIf (builtins.hasAttr "prometheus" options.services && config.services.prometheus.enable) [
+      {
+        job_name = "jellyfin";
+        static_configs = [{targets = ["127.0.0.1:8096"];}];
+      }
+    ];
+
+    systemd.services.jellyfin.preStart = ''
+      ${pkgs.python3}/bin/python - <<'PY'
+      import os
+      import xml.etree.ElementTree as ET
+
+      path = os.path.join(${builtins.toJSON config.services.jellyfin.configDir}, "system.xml")
+      try:
+          tree = ET.parse(path)
+          root = tree.getroot()
+      except FileNotFoundError:
+          root = ET.Element("SystemConfiguration")
+          tree = ET.ElementTree(root)
+
+      metrics = root.find("EnableMetrics")
+      if metrics is None:
+          metrics = ET.SubElement(root, "EnableMetrics")
+      metrics.text = "true"
+      tree.write(path, encoding="utf-8", xml_declaration=True)
+      PY
+    '';
 
     networking.firewall = {
       allowedTCPPorts = [8096];

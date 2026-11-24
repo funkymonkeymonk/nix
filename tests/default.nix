@@ -37,6 +37,8 @@
   testOmlx = import ./test-omlx.nix {inherit pkgs;};
   testUltraMediaCleanup = import ./test-ultra-media-cleanup.nix {inherit pkgs;};
   testMediaAppReconciliation = import ./test-media-app-reconciliation.nix {inherit pkgs;};
+  testMediaLibraryStatus = import ./test-media-library-status.nix {inherit pkgs;};
+  testDevenvGrafanaSkills = import ./test-devenv-grafana-skills.nix {inherit pkgs;};
 
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
@@ -318,6 +320,8 @@ in
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
     drlight-media-management = testMediaCenterArchetype.drlightMediaManagementTest;
     media-app-api-reconciliation = testMediaAppReconciliation.mediaAppApiReconciliation;
+    media-library-status = testMediaLibraryStatus;
+    devenv-grafana-skills = testDevenvGrafanaSkills;
     drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
     drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;
     drlight-root-ssh = testMediaCenterArchetype.drlightRootSshTest;

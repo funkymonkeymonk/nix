@@ -22,6 +22,12 @@
   remoteDiskEnabled = remoteDiskConfig.enable;
   remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
   remoteDiskMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox.prom";
+  syncMetricsPath = "${remoteDiskMetricsDirectory}/ultra-media-sync.prom";
+  mediaApiKeyPath = name: "/run/media-app-api-keys/${name}";
+  radarrUrl = "http://127.0.0.1:${toString config.services.radarr.settings.server.port}/api/v3";
+  sonarrUrl = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}/api/v3";
+  lidarrUrl = "http://127.0.0.1:${toString config.services.lidarr.settings.server.port}/api/v1";
+  jellyfinUrl = "http://127.0.0.1:8096";
   remoteDiskArgs =
     (lib.optionalString remoteDiskEnabled "--remote-disk-monitoring ")
     + "--remote-disk-capacity-bytes ${toString remoteDiskConfig.capacityBytes} "
@@ -32,6 +38,7 @@
     "sonarr-media-config-sync"
     "lidarr-media-config-sync"
   ];
+  mediaStatusServices = map (service: "${service}.service") (arrSyncServices ++ ["radarr-media-api-key" "sonarr-media-api-key" "lidarr-media-api-key"]);
   mkSecret = reference: path: {
     inherit reference path;
     mode = "0400";
@@ -119,8 +126,8 @@ in {
 
   systemd.services.ultra-media-download-stage = {
     description = "Sync completed downloads to Drlight and clean retention-eligible seedbox torrents";
-    after = ["network-online.target" "zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"];
-    wants = ["network-online.target"];
+    after = ["network-online.target" "zfs-mount.service" "media-management-roots.service" "opnix-secrets.service" "jellyfin.service"] ++ mediaStatusServices;
+    wants = ["network-online.target" "jellyfin.service"] ++ mediaStatusServices;
     requires = ["zfs-mount.service" "media-management-roots.service" "opnix-secrets.service"];
     unitConfig = {
       ConditionPathIsMountPoint = "/srv/media";
@@ -130,7 +137,7 @@ in {
       Type = "exec";
       User = "ultra-sync";
       Group = "users";
-      SupplementaryGroups = ["media-management-secrets"] ++ lib.optionals remoteDiskEnabled ["ultra-media-metrics"];
+      SupplementaryGroups = ["media-management-secrets" "radarr-api" "sonarr-api" "lidarr-api" "media-auth-jellyfin"] ++ lib.optionals remoteDiskEnabled ["ultra-media-metrics"];
       UMask = "0002";
       ProtectSystem = "strict";
       ProtectHome = true;
@@ -160,7 +167,17 @@ in {
         --ssh ${pkgs.openssh}/bin/ssh \
         --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
         --rsync ${pkgs.rsync}/bin/rsync \
-        --queue-root ${lib.escapeShellArg cleanupQueueRoot} \
+         --queue-root ${lib.escapeShellArg cleanupQueueRoot} \
+         --metrics-path ${lib.escapeShellArg syncMetricsPath} \
+         --radarr-url ${lib.escapeShellArg radarrUrl} \
+         --sonarr-url ${lib.escapeShellArg sonarrUrl} \
+         --lidarr-url ${lib.escapeShellArg lidarrUrl} \
+         --jellyfin-url ${lib.escapeShellArg jellyfinUrl} \
+         --radarr-api-key-file ${lib.escapeShellArg (mediaApiKeyPath "radarr")} \
+         --sonarr-api-key-file ${lib.escapeShellArg (mediaApiKeyPath "sonarr")} \
+         --lidarr-api-key-file ${lib.escapeShellArg (mediaApiKeyPath "lidarr")} \
+         --jellyfin-username-file /run/secrets/jellyfin-admin-username \
+         --jellyfin-password-file /run/secrets/jellyfin-admin-password \
         ${lib.optionalString cleanupEnabled "--cleanup-enabled "}\
         ${lib.optionalString stageCfg.cleanup.privateTrackerRatioProtection.enable "--private-tracker-ratio-protection "}\
         ${remoteDiskArgs}
@@ -173,6 +190,8 @@ in {
       OnCalendar = "hourly";
       Persistent = false;
       RandomizedDelaySec = "5m";
+      AccuracySec = "1min";
+      DeferReactivation = true;
       Unit = "ultra-media-download-stage.service";
     };
   };

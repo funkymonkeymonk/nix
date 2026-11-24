@@ -48,6 +48,11 @@ if [[ "${1:-}" == machines && "${2:-}" == info && -n "${3:-}" ]]; then
 fi
 devenv_call=$*
 printf 'devenv|%s\n' "$devenv_call" >> "$MACHINE_OPS_TEST_LOG"
+if [[ "${1:-}" == machines && "${2:-}" == plan ]]; then
+  mock_plan_id="plan-test-${3:-unknown}"
+  mkdir -p "$DEVENV_DOTFILE/machine-plans/$mock_plan_id"
+  printf '{"version":1,"scope":"machines","machines":{"%s":{}}}\n' "${3:-unknown}" > "$DEVENV_DOTFILE/machine-plans/$mock_plan_id/plan.json"
+fi
 if [[ "${1:-}" == build ]]; then
   store_uri=''
   max_jobs=''
@@ -422,8 +427,13 @@ fi
 run check zero
 expect_log 'devenv|machines check zero'
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
-run plan type-nas
+run plan type-nas >"$tmp/plan-output"
 expect_log 'devenv|machines plan type-nas'
+grep -Fx 'planId=plan-test-type-nas' "$tmp/plan-output" >/dev/null || {
+  echo 'plan operation did not return the saved plan ID' >&2
+  cat "$tmp/plan-output" >&2
+  exit 1
+}
 [[ ! -s "$MACHINE_OPS_SECRETSPEC_LOG" ]]
 run check type-server
 expect_log 'devenv|machines check type-server'

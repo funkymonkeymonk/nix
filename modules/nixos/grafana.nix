@@ -102,46 +102,6 @@
     };
     panels = [
       {
-        id = 1;
-        title = "Recent sync and cleanup JSON logs";
-        type = "logs";
-        gridPos = {
-          h = 10;
-          w = 12;
-          x = 0;
-          y = 0;
-        };
-        targets = [
-          {
-            datasource = {
-              type = "loki";
-              uid = lokiDatasourceUid;
-            };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"}'';
-          }
-        ];
-      }
-      {
-        id = 2;
-        title = "Systemd run status";
-        type = "logs";
-        gridPos = {
-          h = 10;
-          w = 12;
-          x = 12;
-          y = 0;
-        };
-        targets = [
-          {
-            datasource = {
-              type = "loki";
-              uid = lokiDatasourceUid;
-            };
-            expr = ''{host="drlight",service="systemd"} | json | UNIT="ultra-media-download-stage.service"'';
-          }
-        ];
-      }
-      {
         id = 3;
         title = "Failed runs (24h)";
         type = "stat";
@@ -149,7 +109,7 @@
           h = 6;
           w = 6;
           x = 0;
-          y = 10;
+          y = 0;
         };
         targets = [
           {
@@ -159,6 +119,7 @@
             };
             expr = ''sum(count_over_time({host="drlight",service="systemd",severity="err"} | json | UNIT="ultra-media-download-stage.service" | JOB_RESULT="failed" [24h]))'';
             queryType = "instant";
+            refId = "A";
           }
         ];
       }
@@ -170,7 +131,7 @@
           h = 6;
           w = 6;
           x = 6;
-          y = 10;
+          y = 0;
         };
         targets = [
           {
@@ -179,6 +140,7 @@
               uid = lokiDatasourceUid;
             };
             expr = ''sum(count_over_time({host="drlight",service="ultra-media-download-stage-start"}[5m]))'';
+            refId = "A";
           }
         ];
       }
@@ -190,13 +152,14 @@
           h = 6;
           w = 12;
           x = 12;
-          y = 10;
+          y = 0;
         };
         fieldConfig.defaults.unit = "bytes";
         targets = [
           {
             datasource.type = "prometheus";
             expr = ''node_filesystem_avail_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"}'';
+            refId = "A";
           }
         ];
       }
@@ -208,74 +171,14 @@
           h = 6;
           w = 12;
           x = 0;
-          y = 16;
+          y = 6;
         };
         fieldConfig.defaults.unit = "percent";
         targets = [
           {
             datasource.type = "prometheus";
             expr = ''100 * (1 - node_filesystem_avail_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"} / node_filesystem_size_bytes{job="node",instance="drlight:9100",mountpoint="/srv/media"})'';
-          }
-        ];
-      }
-      {
-        id = 7;
-        title = "Transfer progress and ETA";
-        type = "logs";
-        gridPos = {
-          h = 10;
-          w = 24;
-          x = 0;
-          y = 22;
-        };
-        targets = [
-          {
-            datasource = {
-              type = "loki";
-              uid = lokiDatasourceUid;
-            };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="staging_progress" | line_format "torrents={{.torrents_published}}/{{.torrents_total}} files={{.files_transferred}}+{{.files_reused}} reused/{{.files_total}} bytes={{.bytes_transferred}}+{{.bytes_reused}} reused/{{.bytes_total}} percent={{.percent_complete}} rate={{.bytes_per_second}} eta={{.eta_seconds}} lag={{.time_behind_seconds}} unorderable={{.unorderable_completed_torrents}} receipts={{.receipts_created}}"'';
-          }
-        ];
-      }
-      {
-        id = 8;
-        title = "Cleanup queue and removal results";
-        type = "logs";
-        gridPos = {
-          h = 8;
-          w = 24;
-          x = 0;
-          y = 32;
-        };
-        targets = [
-          {
-            datasource = {
-              type = "loki";
-              uid = lokiDatasourceUid;
-            };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="cleanup_queue_summary" | line_format "queued={{.queued}} pending={{.pending_after_run}} removed={{.removed}} blocked={{.blocked}} stale={{.stale_or_missing}} reasons={{.reasons}}"'';
-          }
-        ];
-      }
-      {
-        id = 9;
-        title = "Oldest unstaged completion age";
-        type = "stat";
-        gridPos = {
-          h = 6;
-          w = 6;
-          x = 0;
-          y = 40;
-        };
-        fieldConfig.defaults.unit = "s";
-        targets = [
-          {
-            datasource = {
-              type = "loki";
-              uid = lokiDatasourceUid;
-            };
-            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | unwrap time_behind_seconds | __error__="" [24h])'';
+            refId = "A";
           }
         ];
       }
@@ -285,9 +188,9 @@
         type = "timeseries";
         gridPos = {
           h = 6;
-          w = 18;
-          x = 6;
-          y = 40;
+          w = 12;
+          x = 12;
+          y = 6;
         };
         fieldConfig.defaults.unit = "s";
         targets = [
@@ -296,7 +199,8 @@
               type = "loki";
               uid = lokiDatasourceUid;
             };
-            expr = ''last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | unwrap time_behind_seconds | __error__="" [24h])'';
+            expr = ''max(last_over_time({host="drlight",service="ultra-media-download-stage-start"} | json | line_format "{{.message}}" | json | event="staging_progress" | unwrap time_behind_seconds | __error__="" [24h]))'';
+            refId = "A";
           }
         ];
       }
@@ -305,10 +209,10 @@
         title = "Remote seedbox disk usage";
         type = "timeseries";
         gridPos = {
-          h = 8;
-          w = 24;
+          h = 7;
+          w = 12;
           x = 0;
-          y = 46;
+          y = 12;
         };
         fieldConfig.defaults = {
           unit = "decbytes";
@@ -334,26 +238,166 @@
           {
             datasource.type = "prometheus";
             expr = ''ultra_seedbox_storage_used_bytes{job="node",instance="drlight:9100"}'';
+            refId = "A";
           }
         ];
       }
       {
-        id = 12;
-        title = "Combined sync and cleanup run summary";
-        type = "logs";
+        id = 13;
+        title = "Current sync state";
+        type = "stat";
         gridPos = {
-          h = 8;
-          w = 24;
+          h = 6;
+          w = 6;
           x = 0;
-          y = 54;
+          y = 19;
         };
         targets = [
           {
-            datasource = {
-              type = "loki";
-              uid = lokiDatasourceUid;
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_active{job="node",instance="drlight:9100"}'';
+            legendFormat = "active";
+            refId = "A";
+          }
+        ];
+      }
+      {
+        id = 14;
+        title = "Sync queue progress";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 18;
+          y = 12;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrents_published{job="node",instance="drlight:9100"}'';
+            legendFormat = "staged";
+            refId = "A";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrents_total{job="node",instance="drlight:9100"}'';
+            legendFormat = "total";
+            refId = "B";
+          }
+        ];
+      }
+      {
+        id = 15;
+        title = "Sync rate and overall ETA";
+        type = "timeseries";
+        gridPos = {
+          h = 6;
+          w = 6;
+          x = 12;
+          y = 12;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_bytes_per_second{job="node",instance="drlight:9100"}'';
+            legendFormat = "bytes/sec";
+            refId = "A";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_eta_seconds{job="node",instance="drlight:9100"} >= 0'';
+            legendFormat = "ETA seconds";
+            refId = "B";
+          }
+        ];
+      }
+      {
+        id = 16;
+        title = "Current media sync queue";
+        type = "table";
+        gridPos = {
+          h = 10;
+          w = 24;
+          x = 0;
+          y = 25;
+        };
+        fieldConfig.defaults = {
+          custom = {
+            inspect = false;
+          };
+          mappings = [
+            {
+              type = "value";
+              options = {
+                "-1" = {text = "Unknown";};
+                "0" = {text = "No";};
+                "1" = {text = "Yes";};
+              };
+            }
+          ];
+        };
+        transformations = [
+          {
+            id = "joinByField";
+            options = {
+              byField = "torrent_id";
+              mode = "outer";
             };
-            expr = ''{host="drlight",service="ultra-media-download-stage-start"} | json | event="sync_run_summary" | line_format "stage={{.staging_status}} torrents={{.torrents_staged}}/{{.torrents_total}} failed={{.torrents_failed}} files={{.files_transferred}}+{{.files_reused}} reused bytes={{.bytes_transferred}}+{{.bytes_reused}} reused cleanup={{.cleanup_status}} result={{.run_status}} removed={{.cleanup_removed}} blocked={{.cleanup_blocked}} pending={{.pending_after_run}} reasons={{.cleanup_reasons}}"'';
+          }
+          {
+            id = "organize";
+            options = {
+              excludeByName = {
+                Time = true;
+                Value = true;
+              };
+              indexByName = {
+                title = 0;
+                category = 1;
+                torrent_id = 2;
+                ultra_media_sync_torrent_eta_seconds = 3;
+                ultra_media_sync_torrent_imported = 4;
+                ultra_media_sync_torrent_jellyfin = 5;
+              };
+              renameByName = {
+                ultra_media_sync_torrent_eta_seconds = "ETA seconds";
+                ultra_media_sync_torrent_imported = "Imported";
+                ultra_media_sync_torrent_jellyfin = "In Jellyfin";
+              };
+            };
+          }
+        ];
+        options = {
+          sortBy = [
+            {
+              desc = false;
+              displayName = "ETA seconds";
+            }
+          ];
+          cellHeight = "sm";
+          footer = {show = false;};
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_eta_seconds{job="node",instance="drlight:9100"}'';
+            format = "table";
+            instant = true;
+            refId = "A";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_imported{job="node",instance="drlight:9100"}'';
+            format = "table";
+            instant = true;
+            refId = "B";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_media_sync_torrent_jellyfin{job="node",instance="drlight:9100"}'';
+            format = "table";
+            instant = true;
+            refId = "C";
           }
         ];
       }
