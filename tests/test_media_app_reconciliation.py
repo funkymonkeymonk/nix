@@ -1,3 +1,4 @@
+import base64
 import configparser
 import contextlib
 import hashlib
@@ -5,6 +6,7 @@ import http.server
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -838,6 +840,43 @@ class JellyfinWebhookConfigTests(unittest.TestCase):
             "EnableAlbums", "EnableSongs", "EnableVideos",
         )))
         self.assertTrue(managed["Template"])
+
+    def test_discord_template_encodes_quoted_and_multiline_metadata_as_json(self):
+        build_webhook_configuration, _ = self._load_reconciler()
+        existing = {"DiscordOptions": []}
+        desired = build_webhook_configuration(existing, self.webhook_url, "https://jellyfin.example")
+        template = base64.b64decode(desired["DiscordOptions"][0]["Template"]).decode("utf-8")
+        self.assertIn("{{json_encode Name}}", template)
+        self.assertIn("{{json_encode Overview}}", template)
+        values = {
+            "ItemType": "Movie",
+            "Name": 'A "quoted" title\\tail',
+            "Overview": 'First line\nSecond line with "quotes" and \\slashes',
+            "ServerName": "Drlight",
+            "ServerUrl": "https://jellyfin.example",
+            "ItemId": "item-id",
+            "ServerId": "server-id",
+            "BotUsername": "Jellyfin",
+            "AvatarUrl": "",
+            "MentionType": "",
+            "EmbedColor": "3381695",
+            "Timestamp": "2026-01-01T00:00:00Z",
+        }
+        plugin_escaped = {
+            key: value.replace('"', '\\"') if key in {"Name", "Overview", "ServerName"} else value
+            for key, value in values.items()
+        }
+
+        def encode_json_content(match):
+            return json.dumps(plugin_escaped[match.group(1)], ensure_ascii=False)[1:-1]
+
+        rendered = re.sub(r"{{json_encode (\w+)}}", encode_json_content, template)
+        for key, value in values.items():
+            rendered = rendered.replace("{{" + key + "}}", value)
+        payload = json.loads(rendered)
+
+        self.assertEqual(payload["embeds"][0]["title"], 'Movie added: ' + plugin_escaped["Name"])
+        self.assertEqual(payload["embeds"][0]["description"], plugin_escaped["Overview"])
 
     def test_reconciliation_authenticates_and_posts_runtime_webhook_url(self):
         _, reconcile = self._load_reconciler()

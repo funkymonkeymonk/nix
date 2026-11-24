@@ -66,6 +66,7 @@
     config.services.lidarr.settings.server.port
     config.services.bazarr.settings.general.port
     config.services.mylar3.port
+    config.services.seerr.port
   ];
 in {
   imports = [
@@ -167,6 +168,11 @@ in {
     };
   };
 
+  services.seerr = {
+    enable = true;
+    openFirewall = false;
+  };
+
   myConfig.mediaManagement = {
     radarr = {
       adminAuth.enable = true;
@@ -182,6 +188,14 @@ in {
     };
   };
 
+  myConfig.homepage.directLinks = [
+    {
+      name = "Seerr";
+      group = "Media Management";
+      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.seerr.port}";
+      description = "Movie and TV request portal";
+    }
+  ];
   systemd.services = lib.mkMerge [
     {
       media-management-roots = {

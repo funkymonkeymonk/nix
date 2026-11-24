@@ -22,42 +22,15 @@ DESTINATION_NAME = "Jellyfin New Media (Nix)"
 CLIENT = 'MediaBrowser Client="Drlight NixOS Discord Notifications", Device="Drlight", DeviceId="drlight-jellyfin-discord-notifications", Version="1"'
 DISCORD_TEMPLATE = r'''{
     "content": "{{MentionType}}",
-    "avatar_url": "{{AvatarUrl}}",
     "username": "{{BotUsername}}",
     "embeds": [
         {
-            "author": {
-                {{#if_equals ItemType 'Season'}}
-                    "name": "Season Added • {{{SeriesName}}} {{{Name}}}",
-                {{/if_equals}}
-                {{#if_equals ItemType 'Episode'}}
-                    "name": "Episode Added • {{{SeriesName}}} S{{SeasonNumber00}}E{{EpisodeNumber00}} ~ {{{Name}}}",
-                {{/if_equals}}
-                {{#if_equals ItemType 'Movie'}}
-                    "name": "Movie Added • {{{Name}}}",
-                {{/if_equals}}
-                {{#if_equals ItemType 'Series'}}
-                    "name": "Series Added • {{{Name}}}",
-                {{/if_equals}}
-                {{#if_equals ItemType 'MusicAlbum'}}
-                    "name": "Album Added • {{{Name}}}",
-                {{/if_equals}}
-                {{#if_equals ItemType 'Audio'}}
-                    "name": "Song Added • {{{Name}}}",
-                {{/if_equals}}
-                {{#if_equals ItemType 'Video'}}
-                    "name": "Video Added • {{{Name}}}",
-                {{/if_equals}}
-                "url": "{{ServerUrl}}/web/index.html#!/details?id={{ItemId}}&serverId={{ServerId}}"
-            },
-            "thumbnail": {
-                "url": "{{ServerUrl}}/Items/{{ItemId}}/Images/Primary"
-            },
-            "description": "{{~#if_exist Overview~}}> {{{Overview}}}\n\n{{~/if_exist~}}[**Watch Now**]({{ServerUrl}}/web/index.html#!/details?id={{ItemId}}&serverId={{ServerId}})",
+            "title": "{{json_encode ItemType}} added: {{json_encode Name}}",
+            "description": "{{json_encode Overview}}",
+            "url": "{{ServerUrl}}/web/index.html#!/details?id={{ItemId}}&serverId={{ServerId}}",
             "color": {{EmbedColor}},
             "footer": {
-                "text": "{{{ServerName}}}",
-                "icon_url": "{{AvatarUrl}}"
+                "text": "{{json_encode ServerName}}"
             },
             "timestamp": "{{Timestamp}}"
         }

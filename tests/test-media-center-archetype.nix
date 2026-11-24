@@ -301,15 +301,17 @@
         "https://radarr.home.buildingbananas.com"
         "https://sonarr.home.buildingbananas.com"
       ];
+      seerrHomepageHref = "http://drlight.uaru-daggertooth.ts.net:${toString drlight.services.seerr.port}";
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan (
         [
           "https://grafana.home.buildingbananas.com"
           "https://jellyfin.home.buildingbananas.com"
+          seerrHomepageHref
         ]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedMediaCenterOnlyHomepageHrefs = builtins.sort builtins.lessThan (
-        ["https://jellyfin.home.buildingbananas.com"]
+        ["https://jellyfin.home.buildingbananas.com" seerrHomepageHref]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
@@ -421,8 +423,14 @@
           && !(machine.config.services.sonarr.enable or false)
           && !(machine.config.services.lidarr.enable or false)
           && !(machine.config.services.mylar3.enable or false)
-          && !(machine.config.services.bazarr.enable or false))
+          && !(machine.config.services.bazarr.enable or false)
+          && !(machine.config.services.seerr.enable or false))
         (builtins.attrValues nonDrlightMachines);
+      seerrPort = drlight.services.seerr.port;
+      seerrPortOnlyOnLanAndTailscale =
+        builtins.all
+        (interface: builtins.elem interface ["eno1" "tailscale0"] || !(builtins.elem seerrPort ((drlight.networking.firewall.interfaces.${interface}).allowedTCPPorts or [])))
+        (builtins.attrNames (drlight.networking.firewall.interfaces or {}));
     in {
       drlightMediaManagementTest = pkgs.runCommand "test-drlight-media-management" {nativeBuildInputs = [pkgs.jq];} ''
         failures=0
@@ -467,8 +475,13 @@
         ${checkTrue "Bazarr can read and write the Drlight-local Sonarr library root" (builtins.elem "/srv/media/shows" ((mediaManagementServiceConfig "bazarr").ReadWritePaths or []))}
         ${checkTrue "media-manager API ports are allowed on tailscale0 only" mediaManagementServicesReachableOverTailscale}
         ${checkTrue "media-manager API ports are not opened globally" mediaManagementServicesNotGlobal}
-         ${checkTrue "media-manager API ports are reachable on eno1" mediaManagementServicesReachableOnLan}
-         ${checkTrue "media-manager API ports are not opened on unrelated interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
+        ${checkTrue "media-manager API ports are reachable on eno1" mediaManagementServicesReachableOnLan}
+        ${checkTrue "media-manager API ports are not opened on unrelated interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
+        ${checkTrue "Seerr is enabled on Drlight" (drlight.services.seerr.enable or false)}
+        ${checkFalse "Seerr does not open its port globally" (drlight.services.seerr.openFirewall or true || builtins.elem seerrPort (drlight.networking.firewall.allowedTCPPorts or []))}
+        ${checkEqual "Seerr uses the NixOS default request portal port" 5055 seerrPort}
+        ${checkTrue "Seerr is reachable on the home LAN and Tailscale" (builtins.elem seerrPort (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []) && builtins.elem seerrPort (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))}
+        ${checkTrue "Seerr is not reachable on unrelated interfaces" seerrPortOnlyOnLanAndTailscale}
         ${checkFalse "Radarr firewall opening is disabled globally" (drlight.services.radarr.openFirewall or false)}
         ${checkFalse "Sonarr firewall opening is disabled globally" (drlight.services.sonarr.openFirewall or false)}
         ${checkFalse "Lidarr firewall opening is disabled globally" (drlight.services.lidarr.openFirewall or false)}
@@ -484,7 +497,7 @@
         ${checkTrue "Mylar3 package verifies runtime native image imports" (mylar3Package.doInstallCheck or false)}
         echo "  Mylar3 package runtime import check: ${mylar3Package}"
         ${checkTrue "media-management module is not selected by other machines" (lib.all (machine: !(hasModule "/modules/nixos/media-management.nix" machine)) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
-        ${checkTrue "no Arr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
+        ${checkTrue "no Arr, Seerr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
         ${checkTrue "media-manager apps are exposed through Caddy" (lib.all (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
         ${lib.concatMapStringsSep "\n" (app: ''
           ${checkTrue "${app} has an API reconciliation unit" (builtins.hasAttr "${app}-media-config-sync" drlight.systemd.services)}
@@ -626,10 +639,11 @@
         ${checkEqual "Grafana uses Homepage's native widget" ["grafana"] (map (widget: widget.type or null) grafanaHomepageWidgets)}
         ${checkEqual "Grafana widget credentials come from systemd credentials" ["%d/grafana-username" "%d/grafana-password"] [grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_USERNAME or null grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_PASSWORD or null]}
         ${checkEqual "Homepage loads Grafana credential files through systemd" (builtins.sort builtins.lessThan ["grafana-username:/run/secrets/grafana-username" "grafana-password:/run/secrets/grafana-password"]) (builtins.sort builtins.lessThan grafanaHomepageCredentials)}
-        ${checkEqual "Homepage exposes only local Jellyfin and Grafana" expectedLocalHomepageHrefs sortedHomepageHrefs}
+        ${checkEqual "Homepage exposes local Caddy apps and the Seerr portal" expectedLocalHomepageHrefs sortedHomepageHrefs}
         ${checkEqual "Caddy routes all local services" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
         ${checkEqual "Caddy app configuration includes all local services" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
         ${checkEqual "Caddy proxies all services to local upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
+        ${checkFalse "Seerr is not exposed through Caddy" (builtins.elem "seerr" caddyApps)}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media presentation tests passed"
