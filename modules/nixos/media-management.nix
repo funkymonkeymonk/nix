@@ -160,6 +160,10 @@ in {
         HTTP_USERNAME.secret = "/run/secrets/mylar3-admin-username";
         HTTP_PASSWORD.secret = "/run/secrets/mylar3-admin-password";
       };
+      API = {
+        API_ENABLED = true;
+        API_KEY.secret = "/run/secrets/mylar3-api-key";
+      };
     };
   };
 

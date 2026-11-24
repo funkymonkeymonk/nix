@@ -866,6 +866,22 @@
         "type": "github"
       }
     },
+    "grafana-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793134833,
+        "narHash": "sha256-PAeYV+ZJWO6eoz+w2v0TsD3TYbkfWnvVrx3yHXmtkNU=",
+        "owner": "grafana",
+        "repo": "skills",
+        "rev": "8fb72a527961f05e708f53d2a0500709e12d7970",
+        "type": "github"
+      },
+      "original": {
+        "owner": "grafana",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -1185,17 +1201,17 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1794042290,
-        "narHash": "sha256-ziZn2PvCJE5JEEpqTdxXwJpPB+L3YqoCpTAMCzyaP3U=",
+        "lastModified": 1795234589,
+        "narHash": "sha256-f/VVvxf5RsQgWVhUtefoca5ktVg0DA2bnkMOcmSnozo=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
+        "rev": "2786a2a72088ecf32aea5b3ec52099e6a7cff78f",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
+        "rev": "2786a2a72088ecf32aea5b3ec52099e6a7cff78f",
         "type": "github"
       }
     },
@@ -1317,6 +1333,7 @@
       "original": {
         "owner": "funkymonkeymonk",
         "repo": "skills",
+        "rev": "ccd78c823b2a8813295e3ca7f632dee06ce6c721",
         "type": "github"
       }
     },
@@ -1409,6 +1426,7 @@
         "devenv": "devenv",
         "disko": "disko",
         "git-hooks": "git-hooks_2",
+        "grafana-skills": "grafana-skills",
         "home-manager": "home-manager",
         "nix-darwin": "nix-darwin",
         "nix-homebrew": "nix-homebrew",

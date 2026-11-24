@@ -16,7 +16,7 @@ Use this runbook during a separately approved maintenance window to move the exi
 - Confirm destination services, local library roots, permissions, storage, and restore procedures are ready. The existing local library copy is complete; the legacy organized-library sync has been removed. Keep the completed-download staging timer disabled until cutover validation.
 - Keep all application backups and private migration notes encrypted or access-restricted and outside the repository and Git history. Do not record backup contents or locations, endpoints, API keys, hostnames, remote paths, tracker names, or media names in this runbook, Git, or reports.
 - Populate the required individual fields in Drlight's default **Opnix** vault before deploying a generation that references them. Do not put secret values in notes, shell history, logs, chat, or Git.
-- Ultra's [Tailscale application is beta](https://docs.ultra.cc/applications/tailscale). Prove its private route from Prowlarr's actual application environment before relying on it. Never expose Arr APIs publicly as a fallback.
+- Prowlarr and FlareSolverr run on Drlight. Prowlarr uses Ultra's authenticated HTTP proxy for indexer egress. The proxy uses Basic authentication over plain HTTP; this transport risk is accepted for this setup. Keep the dedicated proxy password in Opnix, never in Git or command history, and do not expose Arr APIs publicly.
 
 **Stop if:** any installed version, compatibility result, backup method, root mapping, or private route is unknown or unsupported. Do not resolve an uncertainty by experimenting against the only source copy.
 
@@ -90,20 +90,32 @@ Use only approved runtime connection data. Do not place values in this runbook, 
 
 1. **Transmission:** The Drlight NixOS generation configures the declared Transmission download client in Radarr, Sonarr, and Lidarr from the runtime RPC URL and credential files. After applying it, inspect each `*-media-config-sync.service` result and use each app's built-in connection test. Do not manually replace the declared client or expose RPC/API ports publicly.
 2. **Remote-path mappings:** Nix reconciles each Arr app's mapping from the actual Transmission-reported completed-download root to `/srv/media/.arr-staging`. Verify the exact root during the approved preflight and inspect the reconciled mapping after deployment. The mapping translates a path; it does not transfer data. The separate staging service performs the copy.
-3. **Prowlarr:** Keep Prowlarr on Ultra. Prove Ultra's beta Tailscale route from Prowlarr's application environment, then configure and test its Arr integrations over that private route. Do not open a public Arr API port, use a public proxy, or bypass Ultra for indexer requests.
-4. **Bazarr:** Nix reconciles its Sonarr/Radarr connection endpoints and API keys to the Drlight-local apps. The seedbox configuration had both sync toggles disabled, so Nix preserves those flags as disabled by default. After applying the generation, inspect `bazarr-media-config-sync.service` and run Bazarr's connection tests. Enable `myConfig.mediaManagement.bazarr.useSonarr` or `useRadarr` in Nix only if you intend that integration to actively sync.
-5. Keep Prowlarr, FlareSolverr, and Transmission on Ultra. Do not uninstall or relocate them.
+3. **Prowlarr:** Restore its version-compatible native backup on Drlight. In **Settings → General → Proxy**, use the Ultra HTTP proxy connection details from Opnix and enable **Bypass Proxy for Local Addresses**. In **Settings → Apps**, set Prowlarr to `http://127.0.0.1:9696`, Sonarr to `http://127.0.0.1:8989`, and Radarr to `http://127.0.0.1:7878`; enter each local Arr API key and test the connections. Do not put proxy credentials or live endpoints in this runbook, shell history, logs, or Git.
+4. **FlareSolverr:** Configure Prowlarr's FlareSolverr proxy as `http://127.0.0.1:8191`; use a matching tag only on indexers that need it. Verify Prowlarr's General Proxy is also used for FlareSolverr challenge requests.
+5. **Bazarr:** Nix reconciles its Sonarr/Radarr connection endpoints and API keys to the Drlight-local apps. The seedbox configuration had both sync toggles disabled, so Nix preserves those flags as disabled by default. After applying the generation, inspect `bazarr-media-config-sync.service` and run Bazarr's connection tests. Enable `myConfig.mediaManagement.bazarr.useSonarr` or `useRadarr` in Nix only if you intend that integration to actively sync.
+6. Keep the Ultra Prowlarr/FlareSolverr installations and data for rollback. After local Prowlarr passes verification, stop the Ultra Prowlarr syncer so only one instance manages Arr indexers. Keep Ultra Transmission running.
 
-**Stop if:** a connection test fails, the private route cannot be proven, credentials are unavailable from the approved runtime source, or indexer requests would bypass Ultra.
+**Stop if:** a connection test fails, the proxy does not return Ultra egress, credentials are unavailable from the approved runtime source, or Prowlarr/FlareSolverr cannot stay within the private service boundary.
 
 ## 6. Perform the approved cutover and validate destination apps
 
 Obtain separate cutover approval. Keep downloads paused during the transition. Preserve all source state and backups.
 
-1. Confirm Steps 1–5 passed and the existing local library is available. Confirm `myConfig.ultraMediaDownloadStage.enable` remains `false`; completed-download staging must stay disabled until runtime settings and cutover have been validated.
-2. With downloads paused, stop the old Ultra Radarr, Sonarr, Lidarr, Mylar3, and Bazarr services. Keep their data and backups for rollback. Do not stop or uninstall Prowlarr, FlareSolverr, or Transmission.
-3. Start the Drlight apps. Verify their service and database health, library refreshes and aggregate counts, Transmission integration, private Prowlarr connectivity/sync, and Bazarr connection tests. Verify Bazarr synchronization only for integrations explicitly enabled in Nix. Confirm no Arr API is publicly reachable and indexer traffic remains on Ultra.
+1. Confirm Steps 1–6 passed and the existing local library is available. Confirm `myConfig.ultraMediaDownloadStage.enable` remains `false`; completed-download staging must stay disabled until runtime settings and cutover have been validated.
+2. With downloads paused, stop the old Ultra Radarr, Sonarr, Lidarr, Mylar3, and Bazarr services. Keep their data and backups for rollback. Keep Ultra Transmission running. Do not uninstall the Ultra Prowlarr/FlareSolverr rollback copies.
+3. Start the Drlight apps. Verify their service and database health, library refreshes and aggregate counts, Transmission integration, local Prowlarr connectivity/sync, Ultra proxy egress, FlareSolverr, and Bazarr connections. Verify Bazarr synchronization only for integrations explicitly enabled in Nix. Confirm no Arr API is publicly reachable and only the local Prowlarr instance is syncing indexers.
 4. If any check fails, stop and use **Roll back**. Do not start completed-download staging to work around a failure.
+
+### OnePacerr existing-library preflight
+
+The Drlight OnePacerr module is imported but remains disabled and non-autostarting by default. Its first run can reorganize files and update Jellyfin metadata; do not enable or manually start it until every preflight below passes.
+
+1. Confirm `jellyfin-admin-auth.service` succeeds with the unqualified `Jellyfin - Monkey/username` and `Jellyfin - Monkey/password` references in Drlight's default **Opnix** vault. If authentication fails, repair those references and repeat the read-only check. Do not create a cross-vault exception or expose the credentials.
+2. Through Jellyfin's read-only API, verify the existing series, exact library name, and filesystem root(s). Confirm the OnePacerr host mount contains only the intended series subtree, its container-path mapping resolves to the same files, and the target does not conflict with a Sonarr-managed series. Do not create a duplicate Jellyfin entry.
+3. Verify a restorable snapshot/backup of the affected subtree, permissions for UID `1500` and the shared `users` group, and that UID `1500` is still unused on Drlight. Keep discovered media names/paths and backup details in private operational notes; add only required library settings to reviewed Nix configuration.
+4. After these checks pass, separately review and deploy a Nix change that sets `myConfig.onePacerr.enable = true` and `myConfig.onePacerr.autoStart = true` with the verified library settings. The container uses `PIPELINE_SKIP_DOWNLOADS=true`, does not connect to Transmission, and may organize existing files and update Jellyfin metadata. Verify its first run before considering any later change.
+
+**Stop if:** Jellyfin admin authentication fails, the library/series cannot be identified unambiguously, a restorable backup is unavailable, UID/path/permissions checks fail, or the target is managed by Sonarr. Do not start OnePacerr manually to bypass these gates.
 
 ## 7. Validate staging before enabling its timer
 
@@ -122,7 +134,7 @@ If validation fails, keep downloads paused and perform these steps in order:
 
 1. Stop Drlight Arr imports and destination staging. Through the approved Nix configuration, keep or set `myConfig.ultraMediaDownloadStage.enable = false;` so its recurring timer remains disabled. Wait for any staging oneshot to become inactive and confirm no Arr import is in progress.
 2. Keep the legacy organized-library sync removed. The existing local library remains in place; rollback restores the preserved Ultra apps and their prior state without syncing the organized library back into Drlight.
-3. Restart the preserved Ultra Arr/Bazarr services from their original state. Restore their prior Prowlarr integration configuration from the approved runtime source as needed; keep Prowlarr, FlareSolverr, and Transmission on Ultra.
+3. Restart the preserved Ultra Arr/Bazarr services from their original state. Disable the Drlight Prowlarr syncer before reactivating the Ultra Prowlarr instance; restore its prior app connections from the protected backup as needed. Keep Ultra Transmission running.
 4. Verify source apps can read their original state and library. Keep destination state, all backups, and source data until the incident is understood and another cutover is approved.
 
 Do not remove torrents, staged data, library data, source app data, Prowlarr, FlareSolverr, or Transmission as part of rollback.

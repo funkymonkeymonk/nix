@@ -147,7 +147,10 @@
     "nixos/ultra-media-download-stage.nix"
     # Tested via test-media-center-archetype.nix (drlight-media-management)
     "nixos/media-management.nix"
+    # Tested via test-drlight-media-indexers.nix (Drlight-local indexer services)
+    "nixos/media-indexers.nix"
     "nixos/mylar3.nix"
+    # Tested via test-drlight-onepacerr.nix (OCI runtime, secrets, and library boundary)
     "nixos/onepacerr.nix"
     "services/caddy/nixos.nix"
   ];

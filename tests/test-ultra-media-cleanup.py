@@ -112,6 +112,8 @@ class FakeTransmissionRPCServer:
             else:
                 torrent = {
                     "id": 17,
+                    "hashString": "a" * 40,
+                    "name": "Example release",
                     "status": 6,
                     "doneDate": 1_700_000_000,
                     "secondsSeeding": 86400,
@@ -182,6 +184,8 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
+        self.assertEqual(torrent["download_id"], "A" * 40)
+        self.assertEqual(torrent["name"], "Example release")
         self.assertEqual(torrent["done_date"], 1_700_000_000)
         self.assertTrue(torrent["candidate"]["complete"])
         self.assertEqual(torrent["candidate"]["seeding_seconds"], 86400)
@@ -324,6 +328,8 @@ class TransmissionRPCTests(unittest.TestCase):
             set(request["arguments"]["fields"]),
             {
                 "id",
+                "hashString",
+                "name",
                 "status",
                 "isFinished",
                 "leftUntilDone",
@@ -1568,6 +1574,57 @@ class CleanupExecutionTests(unittest.TestCase):
 
 
 class DownloadStagingTests(unittest.TestCase):
+    def test_torrent_is_imported_only_for_explicit_imported_status(self):
+        self.assertTrue(staging.torrent_is_imported(17, {"17": (1, 0)}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": (0, 0)}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": (0, 1)}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": (-1, -1)}))
+        self.assertFalse(staging.torrent_is_imported(17, {}))
+        self.assertFalse(staging.torrent_is_imported(17, {"17": ("1", 0)}))
+
+    def test_stage_metrics_render_queue_etAs_from_current_rate(self):
+        metrics = staging.render_stage_metrics(
+            [
+                {"id": 11, "title": "First", "category": "tv", "total_bytes": 100},
+                {"id": 12, "title": "Second", "category": "movie", "total_bytes": 300},
+            ],
+            status="running",
+            torrents_published=0,
+            bytes_transferred=0,
+            bytes_reused=0,
+            bytes_per_second=10,
+            current_torrent_remaining_bytes=100,
+            sample_timestamp_seconds=123,
+        )
+
+        self.assertIn('ultra_media_sync_active 1', metrics)
+        self.assertIn('ultra_media_sync_torrents_total 2', metrics)
+        self.assertIn('ultra_media_sync_torrent_eta_seconds{category="tv",queue_position="1",title="First",torrent_id="11"} 10', metrics)
+        self.assertIn('ultra_media_sync_torrent_eta_seconds{category="movie",queue_position="2",title="Second",torrent_id="12"} 40', metrics)
+
+    def test_stage_metrics_escape_labels_and_mark_unknown_eta(self):
+        metrics = staging.render_stage_metrics(
+            [{"id": 13, "title": 'A "quoted"\\name', "category": "tv", "total_bytes": None}],
+            status="running",
+            torrents_published=0,
+            bytes_transferred=0,
+            bytes_reused=0,
+            bytes_per_second=0,
+            current_torrent_remaining_bytes=None,
+            sample_timestamp_seconds=456,
+        )
+
+        self.assertIn('title="A \\\"quoted\\\"\\\\name"', metrics)
+        self.assertIn('ultra_media_sync_torrent_eta_seconds{category="tv",queue_position="1",title="A \\\"quoted\\\"\\\\name",torrent_id="13"} -1', metrics)
+
+    def test_stage_metrics_write_replaces_snapshot_atomically(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "sync.prom"
+            staging.write_stage_metrics_atomic(path, "old\\n")
+            staging.write_stage_metrics_atomic(path, "new\\n")
+            self.assertEqual(path.read_text(encoding="utf-8"), "new\\n")
+            self.assertFalse(list(Path(temporary_directory).glob(".sync.prom.*")))
+
     def test_stage_main_passes_private_queue_root_and_emits_json_summary(self):
         captured = {}
         result = {
@@ -1921,6 +1978,46 @@ class DownloadStagingTests(unittest.TestCase):
             self.assertEqual(final["files_transferred"], 1)
             self.assertEqual(final["bytes_transferred"], 5)
             self.assertNotIn("torrent_id", final)
+
+    def test_imported_torrents_skip_transfer_but_failed_and_unknown_retry(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            torrents = []
+            for torrent_id in (31, 32, 33):
+                torrents.append({
+                    "id": torrent_id,
+                    "done_date": 1_700_000_000 + torrent_id,
+                    "candidate": {"complete": True, "files": [{}]},
+                    "download_directory": "/seedbox/complete downloads/Season 1",
+                    "file_paths": [f"episode-{torrent_id}.mkv"],
+                    "file_paths_valid": True,
+                    "file_sizes": [5],
+                    "file_sizes_valid": True,
+                })
+            transferred = []
+            receipts = []
+
+            def transfer(remote, local_temporary, _report_progress):
+                transferred.append(remote)
+                Path(local_temporary).write_bytes(b"12345")
+
+            result = staging.stage_completed_downloads(
+                torrents,
+                self.mappings,
+                transfer,
+                staging_root=root / ".arr-staging",
+                library_statuses={"31": (1, 0), "32": (0, 0), "33": (-1, -1)},
+                on_torrent_staged=lambda torrent: receipts.append(torrent["id"]),
+            )
+
+            self.assertEqual(transferred, [
+                "/seedbox/complete downloads/Season 1/episode-32.mkv",
+                "/seedbox/complete downloads/Season 1/episode-33.mkv",
+            ])
+            self.assertEqual(receipts, [32, 33])
+            self.assertEqual(result["skipped_imported"], 1)
+            self.assertEqual(result["staged"], 2)
+            self.assertEqual(result["torrents_total"], 2)
 
     def test_torrent_fingerprint_changes_when_remote_mapping_changes(self):
         torrent = {
@@ -2338,6 +2435,7 @@ class DownloadStagingTests(unittest.TestCase):
                     "files_reused": 0,
                     "bytes_reused": 0,
                     "receipts_created": 0,
+                    "skipped_imported": 0,
                     "skipped_incomplete": 1,
                     "skipped_unknown_path": 1,
                     "skipped_malformed_path": 1,
@@ -3371,6 +3469,18 @@ class CleanupOrchestrationTests(unittest.TestCase):
 
 
 class SyncOrchestrationTests(unittest.TestCase):
+    def test_sync_cycle_skips_cleanup_when_stage_reports_busy(self):
+        sync = load_sync_module()
+        cleanup_called = []
+
+        result = sync.run_sync_cycle(
+            lambda: {"status": "busy", "staged": 0, "failed": 0},
+            lambda: cleanup_called.append(True),
+        )
+
+        self.assertEqual(cleanup_called, [])
+        self.assertEqual(result["summary"]["run_status"], "busy")
+
     def test_sync_cycle_stages_then_cleans_and_emits_aggregate_summary(self):
         sync = load_sync_module()
         events = []

@@ -1,6 +1,6 @@
 # ADR 0003: Reconcile Media Application Configuration Declaratively
 
-**Status:** Proposed; implementation is available for review  
+**Status:** Proposed; Prowlarr location superseded by [ADR 0004](0004-drlight-local-indexer-egress.md)  
 **Date:** 2026-11-10
 
 ## Context
@@ -19,7 +19,7 @@ A read-only seedbox inventory found configured Arr profiles and Prowlarr-sourced
 4. Manage Bazarr's connections to the Drlight-local Sonarr and Radarr APIs through its API. Keep app-specific adapters separate from the common reconciliation primitives because the applications have different API contracts.
 5. Manage Mylar3's supported startup settings through a typed service option and a runtime-generated configuration file, rather than assuming it implements the Servarr API. The live service uses the watch-folder downloader with torrent download/search disabled; preserve that mode and do not connect Mylar3 directly to remote Transmission. Existing comic `ComicLocation` records are migrated only through Mylar3's documented one-time `locmove` procedure with the config renderer temporarily disabled; setting `DESTINATION_DIR` alone is not treated as a record migration.
 6. Reconciliation is additive/update-only by default. It may create a missing declared object or update the matching object, but it does not delete undeclared app settings, root folders, download clients, profiles, comics, or indexers. Migrated user data is preserved.
-7. The local Drlight module does not configure the remote Prowlarr service. Prowlarr remains owned by its Ultra deployment. Its remote app connections remain a separately managed deployment boundary.
+7. Prowlarr's app database settings and indexer catalog remain operator-managed. The original Ultra-hosted Prowlarr placement is superseded by ADR 0004; Drlight now owns the Prowlarr/FlareSolverr service lifecycle while runtime proxy and indexer configuration remains in Prowlarr's database.
 8. Application profiles, custom formats, language/provider choices, and catalog contents are user policy. Do not invent or overwrite these from defaults during migration. Preserve them through application-native backup/restore until their exact desired values are explicitly declared; the reconciliation pattern must support adding such adapters later.
 9. Ultra's Arr and Mylar3 URL bases are reverse-proxy prefixes. Drlight exposes the services on private Tailscale ports instead, so clear Arr `server.urlbase` and set Mylar3 `HTTP_ROOT` to `/`. Preserve Forms authentication. Arr updates use the Nix package/update lifecycle (`external`), not the seedbox's Docker updater.
 10. The current Bazarr configuration stores Sonarr/Radarr connection credentials but leaves both integrations disabled. Reconcile the local endpoints and keys while preserving those disabled flags by default. Do not activate subtitle processing or invent language/provider policy during migration.

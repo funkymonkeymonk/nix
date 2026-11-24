@@ -37,6 +37,8 @@
   testOmlx = import ./test-omlx.nix {inherit pkgs;};
   testUltraMediaCleanup = import ./test-ultra-media-cleanup.nix {inherit pkgs;};
   testMediaAppReconciliation = import ./test-media-app-reconciliation.nix {inherit pkgs;};
+  testMediaLibraryStatus = import ./test-media-library-status.nix {inherit pkgs;};
+  testDevenvGrafanaSkills = import ./test-devenv-grafana-skills.nix {inherit pkgs;};
 
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
@@ -56,6 +58,8 @@
   testNixosObservability = import ./test-nixos-observability.nix {inherit pkgs self;};
   testServerArchetypes = import ./test-server-archetypes.nix {inherit pkgs self inputs;};
   testMediaCenterArchetype = import ./test-media-center-archetype.nix {inherit pkgs self inputs;};
+  testDrlightMediaIndexers = import ./test-drlight-media-indexers.nix {inherit pkgs self;};
+  testDrlightOnePacerr = import ./test-drlight-onepacerr.nix {inherit pkgs self;};
   testZero = import ./test-zero.nix {inherit pkgs self;};
   testCoreBootstrap = import ./test-phase5-core-bootstrap.nix {inherit pkgs self inputs;};
   testPhase3Zero = import ./test-phase3-zero.nix {inherit pkgs self inputs;};
@@ -317,7 +321,11 @@ in
     zero-nix-remote-builder = testZero.zeroNixRemoteBuilderTest;
     media-center-archetype = testMediaCenterArchetype.mediaCenterArchetypeTest;
     drlight-media-management = testMediaCenterArchetype.drlightMediaManagementTest;
+    drlight-media-indexers = testDrlightMediaIndexers.drlightMediaIndexersTest;
+    drlight-onepacerr = testDrlightOnePacerr.drlightOnePacerrTest;
     media-app-api-reconciliation = testMediaAppReconciliation.mediaAppApiReconciliation;
+    media-library-status = testMediaLibraryStatus;
+    devenv-grafana-skills = testDevenvGrafanaSkills;
     drlight-media-presentation = testMediaCenterArchetype.drlightMediaPresentationTest;
     drlight-media-storage = testMediaCenterArchetype.drlightMediaStorageTest;
     drlight-root-ssh = testMediaCenterArchetype.drlightRootSshTest;

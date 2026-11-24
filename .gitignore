@@ -41,6 +41,9 @@ __pycache__/
 # Skill runtime caches
 .hw_cache.json
 
+# Devenv-vendored repository-local agent skills
+.agents/
+
 # Yaks working directory (stored in parent git repo's refs/notes/yaks)
 .yaks/
 

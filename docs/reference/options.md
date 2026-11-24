@@ -332,6 +332,17 @@ or changing a `myConfig.*` option.
 | `server.port` | 16 bit unsigned integer; between 0 and 65535 (both inclusive) | `8300` | Port for oMLX's OpenAI-compatible API |
 | `startupTimeoutSeconds` | positive integer, meaning >0 | `600` | Maximum time to wait for oMLX's health endpoint after launch before launchd restarts it. |
 
+### myConfig.onePacerr
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `autoStart` | boolean | `false` | Start OnePacerr automatically. Keep disabled until the Jellyfin admin credentials, library identity/path, and a restorable backup are verified. |
+| `enable` | boolean | `false` | Whether to enable OnePacerr for the existing Jellyfin library. |
+| `jellyfinLibraryName` | null or string | `null` | Verified Jellyfin library name containing the existing OnePacerr series. |
+| `libraryContainerPath` | null or string | `null` | Container path corresponding to the target series path reported by Jellyfin. |
+| `libraryHostPath` | null or string | `null` | Verified Drlight host path containing only the target OnePacerr series. |
+| `seriesName` | string | `"One Pace"` | Existing Jellyfin series that OnePacerr may organize. |
+
 ### myConfig.onepassword
 
 | Option | Type | Default | Description |

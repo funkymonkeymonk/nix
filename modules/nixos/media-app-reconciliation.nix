@@ -39,7 +39,7 @@
     }
     {
       name = "jellyfin";
-      item = "Jellyfin";
+      item = "Jellyfin - Monkey";
       passwordField = "password";
     }
   ];
@@ -50,13 +50,21 @@
     owner = "root";
     group = "media-auth-${app.name}";
     mode = "0440";
-    services = [app.name];
+    services = [app.name] ++ lib.optional (app.name == "jellyfin") "ultra-media-download-stage";
   };
   mediaAuthSecrets = lib.listToAttrs (lib.concatMap (app: [
       (lib.nameValuePair "${app.name}AdminUsername" (mkMediaAuthSecret app "username" "username"))
       (lib.nameValuePair "${app.name}AdminPassword" (mkMediaAuthSecret app "password" app.passwordField))
     ])
     mediaAuthApps);
+  mylarApiKeySecret = {
+    reference = "Mylar3/api-key";
+    path = "/run/secrets/mylar3-api-key";
+    owner = "root";
+    group = "media-auth-mylar3";
+    mode = "0440";
+    services = ["mylar3"];
+  };
   jellyfinAuthConfig = pkgs.writeText "jellyfin-admin-auth.json" (builtins.toJSON {
     baseUrl = "http://127.0.0.1:8096";
     usernameFile = mediaAuthSecretPath "jellyfin" "username";
@@ -328,7 +336,7 @@ in {
   };
 
   config = {
-    myConfig.onepassword.secrets = mediaAuthSecrets;
+    myConfig.onepassword.secrets = mediaAuthSecrets // {mylar3ApiKey = mylarApiKeySecret;};
     services.onepassword-secrets.enable = true;
 
     users.groups = groups;

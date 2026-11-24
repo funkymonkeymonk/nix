@@ -15,7 +15,6 @@
   streamingModuleText = builtins.readFile ../modules/nixos/streaming.nix;
   caddyNixosModuleText = builtins.readFile ../modules/services/caddy/nixos.nix;
   backupNixosModuleText = builtins.readFile ../modules/nixos/backup.nix;
-  onePacerrNixosModuleText = builtins.readFile ../modules/nixos/onepacerr.nix;
 
   # Helper: check if string contains substring, throw if not
   assertContainsStr = name: needle: haystack:
@@ -398,61 +397,6 @@ in {
       ${assertContainsStr "Restic integration" "services.restic.backups" backupNixosModuleText}
 
       echo "Zero Jellyfin configuration test passed"
-      touch $out
-    '';
-
-  # Test: Nixarr should manage the media services and settings synchronization
-  # while Caddy keeps their native ports private.
-  zeroMediaAutomationTest =
-    pkgs.runCommand "test-zero-media-automation"
-    {}
-    ''
-      echo "=== Testing Zero media automation services ==="
-
-      ${assertContainsStr "Nixarr enabled" "nixarr = {" zeroConfigText}
-      ${assertContainsStr "Nixarr Jellyfin" "jellyfin.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Sonarr" "sonarr.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Radarr" "radarr.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Prowlarr" "prowlarr = {" zeroConfigText}
-      ${assertContainsStr "Nixarr Bazarr" "bazarr = {" zeroConfigText}
-      ${assertContainsStr "Nixarr Seerr" "seerr.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Audiobookshelf" "audiobookshelf.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Lidarr" "lidarr.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Shelfmark" "shelfmark.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Recyclarr" "recyclarr = {" zeroConfigText}
-      ${assertNotContainsStr "Nixarr SABnzbd removed" "sabnzbd = {" zeroConfigText}
-      ${assertNotContainsStr "SABnzbd generated settings removed" "services.sabnzbd.configFile = lib.mkForce null" zeroConfigText}
-      ${assertNotContainsStr "Nixarr Autobrr removed" "autobrr.enable = true" zeroConfigText}
-      ${assertContainsStr "Nixarr Transmission" "transmission = {" zeroConfigText}
-      ${assertContainsStr "Transmission seed ratio disabled" ''"ratio-limit-enabled" = true'' zeroConfigText}
-      ${assertContainsStr "Transmission seed ratio zero" ''"ratio-limit" = 0'' zeroConfigText}
-      ${assertContainsStr "Transmission host whitelist" ''"rpc-host-whitelist"'' zeroConfigText}
-      ${assertContainsStr "Prowlarr settings sync" "enable-nixarr-apps = true" zeroConfigText}
-      ${assertContainsStr "Bazarr settings sync" "settings-sync" zeroConfigText}
-      ${assertContainsStr "Sonarr Transmission sync" "sonarr.settings-sync.transmission.enable = true" zeroConfigText}
-      ${assertContainsStr "Radarr Transmission sync" "radarr.settings-sync.transmission.enable = true" zeroConfigText}
-      ${assertContainsStr "OnePacerr enabled" "onePacerr = {" zeroConfigText}
-      ${assertContainsStr "OnePacerr image" "ghcr.io/eltharynd/onepacerr" onePacerrNixosModuleText}
-      ${assertContainsStr "OnePacerr library" "LIBRARY_SERIES_NAME" onePacerrNixosModuleText}
-      ${assertContainsStr "OnePacerr Transmission" "TORRENT_CLIENT" onePacerrNixosModuleText}
-      ${assertContainsStr "OnePacerr Jellyfin" "JELLYFIN_URL" onePacerrNixosModuleText}
-      ${assertContainsStr "Recyclarr Sonarr API" ''"!env_var SONARR_API_KEY"'' zeroConfigText}
-      ${assertContainsStr "Recyclarr Radarr API" ''"!env_var RADARR_API_KEY"'' zeroConfigText}
-      ${assertContainsStr "Lidarr auth method" ''services.lidarr.settings.auth.method = "Forms"'' zeroConfigText}
-      ${assertContainsStr "Seerr Caddy app" "apps.seerr = {" zeroConfigText}
-      ${assertContainsStr "Sonarr Caddy app" "apps.sonarr = {" zeroConfigText}
-      ${assertContainsStr "Radarr Caddy app" "apps.radarr = {" zeroConfigText}
-      ${assertContainsStr "Prowlarr Caddy app" "apps.prowlarr = {" zeroConfigText}
-      ${assertContainsStr "Bazarr Caddy app" "apps.bazarr = {" zeroConfigText}
-      ${assertContainsStr "Audiobookshelf Caddy app" "apps.audiobookshelf = {" zeroConfigText}
-      ${assertContainsStr "Lidarr Caddy app" "apps.lidarr = {" zeroConfigText}
-      ${assertContainsStr "Shelfmark Caddy app" "apps.shelfmark = {" zeroConfigText}
-      ${assertNotContainsStr "SABnzbd Caddy app removed" "apps.sabnzbd = {" zeroConfigText}
-      ${assertNotContainsStr "Autobrr Caddy app removed" "apps.autobrr = {" zeroConfigText}
-      ${assertContainsStr "Transmission Caddy app" "apps.transmission = {" zeroConfigText}
-      ${assertContainsStr "Transmission Caddy web root" ''webRoot = "/transmission/web"'' zeroConfigText}
-
-      echo "Zero media automation test passed"
       touch $out
     '';
 
