@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `system:gc` retrieve the sudo reference configured for the current machine instead of silently using the Opnix fallback when the Darwin hostname differs from the flake configuration name.
+**Goal:** Make system tasks retrieve the configured sudo reference from Jujutsu workspaces instead of silently falling back when Nix cannot parse their Git metadata.
 
-**Architecture:** Extract shared shell helpers in `devenv.nix` for resolving the current configuration and its sudo-password path. Reuse them from both `system:switch` and `system:gc` to remove duplicated lookup logic and keep Darwin primary-user matching consistent.
+**Architecture:** Extract shared shell helpers in `devenv.nix` for resolving the current configuration and its sudo-password path. Use `path:.` for Nix evaluation to avoid Git worktree metadata parsing. Reuse the helpers from both `system:switch` and `system:gc`, removing duplicated lookup logic while keeping Darwin primary-user matching consistent.
 
 **Tech Stack:** Nix task definitions, Bash, existing Nix `runCommand` checks.
 
@@ -19,6 +19,7 @@
 
 ## Review Focus
 
+- Jujutsu worktree metadata is unsupported by the Nix Git fetcher: task lookups use `path:.` and do not silently fall back due to Git metadata.
 - Darwin short hostname differs from the flake configuration name: GC resolves via the primary-user fallback.
 - Fully qualified references pass through unchanged.
 - Missing custom references retain the default-vault/hostname fallback.

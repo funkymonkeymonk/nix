@@ -22,6 +22,8 @@
       grep -q 'resolve_machine_config_name()' "$devenv"
       grep -q 'get_sudo_password_path()' "$devenv"
       grep -q 'config.system.primaryUser' "$devenv"
+      grep -Fq 'nix eval --impure --json "path:.#' "$devenv"
+      grep -Fq 'nix eval --impure --raw "path:.#' "$devenv"
       [ "$(grep -c 'CONFIG_NAME=$(resolve_machine_config_name' "$devenv")" -eq 2 ]
       [ "$(grep -c 'PASSWORD_PATH=$(get_sudo_password_path' "$devenv")" -eq 2 ]
 
