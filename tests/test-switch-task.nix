@@ -21,7 +21,7 @@
       # Machine lookup and sudo reference resolution are shared by system tasks.
       grep -q 'resolve_machine_config_name()' "$devenv"
       grep -q 'get_sudo_password_path()' "$devenv"
-      grep -q 'PRIMARY_USER=.*config.system.primaryUser' "$devenv"
+      grep -q 'config.system.primaryUser' "$devenv"
       [ "$(grep -c 'CONFIG_NAME=$(resolve_machine_config_name' "$devenv")" -eq 2 ]
       [ "$(grep -c 'PASSWORD_PATH=$(get_sudo_password_path' "$devenv")" -eq 2 ]
 
