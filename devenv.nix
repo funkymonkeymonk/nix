@@ -235,6 +235,8 @@ in {
     if command -v jj &>/dev/null; then
       _JJ_WORKSPACE_ROOT=$(jj root 2>/dev/null || pwd)
       _JJ_REPO_ROOT=$(detect_jj_repo_root "$_JJ_WORKSPACE_ROOT" || echo "$_JJ_WORKSPACE_ROOT")
+      export JJ_WORKSPACE_ROOT="''${JJ_WORKSPACE_ROOT-$_JJ_WORKSPACE_ROOT}"
+      export JJ_REPO_ROOT="''${JJ_REPO_ROOT-$_JJ_REPO_ROOT}"
 
       if is_jj_workspace "$_JJ_WORKSPACE_ROOT" "$_JJ_REPO_ROOT"; then
         # In workspace - create functions that run from repo root
@@ -243,8 +245,8 @@ in {
         echo ""
 
         # Use functions instead of aliases for better compatibility
-        s() { (cd "$_JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
-        switch() { (cd "$_JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
+        s() { (cd "$JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
+        switch() { (cd "$JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
       else
         # In main repo - use normal functions
         s() { devenv tasks run system:switch "$@"; }
@@ -545,6 +547,8 @@ in {
       description = "Apply configuration to current system (platform-aware)";
       exec = ''
         set -euo pipefail
+        source ./modules/common/scripts/jj-workspace-lib
+        FLAKE_REF=$(resolve_jj_flake_ref)
         ${runWithSudoPassword}
 
         echo "=== System Switch ==="
@@ -564,7 +568,7 @@ in {
 
         if [[ "$PLATFORM" == "Darwin" ]]; then
           # Try hostname directly, then scan Darwin configs for a match
-          DARWIN_CONFIGS=$(nix eval --impure --json .#darwinConfigurations --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
+          DARWIN_CONFIGS=$(nix eval --impure --json "$FLAKE_REF#darwinConfigurations" --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
           CONFIG_NAME=""
           for cfg in $DARWIN_CONFIGS; do
             if [[ "$cfg" == "$HOSTNAME" ]]; then
@@ -578,7 +582,7 @@ in {
             # Fallback: check known hostname aliases
             for cfg in $DARWIN_CONFIGS; do
               # Try to evaluate primaryUser and match against hostname
-              PRIMARY_USER=$(nix eval --impure --raw ".#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
+              PRIMARY_USER=$(nix eval --impure --raw "$FLAKE_REF#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
               if [[ -n "$PRIMARY_USER" && "$HOSTNAME" == *"$PRIMARY_USER"* ]]; then
                 CONFIG_NAME="$cfg"
                 break
@@ -598,8 +602,8 @@ in {
 
           # Get sudo password from 1Password
           # Check if config defines a custom sudoPasswordRef, otherwise use default pattern
-          CUSTOM_REF=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-          DEFAULT_VAULT=$(nix eval --impure --raw ".#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+          CUSTOM_REF=$(nix eval --impure --raw "$FLAKE_REF#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
+          DEFAULT_VAULT=$(nix eval --impure --raw "$FLAKE_REF#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
           if [[ -z "$CUSTOM_REF" ]]; then
             CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
           fi
@@ -612,7 +616,7 @@ in {
           set -o pipefail
           run_with_sudo_password "$PASSWORD_PATH" \
             env NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
-            --flake "./#$CONFIG_NAME" \
+            --flake "$FLAKE_REF#$CONFIG_NAME" \
             --impure \
             --show-trace 2>&1 | tee "$SWITCH_LOG" || {
             EXIT_CODE=$?
@@ -635,19 +639,19 @@ in {
 
           # devenv tasks do not guarantee an interactive terminal, so provide
           # sudo with the configured password just as the Darwin path does.
-          CUSTOM_REF=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-          DEFAULT_VAULT=$(nix eval --impure --raw ".#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+          CUSTOM_REF=$(nix eval --impure --raw "$FLAKE_REF#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
+          DEFAULT_VAULT=$(nix eval --impure --raw "$FLAKE_REF#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
           if [[ -z "$CUSTOM_REF" ]]; then
             CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
           fi
           PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
           echo "--- Building Configuration ---"
-          echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"
+          echo "Running: nixos-rebuild switch --flake $FLAKE_REF#$CONFIG_NAME"
           echo ""
 
           run_with_sudo_password "$PASSWORD_PATH" \
             nixos-rebuild switch \
-            --flake "./#$CONFIG_NAME" \
+            --flake "$FLAKE_REF#$CONFIG_NAME" \
             --impure \
             --show-trace 2>&1 || {
             EXIT_CODE=$?
