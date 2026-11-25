@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -930,6 +931,52 @@ class JellyfinWebhookConfigTests(unittest.TestCase):
                 reconcile(self.config)
 
         self.assertNotIn(self.webhook_url, str(raised.exception))
+
+
+class JellyfinWebhookPluginInstallerTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.directory = pathlib.Path(self.temporary.name)
+        self.source = self.directory / "nix-store-plugin"
+        self.destination = self.directory / "jellyfin" / "plugins" / "Webhook_22.0.0.0"
+        self.source.mkdir()
+        self.manifest = self.source / "meta.json"
+        self.manifest.write_text('{"version":"22.0.0.0"}', encoding="utf-8")
+        self.manifest.chmod(0o444)
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def _load_installer(self):
+        try:
+            from jellyfin_webhook_plugin_install import PluginInstallError, install_plugin
+        except ImportError:
+            self.fail("jellyfin_webhook_plugin_install must provide the plugin installer")
+        return PluginInstallError, install_plugin
+
+    def test_installer_replaces_its_read_only_store_symlink_with_writable_copy(self):
+        _, install_plugin = self._load_installer()
+        self.destination.parent.mkdir(parents=True)
+        self.destination.symlink_to(self.source, target_is_directory=True)
+
+        install_plugin(self.source, self.destination)
+
+        self.assertFalse(self.destination.is_symlink())
+        self.assertEqual((self.destination / "meta.json").read_text(encoding="utf-8"), '{"version":"22.0.0.0"}')
+        self.assertTrue((self.destination / "meta.json").stat().st_mode & stat.S_IWUSR)
+        self.assertFalse(self.manifest.stat().st_mode & stat.S_IWUSR)
+
+    def test_installer_preserves_a_symlink_not_pointing_to_its_store_package(self):
+        PluginInstallError, install_plugin = self._load_installer()
+        other_source = self.directory / "manually-installed-plugin"
+        other_source.mkdir()
+        self.destination.parent.mkdir(parents=True)
+        self.destination.symlink_to(other_source, target_is_directory=True)
+
+        with self.assertRaises(PluginInstallError):
+            install_plugin(self.source, self.destination)
+
+        self.assertEqual(self.destination.resolve(), other_source)
 
 
 class MylarConfigTests(unittest.TestCase):

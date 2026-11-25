@@ -6,6 +6,10 @@
 }: let
   jellyfinWebhookPlugin = pkgs.jellyfinWebhookPlugin;
   jellyfinPluginDirectory = "${config.services.jellyfin.dataDir}/plugins";
+  jellyfinWebhookScripts = builtins.path {
+    path = ./scripts;
+    name = "media-app-reconciliation-scripts";
+  };
   jellyfinWebhookConfig = pkgs.writeText "jellyfin-webhook-config.json" (builtins.toJSON {
     baseUrl = "http://127.0.0.1:8096";
     usernameFile = "/run/secrets/jellyfin-admin-username";
@@ -17,10 +21,14 @@ in {
   config = lib.mkIf config.services.jellyfin.enable {
     systemd.tmpfiles.rules = [
       "d ${jellyfinPluginDirectory} 0755 jellyfin jellyfin - -"
-      "L+ ${jellyfinPluginDirectory}/Webhook_${jellyfinWebhookPlugin.version} - - - - ${jellyfinWebhookPlugin}"
     ];
 
     systemd.services.jellyfin = {
+      preStart = lib.mkBefore ''
+        ${pkgs.python3}/bin/python ${jellyfinWebhookScripts}/jellyfin_webhook_plugin_install.py \
+          --source ${jellyfinWebhookPlugin} \
+          --destination ${jellyfinPluginDirectory}/Webhook_${jellyfinWebhookPlugin.version}
+      '';
       restartTriggers = [jellyfinWebhookPlugin];
     };
 
@@ -41,7 +49,7 @@ in {
         ProtectHome = true;
         NoNewPrivileges = true;
         RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
-        ExecStart = "${pkgs.python3}/bin/python ${./scripts/jellyfin_webhook_config.py} --config ${jellyfinWebhookConfig}";
+        ExecStart = "${pkgs.python3}/bin/python ${jellyfinWebhookScripts}/jellyfin_webhook_config.py --config ${jellyfinWebhookConfig}";
       };
     };
 

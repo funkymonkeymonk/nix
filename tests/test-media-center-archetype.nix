@@ -286,7 +286,6 @@
       jellyfinDiscordConfigCommand = jellyfinDiscordConfigServiceConfig.ExecStart or "";
       jellyfinDiscordConfigPath = lib.last (lib.splitString "--config " jellyfinDiscordConfigCommand);
       jellyfinDiscordConfigJson = builtins.fromJSON (builtins.readFile jellyfinDiscordConfigPath);
-      jellyfinPluginTmpfilesRules = drlight.systemd.tmpfiles.rules or [];
       mediaLibraryFoldersService = drlight.systemd.services.media-library-folders or {};
       mediaLibraryFoldersScript = mediaLibraryFoldersService.script or "";
       diskoDevices = (drlight.disko or {}).devices or {};
@@ -838,10 +837,10 @@
             ${checkEqual "Jellyfin Discord webhook secret uses its runtime-only path" "/run/secrets/jellyfin-discord-webhook" (jellyfinDiscordWebhookSecret.path or null)}
             ${checkEqual "Jellyfin Discord webhook secret is scoped to its reconciler" ["jellyfin-discord-webhook-config-sync"] (jellyfinDiscordWebhookSecret.services or [])}
             ${checkEqual "Jellyfin Discord webhook secret uses restricted ownership" ["root" "media-auth-jellyfin" "0440"] [(jellyfinDiscordWebhookSecret.owner or null) (jellyfinDiscordWebhookSecret.group or null) (jellyfinDiscordWebhookSecret.mode or null)]}
-            ${checkTrue "Jellyfin installs the pinned webhook plugin through tmpfiles" (lib.any (rule: lib.hasInfix "/plugins/Webhook_" rule && lib.hasInfix "jellyfin-webhook-plugin" rule) jellyfinPluginTmpfilesRules)}
+            ${checkTrue "Jellyfin prepares a writable copy of the pinned webhook plugin before startup" (lib.hasInfix "jellyfin_webhook_plugin_install.py" jellyfinPreStart && lib.hasInfix "jellyfin-webhook-plugin-22.0.0.0" jellyfinPreStart)}
             ${checkTrue "Jellyfin restarts when the webhook plugin package changes" (lib.any (trigger: lib.hasInfix "jellyfin-webhook-plugin" trigger) (jellyfinService.restartTriggers or []))}
             ${checkTrue "Jellyfin Discord reconciler runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (jellyfinDiscordConfigService.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (jellyfinDiscordConfigService.wantedBy or []))}
-            ${checkTrue "Jellyfin Discord reconciler uses its runtime Python helper" (lib.hasInfix "jellyfin_webhook_config.py" jellyfinDiscordConfigCommand && lib.hasInfix "--config" jellyfinDiscordConfigCommand)}
+            ${checkTrue "Jellyfin Discord reconciler runs from the shared scripts bundle" (lib.hasInfix "-media-app-reconciliation-scripts/jellyfin_webhook_config.py" jellyfinDiscordConfigCommand && lib.hasInfix "--config" jellyfinDiscordConfigCommand)}
             ${checkTrue "Jellyfin Discord reconciler receives secret paths, not values" ((jellyfinDiscordConfigJson.webhookUrlFile or null) == "/run/secrets/jellyfin-discord-webhook" && !(lib.hasInfix "https://discord.com/api/webhooks/" (builtins.toJSON jellyfinDiscordConfigJson)))}
             ${checkEqual "Jellyfin Discord reconciler runs as the Jellyfin account" "jellyfin" (jellyfinDiscordConfigServiceConfig.User or null)}
             ${checkTrue "Jellyfin Discord reconciler can read only the required media-auth group" (builtins.elem "media-auth-jellyfin" (jellyfinDiscordConfigServiceConfig.SupplementaryGroups or []))}
