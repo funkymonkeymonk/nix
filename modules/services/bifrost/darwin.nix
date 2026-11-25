@@ -49,6 +49,36 @@ with lib; let
       fi
     '')
     secretUpstreams);
+  authIsValid =
+    !cfg.auth.enable
+    || (
+      cfg.auth.adminUsernameFile
+      != null
+      && cfg.auth.adminPasswordFile != null
+      && cfg.auth.setupTokenFile != null
+      && cfg.auth.virtualKey != null
+      && cfg.auth.virtualKey.providers != []
+    );
+  authSecretFiles =
+    if cfg.auth.enable
+    then
+      assert authIsValid; {
+        BIFROST_ADMIN_USERNAME = cfg.auth.adminUsernameFile;
+        BIFROST_ADMIN_PASSWORD = cfg.auth.adminPasswordFile;
+        BIFROST_SETUP_TOKEN = cfg.auth.setupTokenFile;
+        BIFROST_OPENCHAMBER_API_KEY = cfg.auth.virtualKey.valueFile;
+      }
+    else {};
+  authSecretFileExports = lib.concatStringsSep "\n" (lib.mapAttrsToList (envName: secretFile: ''
+      secret_file=${lib.escapeShellArg secretFile}
+      if [ -r "$secret_file" ]; then
+        export ${envName}="$(${pkgs.coreutils}/bin/cat "$secret_file")"
+      else
+        echo "Bifrost: required authentication secret is not readable: $secret_file" >&2
+        exit 1
+      fi
+    '')
+    authSecretFiles);
   mkApiKeyValue = upstream:
     if upstream.apiKeyFile != null
     then "env.${apiKeyEnvVar upstream.name}"
@@ -153,14 +183,44 @@ with lib; let
       })
       opencodeGoUpstreams);
 
-  configJson = builtins.toJSON {
-    inherit providers;
-  };
+  authConfig =
+    if cfg.auth.enable
+    then
+      assert authIsValid; {
+        client.enforce_auth_on_inference = true;
+        governance = {
+          auth_config = {
+            is_enabled = true;
+            admin_username = "env.BIFROST_ADMIN_USERNAME";
+            admin_password = "env.BIFROST_ADMIN_PASSWORD";
+            disable_auth_on_inference = false;
+          };
+          virtual_keys = [
+            {
+              inherit (cfg.auth.virtualKey) id name;
+              value = "env.BIFROST_OPENCHAMBER_API_KEY";
+              is_active = true;
+              provider_configs =
+                map (provider: {
+                  inherit provider;
+                  allowed_models = ["*"];
+                  key_ids = ["*"];
+                  weight = 1.0;
+                })
+                cfg.auth.virtualKey.providers;
+            }
+          ];
+        };
+      }
+    else {};
+
+  configJson = builtins.toJSON ({inherit providers;} // authConfig);
 
   bifrostScript = pkgs.writeShellScript "bifrost-launchd-service" ''
     set -euo pipefail
     export HOME="${darwinHomeDir}"
     ${secretFileExports}
+    ${authSecretFileExports}
 
     APP_DIR="${appDir}"
     mkdir -p "$APP_DIR"
@@ -303,6 +363,64 @@ in {
       });
       default = {};
       description = "Upstream model servers to proxy through Bifrost. Each key becomes the provider prefix for model routing (e.g., 'omlx' → model 'omlx/qwen3.8-27b')";
+    };
+
+    auth = mkOption {
+      type = types.submodule {
+        options = {
+          enable = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Enable Bifrost dashboard authentication and inference virtual-key enforcement.";
+          };
+
+          adminUsernameFile = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Runtime file containing the Bifrost dashboard/admin username.";
+          };
+
+          adminPasswordFile = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Runtime file containing the Bifrost dashboard/admin password.";
+          };
+
+          setupTokenFile = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Runtime file containing the first-admin setup token, exported as BIFROST_SETUP_TOKEN.";
+          };
+
+          virtualKey = mkOption {
+            type = types.nullOr (types.submodule {
+              options = {
+                id = mkOption {
+                  type = types.str;
+                  description = "Stable Bifrost virtual-key ID.";
+                };
+                name = mkOption {
+                  type = types.str;
+                  description = "Human-readable Bifrost virtual-key name.";
+                };
+                valueFile = mkOption {
+                  type = types.str;
+                  description = "Runtime file containing the virtual-key value.";
+                };
+                providers = mkOption {
+                  type = types.listOf types.str;
+                  default = [];
+                  description = "Bifrost providers permitted for this virtual key.";
+                };
+              };
+            });
+            default = null;
+            description = "Optional inference virtual key, required when auth.enable is true.";
+          };
+        };
+      };
+      default = {};
+      description = "Bifrost dashboard and inference authentication, populated from runtime secret files.";
     };
   };
 

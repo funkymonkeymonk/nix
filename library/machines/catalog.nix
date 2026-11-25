@@ -156,6 +156,7 @@
       modules = [
         ../archetypes/type-media-center.nix
         ../archetypes/type-observability.nix
+        inputs.openchamber.nixosModules.openchamber
         ../../disk-configs/drlight.nix
         ../../modules/nixos/media-storage.nix
         ../../modules/nixos/media-management.nix
@@ -271,6 +272,40 @@
           onepassword = {
             defaultVault = "Opnix";
             sudoPasswordRef = "MegamanX Sudo Password/password";
+            secrets = {
+              bifrostAdminUsername = {
+                reference = "Bifrost Admin Username/username";
+                path = "/var/run/bifrost-admin-username";
+                mode = "0400";
+                owner = "monkey";
+                group = "staff";
+                services = ["com.bifrost.service"];
+              };
+              bifrostAdminPassword = {
+                reference = "Bifrost Admin Password/password";
+                path = "/var/run/bifrost-admin-password";
+                mode = "0400";
+                owner = "monkey";
+                group = "staff";
+                services = ["com.bifrost.service"];
+              };
+              bifrostSetupToken = {
+                reference = "Bifrost Setup Token/credential";
+                path = "/var/run/bifrost-setup-token";
+                mode = "0400";
+                owner = "monkey";
+                group = "staff";
+                services = ["com.bifrost.service"];
+              };
+              bifrostOpenChamberApiKey = {
+                reference = "Bifrost OpenChamber API Key/credential";
+                path = "/var/run/bifrost-openchamber-api-key";
+                mode = "0400";
+                owner = "monkey";
+                group = "staff";
+                services = ["com.bifrost.service"];
+              };
+            };
           };
           ssh.enable = true;
           tailscale.enable = false;
@@ -311,8 +346,20 @@
 
           bifrost = {
             enable = true;
-            host = "127.0.0.1";
+            host = "0.0.0.0";
             logLevel = "debug";
+            auth = {
+              enable = true;
+              adminUsernameFile = "/var/run/bifrost-admin-username";
+              adminPasswordFile = "/var/run/bifrost-admin-password";
+              setupTokenFile = "/var/run/bifrost-setup-token";
+              virtualKey = {
+                id = "openchamber";
+                name = "OpenChamber";
+                valueFile = "/var/run/bifrost-openchamber-api-key";
+                providers = ["omlx" "opencode-go"];
+              };
+            };
             modelMetadata."omlx/qwen3.8-27b" = {
               contextLength = 128000;
               maxOutputTokens = 30720;

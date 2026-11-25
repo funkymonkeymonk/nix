@@ -79,6 +79,41 @@
       ];
   };
   bifrostOpenCodeGo = bifrostOpenCodeGoEval.config;
+  bifrostAuthEval = lib.evalModules {
+    modules =
+      stubs.bifrost
+      ++ [
+        {
+          config.myConfig.users = [{name = "monkey";}];
+          config.myConfig.bifrost = {
+            enable = true;
+            upstreams.omlx = {
+              url = "http://localhost:8300";
+              type = "anthropic";
+            };
+            upstreams."opencode-go" = {
+              url = "https://opencode.ai/zen/go";
+              type = "opencode-go";
+              apiKey = "FIXTURE_UPSTREAM_KEY_MUST_NOT_LEAK";
+              apiKeyFile = "/run/secrets/opencode-go-api-key";
+            };
+            auth = {
+              enable = true;
+              adminUsernameFile = "/run/secrets/bifrost-admin-username";
+              adminPasswordFile = "/run/secrets/bifrost-admin-password";
+              setupTokenFile = "/run/secrets/bifrost-setup-token";
+              virtualKey = {
+                id = "openchamber";
+                name = "OpenChamber";
+                valueFile = "/run/secrets/bifrost-openchamber-api-key";
+                providers = ["omlx" "opencode-go"];
+              };
+            };
+          };
+        }
+      ];
+  };
+  bifrostAuth = bifrostAuthEval.config;
 in {
   bifrostOptionsTest = pkgs.runCommand "test-bifrost-options" {} ''
     echo "=== Testing Bifrost Option Defaults ==="
@@ -368,4 +403,53 @@ in {
       echo "All Bifrost retry config tests passed"
       touch $out
     '';
+
+  bifrostNetworkAuthConfigTest = pkgs.runCommand "test-bifrost-network-auth-config" {} ''
+    echo "=== Testing Bifrost network authentication config ==="
+    SCRIPT=${bifrostAuth.launchd.daemons.bifrost.command}
+
+    ${pkgs.python3}/bin/python - "$SCRIPT" <<'PY'
+    import json
+    import shlex
+    import sys
+
+    script = open(sys.argv[1], encoding="utf-8").read()
+    config_line = next(line for line in script.splitlines() if line.startswith("printf '%s\\n' "))
+    config = json.loads(shlex.split(config_line)[2])
+
+    assert config["client"]["enforce_auth_on_inference"] is True, config
+    auth = config["governance"]["auth_config"]
+    assert auth["is_enabled"] is True, auth
+    assert auth["disable_auth_on_inference"] is False, auth
+    assert auth["admin_username"] == "env.BIFROST_ADMIN_USERNAME", auth
+    assert auth["admin_password"] == "env.BIFROST_ADMIN_PASSWORD", auth
+
+    assert set(config["providers"]) == {"omlx", "opencode-go"}, config["providers"]
+    assert config["providers"]["opencode-go"]["keys"][0]["value"] == "env.BIFROST_OPENCODE_GO_API_KEY"
+
+    key = config["governance"]["virtual_keys"][0]
+    assert key["id"] == "openchamber", key
+    assert key["name"] == "OpenChamber", key
+    assert key["value"] == "env.BIFROST_OPENCHAMBER_API_KEY", key
+    assert key["is_active"] is True, key
+    assert {entry["provider"] for entry in key["provider_configs"]} == {"omlx", "opencode-go"}, key
+    assert all(entry["allowed_models"] == ["*"] and entry["key_ids"] == ["*"] for entry in key["provider_configs"]), key
+    assert "BIFROST_SETUP_TOKEN" in script, script
+
+    for path in (
+        "/run/secrets/bifrost-admin-username",
+        "/run/secrets/bifrost-admin-password",
+        "/run/secrets/bifrost-setup-token",
+        "/run/secrets/bifrost-openchamber-api-key",
+        "/run/secrets/opencode-go-api-key",
+    ):
+        assert path in script, path
+
+    assert "FIXTURE_UPSTREAM_KEY_MUST_NOT_LEAK" not in script, script
+    PY
+
+    echo "Bifrost inference/admin auth and existing providers are declarative: OK"
+    echo "Bifrost launcher consumes secret files without embedding values: OK"
+    touch $out
+  '';
 }
