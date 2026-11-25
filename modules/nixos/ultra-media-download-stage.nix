@@ -20,6 +20,7 @@
   cleanupEnabled = stageCfg.cleanup.enable or false;
   remoteDiskConfig = stageCfg.remoteDisk;
   remoteDiskEnabled = remoteDiskConfig.enable;
+  cleanupConfig = stageCfg.cleanup;
   remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
   remoteDiskMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox.prom";
   syncMetricsPath = "${remoteDiskMetricsDirectory}/ultra-media-sync.prom";
@@ -33,6 +34,9 @@
     + "--remote-disk-capacity-bytes ${toString remoteDiskConfig.capacityBytes} "
     + "--remote-disk-warning-threshold-bytes ${toString remoteDiskConfig.warningThresholdBytes} "
     + "--remote-disk-metrics-path ${lib.escapeShellArg remoteDiskMetricsPath}";
+  cleanupPolicyArgs =
+    "--min-completion-age-hours ${toString cleanupConfig.minCompletionAgeHours} "
+    + "--min-torrent-ratio ${toString cleanupConfig.minTorrentRatio}";
   arrSyncServices = [
     "radarr-media-config-sync"
     "sonarr-media-config-sync"
@@ -61,6 +65,16 @@ in {
         cleanup = {
           enable = lib.mkEnableOption "remove retention-eligible seedbox torrents after verified staging";
           privateTrackerRatioProtection.enable = lib.mkEnableOption "future private-tracker account-ratio cleanup gate (unknown trackers fail closed)";
+          minCompletionAgeHours = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 240;
+            description = "Minimum completion age in hours before a verified torrent may be removed.";
+          };
+          minTorrentRatio = lib.mkOption {
+            type = lib.types.addCheck lib.types.float (value: value > 0);
+            default = 3.0;
+            description = "Minimum upload/download ratio before a verified torrent may be removed.";
+          };
         };
         remoteDisk = {
           enable = lib.mkEnableOption "Ultra seedbox account storage monitoring";
@@ -178,9 +192,10 @@ in {
          --lidarr-api-key-file ${lib.escapeShellArg (mediaApiKeyPath "lidarr")} \
          --jellyfin-username-file /run/secrets/jellyfin-admin-username \
          --jellyfin-password-file /run/secrets/jellyfin-admin-password \
-        ${lib.optionalString cleanupEnabled "--cleanup-enabled "}\
-        ${lib.optionalString stageCfg.cleanup.privateTrackerRatioProtection.enable "--private-tracker-ratio-protection "}\
-        ${remoteDiskArgs}
+         ${lib.optionalString cleanupEnabled "--cleanup-enabled "}\
+         ${lib.optionalString stageCfg.cleanup.privateTrackerRatioProtection.enable "--private-tracker-ratio-protection "}\
+         ${cleanupPolicyArgs} \
+         ${remoteDiskArgs}
     '';
   };
 

@@ -24,6 +24,11 @@ inputs:
     inputs:
       nixpkgs:
         follows: nixpkgs
+  openchamber:
+    url: github:openchamber/openchamber
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
   devenv:
     url: github:cachix/devenv/v2.4.0
   nix-darwin:
