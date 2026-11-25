@@ -71,6 +71,15 @@ in {
             description = "Media server";
           };
         };
+        apps.seerr = {
+          host = "seerr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:5055";
+          homepage = {
+            title = "Seerr";
+            group = "Media Management";
+            description = "Movie and TV request portal";
+          };
+        };
         apps.grafana = {
           host = "grafana.home.buildingbananas.com";
           upstream = "http://127.0.0.1:3000";

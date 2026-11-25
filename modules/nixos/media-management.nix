@@ -188,14 +188,6 @@ in {
     };
   };
 
-  myConfig.homepage.directLinks = [
-    {
-      name = "Seerr";
-      group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.seerr.port}";
-      description = "Movie and TV request portal";
-    }
-  ];
   systemd.services = lib.mkMerge [
     {
       media-management-roots = {

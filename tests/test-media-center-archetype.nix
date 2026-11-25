@@ -73,6 +73,9 @@
       caddyRoutes = builtins.attrNames (drlight.services.caddy.virtualHosts or {});
       caddyAppConfigs = drlight.myConfig.caddy.apps or {};
       caddyApps = builtins.attrNames caddyAppConfigs;
+      seerrCaddyApp = caddyAppConfigs.seerr or {};
+      seerrCaddyVirtualHost = drlight.services.caddy.virtualHosts."seerr.home.buildingbananas.com" or {};
+      seerrCaddyExtraConfig = seerrCaddyVirtualHost.extraConfig or "";
       expectedCaddyHomepageHrefs = builtins.sort builtins.lessThan (map
         (name: "https://${caddyAppConfigs.${name}.host}")
         (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
@@ -300,7 +303,7 @@
         "https://radarr.home.buildingbananas.com"
         "https://sonarr.home.buildingbananas.com"
       ];
-      seerrHomepageHref = "http://drlight.uaru-daggertooth.ts.net:${toString drlight.services.seerr.port}";
+      seerrHomepageHref = "https://seerr.home.buildingbananas.com";
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan (
         [
           "https://grafana.home.buildingbananas.com"
@@ -322,6 +325,7 @@
         "mylar.home.buildingbananas.com"
         "radarr.home.buildingbananas.com"
         "sonarr.home.buildingbananas.com"
+        "seerr.home.buildingbananas.com"
       ];
       expectedLocalCaddyApps = builtins.sort builtins.lessThan [
         "bazarr"
@@ -331,6 +335,7 @@
         "lidarr"
         "mylar3"
         "radarr"
+        "seerr"
         "sonarr"
       ];
       expectedLocalCaddyUpstreams = {
@@ -338,10 +343,7 @@
         dashboard = "http://127.0.0.1:8082";
         grafana = "http://127.0.0.1:3000";
         jellyfin = "http://127.0.0.1:8096";
-        lidarr = "http://127.0.0.1:8686";
-        mylar3 = "http://127.0.0.1:8090";
-        radarr = "http://127.0.0.1:7878";
-        sonarr = "http://127.0.0.1:8989";
+        seerr = "http://127.0.0.1:5055";
       };
       actualLocalCaddyUpstreams = lib.mapAttrs (_: app: app.upstream) (drlight.myConfig.caddy.apps or {});
       mediaManagementApps = [
@@ -638,11 +640,12 @@
         ${checkEqual "Grafana uses Homepage's native widget" ["grafana"] (map (widget: widget.type or null) grafanaHomepageWidgets)}
         ${checkEqual "Grafana widget credentials come from systemd credentials" ["%d/grafana-username" "%d/grafana-password"] [grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_USERNAME or null grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_PASSWORD or null]}
         ${checkEqual "Homepage loads Grafana credential files through systemd" (builtins.sort builtins.lessThan ["grafana-username:/run/secrets/grafana-username" "grafana-password:/run/secrets/grafana-password"]) (builtins.sort builtins.lessThan grafanaHomepageCredentials)}
-        ${checkEqual "Homepage exposes local Caddy apps and the Seerr portal" expectedLocalHomepageHrefs sortedHomepageHrefs}
-        ${checkEqual "Caddy routes all local services" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
-        ${checkEqual "Caddy app configuration includes all local services" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
-        ${checkEqual "Caddy proxies all services to local upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
-        ${checkFalse "Seerr is not exposed through Caddy" (builtins.elem "seerr" caddyApps)}
+        ${checkEqual "Homepage exposes Caddy apps and canonical media links" expectedLocalHomepageHrefs sortedHomepageHrefs}
+        ${checkEqual "Caddy routes all configured internal applications" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
+        ${checkEqual "Caddy app configuration includes all local applications" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
+        ${checkTrue "Seerr has the selected internal Caddy hostname and loopback upstream" ((seerrCaddyApp.host or null) == "seerr.home.buildingbananas.com" && (seerrCaddyApp.upstream or null) == "http://127.0.0.1:5055")}
+        ${checkTrue "Seerr Caddy route rejects clients outside LAN and Tailscale ranges" (lib.hasInfix "@external not remote_ip" seerrCaddyExtraConfig && lib.hasInfix "respond @external 403" seerrCaddyExtraConfig)}
+        ${checkEqual "Caddy proxies all local apps to their loopback upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media presentation tests passed"
