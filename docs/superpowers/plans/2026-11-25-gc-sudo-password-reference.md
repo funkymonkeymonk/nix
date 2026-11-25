@@ -36,18 +36,18 @@
 - `resolve_machine_config_name(config_set, hostname)` returns the matching Darwin configuration name, or the hostname for NixOS.
 - `get_sudo_password_path(config_set, config_name, hostname)` returns the configured or fallback 1Password URI.
 
-- [ ] **Step 1: Add regression assertions**
+- [x] **Step 1: Add regression assertions**
 
 Assert both tasks call the shared config and sudo-path helpers, that switch computes one sudo path before its platform branch, and that the shared Darwin resolver checks `system.primaryUser` if no exact hostname match exists.
 
-- [ ] **Step 2: Verify the test fails**
+- [x] **Step 2: Verify the test fails**
 
-Run the `switch-task` build check. It should fail because the shared helpers do not exist yet.
+The `switch-task` check failed first for missing shared helpers, then for the missing `path:.` lookup required to avoid jj Git metadata.
 
-- [ ] **Step 3: Implement shared helpers**
+- [x] **Step 3: Implement shared helpers**
 
 Define the helpers once in the shared shell fragment. Use them from `system:switch` and `system:gc`, preserving NixOS hostname selection and existing reference fallback semantics.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
-Run the `switch-task` build check, `devenv tasks run check:lint`, and `devenv tasks run test:build-checks`.
+The focused `switch-task` check and `devenv tasks run check:lint` pass. `devenv tasks run test:build-checks` is blocked because its `test:eval` dependency invokes the Git flake fetcher, which rejects `extensions.relativeworktrees`; `nix flake check path:.` was also attempted but cannot build the repository's Linux-targeted check without the unavailable MegamanX builder.
