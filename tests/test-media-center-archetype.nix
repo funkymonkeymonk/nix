@@ -77,7 +77,7 @@
         (name: "https://${caddyAppConfigs.${name}.host}")
         (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
       dnsmasqSettings = drlight.services.dnsmasq.settings or {};
-      caddyDnsRecords = map (name: "${caddyAppConfigs.${name}.host},100.89.187.92") caddyApps;
+      caddyDnsRecords = map (name: "${caddyAppConfigs.${name}.host},192.168.1.23") caddyApps;
       dnsmasqHostRecordLines = builtins.concatStringsSep "\n" (map (record: "host-record=${record}") (dnsmasqSettings.host-record or []));
       drlightWithDownloadStageEnabled =
         (self.nixosConfigurations.drlight.extendModules {
@@ -478,7 +478,7 @@
         echo "  Mylar3 package runtime import check: ${mylar3Package}"
         ${checkTrue "media-management module is not selected by other machines" (lib.all (machine: !(hasModule "/modules/nixos/media-management.nix" machine)) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
         ${checkTrue "no Arr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
-        ${checkFalse "media-manager apps are not exposed through Caddy" (lib.any (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
+        ${checkTrue "media-manager apps are exposed through Caddy" (lib.all (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
         ${lib.concatMapStringsSep "\n" (app: ''
           ${checkTrue "${app} has an API reconciliation unit" (builtins.hasAttr "${app}-media-config-sync" drlight.systemd.services)}
         '') ["radarr" "sonarr" "lidarr" "bazarr"]}
@@ -654,9 +654,9 @@
           ${checkFalse "Drlight DNS server does not replace the machine's local resolver" drlight.services.dnsmasq.resolveLocalQueries}
           ${checkTrue "Drlight DNS server listens on tailscale0" (builtins.elem "tailscale0" (dnsmasqSettings.interface or []))}
           ${checkTrue "Drlight DNS accepts tailnet UDP and TCP queries" (builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedUDPPorts or []) && builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))}
-          ${checkTrue "Drlight DNS maps every Caddy app to its Tailscale IP" (builtins.all (record: builtins.elem record (dnsmasqSettings.host-record or [])) caddyDnsRecords)}
+          ${checkTrue "Drlight DNS maps every Caddy app to its LAN IP" (builtins.all (record: builtins.elem record (dnsmasqSettings.host-record or [])) caddyDnsRecords)}
           ${checkTrue "Drlight DNS preserves Zero's Sunshine route" (builtins.elem "sunshine.home.buildingbananas.com,100.71.97.28" (dnsmasqSettings.host-record or []))}
-          ${checkTrue "new Caddy apps automatically receive a split-DNS record" (builtins.elem "synthetic.home.buildingbananas.com,100.89.187.92" syntheticDnsRecords)}
+          ${checkTrue "new Caddy apps automatically receive a split-DNS record" (builtins.elem "synthetic.home.buildingbananas.com,192.168.1.23" syntheticDnsRecords)}
 
           cat > dnsmasq-test.conf <<'EOF'
           port=5353
@@ -674,8 +674,8 @@
           ${
             lib.concatMapStringsSep "\n" (name: ''
               resolved=$(${pkgs.dnsutils}/bin/dig +short @127.0.0.1 -p 5353 ${lib.escapeShellArg name} A)
-              if [ "$resolved" != "100.89.187.92" ]; then
-                echo "FAIL: DNS resolved ${name} to $resolved instead of Drlight's Tailscale IP"
+              if [ "$resolved" != "192.168.1.23" ]; then
+                echo "FAIL: DNS resolved ${name} to $resolved instead of Drlight's LAN IP"
                 exit 1
               fi
             '') ["dashboard.home.buildingbananas.com" "jellyfin.home.buildingbananas.com" "grafana.home.buildingbananas.com"]
