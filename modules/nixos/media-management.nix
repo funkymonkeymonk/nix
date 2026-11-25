@@ -66,6 +66,7 @@
     config.services.lidarr.settings.server.port
     config.services.bazarr.settings.general.port
     config.services.mylar3.port
+    config.services.seerr.port
   ];
 in {
   imports = [
@@ -165,6 +166,11 @@ in {
         API_KEY.secret = "/run/secrets/mylar3-api-key";
       };
     };
+  };
+
+  services.seerr = {
+    enable = true;
+    openFirewall = false;
   };
 
   myConfig.mediaManagement = {

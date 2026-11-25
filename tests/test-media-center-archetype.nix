@@ -73,6 +73,9 @@
       caddyRoutes = builtins.attrNames (drlight.services.caddy.virtualHosts or {});
       caddyAppConfigs = drlight.myConfig.caddy.apps or {};
       caddyApps = builtins.attrNames caddyAppConfigs;
+      seerrCaddyApp = caddyAppConfigs.seerr or {};
+      seerrCaddyVirtualHost = drlight.services.caddy.virtualHosts."seerr.home.buildingbananas.com" or {};
+      seerrCaddyExtraConfig = seerrCaddyVirtualHost.extraConfig or "";
       expectedCaddyHomepageHrefs = builtins.sort builtins.lessThan (map
         (name: "https://${caddyAppConfigs.${name}.host}")
         (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
@@ -144,6 +147,7 @@
       resticJobs = drlight.services.restic.backups or {};
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
+      jellyfinDiscordWebhookSecret = onePasswordSecrets.jellyfinDiscordWebhook or {};
       secretValues = builtins.attrValues onePasswordSecrets;
       ultraSyncStagingSource = builtins.readFile ../modules/nixos/scripts/ultra-media-download-stage.py;
       mediaLibraryStatusSource = builtins.readFile ../modules/nixos/scripts/media-library-status.py;
@@ -280,6 +284,11 @@
       jellyfinUnitConfig = drlight.systemd.services.jellyfin.unitConfig or {};
       jellyfinService = drlight.systemd.services.jellyfin or {};
       jellyfinPreStart = drlight.systemd.services.jellyfin.preStart or "";
+      jellyfinDiscordConfigService = drlight.systemd.services.jellyfin-discord-webhook-config-sync or {};
+      jellyfinDiscordConfigServiceConfig = jellyfinDiscordConfigService.serviceConfig or {};
+      jellyfinDiscordConfigCommand = jellyfinDiscordConfigServiceConfig.ExecStart or "";
+      jellyfinDiscordConfigPath = lib.last (lib.splitString "--config " jellyfinDiscordConfigCommand);
+      jellyfinDiscordConfigJson = builtins.fromJSON (builtins.readFile jellyfinDiscordConfigPath);
       mediaLibraryFoldersService = drlight.systemd.services.media-library-folders or {};
       mediaLibraryFoldersScript = mediaLibraryFoldersService.script or "";
       diskoDevices = (drlight.disko or {}).devices or {};
@@ -294,15 +303,17 @@
         "https://radarr.home.buildingbananas.com"
         "https://sonarr.home.buildingbananas.com"
       ];
+      seerrHomepageHref = "https://seerr.home.buildingbananas.com";
       expectedLocalHomepageHrefs = builtins.sort builtins.lessThan (
         [
           "https://grafana.home.buildingbananas.com"
           "https://jellyfin.home.buildingbananas.com"
+          seerrHomepageHref
         ]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedMediaCenterOnlyHomepageHrefs = builtins.sort builtins.lessThan (
-        ["https://jellyfin.home.buildingbananas.com"]
+        ["https://jellyfin.home.buildingbananas.com" seerrHomepageHref]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
@@ -314,6 +325,7 @@
         "mylar.home.buildingbananas.com"
         "radarr.home.buildingbananas.com"
         "sonarr.home.buildingbananas.com"
+        "seerr.home.buildingbananas.com"
       ];
       expectedLocalCaddyApps = builtins.sort builtins.lessThan [
         "bazarr"
@@ -323,6 +335,7 @@
         "lidarr"
         "mylar3"
         "radarr"
+        "seerr"
         "sonarr"
       ];
       expectedLocalCaddyUpstreams = {
@@ -333,6 +346,7 @@
         lidarr = "http://127.0.0.1:8686";
         mylar3 = "http://127.0.0.1:8090";
         radarr = "http://127.0.0.1:7878";
+        seerr = "http://127.0.0.1:5055";
         sonarr = "http://127.0.0.1:8989";
       };
       actualLocalCaddyUpstreams = lib.mapAttrs (_: app: app.upstream) (drlight.myConfig.caddy.apps or {});
@@ -414,8 +428,14 @@
           && !(machine.config.services.sonarr.enable or false)
           && !(machine.config.services.lidarr.enable or false)
           && !(machine.config.services.mylar3.enable or false)
-          && !(machine.config.services.bazarr.enable or false))
+          && !(machine.config.services.bazarr.enable or false)
+          && !(machine.config.services.seerr.enable or false))
         (builtins.attrValues nonDrlightMachines);
+      seerrPort = drlight.services.seerr.port;
+      seerrPortOnlyOnLanAndTailscale =
+        builtins.all
+        (interface: builtins.elem interface ["eno1" "tailscale0"] || !(builtins.elem seerrPort ((drlight.networking.firewall.interfaces.${interface}).allowedTCPPorts or [])))
+        (builtins.attrNames (drlight.networking.firewall.interfaces or {}));
     in {
       drlightMediaManagementTest = pkgs.runCommand "test-drlight-media-management" {nativeBuildInputs = [pkgs.jq];} ''
         failures=0
@@ -460,8 +480,13 @@
         ${checkTrue "Bazarr can read and write the Drlight-local Sonarr library root" (builtins.elem "/srv/media/shows" ((mediaManagementServiceConfig "bazarr").ReadWritePaths or []))}
         ${checkTrue "media-manager API ports are allowed on tailscale0 only" mediaManagementServicesReachableOverTailscale}
         ${checkTrue "media-manager API ports are not opened globally" mediaManagementServicesNotGlobal}
-         ${checkTrue "media-manager API ports are reachable on eno1" mediaManagementServicesReachableOnLan}
-         ${checkTrue "media-manager API ports are not opened on unrelated interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
+        ${checkTrue "media-manager API ports are reachable on eno1" mediaManagementServicesReachableOnLan}
+        ${checkTrue "media-manager API ports are not opened on unrelated interfaces" mediaManagementServicesNotReachableOnOtherInterfaces}
+        ${checkTrue "Seerr is enabled on Drlight" (drlight.services.seerr.enable or false)}
+        ${checkFalse "Seerr does not open its port globally" (drlight.services.seerr.openFirewall or true || builtins.elem seerrPort (drlight.networking.firewall.allowedTCPPorts or []))}
+        ${checkEqual "Seerr uses the NixOS default request portal port" 5055 seerrPort}
+        ${checkTrue "Seerr is reachable on the home LAN and Tailscale" (builtins.elem seerrPort (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []) && builtins.elem seerrPort (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))}
+        ${checkTrue "Seerr is not reachable on unrelated interfaces" seerrPortOnlyOnLanAndTailscale}
         ${checkFalse "Radarr firewall opening is disabled globally" (drlight.services.radarr.openFirewall or false)}
         ${checkFalse "Sonarr firewall opening is disabled globally" (drlight.services.sonarr.openFirewall or false)}
         ${checkFalse "Lidarr firewall opening is disabled globally" (drlight.services.lidarr.openFirewall or false)}
@@ -477,7 +502,7 @@
         ${checkTrue "Mylar3 package verifies runtime native image imports" (mylar3Package.doInstallCheck or false)}
         echo "  Mylar3 package runtime import check: ${mylar3Package}"
         ${checkTrue "media-management module is not selected by other machines" (lib.all (machine: !(hasModule "/modules/nixos/media-management.nix" machine)) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
-        ${checkTrue "no Arr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
+        ${checkTrue "no Arr, Seerr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
         ${checkTrue "media-manager apps are exposed through Caddy" (lib.all (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
         ${lib.concatMapStringsSep "\n" (app: ''
           ${checkTrue "${app} has an API reconciliation unit" (builtins.hasAttr "${app}-media-config-sync" drlight.systemd.services)}
@@ -545,7 +570,7 @@
           "media-auth-jellyfin"
         ] (map (secret: secret.group or null) mediaAuthSecrets)}
         ${checkTrue "media app login secrets are owned by root with mode 0440" (builtins.all (secret: (secret.owner or null) == "root" && (secret.mode or null) == "0440") mediaAuthSecrets)}
-        ${checkEqual "media app login secrets trigger only their owning app and the status collector for Jellyfin" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage"] ["jellyfin" "ultra-media-download-stage"]] (map (secret: secret.services or []) mediaAuthSecrets)}
+        ${checkEqual "media app login secrets trigger their owning app and declared Jellyfin dependents" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"]] (map (secret: secret.services or []) mediaAuthSecrets)}
         ${checkEqual "Mylar API key uses the existing default-vault item field" "Mylar3/api-key" (mylarApiKeySecret.reference or null)}
         ${checkEqual "Mylar API key resolves through the default Opnix vault" "op://Opnix/Mylar3/api-key" (opnixMylarApiKeySecret.reference or null)}
         ${checkEqual "Mylar API key uses a restricted runtime file" "/run/secrets/mylar3-api-key" (mylarApiKeySecret.path or null)}
@@ -619,10 +644,12 @@
         ${checkEqual "Grafana uses Homepage's native widget" ["grafana"] (map (widget: widget.type or null) grafanaHomepageWidgets)}
         ${checkEqual "Grafana widget credentials come from systemd credentials" ["%d/grafana-username" "%d/grafana-password"] [grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_USERNAME or null grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_PASSWORD or null]}
         ${checkEqual "Homepage loads Grafana credential files through systemd" (builtins.sort builtins.lessThan ["grafana-username:/run/secrets/grafana-username" "grafana-password:/run/secrets/grafana-password"]) (builtins.sort builtins.lessThan grafanaHomepageCredentials)}
-        ${checkEqual "Homepage exposes only local Jellyfin and Grafana" expectedLocalHomepageHrefs sortedHomepageHrefs}
-        ${checkEqual "Caddy routes all local services" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
-        ${checkEqual "Caddy app configuration includes all local services" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
-        ${checkEqual "Caddy proxies all services to local upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
+        ${checkEqual "Homepage exposes Caddy apps and canonical media links" expectedLocalHomepageHrefs sortedHomepageHrefs}
+        ${checkEqual "Caddy routes all configured internal applications" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
+        ${checkEqual "Caddy app configuration includes all local applications" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
+        ${checkTrue "Seerr has the selected internal Caddy hostname and loopback upstream" ((seerrCaddyApp.host or null) == "seerr.home.buildingbananas.com" && (seerrCaddyApp.upstream or null) == "http://127.0.0.1:5055")}
+        ${checkTrue "Seerr Caddy route rejects clients outside LAN and Tailscale ranges" (lib.hasInfix "@external not remote_ip" seerrCaddyExtraConfig && lib.hasInfix "respond @external 403" seerrCaddyExtraConfig)}
+        ${checkEqual "Caddy proxies all local apps to their loopback upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media presentation tests passed"
@@ -810,7 +837,20 @@
            ${checkEqual "Jellyfin admin password uses the Opnix item field" "Jellyfin - Monkey/password" (onePasswordSecrets.jellyfinAdminPassword.reference or null)}
            ${checkEqual "Jellyfin admin password resolves through Opnix" "op://Opnix/Jellyfin - Monkey/password" (opnixSecrets.jellyfinAdminPassword.reference or null)}
            ${checkTrue "Jellyfin admin auth verifier runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (drlight.systemd.services.jellyfin-admin-auth.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (drlight.systemd.services.jellyfin-admin-auth.wantedBy or []))}
-           ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
+            ${checkTrue "Jellyfin admin verifier uses the dedicated runtime authentication script" (lib.hasInfix "jellyfin_admin_auth.py" (drlight.systemd.services.jellyfin-admin-auth.serviceConfig.ExecStart or ""))}
+            ${checkTrue "Drlight selects the Jellyfin Discord notification module" (hasModule "/modules/nixos/jellyfin-discord-notifications.nix" drlightMachine)}
+            ${checkFalse "other machines do not select Drlight Jellyfin Discord notifications" (lib.any (machine: hasModule "/modules/nixos/jellyfin-discord-notifications.nix" machine) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
+            ${checkEqual "Jellyfin Discord webhook uses the default Opnix item field" "Jellyfin Discord Webhook/url" (jellyfinDiscordWebhookSecret.reference or null)}
+            ${checkEqual "Jellyfin Discord webhook secret uses its runtime-only path" "/run/secrets/jellyfin-discord-webhook" (jellyfinDiscordWebhookSecret.path or null)}
+            ${checkEqual "Jellyfin Discord webhook secret is scoped to its reconciler" ["jellyfin-discord-webhook-config-sync"] (jellyfinDiscordWebhookSecret.services or [])}
+            ${checkEqual "Jellyfin Discord webhook secret uses restricted ownership" ["root" "media-auth-jellyfin" "0440"] [(jellyfinDiscordWebhookSecret.owner or null) (jellyfinDiscordWebhookSecret.group or null) (jellyfinDiscordWebhookSecret.mode or null)]}
+            ${checkTrue "Jellyfin prepares a writable copy of the pinned webhook plugin before startup" (lib.hasInfix "jellyfin_webhook_plugin_install.py" jellyfinPreStart && lib.hasInfix "jellyfin-webhook-plugin-22.0.0.0" jellyfinPreStart)}
+            ${checkTrue "Jellyfin restarts when the webhook plugin package changes" (lib.any (trigger: lib.hasInfix "jellyfin-webhook-plugin" trigger) (jellyfinService.restartTriggers or []))}
+            ${checkTrue "Jellyfin Discord reconciler runs after Jellyfin and Opnix" (builtins.all (unit: builtins.elem unit (jellyfinDiscordConfigService.after or [])) ["jellyfin.service" "opnix-secrets.service"] && builtins.elem "jellyfin.service" (jellyfinDiscordConfigService.wantedBy or []))}
+            ${checkTrue "Jellyfin Discord reconciler runs from the shared scripts bundle" (lib.hasInfix "-media-app-reconciliation-scripts/jellyfin_webhook_config.py" jellyfinDiscordConfigCommand && lib.hasInfix "--config" jellyfinDiscordConfigCommand)}
+            ${checkTrue "Jellyfin Discord reconciler receives secret paths, not values" ((jellyfinDiscordConfigJson.webhookUrlFile or null) == "/run/secrets/jellyfin-discord-webhook" && !(lib.hasInfix "https://discord.com/api/webhooks/" (builtins.toJSON jellyfinDiscordConfigJson)))}
+            ${checkEqual "Jellyfin Discord reconciler runs as the Jellyfin account" "jellyfin" (jellyfinDiscordConfigServiceConfig.User or null)}
+            ${checkTrue "Jellyfin Discord reconciler can read only the required media-auth group" (builtins.elem "media-auth-jellyfin" (jellyfinDiscordConfigServiceConfig.SupplementaryGroups or []))}
 
            if ${pkgs.fakeroot}/bin/fakeroot ${pkgs.bash}/bin/bash <<'EOF'
           set -e

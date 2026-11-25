@@ -12,6 +12,8 @@ in {
       python "$scripts/extract_media_api_key.py" --help >/dev/null
       python "$scripts/mylar3_config.py" --help >/dev/null
       python "$scripts/jellyfin_admin_auth.py" --help >/dev/null
+      python "$scripts/jellyfin_webhook_config.py" --help >/dev/null
+      python "$scripts/jellyfin_webhook_plugin_install.py" --help >/dev/null
       python "$tests" "$scripts"
       touch $out
     '';

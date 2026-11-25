@@ -4,6 +4,9 @@
   # WHY: pins RTK and installs its rewrite hooks used by developer roles.
   # REMOVE WHEN: nixpkgs provides a version with the same CLI and hook files.
   rtk = final.callPackage ../packages/rtk {};
+  # WHY: pins the official Jellyfin Webhook plugin to the Jellyfin 12-compatible release.
+  # REMOVE WHEN: nixpkgs provides a compatible Webhook plugin package.
+  jellyfinWebhookPlugin = final.callPackage ../packages/jellyfin-webhook-plugin {};
   # WHY: the yaks CLI is used for repository task tracking and is packaged here.
   # REMOVE WHEN: nixpkgs packages a compatible yaks release or task tracking stops using it.
   yaks = final.callPackage ../packages/yaks {};
