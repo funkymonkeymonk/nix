@@ -37,7 +37,7 @@
 
 - [ ] **Step 1: Add regression assertions**
 
-Assert both tasks call the shared config and sudo-path helpers, and that the shared Darwin resolver checks `system.primaryUser` if no exact hostname match exists.
+Assert both tasks call the shared config and sudo-path helpers, that switch computes one sudo path before its platform branch, and that the shared Darwin resolver checks `system.primaryUser` if no exact hostname match exists.
 
 - [ ] **Step 2: Verify the test fails**
 
