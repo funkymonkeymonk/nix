@@ -52,7 +52,8 @@ with lib; let
   authIsValid =
     !cfg.auth.enable
     || (
-      cfg.auth.adminUsernameFile != null
+      cfg.auth.adminUsernameFile
+      != null
       && cfg.auth.adminPasswordFile != null
       && cfg.auth.setupTokenFile != null
       && cfg.auth.virtualKey != null
@@ -61,8 +62,7 @@ with lib; let
   authSecretFiles =
     if cfg.auth.enable
     then
-      assert authIsValid;
-      {
+      assert authIsValid; {
         BIFROST_ADMIN_USERNAME = cfg.auth.adminUsernameFile;
         BIFROST_ADMIN_PASSWORD = cfg.auth.adminPasswordFile;
         BIFROST_SETUP_TOKEN = cfg.auth.setupTokenFile;
@@ -186,8 +186,7 @@ with lib; let
   authConfig =
     if cfg.auth.enable
     then
-      assert authIsValid;
-      {
+      assert authIsValid; {
         client.enforce_auth_on_inference = true;
         governance = {
           auth_config = {
@@ -201,12 +200,14 @@ with lib; let
               inherit (cfg.auth.virtualKey) id name;
               value = "env.BIFROST_OPENCHAMBER_API_KEY";
               is_active = true;
-              provider_configs = map (provider: {
-                inherit provider;
-                allowed_models = ["*"];
-                key_ids = ["*"];
-                weight = 1.0;
-              }) cfg.auth.virtualKey.providers;
+              provider_configs =
+                map (provider: {
+                  inherit provider;
+                  allowed_models = ["*"];
+                  key_ids = ["*"];
+                  weight = 1.0;
+                })
+                cfg.auth.virtualKey.providers;
             }
           ];
         };

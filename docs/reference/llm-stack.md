@@ -10,18 +10,25 @@ type: reference
 
 Applications connect to Bifrost, which routes model requests to oMLX.
 
-| Layer | Local endpoint | Tailnet access |
+| Layer | Local endpoint | Remote access |
 |---|---|---|
-| Inference | `http://127.0.0.1:8300` | Loopback only; access through Bifrost |
-| Gateway | `http://127.0.0.1:8081` | `http://MegamanX:8081` through Tailscale Serve |
-| Application logs | Vector on MegamanX | Sent to Loki on `drlight:3100` |
-| Host metrics | node_exporter on MegamanX | Bound to its Tailscale IPv4 address on port `9100` |
-| Central metrics | Prometheus on drlight | Scrapes the catalog target `MegamanX:9100` |
+| Inference | `http://127.0.0.1:8300` on MegamanX | Loopback only; access through Bifrost |
+| Gateway | Bifrost `0.0.0.0:8081` on MegamanX | LAN clients use `http://megamanx:8081`; inference and dashboard/admin routes require authentication |
+| OpenChamber | `http://127.0.0.1:3001` on Drlight | `https://openchamber.home.buildingbananas.com` from LAN and tailnet through Caddy |
+| Application logs | Vector on MegamanX | Sent to Loki on Drlight |
+| Host metrics | node_exporter on MegamanX | Loopback-only while MegamanX is Tailscale-disabled |
+| Central metrics | Prometheus on Drlight | Includes the catalog target `MegamanX:9100`; it remains unavailable remotely while MegamanX's exporter is loopback-bound |
 
-MegamanX and drlight join the same Tailscale network. Tailscale Serve is the
-remote path to Bifrost; the local Bifrost and oMLX listeners are not exposed on
-MegamanX's LAN interfaces. MegamanX's Caddy `bifrost.internal` route also
-rejects non-local clients.
+Only Drlight joins the Tailscale network. MegamanX intentionally remains
+Tailscale-disabled; Drlight reaches MegamanX's Bifrost through the local LAN
+hostname `megamanx`. OpenCode sessions and project commands run on Drlight.
+Verify that `megamanx` resolves to MegamanX's LAN address before deployment.
+
+Drlight's existing Caddy/DNS path publishes its `home.buildingbananas.com`
+applications on both LAN and tailnet interfaces. Caddy provides HTTPS and
+rejects public source addresses. OpenChamber stays bound to loopback behind
+Caddy, with its UI password stored in Opnix. Its Caddy route uses
+`flush_interval -1` for live SSE updates.
 
 The model is fetched and exposed by Nix at the stable alias `qwen3.8-27b`.
 Bifrost exposes it as `omlx/qwen3.8-27b`.
@@ -58,26 +65,29 @@ the new version.
 
 ## Bifrost
 
-Bifrost runs as a system LaunchDaemon on port `8081`, bound to loopback on
-MegamanX. A second Nix-managed LaunchDaemon waits for Tailscale and the local
-Bifrost API, then configures `tailscale serve --bg --http=8081` to proxy the
-loopback service to the tailnet. The Tailscale Serve endpoint is private to the
-tailnet and governed by its access policy.
+Bifrost runs as a system LaunchDaemon on port `8081`, bound to `0.0.0.0` on
+MegamanX so Drlight can reach it over the LAN. This is an all-interface bind,
+not a LAN-only bind; do not create a router port-forward for this port. Inference
+requests require the OpenChamber virtual key, and the dashboard/admin API require
+separate Bifrost credentials. Both are referenced from Opnix, not embedded in
+Nix. MegamanX does not run Tailscale, and Bifrost is not published through
+Tailscale Serve.
 
-The local Caddy route remains available to local applications at
-`http://bifrost.internal`. It rejects non-local clients so it cannot bypass the
-Tailscale-only remote route.
+The local Caddy route remains available on MegamanX at `http://bifrost.internal`
+and rejects non-local clients. Bifrost is not published through Tailscale Serve
+or a Drlight Caddy route; Drlight's OpenCode provider uses
+`http://megamanx:8081/anthropic/v1` directly over the LAN.
 
 ```bash
 sudo launchctl print system/com.bifrost.service
-sudo launchctl print system/com.bifrost.tailscale-serve
-curl http://127.0.0.1:8081/v1/models
+curl http://127.0.0.1:8081/health
 ```
 
 Use `omlx/qwen3.8-27b` as the model ID through Bifrost. Bifrost also exposes
 OpenCode Go's subscription models under the `opencode-go/` prefix. Bifrost reads
-the API key from the existing Pi/Opnix secret file. Do not put that key in Nix
-configuration.
+the OpenCode Go upstream credential from the existing Pi/Opnix secret file. The
+client-facing virtual key is a separate Opnix secret; do not put either value in
+Nix configuration.
 
 Bifrost advertises OpenCode Go's context and output limits in `/v1/models`.
 Nix sets Qwen OMLX's advertised limits because oMLX does not report them. The
@@ -90,39 +100,33 @@ Inspect the limits that Bifrost advertises:
 
 ```bash
 curl -s http://127.0.0.1:8081/v1/models \
+  -H "x-api-key: $BIFROST_OPENCHAMBER_API_KEY" \
   | jq '.data[] | select(.id == "omlx/qwen3.8-27b" or (.id | startswith("opencode-go/"))) | {id, context_window, max_output_tokens}'
 ```
+
+Set `BIFROST_OPENCHAMBER_API_KEY` from the Opnix-managed file before running
+this request; do not print or commit the key.
 
 The upstream's `streamIdleTimeoutInSeconds` is configured to accommodate long
 prompt prefills.
 
-## Tailscale and telemetry
+## LAN and tailnet operations
 
-The nix-darwin `services.tailscale` module starts `tailscaled` at boot on
-MegamanX. Drlight retains its NixOS Tailscale auto-connect configuration. A
-one-time interactive enrollment is still required for a new MegamanX node; see
-[Enroll MegamanX in Tailscale](../how-to/enroll-megamanx-in-tailscale.md). The
-Nix-darwin system daemon is configured to run at boot, independent of a user
-LaunchAgent; verify the first reboot with no user logged in on MegamanX.
+The MegamanX Tailscale enrollment guide is an optional future procedure and is
+not part of the current OpenChamber/Bifrost setup. See
+[Enroll MegamanX in Tailscale](../how-to/enroll-megamanx-in-tailscale.md) for
+its warning and approval boundary.
 
-MegamanX's Vector daemon sends system and oMLX logs to drlight's Loki service.
-The node exporter waits for Tailscale, resolves the assigned IPv4 address, and
-binds only to that address. Drlight's Prometheus target list is generated from
-the machine catalog and includes `MegamanX:9100`.
+Before a future deployment, verify from Drlight that `megamanx` resolves to
+MegamanX's LAN address. Do not infer or hard-code an address from an old
+deployment note. Once the LAN route is available, Drlight's OpenCode provider
+uses the Opnix virtual key for Bifrost requests. The Bifrost dashboard/admin
+credentials are separate from the inference virtual key.
 
-Verify connectivity after enrollment:
-
-```bash
-# On MegamanX
-sudo tailscale status
-sudo tailscale ip -4
-curl http://127.0.0.1:8081/v1/models
-
-# On drlight
-getent hosts MegamanX
-curl http://MegamanX:9100/metrics
-curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.labels.job == "node")'
-```
+MegamanX's node exporter remains loopback-bound while Tailscale is disabled, so
+the Drlight Prometheus inventory can list `MegamanX:9100` while the target is
+unavailable remotely. Vector continues to send service logs to Drlight's Loki
+using the configured collector hostname.
 
 ## Troubleshooting
 
@@ -140,7 +144,6 @@ If the model is not listed, verify the Nix-managed model link:
 readlink ~/.omlx/models/qwen3.8-27b
 ```
 
-If Tailscale has not authenticated MegamanX yet, enroll it once as described in
-the how-to guide. The node-exporter service deliberately waits for a Tailscale
-IPv4 address before listening; Vector retries its Loki sink until drlight is
-reachable.
+MegamanX is intentionally Tailscale-disabled in this setup; use the LAN Bifrost
+path documented above. Do not follow the optional enrollment procedure unless a
+separately approved design requires MegamanX to join the tailnet.

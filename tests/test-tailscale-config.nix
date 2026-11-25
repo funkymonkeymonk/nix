@@ -227,6 +227,7 @@
     && !(minimalNixosBase.services.tailscale.enable or false);
   report = lib.concatMapStringsSep "\n" machineSummary enabledMachines;
   enrollmentGuide = builtins.readFile ../docs/how-to/enroll-megamanx-in-tailscale.md;
+  llmStackReference = builtins.readFile ../docs/reference/llm-stack.md;
   enrollmentGuideUsesOAuthFlow =
     lib.hasInfix "devenv tasks run machines:plan" enrollmentGuide
     && lib.hasInfix "devenv tasks run machines:apply" enrollmentGuide
@@ -235,6 +236,14 @@
     && lib.hasInfix "tag:home-lab" enrollmentGuide
     && !(lib.hasInfix "sudo tailscale up" enrollmentGuide)
     && !(lib.hasInfix "sudo /run/current-system/sw/bin/tailscale up" enrollmentGuide);
+  enrollmentGuideExplainsCurrentMegamanXPolicy =
+    lib.hasInfix "MegamanX is intentionally Tailscale-disabled" enrollmentGuide
+    && lib.hasInfix "Bifrost is reached over the LAN" enrollmentGuide;
+  llmStackHasNoStaleMegamanXTailscaleInstructions =
+    lib.hasInfix "MegamanX intentionally remains" llmStackReference
+    && lib.hasInfix "Tailscale-disabled" llmStackReference
+    && !(lib.hasInfix "If Tailscale has not authenticated MegamanX yet" llmStackReference)
+    && !(lib.hasInfix "node-exporter service deliberately waits for a Tailscale" llmStackReference);
 in {
   tailscaleGatewayPolicy = pkgs.runCommand "test-tailscale-gateway-policy" {} ''
     echo "=== Checking Drlight Tailscale gateway policy ==="
@@ -372,6 +381,18 @@ in {
       echo "  MegamanX guide documents named OAuth enrollment without manual key auth: OK"
     else
       echo "FAIL: MegamanX guide must document named plan/apply OAuth enrollment and omit manual auth"
+      exit 1
+    fi
+    if ${lib.boolToString enrollmentGuideExplainsCurrentMegamanXPolicy}; then
+      echo "  guide explains the current LAN Bifrost path and disabled Tailscale policy: OK"
+    else
+      echo "FAIL: guide must state that MegamanX stays Tailscale-disabled and Bifrost uses LAN"
+      exit 1
+    fi
+    if ${lib.boolToString llmStackHasNoStaleMegamanXTailscaleInstructions}; then
+      echo "  LLM reference does not direct users to enroll MegamanX: OK"
+    else
+      echo "FAIL: LLM reference must not recommend enabling Tailscale on MegamanX"
       exit 1
     fi
     ${darwinScriptChecks}

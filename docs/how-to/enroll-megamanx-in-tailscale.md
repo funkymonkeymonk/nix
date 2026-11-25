@@ -1,13 +1,20 @@
 ---
 title: "Enroll MegamanX in Tailscale"
-description: "Join the boot-managed MegamanX inference server to the tailnet"
+description: "Optional future procedure; MegamanX is Tailscale-disabled in the current setup"
 type: how-to
 ---
 
 # Enroll MegamanX in Tailscale
 
-MegamanX uses the same deployment-generated Tailscale OAuth key flow as the
-NixOS servers. The named `machines:apply` operation checks the node state and
+> **Current configuration:** MegamanX is intentionally Tailscale-disabled.
+> Bifrost is reached over the LAN from Drlight; this guide is not part of the
+> current OpenChamber setup. Only use the enrollment procedure below for a
+> separately approved future change that also restores a Tailscale service route.
+
+If a future change explicitly enables Tailscale on MegamanX and restores its
+tailnet service routing, it uses the same deployment-generated Tailscale OAuth key flow
+as the NixOS servers. The named
+`machines:apply` operation checks the node state and
 creates a preauthorized, non-reusable key only when Tailscale reports
 `NeedsLogin`. The key uses MegamanX's catalogued `tag:home-lab` tag, is staged
 only for activation, and is removed after enrollment. It is not printed or
