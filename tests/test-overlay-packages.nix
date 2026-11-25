@@ -69,6 +69,18 @@
         touch $out
       '';
 
+  # Test that the pinned Jellyfin Webhook plugin release contains the server
+  # plugin assembly and metadata used by the Drlight media module.
+  jellyfinWebhookPluginPackageTest = let
+    package = pkgs.jellyfinWebhookPlugin;
+  in
+    assert package.version == "22.0.0.0";
+      pkgs.runCommand "test-jellyfin-webhook-plugin-package" {} ''
+        test -f ${package}/Jellyfin.Plugin.Webhook.dll
+        test -f ${package}/meta.json
+        touch $out
+      '';
+
   # Test that yaks (yx CLI, distributed TODO list) builds and its binary works
   yaksPackageTest =
     pkgs.runCommand "test-yaks-package"

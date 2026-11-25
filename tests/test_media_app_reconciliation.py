@@ -1,3 +1,4 @@
+import base64
 import configparser
 import contextlib
 import hashlib
@@ -5,6 +6,8 @@ import http.server
 import json
 import os
 import pathlib
+import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -47,6 +50,15 @@ class ApiState:
         self.jellyfin_password = "jellyfin-secret"
         self.jellyfin_auth_status = 200
         self.jellyfin_user = {"Policy": {"IsAdministrator": True}}
+        self.jellyfin_plugin_configuration = {
+            "ServerUrl": "https://old-jellyfin.example",
+            "DiscordOptions": [
+                {"WebhookName": "Existing Discord destination", "WebhookUri": "https://discord.example/old"}
+            ],
+            "GenericOptions": [{"WebhookName": "Existing generic destination", "WebhookUri": "https://example.test/hook"}],
+            "MqttOptions": [],
+        }
+        self.jellyfin_plugin_configuration_status = 204
         self.jellyfin_ready_after = 0
         self.jellyfin_ready_requests = 0
         self.jellyfin_auth_ready_after = 0
@@ -109,6 +121,8 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
                 self._write_json({"ServerName": "Jellyfin"})
         elif self.path.endswith("/Users/Me"):
             self._write_json(self.state.jellyfin_user)
+        elif self.path.endswith("/Plugins/71552A5A-5C5C-4350-A2AE-EBE451A30173/Configuration"):
+            self._write_json(self.state.jellyfin_plugin_configuration)
         else:
             self._write_json({"error": "not found"}, 404)
 
@@ -124,6 +138,16 @@ class ApiHandler(http.server.BaseHTTPRequestHandler):
                 self._write_json({"error": "authentication failed"}, 401)
                 return
             self._write_json({"AccessToken": "jellyfin-admin-token"}, self.state.jellyfin_auth_status)
+            return
+        if self.path.endswith("/Plugins/71552A5A-5C5C-4350-A2AE-EBE451A30173/Configuration"):
+            body = self._read_json()
+            self.state.requests.append(("POST", self.path, self.headers.get("Authorization"), body))
+            if self.state.jellyfin_plugin_configuration_status >= 400:
+                self._write_json({"error": "plugin configuration update failed"}, self.state.jellyfin_plugin_configuration_status)
+                return
+            self.state.jellyfin_plugin_configuration = body
+            self.send_response(self.state.jellyfin_plugin_configuration_status)
+            self.end_headers()
             return
         if self.path == "/bazarr/api/system/settings":
             body_bytes = self.rfile.read(int(self.headers.get("Content-Length", "0")))
@@ -756,6 +780,203 @@ class JellyfinAdminAuthTests(unittest.TestCase):
                 verify_admin(self.config)
 
         self.assertEqual(self.state.requests, [])
+
+
+class JellyfinWebhookConfigTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.directory = pathlib.Path(self.temporary.name)
+        self.state = ApiState()
+        self.username = "jellyfin-admin"
+        self.password = "jellyfin-secret"
+        self.webhook_url = "https://discord.com/api/webhooks/secret-token"
+        self.config = {
+            "baseUrl": "http://127.0.0.1",
+            "usernameFile": write_secret(self.directory, "username", self.username),
+            "passwordFile": write_secret(self.directory, "password", self.password),
+            "webhookUrlFile": write_secret(self.directory, "discord-webhook", self.webhook_url),
+            "serverUrl": "https://jellyfin.home.buildingbananas.com",
+        }
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def _load_reconciler(self):
+        try:
+            from jellyfin_webhook_config import build_webhook_configuration, reconcile
+        except ImportError:
+            self.fail("jellyfin_webhook_config must provide the declared plugin reconciler")
+        return build_webhook_configuration, reconcile
+
+    def test_build_plugin_configuration_adds_item_added_and_preserves_other_destinations(self):
+        build_webhook_configuration, _ = self._load_reconciler()
+        existing = {
+            "ServerUrl": "https://old-jellyfin.example",
+            "DiscordOptions": [
+                {"WebhookName": "Existing Discord destination", "WebhookUri": "https://discord.example/old"}
+            ],
+            "GenericOptions": [{"WebhookName": "Existing generic destination", "WebhookUri": "https://example.test/hook"}],
+            "MqttOptions": [{"WebhookName": "Existing MQTT destination", "Topic": "media"}],
+        }
+
+        actual = build_webhook_configuration(
+            existing,
+            self.webhook_url,
+            "https://jellyfin.home.buildingbananas.com",
+        )
+
+        self.assertEqual(actual["ServerUrl"], "https://jellyfin.home.buildingbananas.com")
+        self.assertEqual(actual["GenericOptions"], existing["GenericOptions"])
+        self.assertEqual(actual["MqttOptions"], existing["MqttOptions"])
+        self.assertEqual(
+            actual["DiscordOptions"][0],
+            {"WebhookName": "Existing Discord destination", "WebhookUri": "https://discord.example/old"},
+        )
+        managed = actual["DiscordOptions"][1]
+        self.assertEqual(managed["WebhookName"], "Jellyfin New Media (Nix)")
+        self.assertEqual(managed["WebhookUri"], self.webhook_url)
+        self.assertEqual(managed["NotificationTypes"], ["ItemAdded"])
+        self.assertTrue(all(managed[field] for field in (
+            "EnableMovies", "EnableEpisodes", "EnableSeasons", "EnableSeries",
+            "EnableAlbums", "EnableSongs", "EnableVideos",
+        )))
+        self.assertTrue(managed["Template"])
+
+    def test_discord_template_encodes_quoted_and_multiline_metadata_as_json(self):
+        build_webhook_configuration, _ = self._load_reconciler()
+        existing = {"DiscordOptions": []}
+        desired = build_webhook_configuration(existing, self.webhook_url, "https://jellyfin.example")
+        template = base64.b64decode(desired["DiscordOptions"][0]["Template"]).decode("utf-8")
+        self.assertIn("{{json_encode Name}}", template)
+        self.assertIn("{{json_encode Overview}}", template)
+        values = {
+            "ItemType": "Movie",
+            "Name": 'A "quoted" title\\tail',
+            "Overview": 'First line\nSecond line with "quotes" and \\slashes',
+            "ServerName": "Drlight",
+            "ServerUrl": "https://jellyfin.example",
+            "ItemId": "item-id",
+            "ServerId": "server-id",
+            "BotUsername": "Jellyfin",
+            "AvatarUrl": "",
+            "MentionType": "",
+            "EmbedColor": "3381695",
+            "Timestamp": "2026-01-01T00:00:00Z",
+        }
+        plugin_escaped = {
+            key: value.replace('"', '\\"') if key in {"Name", "Overview", "ServerName"} else value
+            for key, value in values.items()
+        }
+
+        def encode_json_content(match):
+            return json.dumps(plugin_escaped[match.group(1)], ensure_ascii=False)[1:-1]
+
+        rendered = re.sub(r"{{json_encode (\w+)}}", encode_json_content, template)
+        for key, value in values.items():
+            rendered = rendered.replace("{{" + key + "}}", value)
+        payload = json.loads(rendered)
+
+        self.assertEqual(payload["embeds"][0]["title"], 'Movie added: ' + plugin_escaped["Name"])
+        self.assertEqual(payload["embeds"][0]["description"], plugin_escaped["Overview"])
+
+    def test_reconciliation_authenticates_and_posts_runtime_webhook_url(self):
+        _, reconcile = self._load_reconciler()
+
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            reconcile(self.config)
+
+        login = next(request for request in self.state.requests if request[0] == "POST" and request[1].endswith("/Users/AuthenticateByName"))
+        self.assertEqual(login[3], {"Username": self.username, "Pw": self.password})
+        update = next(request for request in self.state.requests if request[0] == "POST" and "/Plugins/" in request[1])
+        self.assertEqual(update[1], "/jellyfin/Plugins/71552A5A-5C5C-4350-A2AE-EBE451A30173/Configuration")
+        self.assertIn('Token="jellyfin-admin-token"', update[2])
+        self.assertEqual(update[3]["DiscordOptions"][1]["WebhookUri"], self.webhook_url)
+        self.assertEqual(update[3]["GenericOptions"], self.state.jellyfin_plugin_configuration["GenericOptions"])
+
+    def test_non_admin_is_rejected_without_updating_plugin_configuration(self):
+        _, reconcile = self._load_reconciler()
+        from media_api_reconcile import ReconciliationError
+
+        self.state.jellyfin_user = {"Policy": {"IsAdministrator": False}}
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            with self.assertRaises(ReconciliationError) as raised:
+                reconcile(self.config)
+
+        self.assertNotIn(self.password, str(raised.exception))
+        self.assertNotIn(self.webhook_url, str(raised.exception))
+        self.assertFalse(any(request[0] == "POST" and "/Plugins/" in request[1] for request in self.state.requests))
+
+    def test_empty_discord_secret_fails_before_jellyfin_authentication(self):
+        _, reconcile = self._load_reconciler()
+        from media_api_reconcile import ReconciliationError
+
+        self.config["webhookUrlFile"] = write_secret(self.directory, "empty-discord-webhook", "")
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            with self.assertRaises(ReconciliationError):
+                reconcile(self.config)
+
+        self.assertEqual(self.state.requests, [])
+
+    def test_plugin_update_error_does_not_disclose_webhook_url(self):
+        _, reconcile = self._load_reconciler()
+        from media_api_reconcile import ReconciliationError
+
+        self.state.jellyfin_plugin_configuration_status = 500
+        with running_api(self.state) as server:
+            self.config["baseUrl"] = f"{server}/jellyfin"
+            with self.assertRaises(ReconciliationError) as raised:
+                reconcile(self.config)
+
+        self.assertNotIn(self.webhook_url, str(raised.exception))
+
+
+class JellyfinWebhookPluginInstallerTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.directory = pathlib.Path(self.temporary.name)
+        self.source = self.directory / "nix-store-plugin"
+        self.destination = self.directory / "jellyfin" / "plugins" / "Webhook_22.0.0.0"
+        self.source.mkdir()
+        self.manifest = self.source / "meta.json"
+        self.manifest.write_text('{"version":"22.0.0.0"}', encoding="utf-8")
+        self.manifest.chmod(0o444)
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def _load_installer(self):
+        try:
+            from jellyfin_webhook_plugin_install import PluginInstallError, install_plugin
+        except ImportError:
+            self.fail("jellyfin_webhook_plugin_install must provide the plugin installer")
+        return PluginInstallError, install_plugin
+
+    def test_installer_replaces_its_read_only_store_symlink_with_writable_copy(self):
+        _, install_plugin = self._load_installer()
+        self.destination.parent.mkdir(parents=True)
+        self.destination.symlink_to(self.source, target_is_directory=True)
+
+        install_plugin(self.source, self.destination)
+
+        self.assertFalse(self.destination.is_symlink())
+        self.assertEqual((self.destination / "meta.json").read_text(encoding="utf-8"), '{"version":"22.0.0.0"}')
+        self.assertTrue((self.destination / "meta.json").stat().st_mode & stat.S_IWUSR)
+        self.assertFalse(self.manifest.stat().st_mode & stat.S_IWUSR)
+
+    def test_installer_preserves_a_symlink_not_pointing_to_its_store_package(self):
+        PluginInstallError, install_plugin = self._load_installer()
+        other_source = self.directory / "manually-installed-plugin"
+        other_source.mkdir()
+        self.destination.parent.mkdir(parents=True)
+        self.destination.symlink_to(other_source, target_is_directory=True)
+
+        with self.assertRaises(PluginInstallError):
+            install_plugin(self.source, self.destination)
+
+        self.assertEqual(self.destination.resolve(), other_source)
 
 
 class MylarConfigTests(unittest.TestCase):

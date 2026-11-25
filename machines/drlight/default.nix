@@ -28,6 +28,7 @@ in {
       config.services.lidarr.settings.server.port
       config.services.bazarr.settings.general.port
       config.services.mylar3.port
+      config.services.seerr.port
       config.myConfig.nodeExporter.port
     ];
     allowedUDPPorts = [53];
@@ -40,10 +41,33 @@ in {
   # dependents. Its output-directory watcher launches a duplicate resolver.
   systemd.paths.opnix-secrets-watcher.enable = lib.mkForce false;
 
+  services.openchamber = {
+    enable = true;
+    user = "monkey";
+    host = "127.0.0.1";
+    port = 3001;
+    uiPasswordFile = "/run/secrets/openchamber-ui-password";
+  };
+
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
       roles.developer.enable = true;
+      roles.opencode.enable = true;
+      llmClient = {
+        serverHost = "megamanx";
+        serverPort = "8081";
+      };
+      opencode.providers = lib.mkForce {
+        local-bifrost = {
+          name = "MegamanX Bifrost";
+          npm = "@ai-sdk/anthropic";
+          baseURL = "http://megamanx:8081/anthropic/v1";
+          models."omlx/qwen3.8-27b".name = "Qwen3.8 27B (oMLX)";
+          dynamicModels = true;
+          onePasswordItem = "Bifrost OpenChamber API Key/credential";
+        };
+      };
       nodeExporter.openFirewallInterfaces = ["tailscale0" "eno1"];
       ultraMediaDownloadStage = {
         enable = true;
@@ -70,6 +94,15 @@ in {
             description = "Media server";
           };
         };
+        apps.seerr = {
+          host = "seerr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:5055";
+          homepage = {
+            title = "Seerr";
+            group = "Media Management";
+            description = "Movie and TV request portal";
+          };
+        };
         apps.grafana = {
           host = "grafana.home.buildingbananas.com";
           upstream = "http://127.0.0.1:3000";
@@ -89,23 +122,96 @@ in {
             ];
           };
         };
+        apps.openchamber = {
+          host = "openchamber.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:3001";
+          flushInterval = -1;
+          homepage = {
+            title = "OpenChamber";
+            group = "Development";
+            description = "Remote coding workspace";
+          };
+        };
         # TODO: Add remote seed-box routes when that integration is ready.
         apps.dashboard = {
           host = "dashboard.home.buildingbananas.com";
           upstream = "http://127.0.0.1:8082";
           homepage.enable = false;
         };
+        apps.radarr = {
+          host = "radarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.radarr.settings.server.port}";
+          homepage = {
+            title = "Radarr";
+            group = "Media Management";
+            description = "Movie library manager";
+          };
+        };
+        apps.sonarr = {
+          host = "sonarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}";
+          homepage = {
+            title = "Sonarr";
+            group = "Media Management";
+            description = "TV series library manager";
+          };
+        };
+        apps.lidarr = {
+          host = "lidarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.lidarr.settings.server.port}";
+          homepage = {
+            title = "Lidarr";
+            group = "Media Management";
+            description = "Music library manager";
+          };
+        };
+        apps.mylar3 = {
+          host = "mylar.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.mylar3.port}";
+          homepage = {
+            title = "Mylar3";
+            group = "Media Management";
+            description = "Comic book library manager";
+          };
+        };
+        apps.bazarr = {
+          host = "bazarr.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:${toString config.services.bazarr.settings.general.port}";
+          homepage = {
+            title = "Bazarr";
+            group = "Media Management";
+            description = "Subtitle manager";
+          };
+        };
       };
       onepassword = {
         enable = true;
         defaultVault = "Opnix";
-        secrets.cloudflareApiToken = {
-          reference = "Cloudflare DNS API Token/credential";
-          path = "/run/secrets/cloudflare-api-token";
-          mode = "0400";
+        secrets = {
+          cloudflareApiToken = {
+            reference = "Cloudflare DNS API Token/credential";
+            path = "/run/secrets/cloudflare-api-token";
+            mode = "0400";
+            owner = "root";
+            group = "root";
+            services = ["caddy-cloudflare-env" "caddy"];
+          };
+          openchamberUiPassword = {
+            reference = "OpenChamber UI Password/password";
+            path = "/run/secrets/openchamber-ui-password";
+            mode = "0400";
+            owner = "root";
+            group = "root";
+            services = ["openchamber"];
+          };
+        };
+        secrets.jellyfinDiscordWebhook = {
+          reference = "Jellyfin Discord Webhook/url";
+          path = "/run/secrets/jellyfin-discord-webhook";
+          mode = "0440";
           owner = "root";
-          group = "root";
-          services = ["caddy-cloudflare-env" "caddy"];
+          group = "media-auth-jellyfin";
+          services = ["jellyfin-discord-webhook-config-sync"];
         };
       };
     };

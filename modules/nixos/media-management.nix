@@ -66,6 +66,7 @@
     config.services.lidarr.settings.server.port
     config.services.bazarr.settings.general.port
     config.services.mylar3.port
+    config.services.seerr.port
   ];
 in {
   imports = [
@@ -167,6 +168,11 @@ in {
     };
   };
 
+  services.seerr = {
+    enable = true;
+    openFirewall = false;
+  };
+
   myConfig.mediaManagement = {
     radarr = {
       adminAuth.enable = true;
@@ -181,39 +187,6 @@ in {
       transmission.enable = true;
     };
   };
-
-  myConfig.homepage.directLinks = [
-    {
-      name = "Radarr";
-      group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.radarr.settings.server.port}";
-      description = "Movie library manager";
-    }
-    {
-      name = "Sonarr";
-      group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.sonarr.settings.server.port}";
-      description = "TV series library manager";
-    }
-    {
-      name = "Lidarr";
-      group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.lidarr.settings.server.port}";
-      description = "Music library manager";
-    }
-    {
-      name = "Mylar3";
-      group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.mylar3.port}";
-      description = "Comic book library manager";
-    }
-    {
-      name = "Bazarr";
-      group = "Media Management";
-      href = "http://drlight.uaru-daggertooth.ts.net:${toString config.services.bazarr.settings.general.port}";
-      description = "Subtitle manager";
-    }
-  ];
 
   systemd.services = lib.mkMerge [
     {

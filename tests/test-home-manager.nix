@@ -112,9 +112,6 @@
         ../modules/home-manager/opencode.nix
       ];
     }).config;
-  opencodeWorkspaceAccessPlugin =
-    opencodeHome.home.file.".config/opencode/plugin/jj-workspace-access.js";
-
   opencodeSecretOsConfig = lib.recursiveUpdate opencodeRole {
     isDarwin = false;
     onepassword = {
@@ -697,33 +694,6 @@ in {
         if sshAgentUser.xdg.configFile."gh/config.yml".force
         then ''echo "  Existing GitHub CLI config can be replaced: OK"''
         else ''echo "  Existing GitHub CLI config would block activation!"; exit 1''
-      }
-
-      touch $out
-    '';
-
-  opencodeWorkspaceAccessInstallTest =
-    pkgs.runCommand "test-opencode-jj-workspace-access-install"
-    {}
-    ''
-      echo "=== Testing OpenCode jj Workspace Access Plugin Installation ==="
-
-      ${
-        if opencodeWorkspaceAccessPlugin.source == ../modules/home-manager/opencode/jj-workspace-access.js
-        then ''echo "  plugin linked from Nix source into global directory: OK"''
-        else ''echo "  plugin source is not the expected Nix file!"; exit 1''
-      }
-
-      ${
-        if opencodeWorkspaceAccessPlugin.force or false
-        then ''echo "  existing local plugin path can be replaced: OK"''
-        else ''echo "  plugin install must replace the existing local file!"; exit 1''
-      }
-
-      ${
-        if lib.hasInfix "if(root, json(root) ++ \"\\\\n\")" (builtins.readFile opencodeWorkspaceAccessPlugin.source)
-        then ''echo "  jj root template matches current jj output: OK"''
-        else ''echo "  plugin has an incompatible jj root template!"; exit 1''
       }
 
       touch $out
