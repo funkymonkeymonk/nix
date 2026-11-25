@@ -1,0 +1,52 @@
+# GC Sudo Password Reference Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make `system:gc` retrieve the sudo reference configured for the current machine instead of silently using the Opnix fallback when the Darwin hostname differs from the flake configuration name.
+
+**Architecture:** Extract shared shell helpers in `devenv.nix` for resolving the current configuration and its sudo-password path. Reuse them from both `system:switch` and `system:gc` to remove duplicated lookup logic and keep Darwin primary-user matching consistent.
+
+**Tech Stack:** Nix task definitions, Bash, existing Nix `runCommand` checks.
+
+**Spec:** Approved in conversation: use the same machine-config resolution for GC and system switch, and reduce duplicated host/reference lookup code.
+
+## Global Constraints
+
+- Preserve fully qualified `op://` sudo references.
+- Resolve unqualified references through the selected machine's `defaultVault`.
+- Preserve Darwin exact-hostname matching followed by `system.primaryUser` matching.
+- Never fetch or print the sudo secret in tests.
+
+## Review Focus
+
+- Darwin short hostname differs from the flake configuration name: GC resolves via the primary-user fallback.
+- Fully qualified references pass through unchanged.
+- Missing custom references retain the default-vault/hostname fallback.
+
+---
+
+### Task 1: Share machine and sudo-reference resolution
+
+**Files:**
+- Modify: `tests/test-switch-task.nix`
+- Modify: `devenv.nix`
+
+**Interfaces:**
+- `resolve_machine_config_name(config_set, hostname)` returns the matching Darwin configuration name, or the hostname for NixOS.
+- `get_sudo_password_path(config_set, config_name, hostname)` returns the configured or fallback 1Password URI.
+
+- [ ] **Step 1: Add regression assertions**
+
+Assert both tasks call the shared config and sudo-path helpers, and that the shared Darwin resolver checks `system.primaryUser` if no exact hostname match exists.
+
+- [ ] **Step 2: Verify the test fails**
+
+Run the `switch-task` build check. It should fail because the shared helpers do not exist yet.
+
+- [ ] **Step 3: Implement shared helpers**
+
+Define the helpers once in the shared shell fragment. Use them from `system:switch` and `system:gc`, preserving NixOS hostname selection and existing reference fallback semantics.
+
+- [ ] **Step 4: Verify**
+
+Run the `switch-task` build check, `devenv tasks run check:lint`, and `devenv tasks run test:build-checks`.
