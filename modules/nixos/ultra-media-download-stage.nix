@@ -71,7 +71,7 @@ in {
             description = "Minimum completion age in hours before a verified torrent may be removed.";
           };
           minTorrentRatio = lib.mkOption {
-            type = lib.types.float;
+            type = lib.types.addCheck lib.types.float (value: value > 0);
             default = 3.0;
             description = "Minimum upload/download ratio before a verified torrent may be removed.";
           };
