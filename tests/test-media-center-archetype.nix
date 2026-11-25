@@ -343,7 +343,11 @@
         dashboard = "http://127.0.0.1:8082";
         grafana = "http://127.0.0.1:3000";
         jellyfin = "http://127.0.0.1:8096";
+        lidarr = "http://127.0.0.1:8686";
+        mylar3 = "http://127.0.0.1:8090";
+        radarr = "http://127.0.0.1:7878";
         seerr = "http://127.0.0.1:5055";
+        sonarr = "http://127.0.0.1:8989";
       };
       actualLocalCaddyUpstreams = lib.mapAttrs (_: app: app.upstream) (drlight.myConfig.caddy.apps or {});
       mediaManagementApps = [
