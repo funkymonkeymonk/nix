@@ -20,6 +20,7 @@
 - Do not apply or deploy either machine configuration in this plan.
 - Before a future deployment, verify `megamanx` resolves from Drlight to MegamanX's LAN address; stop if it does not.
 - LAN clients already send `home.buildingbananas.com` DNS queries to Drlight's dnsmasq; do not change router or DHCP settings in this plan.
+- Before a future deployment, verify LAN-only and tailnet queries for the OpenChamber hostname return Drlight's `eno1` and `tailscale0` addresses, respectively.
 
 ## Review Focus
 
@@ -162,24 +163,24 @@
 - Consumes: Drlight's configured Caddy app hostnames, the `eno1` LAN interface, the `tailscale0` interface, and LAN clients' existing DNS path to Drlight.
 - Produces: `services.dnsmasq.settings.interface-name` entries for each Caddy hostname on `eno1/4` and `tailscale0/4`. Set `localise-queries = true`. Preserve the static Zero-hosted Sunshine record.
 
-- [ ] **Step 1: Add failing Drlight DNS assertions**
+- [x] **Step 1: Add failing Drlight DNS assertions**
 
   Add DNS assertions to `drlightMediaStorageTest`. For every Caddy hostname, assert `interface-name` includes `<hostname>,eno1/4` and `<hostname>,tailscale0/4`. Assert `localise-queries = true`. Assert `host-record` does not pin Caddy hostnames to `100.89.187.92`. Keep the Sunshine record assertion. Add generated `interface-name` directives to the config passed to `dnsmasq --test`.
 
-- [ ] **Step 2: Run the focused DNS test and verify it fails**
+- [x] **Step 2: Run the focused DNS test and verify it fails**
 
   Run: `nix build .#checks.x86_64-linux.drlight-media-storage --no-link`  
   Expected: the check fails because Caddy app hostnames are currently static Tailscale-only `host-record` entries.
 
-- [ ] **Step 3: Configure interface-aware Caddy records**
+- [x] **Step 3: Configure interface-aware Caddy records**
 
   In `modules/nixos/tailscale-home-dns.nix`, derive two `interface-name` entries from each Caddy app host ending in `.home.buildingbananas.com`. Use one entry for `eno1/4` and one for `tailscale0/4`. Set `localise-queries = true`. Remove static Caddy app records. Keep `sunshine.home.buildingbananas.com,100.71.97.28` unchanged. Update `docs/reference/llm-stack.md` to describe interface-specific DNS answers. State that LAN clients use Drlight's DNS resolver.
 
-- [ ] **Step 4: Run the focused DNS test and verify it passes**
+- [x] **Step 4: Run the focused DNS test and verify it passes**
 
   Run: `nix build .#checks.x86_64-linux.drlight-media-storage --no-link`  
   Expected: the test finds both interface records for all Caddy apps, preserves Sunshine, and dnsmasq accepts the generated directives.
 
-- [ ] **Step 5: Re-run final validation and review**
+- [x] **Step 5: Re-run final validation and review**
 
-  Run: `devenv tasks run check:lint`, `devenv tasks run test:all`, and `nix build .#nixosConfigurations.drlight.config.system.build.toplevel --no-link`. Review the complete change against the spec and this plan. Describe the final JJ change with a conventional `feat:` message and run `jj new`. Do not deploy; deployment requires a separate reviewed `machines:plan`/`machines:apply` request.
+  Run: `devenv tasks run check:lint`, `devenv tasks run test:all`, and `nix build .#nixosConfigurations.drlight.config.system.build.toplevel --no-link`. Review the complete change against the spec and this plan. Before a future deployment, verify live DNS answers on both interfaces. Describe the final JJ change with a conventional `fix:` message and run `jj new`. Do not deploy; deployment requires a separate reviewed `machines:plan`/`machines:apply` request.

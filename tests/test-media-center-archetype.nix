@@ -73,6 +73,10 @@
       caddyRoutes = builtins.attrNames (drlight.services.caddy.virtualHosts or {});
       caddyAppConfigs = drlight.myConfig.caddy.apps or {};
       caddyApps = builtins.attrNames caddyAppConfigs;
+      caddyHomeApps =
+        builtins.filter
+        (name: lib.hasSuffix ".home.buildingbananas.com" caddyAppConfigs.${name}.host)
+        caddyApps;
       openchamberService = drlight.services.openchamber or {};
       openchamberSystemdService = drlight.systemd.services.openchamber or {};
       openchamberSystemdServiceConfig = openchamberSystemdService.serviceConfig or {};
@@ -87,12 +91,22 @@
       drlightOpenCodeProvider = lib.attrByPath ["provider" "local-bifrost"] {} drlightOpenCodeSettings;
       drlightOpenCodeProviderOptions = drlightOpenCodeProvider.options or {};
       configuredBifrostProvider = (drlight.myConfig.opencode.providers or {}).local-bifrost or {};
+      dnsmasqSettings = drlight.services.dnsmasq.settings or {};
+      caddyDnsRecords =
+        builtins.concatMap
+        (name: map (interface: "${caddyAppConfigs.${name}.host},${interface}/4") ["eno1" "tailscale0"])
+        caddyHomeApps;
+      dnsmasqInterfaceNameLines =
+        builtins.concatStringsSep "\n"
+        (map (record: "interface-name=${record}") (dnsmasqSettings.interface-name or []));
       expectedCaddyHomepageHrefs = builtins.sort builtins.lessThan (map
         (name: "https://${caddyAppConfigs.${name}.host}")
         (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
-      dnsmasqSettings = drlight.services.dnsmasq.settings or {};
-      caddyDnsRecords = map (name: "${caddyAppConfigs.${name}.host},100.89.187.92") caddyApps;
       dnsmasqHostRecordLines = builtins.concatStringsSep "\n" (map (record: "host-record=${record}") (dnsmasqSettings.host-record or []));
+      caddyStaticDnsRecords =
+        builtins.filter
+        (record: builtins.any (name: lib.hasPrefix "${caddyAppConfigs.${name}.host}," record) caddyHomeApps)
+        (dnsmasqSettings.host-record or []);
       drlightWithDownloadStageEnabled =
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
@@ -154,7 +168,7 @@
       grafanaHomepageWidgets = (grafanaHomepageEntry.Grafana or {}).widgets or [];
       grafanaHomepageEnvironment = drlight.systemd.services.homepage-dashboard.environment or {};
       grafanaHomepageCredentials = drlight.systemd.services.homepage-dashboard.serviceConfig.LoadCredential or [];
-      syntheticDnsRecords = drlightWithSyntheticCaddyApp.services.dnsmasq.settings.host-record or [];
+      syntheticDnsRecords = drlightWithSyntheticCaddyApp.services.dnsmasq.settings.interface-name or [];
       resticJobs = drlight.services.restic.backups or {};
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
@@ -631,7 +645,8 @@
         ${checkFalse "OpenChamber does not open its raw port on the LAN interface" (builtins.elem 3001 (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []))}
         ${checkTrue "OpenChamber Caddy route flushes SSE responses" (lib.hasInfix "flush_interval -1" openchamberVirtualHostConfig)}
         ${checkTrue "OpenChamber Caddy route preserves private-source filtering" (lib.hasInfix "@external not remote_ip" openchamberVirtualHostConfig && lib.hasInfix "respond @external 403" openchamberVirtualHostConfig)}
-        ${checkTrue "OpenChamber Caddy hostname is published by Drlight DNS" (builtins.elem "openchamber.home.buildingbananas.com,100.89.187.92" caddyDnsRecords)}
+        ${checkTrue "OpenChamber gets a LAN DNS record" (builtins.elem "openchamber.home.buildingbananas.com,eno1/4" caddyDnsRecords)}
+        ${checkTrue "OpenChamber gets a tailnet DNS record" (builtins.elem "openchamber.home.buildingbananas.com,tailscale0/4" caddyDnsRecords)}
         ${checkTrue "Drlight enables the OpenCode role" drlight.myConfig.roles.opencode.enable}
         ${checkEqual "Drlight OpenCode uses MegamanX over LAN" "megamanx" drlight.myConfig.llmClient.serverHost}
         ${checkEqual "Drlight OpenCode uses Bifrost's Anthropic route" "http://megamanx:8081/anthropic/v1" (drlightOpenCodeProviderOptions.baseURL or null)}
@@ -668,9 +683,12 @@
           ${checkFalse "Drlight DNS server does not replace the machine's local resolver" drlight.services.dnsmasq.resolveLocalQueries}
           ${checkTrue "Drlight DNS server listens on tailscale0" (builtins.elem "tailscale0" (dnsmasqSettings.interface or []))}
           ${checkTrue "Drlight DNS accepts tailnet UDP and TCP queries" (builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedUDPPorts or []) && builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))}
-          ${checkTrue "Drlight DNS maps every Caddy app to its Tailscale IP" (builtins.all (record: builtins.elem record (dnsmasqSettings.host-record or [])) caddyDnsRecords)}
+          ${checkTrue "Drlight DNS localizes answers by receiving interface" (builtins.elem true (lib.toList (dnsmasqSettings.localise-queries or false)))}
+          ${checkTrue "Drlight DNS maps every Caddy app to both interfaces" (builtins.all (record: builtins.elem record (dnsmasqSettings.interface-name or [])) caddyDnsRecords)}
+          ${checkFalse "Drlight DNS does not pin Caddy hostnames to the Tailscale IP" (caddyStaticDnsRecords != [])}
           ${checkTrue "Drlight DNS preserves Zero's Sunshine route" (builtins.elem "sunshine.home.buildingbananas.com,100.71.97.28" (dnsmasqSettings.host-record or []))}
-          ${checkTrue "new Caddy apps automatically receive a split-DNS record" (builtins.elem "synthetic.home.buildingbananas.com,100.89.187.92" syntheticDnsRecords)}
+          ${checkTrue "new Caddy apps automatically receive a LAN DNS record" (builtins.elem "synthetic.home.buildingbananas.com,eno1/4" syntheticDnsRecords)}
+          ${checkTrue "new Caddy apps automatically receive a tailnet DNS record" (builtins.elem "synthetic.home.buildingbananas.com,tailscale0/4" syntheticDnsRecords)}
 
           cat > dnsmasq-test.conf <<'EOF'
           port=5353
@@ -678,6 +696,8 @@
           bind-interfaces
           no-resolv
           no-hosts
+          localise-queries
+          ${dnsmasqInterfaceNameLines}
           ${dnsmasqHostRecordLines}
           EOF
           ${pkgs.dnsmasq}/bin/dnsmasq --test --conf-file=dnsmasq-test.conf
@@ -685,16 +705,12 @@
           dnsmasq_pid=$!
           trap 'kill "$dnsmasq_pid" 2>/dev/null || true; wait "$dnsmasq_pid" 2>/dev/null || true' EXIT
           sleep 1
-          ${
-            lib.concatMapStringsSep "\n" (name: ''
-              resolved=$(${pkgs.dnsutils}/bin/dig +short @127.0.0.1 -p 5353 ${lib.escapeShellArg name} A)
-              if [ "$resolved" != "100.89.187.92" ]; then
-                echo "FAIL: DNS resolved ${name} to $resolved instead of Drlight's Tailscale IP"
-                exit 1
-              fi
-            '') ["dashboard.home.buildingbananas.com" "jellyfin.home.buildingbananas.com" "grafana.home.buildingbananas.com"]
-          }
-          echo "  Homepage Caddy hostnames resolve to Drlight in split DNS: OK"
+          resolved=$(${pkgs.dnsutils}/bin/dig +short @127.0.0.1 -p 5353 sunshine.home.buildingbananas.com A)
+          if [ "$resolved" != "100.71.97.28" ]; then
+            echo "FAIL: DNS resolved Sunshine to $resolved instead of its Zero address"
+            exit 1
+          fi
+          echo "  Static Zero-hosted Sunshine DNS record remains available: OK"
           ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
           ${checkTrue "scheduled upgrade guard checks systemd unit state" (lib.hasInfix "systemctl show --property=ActiveState --value \"$unit\"" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
           ${checkTrue "scheduled upgrade guard checks the upgrade and switch units" (lib.hasInfix "nixos-upgrade.service nixos-rebuild-switch-to-configuration.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}

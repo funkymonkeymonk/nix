@@ -24,11 +24,13 @@ Tailscale-disabled; Drlight reaches MegamanX's Bifrost through the local LAN
 hostname `megamanx`. OpenCode sessions and project commands run on Drlight.
 Verify that `megamanx` resolves to MegamanX's LAN address before deployment.
 
-Drlight's existing Caddy/DNS path publishes its `home.buildingbananas.com`
-applications on both LAN and tailnet interfaces. Caddy provides HTTPS and
-rejects public source addresses. OpenChamber stays bound to loopback behind
-Caddy, with its UI password stored in Opnix. Its Caddy route uses
-`flush_interval -1` for live SSE updates.
+Drlight's dnsmasq listens on the LAN (`eno1`) and tailnet (`tailscale0`). It uses
+interface-aware records for Caddy apps and returns the address of the interface
+that received each DNS query. The LAN address follows Drlight's DHCP lease, so
+Nix does not need a fixed LAN address. LAN clients must use Drlight's dnsmasq for
+`home.buildingbananas.com` names. Caddy provides HTTPS and rejects public source
+addresses. OpenChamber stays bound to loopback behind Caddy, with its UI password
+stored in Opnix. Its Caddy route uses `flush_interval -1` for live SSE updates.
 
 The model is fetched and exposed by Nix at the stable alias `qwen3.8-27b`.
 Bifrost exposes it as `omlx/qwen3.8-27b`.
