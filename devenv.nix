@@ -55,7 +55,7 @@
       fi
 
       local configs cfg primary_user
-      configs=$(nix eval --impure --json ".#''${config_set}" --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]') || return 1
+      configs=$(nix eval --impure --json "path:.#''${config_set}" --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]') || return 1
 
       for cfg in $configs; do
         if [[ "$cfg" == "$hostname" ]]; then
@@ -65,7 +65,7 @@
       done
 
       for cfg in $configs; do
-        primary_user=$(nix eval --impure --raw ".#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || true)
+        primary_user=$(nix eval --impure --raw "path:.#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || true)
         if [[ -n "$primary_user" && "$hostname" == *"$primary_user"* ]]; then
           printf '%s' "$cfg"
           return 0
@@ -93,8 +93,8 @@
       local hostname="$3"
       local custom_ref default_vault
 
-      custom_ref=$(nix eval --impure --raw ".#''${config_set}.''${config_name}.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || true)
-      default_vault=$(nix eval --impure --raw ".#''${config_set}.''${config_name}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+      custom_ref=$(nix eval --impure --raw "path:.#''${config_set}.''${config_name}.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || true)
+      default_vault=$(nix eval --impure --raw "path:.#''${config_set}.''${config_name}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
       if [[ -z "$custom_ref" ]]; then
         custom_ref="''${hostname} Sudo Password/password"
       fi
