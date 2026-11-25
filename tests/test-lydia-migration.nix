@@ -162,7 +162,7 @@
           && (megamanx.myConfig.vector.hostLabel or "") == "MegamanX"
           && builtins.elem "/Users/monkey/Library/Logs/omlx/*.log" (megamanx.myConfig.vector.logGlobs or [])
           && megamanx.myConfig.bifrost.enable
-          && megamanx.myConfig.bifrost.host == "127.0.0.1"
+          && megamanx.myConfig.bifrost.host == "0.0.0.0"
           && megamanx.myConfig.bifrost.upstreams."opencode-go".type == "opencode-go"
           && megamanx.myConfig.bifrost.upstreams."opencode-go".apiKeyFile == ".pi/agent/secrets/opencode-go-apikey"
           && megamanx.myConfig.bifrost.modelMetadata."omlx/qwen3.8-27b".contextLength == 128000

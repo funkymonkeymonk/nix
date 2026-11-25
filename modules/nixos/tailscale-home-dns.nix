@@ -5,21 +5,33 @@
 }:
 with lib; let
   caddyApps = config.myConfig.caddy.apps or {};
-  homeRecords =
-    mapAttrsToList (_name: app: "${app.host},192.168.1.23")
-    (filterAttrs (_name: app: hasSuffix ".home.buildingbananas.com" app.host) caddyApps)
-    ++ ["sunshine.home.buildingbananas.com,100.71.97.28"];
+  homeCaddyHosts =
+    mapAttrsToList
+    (_name: app: app.host)
+    (filterAttrs (_name: app: hasSuffix ".home.buildingbananas.com" app.host) caddyApps);
+  caddyInterfaceNames =
+    concatMap (host: [
+      "${host},eno1/4"
+      "${host},tailscale0/4"
+    ])
+    homeCaddyHosts;
+  homeRecords = [
+    # Zero still owns the Sunshine route in the home domain.
+    "sunshine.home.buildingbananas.com,100.71.97.28"
+  ];
 in {
-  # Serve the private home zone locally. The router must delegate this zone to
-  # Drlight or advertise Drlight as a DNS server for LAN clients.
+  # LAN and tailnet clients send home-domain DNS queries to Drlight. Return the
+  # address from the interface that received the query for each Caddy app.
   services.dnsmasq = {
     enable = true;
     resolveLocalQueries = false;
     settings = {
       interface = ["eno1" "tailscale0"];
       bind-dynamic = true;
+      localise-queries = true;
       no-resolv = true;
       domain-needed = true;
+      interface-name = caddyInterfaceNames;
       server = [
         "100.100.100.100"
       ];

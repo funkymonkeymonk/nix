@@ -44,6 +44,10 @@
     # Bifrost AI Gateway - high-performance LLM gateway
     bifrost.url = "github:maximhq/bifrost";
 
+    # OpenChamber web workspace for OpenCode
+    openchamber.url = "github:openchamber/openchamber";
+    openchamber.inputs.nixpkgs.follows = "nixpkgs";
+
     # Pi plugins - extensions and skills for pi coding agent
     pi-plugins.url = "github:funkymonkeymonk/pi-plugins";
     inference-worker.url = "github:funkymonkeymonk/inference-worker";

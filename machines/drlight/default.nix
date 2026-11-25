@@ -41,10 +41,33 @@ in {
   # dependents. Its output-directory watcher launches a duplicate resolver.
   systemd.paths.opnix-secrets-watcher.enable = lib.mkForce false;
 
+  services.openchamber = {
+    enable = true;
+    user = "monkey";
+    host = "127.0.0.1";
+    port = 3001;
+    uiPasswordFile = "/run/secrets/openchamber-ui-password";
+  };
+
   myConfig =
     mkUser "monkey" "me@willweaver.dev"
     // {
       roles.developer.enable = true;
+      roles.opencode.enable = true;
+      llmClient = {
+        serverHost = "megamanx";
+        serverPort = "8081";
+      };
+      opencode.providers = lib.mkForce {
+        local-bifrost = {
+          name = "MegamanX Bifrost";
+          npm = "@ai-sdk/anthropic";
+          baseURL = "http://megamanx:8081/anthropic/v1";
+          models."omlx/qwen3.8-27b".name = "Qwen3.8 27B (oMLX)";
+          dynamicModels = true;
+          onePasswordItem = "Bifrost OpenChamber API Key/credential";
+        };
+      };
       nodeExporter.openFirewallInterfaces = ["tailscale0" "eno1"];
       ultraMediaDownloadStage = {
         enable = true;
@@ -97,6 +120,16 @@ in {
                 password = "{{HOMEPAGE_FILE_GRAFANA_PASSWORD}}";
               }
             ];
+          };
+        };
+        apps.openchamber = {
+          host = "openchamber.home.buildingbananas.com";
+          upstream = "http://127.0.0.1:3001";
+          flushInterval = -1;
+          homepage = {
+            title = "OpenChamber";
+            group = "Development";
+            description = "Remote coding workspace";
           };
         };
         # TODO: Add remote seed-box routes when that integration is ready.
@@ -154,13 +187,23 @@ in {
       onepassword = {
         enable = true;
         defaultVault = "Opnix";
-        secrets.cloudflareApiToken = {
-          reference = "Cloudflare DNS API Token/credential";
-          path = "/run/secrets/cloudflare-api-token";
-          mode = "0400";
-          owner = "root";
-          group = "root";
-          services = ["caddy-cloudflare-env" "caddy"];
+        secrets = {
+          cloudflareApiToken = {
+            reference = "Cloudflare DNS API Token/credential";
+            path = "/run/secrets/cloudflare-api-token";
+            mode = "0400";
+            owner = "root";
+            group = "root";
+            services = ["caddy-cloudflare-env" "caddy"];
+          };
+          openchamberUiPassword = {
+            reference = "OpenChamber UI Password/password";
+            path = "/run/secrets/openchamber-ui-password";
+            mode = "0400";
+            owner = "root";
+            group = "root";
+            services = ["openchamber"];
+          };
         };
         secrets.jellyfinDiscordWebhook = {
           reference = "Jellyfin Discord Webhook/url";

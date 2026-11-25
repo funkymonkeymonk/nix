@@ -50,7 +50,7 @@
               (observabilityInventory.machineModule drlightMachine)
             ]
             ++ lib.filter
-            (module: !(lib.hasSuffix "/archetypes/type-observability.nix" (builtins.toString module)))
+            (module: !((builtins.isPath module || builtins.isString module) && lib.hasSuffix "/archetypes/type-observability.nix" (builtins.toString module)))
             drlightMachine.modules;
         }).config;
       homepageServices = drlight.services.homepage-dashboard.services or [];
@@ -76,12 +76,40 @@
       seerrCaddyApp = caddyAppConfigs.seerr or {};
       seerrCaddyVirtualHost = drlight.services.caddy.virtualHosts."seerr.home.buildingbananas.com" or {};
       seerrCaddyExtraConfig = seerrCaddyVirtualHost.extraConfig or "";
+      caddyHomeApps =
+        builtins.filter
+        (name: lib.hasSuffix ".home.buildingbananas.com" caddyAppConfigs.${name}.host)
+        caddyApps;
+      openchamberService = drlight.services.openchamber or {};
+      openchamberSystemdService = drlight.systemd.services.openchamber or {};
+      openchamberSystemdServiceConfig = openchamberSystemdService.serviceConfig or {};
+      openchamberVirtualHost = drlight.services.caddy.virtualHosts."openchamber.home.buildingbananas.com" or {};
+      openchamberVirtualHostConfig = openchamberVirtualHost.extraConfig or "";
+      onepasswordSecrets = drlight.myConfig.onepassword.secrets or {};
+      openchamberUiPasswordSecret = onepasswordSecrets.openchamberUiPassword or {};
+      homeManagerUsers = (drlight.home-manager or {}).users or {};
+      drlightHomeUser = homeManagerUsers.monkey or {};
+      drlightHomePrograms = drlightHomeUser.programs or {};
+      drlightOpenCodeSettings = (drlightHomePrograms.opencode or {}).settings or {};
+      drlightOpenCodeProvider = lib.attrByPath ["provider" "local-bifrost"] {} drlightOpenCodeSettings;
+      drlightOpenCodeProviderOptions = drlightOpenCodeProvider.options or {};
+      configuredBifrostProvider = (drlight.myConfig.opencode.providers or {}).local-bifrost or {};
+      dnsmasqSettings = drlight.services.dnsmasq.settings or {};
+      caddyDnsRecords =
+        builtins.concatMap
+        (name: map (interface: "${caddyAppConfigs.${name}.host},${interface}/4") ["eno1" "tailscale0"])
+        caddyHomeApps;
+      dnsmasqInterfaceNameLines =
+        builtins.concatStringsSep "\n"
+        (map (record: "interface-name=${record}") (dnsmasqSettings.interface-name or []));
       expectedCaddyHomepageHrefs = builtins.sort builtins.lessThan (map
         (name: "https://${caddyAppConfigs.${name}.host}")
         (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
-      dnsmasqSettings = drlight.services.dnsmasq.settings or {};
-      caddyDnsRecords = map (name: "${caddyAppConfigs.${name}.host},192.168.1.23") caddyApps;
       dnsmasqHostRecordLines = builtins.concatStringsSep "\n" (map (record: "host-record=${record}") (dnsmasqSettings.host-record or []));
+      caddyStaticDnsRecords =
+        builtins.filter
+        (record: builtins.any (name: lib.hasPrefix "${caddyAppConfigs.${name}.host}," record) caddyHomeApps)
+        (dnsmasqSettings.host-record or []);
       drlightWithDownloadStageEnabled =
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.enable = true;}];
@@ -143,7 +171,7 @@
       grafanaHomepageWidgets = (grafanaHomepageEntry.Grafana or {}).widgets or [];
       grafanaHomepageEnvironment = drlight.systemd.services.homepage-dashboard.environment or {};
       grafanaHomepageCredentials = drlight.systemd.services.homepage-dashboard.serviceConfig.LoadCredential or [];
-      syntheticDnsRecords = drlightWithSyntheticCaddyApp.services.dnsmasq.settings.host-record or [];
+      syntheticDnsRecords = drlightWithSyntheticCaddyApp.services.dnsmasq.settings.interface-name or [];
       resticJobs = drlight.services.restic.backups or {};
       backupPaths = drlight.myConfig.backup.paths or [];
       onePasswordSecrets = drlight.myConfig.onepassword.secrets or {};
@@ -308,12 +336,17 @@
         [
           "https://grafana.home.buildingbananas.com"
           "https://jellyfin.home.buildingbananas.com"
+          "https://openchamber.home.buildingbananas.com"
           seerrHomepageHref
         ]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedMediaCenterOnlyHomepageHrefs = builtins.sort builtins.lessThan (
-        ["https://jellyfin.home.buildingbananas.com" seerrHomepageHref]
+        [
+          "https://jellyfin.home.buildingbananas.com"
+          "https://openchamber.home.buildingbananas.com"
+          seerrHomepageHref
+        ]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
@@ -323,9 +356,10 @@
         "jellyfin.home.buildingbananas.com"
         "lidarr.home.buildingbananas.com"
         "mylar.home.buildingbananas.com"
+        "openchamber.home.buildingbananas.com"
         "radarr.home.buildingbananas.com"
-        "sonarr.home.buildingbananas.com"
         "seerr.home.buildingbananas.com"
+        "sonarr.home.buildingbananas.com"
       ];
       expectedLocalCaddyApps = builtins.sort builtins.lessThan [
         "bazarr"
@@ -334,6 +368,7 @@
         "jellyfin"
         "lidarr"
         "mylar3"
+        "openchamber"
         "radarr"
         "seerr"
         "sonarr"
@@ -345,6 +380,7 @@
         jellyfin = "http://127.0.0.1:8096";
         lidarr = "http://127.0.0.1:8686";
         mylar3 = "http://127.0.0.1:8090";
+        openchamber = "http://127.0.0.1:3001";
         radarr = "http://127.0.0.1:7878";
         seerr = "http://127.0.0.1:5055";
         sonarr = "http://127.0.0.1:8989";
@@ -503,7 +539,7 @@
         echo "  Mylar3 package runtime import check: ${mylar3Package}"
         ${checkTrue "media-management module is not selected by other machines" (lib.all (machine: !(hasModule "/modules/nixos/media-management.nix" machine)) (builtins.attrValues (builtins.removeAttrs catalog ["drlight"])))}
         ${checkTrue "no Arr, Seerr, Mylar3, or Bazarr service is enabled on other machines" nonDrlightHasNoMediaManagers}
-        ${checkTrue "media-manager apps are exposed through Caddy" (lib.all (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
+        ${checkTrue "media-manager apps are exposed through Drlight Caddy" (lib.all (name: builtins.elem name caddyApps) ["radarr" "sonarr" "lidarr" "mylar3" "bazarr"])}
         ${lib.concatMapStringsSep "\n" (app: ''
           ${checkTrue "${app} has an API reconciliation unit" (builtins.hasAttr "${app}-media-config-sync" drlight.systemd.services)}
         '') ["radarr" "sonarr" "lidarr" "bazarr"]}
@@ -570,7 +606,7 @@
           "media-auth-jellyfin"
         ] (map (secret: secret.group or null) mediaAuthSecrets)}
         ${checkTrue "media app login secrets are owned by root with mode 0440" (builtins.all (secret: (secret.owner or null) == "root" && (secret.mode or null) == "0440") mediaAuthSecrets)}
-        ${checkEqual "media app login secrets trigger their owning app and declared Jellyfin dependents" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"]] (map (secret: secret.services or []) mediaAuthSecrets)}
+        ${checkEqual "media app login secrets trigger their owning app and Jellyfin dependents" [["radarr"] ["radarr"] ["sonarr"] ["sonarr"] ["lidarr"] ["lidarr"] ["bazarr"] ["bazarr"] ["mylar3"] ["mylar3"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"] ["jellyfin" "ultra-media-download-stage" "jellyfin-discord-webhook-config-sync"]] (map (secret: secret.services or []) mediaAuthSecrets)}
         ${checkEqual "Mylar API key uses the existing default-vault item field" "Mylar3/api-key" (mylarApiKeySecret.reference or null)}
         ${checkEqual "Mylar API key resolves through the default Opnix vault" "op://Opnix/Mylar3/api-key" (opnixMylarApiKeySecret.reference or null)}
         ${checkEqual "Mylar API key uses a restricted runtime file" "/run/secrets/mylar3-api-key" (mylarApiKeySecret.path or null)}
@@ -619,7 +655,7 @@
         ${checkTrue "media-center without direct backend still runs node_exporter" (drlightWithoutObservability.services.prometheus.exporters.node.enable or false)}
         ${checkTrue "media-center without direct backend still enables Jellyfin" (drlightWithoutObservability.services.jellyfin.enable or false)}
         ${checkTrue "media-center without direct backend still enables Homepage" (drlightWithoutObservability.services.homepage-dashboard.enable or false)}
-        ${checkEqual "media-center-only Homepage links only to local Jellyfin" expectedMediaCenterOnlyHomepageHrefs mediaCenterOnlyHomepageHrefs}
+        ${checkEqual "media-center-only Homepage keeps the configured local Caddy apps" expectedMediaCenterOnlyHomepageHrefs mediaCenterOnlyHomepageHrefs}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All type-media-center composition tests passed"
@@ -633,7 +669,7 @@
         ${checkEqual "Homepage allows its Tailscale Serve hostname" "dashboard.home.buildingbananas.com,drlight.uaru-daggertooth.ts.net:8443" (drlight.services.homepage-dashboard.allowedHosts or null)}
         ${checkTrue "Homepage includes every enabled Caddy app" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedCaddyHomepageHrefs)}
         ${checkTrue "Homepage links all five media apps through Caddy" (builtins.all (href: builtins.elem href sortedHomepageHrefs) expectedMediaManagerHomepageHrefs)}
-        ${checkEqual "Homepage includes each service exactly once through canonical URLs" expectedLocalHomepageHrefs sortedHomepageHrefs}
+        ${checkEqual "Homepage includes Caddy apps and direct Tailscale media links" expectedLocalHomepageHrefs sortedHomepageHrefs}
         ${checkTrue "Homepage automatically includes a newly added Caddy app" (builtins.elem "https://synthetic.home.buildingbananas.com" syntheticHomepageHrefs)}
         ${checkEqual "Homepage preserves per-app native widget metadata" [
           {
@@ -650,6 +686,24 @@
         ${checkTrue "Seerr has the selected internal Caddy hostname and loopback upstream" ((seerrCaddyApp.host or null) == "seerr.home.buildingbananas.com" && (seerrCaddyApp.upstream or null) == "http://127.0.0.1:5055")}
         ${checkTrue "Seerr Caddy route rejects clients outside LAN and Tailscale ranges" (lib.hasInfix "@external not remote_ip" seerrCaddyExtraConfig && lib.hasInfix "respond @external 403" seerrCaddyExtraConfig)}
         ${checkEqual "Caddy proxies all local apps to their loopback upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
+        ${checkTrue "OpenChamber system service is enabled" (openchamberService.enable or false)}
+        ${checkEqual "OpenChamber runs as the configured user" "monkey" (openchamberService.user or null)}
+        ${checkEqual "OpenChamber listener stays on loopback" "127.0.0.1" (openchamberService.host or null)}
+        ${checkEqual "OpenChamber uses a non-Grafana port" 3001 (openchamberService.port or null)}
+        ${checkEqual "OpenChamber gets its UI password through systemd credentials" "ui-password:/run/secrets/openchamber-ui-password" (openchamberSystemdServiceConfig.LoadCredential or null)}
+        ${checkEqual "OpenChamber UI password reference uses the Opnix vault" "OpenChamber UI Password/password" (openchamberUiPasswordSecret.reference or null)}
+        ${checkEqual "OpenChamber UI password is provided to the service" "/run/secrets/openchamber-ui-password" (openchamberService.uiPasswordFile or null)}
+        ${checkFalse "OpenChamber does not open its raw port globally" (builtins.elem 3001 (drlight.networking.firewall.allowedTCPPorts or []))}
+        ${checkFalse "OpenChamber does not open its raw port on the LAN interface" (builtins.elem 3001 (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []))}
+        ${checkTrue "OpenChamber Caddy route flushes SSE responses" (lib.hasInfix "flush_interval -1" openchamberVirtualHostConfig)}
+        ${checkTrue "OpenChamber Caddy route preserves private-source filtering" (lib.hasInfix "@external not remote_ip" openchamberVirtualHostConfig && lib.hasInfix "respond @external 403" openchamberVirtualHostConfig)}
+        ${checkTrue "OpenChamber gets a LAN DNS record" (builtins.elem "openchamber.home.buildingbananas.com,eno1/4" caddyDnsRecords)}
+        ${checkTrue "OpenChamber gets a tailnet DNS record" (builtins.elem "openchamber.home.buildingbananas.com,tailscale0/4" caddyDnsRecords)}
+        ${checkTrue "Drlight enables the OpenCode role" drlight.myConfig.roles.opencode.enable}
+        ${checkEqual "Drlight OpenCode uses MegamanX over LAN" "megamanx" drlight.myConfig.llmClient.serverHost}
+        ${checkEqual "Drlight OpenCode uses Bifrost's Anthropic route" "http://megamanx:8081/anthropic/v1" (drlightOpenCodeProviderOptions.baseURL or null)}
+        ${checkEqual "Drlight OpenCode uses the Opnix-managed Bifrost virtual key" "Bifrost OpenChamber API Key/credential" (configuredBifrostProvider.onePasswordItem or null)}
+        ${checkTrue "Drlight OpenCode reads its Bifrost key from an Opnix file" (lib.hasInfix "{file:~/.config/opencode/secrets/local-bifrost-apikey}" (drlightOpenCodeProviderOptions.apiKey or ""))}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media presentation tests passed"
@@ -681,9 +735,12 @@
           ${checkFalse "Drlight DNS server does not replace the machine's local resolver" drlight.services.dnsmasq.resolveLocalQueries}
           ${checkTrue "Drlight DNS server listens on tailscale0" (builtins.elem "tailscale0" (dnsmasqSettings.interface or []))}
           ${checkTrue "Drlight DNS accepts tailnet UDP and TCP queries" (builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedUDPPorts or []) && builtins.elem 53 (drlight.networking.firewall.interfaces.tailscale0.allowedTCPPorts or []))}
-          ${checkTrue "Drlight DNS maps every Caddy app to its LAN IP" (builtins.all (record: builtins.elem record (dnsmasqSettings.host-record or [])) caddyDnsRecords)}
+          ${checkTrue "Drlight DNS localizes answers by receiving interface" (builtins.elem true (lib.toList (dnsmasqSettings.localise-queries or false)))}
+          ${checkTrue "Drlight DNS maps every Caddy app to both interfaces" (builtins.all (record: builtins.elem record (dnsmasqSettings.interface-name or [])) caddyDnsRecords)}
+          ${checkFalse "Drlight DNS does not pin Caddy hostnames to static addresses" (caddyStaticDnsRecords != [])}
           ${checkTrue "Drlight DNS preserves Zero's Sunshine route" (builtins.elem "sunshine.home.buildingbananas.com,100.71.97.28" (dnsmasqSettings.host-record or []))}
-          ${checkTrue "new Caddy apps automatically receive a split-DNS record" (builtins.elem "synthetic.home.buildingbananas.com,192.168.1.23" syntheticDnsRecords)}
+          ${checkTrue "new Caddy apps automatically receive a LAN DNS record" (builtins.elem "synthetic.home.buildingbananas.com,eno1/4" syntheticDnsRecords)}
+          ${checkTrue "new Caddy apps automatically receive a tailnet DNS record" (builtins.elem "synthetic.home.buildingbananas.com,tailscale0/4" syntheticDnsRecords)}
 
           cat > dnsmasq-test.conf <<'EOF'
           port=5353
@@ -691,6 +748,8 @@
           bind-interfaces
           no-resolv
           no-hosts
+          localise-queries
+          ${dnsmasqInterfaceNameLines}
           ${dnsmasqHostRecordLines}
           EOF
           ${pkgs.dnsmasq}/bin/dnsmasq --test --conf-file=dnsmasq-test.conf
@@ -698,16 +757,12 @@
           dnsmasq_pid=$!
           trap 'kill "$dnsmasq_pid" 2>/dev/null || true; wait "$dnsmasq_pid" 2>/dev/null || true' EXIT
           sleep 1
-          ${
-            lib.concatMapStringsSep "\n" (name: ''
-              resolved=$(${pkgs.dnsutils}/bin/dig +short @127.0.0.1 -p 5353 ${lib.escapeShellArg name} A)
-              if [ "$resolved" != "192.168.1.23" ]; then
-                echo "FAIL: DNS resolved ${name} to $resolved instead of Drlight's LAN IP"
-                exit 1
-              fi
-            '') ["dashboard.home.buildingbananas.com" "jellyfin.home.buildingbananas.com" "grafana.home.buildingbananas.com"]
-          }
-          echo "  Homepage Caddy hostnames resolve to Drlight in split DNS: OK"
+          resolved=$(${pkgs.dnsutils}/bin/dig +short @127.0.0.1 -p 5353 sunshine.home.buildingbananas.com A)
+          if [ "$resolved" != "100.71.97.28" ]; then
+            echo "FAIL: DNS resolved Sunshine to $resolved instead of its Zero address"
+            exit 1
+          fi
+          echo "  Static Zero-hosted Sunshine DNS record remains available: OK"
           ${checkTrue "Drlight keeps scheduled auto-upgrades enabled by default" drlight.system.autoUpgrade.enable}
           ${checkTrue "scheduled upgrade guard checks systemd unit state" (lib.hasInfix "systemctl show --property=ActiveState --value \"$unit\"" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
           ${checkTrue "scheduled upgrade guard checks the upgrade and switch units" (lib.hasInfix "nixos-upgrade.service nixos-rebuild-switch-to-configuration.service" (drlight.systemd.services.nixos-upgrade-scheduled.script or ""))}
