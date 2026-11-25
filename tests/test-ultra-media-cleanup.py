@@ -458,6 +458,51 @@ class RetentionPolicyTests(unittest.TestCase):
             )
         self.assertTrue(decision["eligible"])
 
+    def test_configured_aggressive_age_threshold_qualifies(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - 24 * 60 * 60,
+                    torrent_ratio=0.1,
+                ),
+                min_completion_age_seconds=24 * 60 * 60,
+                min_torrent_ratio=1.0,
+            )
+        self.assertTrue(decision["eligible"])
+
+    def test_configured_aggressive_ratio_threshold_qualifies(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(done_date=now_seconds - 1, torrent_ratio=1.0),
+                min_completion_age_seconds=24 * 60 * 60,
+                min_torrent_ratio=1.0,
+            )
+        self.assertTrue(decision["eligible"])
+
+    def test_configured_thresholds_still_block_candidates_below_both(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - (24 * 60 * 60) + 1,
+                    torrent_ratio=0.99,
+                ),
+                min_completion_age_seconds=24 * 60 * 60,
+                min_torrent_ratio=1.0,
+            )
+        self.assertFalse(decision["eligible"])
+        self.assertIn("below_retention_threshold", decision["reasons"])
+
+    def test_invalid_configured_thresholds_are_rejected(self):
+        with self.assertRaises(ValueError):
+            policy.evaluate_retention(
+                self.candidate(), min_completion_age_seconds=0
+            )
+        with self.assertRaises(ValueError):
+            policy.evaluate_retention(self.candidate(), min_torrent_ratio=0)
+
     def test_mapped_file_requires_explicit_verified_source_provenance(self):
         for provenance in (None, False):
             with self.subTest(provenance=provenance):

@@ -74,6 +74,8 @@ in {
         cleanup = {
           enable = true;
           privateTrackerRatioProtection.enable = false;
+          minCompletionAgeHours = 24;
+          minTorrentRatio = 1.0;
         };
         remoteDisk = {
           enable = true;

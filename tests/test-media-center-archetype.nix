@@ -824,6 +824,9 @@
            ${checkTrue "staging uses the default SSH port 22" (lib.hasInfix "--ssh-port 22" ultraDownloadStageCommand)}
            ${checkTrue "Drlight enables completed-download staging" (drlight.myConfig.ultraMediaDownloadStage.enable or false)}
            ${checkTrue "Drlight enables automatic seedbox cleanup" (drlight.myConfig.ultraMediaDownloadStage.cleanup.enable or false)}
+            ${checkEqual "Drlight uses the aggressive 24-hour cleanup age" 24 (drlight.myConfig.ultraMediaDownloadStage.cleanup.minCompletionAgeHours or null)}
+            ${checkEqual "Drlight uses the aggressive 1.0 cleanup ratio" 1.0 (drlight.myConfig.ultraMediaDownloadStage.cleanup.minTorrentRatio or null)}
+            ${checkTrue "the worker receives the configured cleanup thresholds" (lib.hasInfix "--min-completion-age-hours 24" ultraDownloadStageCommand && lib.hasInfix "--min-torrent-ratio 1.0" ultraDownloadStageCommand)}
            ${checkTrue "Drlight keeps the future private-tracker ratio extension inactive" (!(drlight.myConfig.ultraMediaDownloadStage.cleanup.privateTrackerRatioProtection.enable or false))}
            ${checkFalse "explicitly disabling completed-download staging removes its timer link" (builtins.elem "timers.target" ((drlightWithDownloadAutomationDisabled.systemd.timers.ultra-media-download-stage or {}).wantedBy or []))}
            ${checkTrue "Drlight's completed-download staging timer is enabled" (builtins.elem "timers.target" (ultraDownloadStageTimer.wantedBy or []))}
