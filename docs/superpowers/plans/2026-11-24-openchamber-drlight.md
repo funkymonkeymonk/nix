@@ -98,6 +98,7 @@
 - Modify: `machines/drlight/default.nix`
 - Modify: `modules/services/caddy/nixos.nix`
 - Modify: `tests/test-media-center-archetype.nix`
+- Generated: `docs/reference/options.md`
 
 **Interfaces:**
 - Consumes: Bifrost authentication and the virtual key configured in Tasks 1-2.
@@ -118,7 +119,7 @@
 
 - [ ] **Step 4: Import the OpenChamber module and configure Drlight**
 
-  Add `inputs.openchamber.nixosModules.openchamber` to Drlight's module list in `library/machines/catalog.nix`. In `modules/services/caddy/nixos.nix`, add a nullable integer `flushInterval` app option and emit `flush_interval` in generated `reverse_proxy` blocks when set. In `machines/drlight/default.nix`, enable the OpenChamber NixOS service for `monkey` on `127.0.0.1:3001` with `/run/secrets/openchamber-ui-password`; add the Opnix UI-password reference; enable `roles.opencode`; set `llmClient.serverHost = "megamanx"` and `serverPort = "8081"`; configure `local-bifrost` to use `http://megamanx:8081/anthropic/v1` and `Bifrost OpenChamber API Key/credential`; and add the Caddy app `openchamber.home.buildingbananas.com` proxying to loopback port 3001 with `flushInterval = -1`. Keep `services.openchamber.openFirewall` disabled.
+  Add `inputs.openchamber.nixosModules.openchamber` to Drlight's module list in `library/machines/catalog.nix`. In `modules/services/caddy/nixos.nix`, add a nullable integer `flushInterval` app option and emit `flush_interval` in generated `reverse_proxy` blocks when set. In `machines/drlight/default.nix`, enable the OpenChamber NixOS service for `monkey` on `127.0.0.1:3001` with `/run/secrets/openchamber-ui-password`; add the Opnix UI-password reference; enable `roles.opencode`; set `llmClient.serverHost = "megamanx"` and `serverPort = "8081"`; configure `local-bifrost` to use `http://megamanx:8081/anthropic/v1` and `Bifrost OpenChamber API Key/credential`; and add the Caddy app `openchamber.home.buildingbananas.com` proxying to loopback port 3001 with `flushInterval = -1`. Keep `services.openchamber.openFirewall` disabled. Run `devenv tasks run docs:generate-options` after the module integration and include the generated reference update.
 
 - [ ] **Step 5: Run the integration check to verify it passes**
 

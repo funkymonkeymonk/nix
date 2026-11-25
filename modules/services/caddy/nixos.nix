@@ -14,10 +14,12 @@ with lib; let
   };
 
   mkVirtualHost = _name: app: let
+    flushDirective = optionalString (app.flushInterval != null) "flush_interval ${toString app.flushInterval}";
     proxyConfig =
       if app.webRoot == null
       then ''
         reverse_proxy ${app.upstream} {
+          ${flushDirective}
           ${optionalString (app.upstreamTlsSkipVerify && hasPrefix "https://" app.upstream) ''
           transport http {
             tls_insecure_skip_verify
@@ -28,17 +30,23 @@ with lib; let
       else ''
         @upstream_api path /transmission/rpc
         handle @upstream_api {
-          reverse_proxy ${app.upstream}
+          reverse_proxy ${app.upstream} {
+            ${flushDirective}
+          }
         }
         @upstream_web_root path /transmission/web
         redir @upstream_web_root /transmission/web/ 308
         @upstream_web path /transmission/web/*
         handle @upstream_web {
-          reverse_proxy ${app.upstream}
+          reverse_proxy ${app.upstream} {
+            ${flushDirective}
+          }
         }
         handle {
           rewrite * ${app.webRoot}{uri}
-          reverse_proxy ${app.upstream}
+          reverse_proxy ${app.upstream} {
+            ${flushDirective}
+          }
         }
       '';
   in {
@@ -88,6 +96,12 @@ in {
             type = types.nullOr types.str;
             default = null;
             description = "Path prefix for applications whose web UI is not served at the upstream root";
+          };
+
+          flushInterval = mkOption {
+            type = types.nullOr types.int;
+            default = null;
+            description = "Optional Caddy reverse-proxy flush interval for streaming responses, in nanoseconds; -1 flushes immediately";
           };
 
           homepage = mkOption {

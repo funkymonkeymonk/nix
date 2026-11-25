@@ -102,6 +102,7 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `apps` | attribute set of (submodule) | `{ }` | Internal applications exposed through Caddy |
+| `apps.<name>.flushInterval` | null or signed integer | `null` | Optional Caddy reverse-proxy flush interval for streaming responses, in nanoseconds; -1 flushes immediately |
 | `apps.<name>.homepage` | submodule | `{ }` | Homepage presentation metadata for this Caddy application |
 | `apps.<name>.homepage.description` | string | `""` | Optional description shown below the Homepage link |
 | `apps.<name>.homepage.enable` | boolean | `true` | Include this Caddy application in the Homepage dashboard |

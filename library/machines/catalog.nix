@@ -156,6 +156,7 @@
       modules = [
         ../archetypes/type-media-center.nix
         ../archetypes/type-observability.nix
+        inputs.openchamber.nixosModules.openchamber
         ../../disk-configs/drlight.nix
         ../../modules/nixos/media-storage.nix
         ../../modules/nixos/media-management.nix

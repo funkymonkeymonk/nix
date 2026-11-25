@@ -50,7 +50,7 @@
               (observabilityInventory.machineModule drlightMachine)
             ]
             ++ lib.filter
-            (module: !(lib.hasSuffix "/archetypes/type-observability.nix" (builtins.toString module)))
+            (module: !((builtins.isPath module || builtins.isString module) && lib.hasSuffix "/archetypes/type-observability.nix" (builtins.toString module)))
             drlightMachine.modules;
         }).config;
       homepageServices = drlight.services.homepage-dashboard.services or [];
@@ -313,7 +313,10 @@
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedMediaCenterOnlyHomepageHrefs = builtins.sort builtins.lessThan (
-        ["https://jellyfin.home.buildingbananas.com"]
+        [
+          "https://jellyfin.home.buildingbananas.com"
+          "https://openchamber.home.buildingbananas.com"
+        ]
         ++ expectedMediaManagerHomepageHrefs
       );
       expectedLocalCaddyRoutes = builtins.sort builtins.lessThan [
@@ -588,7 +591,7 @@
         ${checkTrue "media-center without direct backend still runs node_exporter" (drlightWithoutObservability.services.prometheus.exporters.node.enable or false)}
         ${checkTrue "media-center without direct backend still enables Jellyfin" (drlightWithoutObservability.services.jellyfin.enable or false)}
         ${checkTrue "media-center without direct backend still enables Homepage" (drlightWithoutObservability.services.homepage-dashboard.enable or false)}
-        ${checkEqual "media-center-only Homepage links only to local Jellyfin" expectedMediaCenterOnlyHomepageHrefs mediaCenterOnlyHomepageHrefs}
+        ${checkEqual "media-center-only Homepage keeps the configured local Caddy apps" expectedMediaCenterOnlyHomepageHrefs mediaCenterOnlyHomepageHrefs}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All type-media-center composition tests passed"
