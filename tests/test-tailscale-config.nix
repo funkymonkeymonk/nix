@@ -140,6 +140,22 @@
     megamanxServeMapping
     == {}
     && !(megamanxConfig.launchd.daemons ? tailscale-serve-bifrost);
+  megamanxBifrostAuth = megamanxConfig.myConfig.bifrost.auth;
+  megamanxBifrostSecrets = megamanxConfig.myConfig.onepassword.secrets;
+  megamanxBifrostLanAuthValid =
+    !(megamanxConfig.myConfig.tailscale.enable or false)
+    && megamanxConfig.myConfig.bifrost.host == "0.0.0.0"
+    && megamanxBifrostAuth.enable
+    && megamanxBifrostAuth.adminUsernameFile == "/var/run/bifrost-admin-username"
+    && megamanxBifrostAuth.adminPasswordFile == "/var/run/bifrost-admin-password"
+    && megamanxBifrostAuth.setupTokenFile == "/var/run/bifrost-setup-token"
+    && megamanxBifrostAuth.virtualKey.valueFile == "/var/run/bifrost-openchamber-api-key"
+    && megamanxBifrostAuth.virtualKey.providers == ["omlx" "opencode-go"]
+    && megamanxConfig.myConfig.onepassword.defaultVault == "Opnix"
+    && megamanxBifrostSecrets.bifrostAdminUsername.reference == "Bifrost Admin Username/username"
+    && megamanxBifrostSecrets.bifrostAdminPassword.reference == "Bifrost Admin Password/password"
+    && megamanxBifrostSecrets.bifrostSetupToken.reference == "Bifrost Setup Token/credential"
+    && megamanxBifrostSecrets.bifrostOpenChamberApiKey.reference == "Bifrost OpenChamber API Key/credential";
 
   darwinScriptChecks =
     if pkgs.stdenv.hostPlatform.isDarwin
@@ -310,6 +326,12 @@ in {
       echo "  MegamanX has no obsolete Tailscale Serve mapping: OK"
     else
       echo "FAIL: Tailscale policy must own Bifrost's tailnet-only Serve mapping"
+      exit 1
+    fi
+    if ${lib.boolToString megamanxBifrostLanAuthValid}; then
+      echo "  MegamanX Bifrost is authenticated and Tailscale-disabled: OK"
+    else
+      echo "FAIL: MegamanX Bifrost must use authenticated all-interface LAN access without Tailscale"
       exit 1
     fi
     NIXOS_AUTH_SCRIPT=${lib.escapeShellArg zeroAuthScript}

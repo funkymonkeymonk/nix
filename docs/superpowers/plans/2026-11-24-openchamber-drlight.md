@@ -65,6 +65,7 @@
 **Files:**
 - Modify: `library/machines/catalog.nix`
 - Modify: `tests/test-tailscale-config.nix`
+- Modify: `tests/test-lydia-migration.nix`
 
 **Interfaces:**
 - Consumes: `myConfig.bifrost.auth` from Task 1.
@@ -72,7 +73,7 @@
 
 - [ ] **Step 1: Add failing resolved-MegamanX assertions**
 
-  Extend the MegamanX section of `tests/test-tailscale-config.nix` to assert Tailscale stays disabled, Bifrost's host is `0.0.0.0`, auth is enabled, the virtual key allows only `omlx` and `opencode-go`, and the four secret references are unqualified references resolved through `Opnix`.
+  Extend the MegamanX section of `tests/test-tailscale-config.nix` to assert Tailscale stays disabled, Bifrost's host is `0.0.0.0`, auth is enabled, the virtual key allows only `omlx` and `opencode-go`, and the four secret references are unqualified references resolved through `Opnix`. Update the existing `tests/test-lydia-migration.nix` Bifrost host expectation from `127.0.0.1` to `0.0.0.0` so its machine-profile assertion matches the approved LAN listener.
 
 - [ ] **Step 2: Run the focused test to verify it fails**
 
