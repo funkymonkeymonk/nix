@@ -691,8 +691,10 @@
         ${checkEqual "OpenChamber listener stays on loopback" "127.0.0.1" (openchamberService.host or null)}
         ${checkEqual "OpenChamber uses a non-Grafana port" 3001 (openchamberService.port or null)}
         ${checkEqual "OpenChamber gets its UI password through systemd credentials" "ui-password:/run/secrets/openchamber-ui-password" (openchamberSystemdServiceConfig.LoadCredential or null)}
-        ${checkEqual "OpenChamber UI password reference uses the Opnix vault" "OpenChamber UI Password/password" (openchamberUiPasswordSecret.reference or null)}
-        ${checkEqual "OpenChamber UI password is provided to the service" "/run/secrets/openchamber-ui-password" (openchamberService.uiPasswordFile or null)}
+           ${checkEqual "OpenChamber UI password reference uses the Opnix vault" "OpenChamber UI Password/password" (openchamberUiPasswordSecret.reference or null)}
+           ${checkEqual "OpenChamber UI password is provided to the service" "/run/secrets/openchamber-ui-password" (openchamberService.uiPasswordFile or null)}
+           ${checkTrue "OpenChamber waits for OpNix secrets" (builtins.elem "opnix-secrets.service" (openchamberSystemdService.after or []) && builtins.elem "opnix-secrets.service" (openchamberSystemdService.requires or []))}
+           ${checkEqual "OpenChamber waits for its password file" "/run/secrets/openchamber-ui-password" (openchamberSystemdService.unitConfig.ConditionPathExists or null)}
         ${checkFalse "OpenChamber does not open its raw port globally" (builtins.elem 3001 (drlight.networking.firewall.allowedTCPPorts or []))}
         ${checkFalse "OpenChamber does not open its raw port on the LAN interface" (builtins.elem 3001 (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []))}
         ${checkTrue "OpenChamber Caddy route flushes SSE responses" (lib.hasInfix "flush_interval -1" openchamberVirtualHostConfig)}
