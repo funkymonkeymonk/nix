@@ -73,6 +73,20 @@
       caddyRoutes = builtins.attrNames (drlight.services.caddy.virtualHosts or {});
       caddyAppConfigs = drlight.myConfig.caddy.apps or {};
       caddyApps = builtins.attrNames caddyAppConfigs;
+      openchamberService = drlight.services.openchamber or {};
+      openchamberSystemdService = drlight.systemd.services.openchamber or {};
+      openchamberSystemdServiceConfig = openchamberSystemdService.serviceConfig or {};
+      openchamberVirtualHost = drlight.services.caddy.virtualHosts."openchamber.home.buildingbananas.com" or {};
+      openchamberVirtualHostConfig = openchamberVirtualHost.extraConfig or "";
+      onepasswordSecrets = drlight.myConfig.onepassword.secrets or {};
+      openchamberUiPasswordSecret = onepasswordSecrets.openchamberUiPassword or {};
+      homeManagerUsers = (drlight.home-manager or {}).users or {};
+      drlightHomeUser = homeManagerUsers.monkey or {};
+      drlightHomePrograms = drlightHomeUser.programs or {};
+      drlightOpenCodeSettings = (drlightHomePrograms.opencode or {}).settings or {};
+      drlightOpenCodeProvider = lib.attrByPath ["provider" "local-bifrost"] {} drlightOpenCodeSettings;
+      drlightOpenCodeProviderOptions = drlightOpenCodeProvider.options or {};
+      configuredBifrostProvider = (drlight.myConfig.opencode.providers or {}).local-bifrost or {};
       expectedCaddyHomepageHrefs = builtins.sort builtins.lessThan (map
         (name: "https://${caddyAppConfigs.${name}.host}")
         (builtins.filter (name: (caddyAppConfigs.${name}.homepage.enable or true)) caddyApps));
@@ -294,6 +308,7 @@
         [
           "https://grafana.home.buildingbananas.com"
           "https://jellyfin.home.buildingbananas.com"
+          "https://openchamber.home.buildingbananas.com"
         ]
         ++ expectedMediaManagerHomepageHrefs
       );
@@ -305,12 +320,14 @@
         "dashboard.home.buildingbananas.com"
         "grafana.home.buildingbananas.com"
         "jellyfin.home.buildingbananas.com"
+        "openchamber.home.buildingbananas.com"
       ];
-      expectedLocalCaddyApps = builtins.sort builtins.lessThan ["dashboard" "grafana" "jellyfin"];
+      expectedLocalCaddyApps = builtins.sort builtins.lessThan ["dashboard" "grafana" "jellyfin" "openchamber"];
       expectedLocalCaddyUpstreams = {
         dashboard = "http://127.0.0.1:8082";
         grafana = "http://127.0.0.1:3000";
         jellyfin = "http://127.0.0.1:8096";
+        openchamber = "http://127.0.0.1:3001";
       };
       actualLocalCaddyUpstreams = lib.mapAttrs (_: app: app.upstream) (drlight.myConfig.caddy.apps or {});
       mediaManagementApps = [
@@ -596,10 +613,27 @@
         ${checkEqual "Grafana uses Homepage's native widget" ["grafana"] (map (widget: widget.type or null) grafanaHomepageWidgets)}
         ${checkEqual "Grafana widget credentials come from systemd credentials" ["%d/grafana-username" "%d/grafana-password"] [grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_USERNAME or null grafanaHomepageEnvironment.HOMEPAGE_FILE_GRAFANA_PASSWORD or null]}
         ${checkEqual "Homepage loads Grafana credential files through systemd" (builtins.sort builtins.lessThan ["grafana-username:/run/secrets/grafana-username" "grafana-password:/run/secrets/grafana-password"]) (builtins.sort builtins.lessThan grafanaHomepageCredentials)}
-        ${checkEqual "Homepage exposes only local Jellyfin and Grafana" expectedLocalHomepageHrefs sortedHomepageHrefs}
-        ${checkEqual "Caddy routes only dashboard and local Jellyfin/Grafana" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
-        ${checkEqual "Caddy app configuration only includes dashboard and local Jellyfin/Grafana" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
-        ${checkEqual "Caddy proxies only to local Homepage, Grafana, and Jellyfin" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
+        ${checkEqual "Homepage links local Caddy apps and direct Tailscale media apps" expectedLocalHomepageHrefs sortedHomepageHrefs}
+        ${checkEqual "Caddy routes only configured local apps" expectedLocalCaddyRoutes (builtins.sort builtins.lessThan caddyRoutes)}
+        ${checkEqual "Caddy app configuration includes only configured local apps" expectedLocalCaddyApps (builtins.sort builtins.lessThan caddyApps)}
+        ${checkEqual "Caddy uses the configured local app upstreams" expectedLocalCaddyUpstreams actualLocalCaddyUpstreams}
+        ${checkTrue "OpenChamber system service is enabled" (openchamberService.enable or false)}
+        ${checkEqual "OpenChamber runs as the configured user" "monkey" (openchamberService.user or null)}
+        ${checkEqual "OpenChamber listener stays on loopback" "127.0.0.1" (openchamberService.host or null)}
+        ${checkEqual "OpenChamber uses a non-Grafana port" 3001 (openchamberService.port or null)}
+        ${checkEqual "OpenChamber gets its UI password through systemd credentials" "ui-password:/run/secrets/openchamber-ui-password" (openchamberSystemdServiceConfig.LoadCredential or null)}
+        ${checkEqual "OpenChamber UI password reference uses the Opnix vault" "OpenChamber UI Password/password" (openchamberUiPasswordSecret.reference or null)}
+        ${checkEqual "OpenChamber UI password is provided to the service" "/run/secrets/openchamber-ui-password" (openchamberService.uiPasswordFile or null)}
+        ${checkFalse "OpenChamber does not open its raw port globally" (builtins.elem 3001 (drlight.networking.firewall.allowedTCPPorts or []))}
+        ${checkFalse "OpenChamber does not open its raw port on the LAN interface" (builtins.elem 3001 (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []))}
+        ${checkTrue "OpenChamber Caddy route flushes SSE responses" (lib.hasInfix "flush_interval -1" openchamberVirtualHostConfig)}
+        ${checkTrue "OpenChamber Caddy route preserves private-source filtering" (lib.hasInfix "@external not remote_ip" openchamberVirtualHostConfig && lib.hasInfix "respond @external 403" openchamberVirtualHostConfig)}
+        ${checkTrue "OpenChamber Caddy hostname is published by Drlight DNS" (builtins.elem "openchamber.home.buildingbananas.com,100.89.187.92" caddyDnsRecords)}
+        ${checkTrue "Drlight enables the OpenCode role" drlight.myConfig.roles.opencode.enable}
+        ${checkEqual "Drlight OpenCode uses MegamanX over LAN" "megamanx" drlight.myConfig.llmClient.serverHost}
+        ${checkEqual "Drlight OpenCode uses Bifrost's Anthropic route" "http://megamanx:8081/anthropic/v1" (drlightOpenCodeProviderOptions.baseURL or null)}
+        ${checkEqual "Drlight OpenCode uses the Opnix-managed Bifrost virtual key" "Bifrost OpenChamber API Key/credential" (configuredBifrostProvider.onePasswordItem or null)}
+        ${checkTrue "Drlight OpenCode reads its Bifrost key from an Opnix file" (lib.hasInfix "{file:~/.config/opencode/secrets/local-bifrost-apikey}" (drlightOpenCodeProviderOptions.apiKey or ""))}
 
         if [ "$failures" -ne 0 ]; then exit 1; fi
         echo "All drlight media presentation tests passed"
