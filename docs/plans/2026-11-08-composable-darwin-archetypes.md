@@ -12,7 +12,6 @@
 
 ## Source of truth and constraints
 
-- Binding design: `docs/superpowers/specs/2026-11-08-darwin-machine-archetypes-design.md`.
 - MegamanX's current inference and supporting-tool settings are the reference when shared behavior conflicts with the older generic server profile.
 - Temporal is removed from MegamanX completely: no module import, `myConfig.temporal` enablement/UI address, or `temporal-cli` package. Do not create a Temporal archetype.
 - Preserve machine-specific differences: MegamanX's password-based SSH exception, restricted `nixbuilder` account/trusted-user configuration, Tailscale daemon keep-alive, service settings, `MegamanX` secret profile, and Opnix-routed sudo-password reference; darwin-server's Lume configuration, opt-in SSH/key-only policy, `Personal` secret profile, and deployment sudo policy.

@@ -16,7 +16,6 @@
 - Keep all operations off live hosts. Do not run `machines:deploy`, `machines:apply`, `system:switch`, `tailscale up`, or any Tailscale API call while implementing.
 - Use Jujutsu for version history. Before pre-commit Nix checks, stage new files with `git add` as required for colocated Git-flake visibility, and use `--impure` for focused local feedback. Commit source changes before final Nix flake validation; run final checks without `--impure`.
 - Never print, persist in the Nix store, or log OAuth client credentials or generated auth keys. Mock credentials and keys in tests.
-- Use the approved spec: `docs/superpowers/specs/2026-11-12-centralized-tailscale-design.md`.
 
 ## Task 1: Make the catalog the source of Tailscale enrollment policy
 
