@@ -42,7 +42,7 @@
 
   testClaudeCode = import ./test-claude-code.nix {inherit pkgs;};
   testPi = import ./test-pi.nix {inherit pkgs;};
-  testBifrost = import ./test-bifrost.nix {inherit pkgs;};
+  testBifrost = import ./test-bifrost.nix {inherit pkgs inputs;};
   testCaddy = import ./test-caddy.nix {inherit pkgs;};
   testSearxng = import ./test-searxng.nix {inherit pkgs;};
   testLume = import ./test-lume.nix {inherit pkgs;};
@@ -261,6 +261,7 @@ in
     opencode-options = testHomeManager.opencodeOptionsTest;
     opencode-custom-options = testHomeManager.opencodeCustomOptionsTest;
     opencode-bifrost-defaults = testHomeManager.opencodeBifrostDefaultsTest;
+    opencode-v2-bifrost-provider = testHomeManager.opencodeV2BifrostProviderTest;
     opencode-secret-owner = testHomeManager.opencodeSecretOwnerTest;
     opencode-provider-opnix-url = testHomeManager.opencodeProviderOpnixUrlTest;
     shell-aliases = testHomeManager.shellAliasesTest;
@@ -383,6 +384,7 @@ in
     bifrost-anthropic-config = testBifrost.bifrostAnthropicConfigTest;
     bifrost-retry-config = testBifrost.bifrostRetryConfigTest;
     bifrost-package-version = testBifrost.bifrostPackageVersionTest;
+    bifrost-session-resolver = testBifrost.bifrostSessionResolverTest;
     bifrost-tailscale-serve = testBifrost.bifrostTailscaleServeTest;
     bifrost-network-auth = testBifrost.bifrostNetworkAuthConfigTest;
 

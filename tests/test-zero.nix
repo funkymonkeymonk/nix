@@ -67,7 +67,7 @@ in {
     else let
       secrets = builtins.attrValues self.nixosConfigurations.zero.config.home-manager.users.monkey.programs.onepassword-secrets.secrets;
       expectedPaths = [
-        ".config/opencode/secrets/opencode-go-apikey"
+        ".config/opencode/secrets/megamanx-bifrost-apikey"
         ".pi/agent/secrets/opencode-go-apikey"
         ".pi/agent/secrets/typesafe_api_key"
       ];
@@ -245,23 +245,26 @@ in {
       echo "Zero hardware packages test passed"
       touch $out
     '';
-  # Test: OpenCode remains cloud-default on Zero while Pi can optionally use
-  # the remote Bifrost gateway; the OpenCode Go API key remains in 1Password.
+  # Test: OpenCode uses MegamanX Bifrost by default while Pi keeps its direct Go provider.
   zeroCloudOnlyConfigTest =
     pkgs.runCommand "test-zero-cloud-only-config"
     {}
     ''
       echo "=== Testing Zero cloud-default LLM configuration ==="
 
-      # OpenCode keeps its host-specific cloud model; Pi keeps OpenCode Go as its default.
-      ${assertContainsStr "cloud default model" "opencode-go/gpt-5.6-luna" zeroConfigText}
+      # OpenCode uses GPT-6 Luna through the MegamanX Bifrost provider.
+      ${assertContainsStr "Bifrost cloud default model" ''model = "megamanx-bifrost/opencode-go/gpt-6-luna"'' zeroConfigText}
+      ${assertContainsStr "Bifrost provider package" ''package = "@opencode/ai/providers/openai-compatible"'' zeroConfigText}
+      ${assertContainsStr "MegamanX Bifrost endpoint" ''baseURL = "http://megamanx:8081/v1"'' zeroConfigText}
+      ${assertContainsStr "Zero-specific Bifrost credential" ''onePasswordItem = "Bifrost Zero API Key/credential"'' zeroConfigText}
+      ${assertNotContainsStr "OpenCode does not use its direct Go key" ''onePasswordItem = "OpenCode Service Account - Zero/credential"'' zeroConfigText}
       ${assertNotContainsStr "Pi does not pin the old global model" ''defaultModel = "gpt-5.6-luna"'' zeroConfigText}
       # Zero does not host a local oMLX inference service.
       ${assertNotContainsStr "no local omlx service" "omlx.enable = true" zeroConfigText}
       # Legacy llmEndpoints block removed
       ${assertNotContainsStr "no llmEndpoints" "llmEndpoints" zeroConfigText}
-      # OpenCode Go service-account key wired through 1Password.
-      ${assertContainsStr "go service account item" ''onePasswordItem = "OpenCode Service Account - Zero/credential"'' zeroConfigText}
+      # Pi keeps the Go service-account key wired through 1Password.
+      ${assertContainsStr "Pi Go service-account item" ''opencodeGoOnePasswordItem = "OpenCode Service Account - Zero/credential"'' zeroConfigText}
 
       echo "Zero cloud-only config test passed"
       touch $out

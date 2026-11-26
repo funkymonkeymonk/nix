@@ -84,7 +84,7 @@
         ];
     }).config.myConfig;
 
-  opencodeHome =
+  mkOpencodeHome = myConfig:
     (lib.evalModules {
       modules = [
         {
@@ -106,12 +106,30 @@
         {
           config._module.args = {
             inherit pkgs;
-            osConfig = {myConfig = opencodeRole;};
+            osConfig = {inherit myConfig;};
           };
         }
         ../modules/home-manager/opencode.nix
       ];
     }).config;
+  opencodeHome = mkOpencodeHome opencodeRole;
+  opencodeV2Role = lib.recursiveUpdate opencodeRole {
+    opencode = {
+      model = "megamanx-bifrost/opencode-go/gpt-6-luna";
+      providers.megamanx-bifrost = {
+        name = "MegamanX Bifrost";
+        package = "@opencode/ai/providers/openai-compatible";
+        npm = null;
+        apiKey = null;
+        baseURL = "http://megamanx:8081/v1";
+        baseURLOpnixItem = "";
+        onePasswordItem = "Bifrost Zero API Key/credential";
+        dynamicModels = false;
+        models."opencode-go/gpt-6-luna".name = "GPT-6 Luna";
+      };
+    };
+  };
+  opencodeV2Home = mkOpencodeHome opencodeV2Role;
   opencodeSecretOsConfig = lib.recursiveUpdate opencodeRole {
     isDarwin = false;
     onepassword = {
@@ -426,6 +444,25 @@ in {
       echo "All OpenCode Bifrost defaults verified"
       touch $out
     '';
+
+  opencodeV2BifrostProviderTest = pkgs.runCommand "test-opencode-v2-bifrost-provider" {} ''
+    echo "=== Testing OpenCode V2 Bifrost provider ==="
+    SETTINGS=${lib.escapeShellArg (builtins.toJSON opencodeV2Home.programs.opencode.settings)}
+    ${pkgs.python3}/bin/python - "$SETTINGS" <<'PY'
+    import json
+    import sys
+
+    settings = json.loads(sys.argv[1])
+    provider = settings["providers"]["megamanx-bifrost"]
+    assert provider["package"] == "@opencode/ai/providers/openai-compatible", provider
+    assert provider["settings"]["baseURL"] == "http://megamanx:8081/v1", provider
+    assert provider["settings"]["apiKey"] == "{file:~/.config/opencode/secrets/megamanx-bifrost-apikey}", provider
+    assert provider["models"]["opencode-go/gpt-6-luna"]["name"] == "GPT-6 Luna", provider
+    assert settings["model"] == "megamanx-bifrost/opencode-go/gpt-6-luna", settings
+    assert "megamanx-bifrost" not in settings.get("provider", {}), settings
+    PY
+    touch $out
+  '';
 
   # Home Manager API-key files under the user's home must be owned by that user.
   opencodeSecretOwnerTest =

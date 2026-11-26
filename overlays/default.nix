@@ -166,10 +166,10 @@
 // (
   if inputs ? bifrost
   then {
-    # WHY: pins the UI npm dependency hash for the selected Bifrost input revision.
-    # REMOVE WHEN: the upstream flake package no longer needs this hash override.
+    # WHY: keeps the UI package pinned to the Bifrost HTTP release version and NPM hash.
+    # REMOVE WHEN: the upstream flake package reports the release version directly.
     bifrost-ui = (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-ui).overrideAttrs (oldAttrs: {
-      version = "2.5.1";
+      version = "2.6.0";
       __intentionallyOverridingVersion = true;
       npmDeps = final.fetchNpmDeps {
         inherit (oldAttrs) src sourceRoot;
@@ -178,17 +178,17 @@
       };
     });
 
-    # WHY: regenerates stale vendored module metadata in the pinned Bifrost HTTP source.
-    # REMOVE WHEN: upstream ships vendor/modules.txt matching its go.mod dependency graph.
+    # WHY: pins the HTTP package version and vendor hash to the selected Bifrost release.
+    # REMOVE WHEN: the upstream flake package reports the release version directly.
     bifrost-http =
       (inputs.bifrost.packages.${final.stdenv.hostPlatform.system}.bifrost-http.override {
         bifrost-ui = final.bifrost-ui;
       }).overrideAttrs (prev: let
-        version = "2.5.1";
+        version = "2.6.0";
       in {
         inherit version;
         __intentionallyOverridingVersion = true;
-        vendorHash = "sha256-6dQK2U2MK6EsiGLJALcz20VP2dJwB/NIGcODNeQgU6g=";
+        vendorHash = "sha256-yd/Y6H+DWCSPEEn1xFbRI2DsO7dkUkL+7tp/32wrueA=";
         patches = (prev.patches or []) ++ [../packages/bifrost/patches/model-list-limits.patch];
         ldflags = [
           "-s"
@@ -196,16 +196,6 @@
           "-X main.Version=${version}"
           "-buildid="
         ];
-        postPatch =
-          (prev.postPatch or "")
-          + ''
-            rm -rf transports/vendor
-            if ! grep -q '^github.com/mattn/go-isatty v0.0.24/go.mod ' transports/go.sum; then
-              printf '%s\\n' \\
-                'github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=' \\
-                >> transports/go.sum
-            fi
-          '';
       });
   }
   else {}

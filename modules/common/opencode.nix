@@ -80,10 +80,15 @@
     providers = lib.mkOption {
       type = lib.types.attrsOf (lib.types.submodule {
         options = {
+          package = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "OpenCode V2 provider package (e.g., @opencode/ai/providers/openai-compatible).";
+          };
           npm = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             default = null;
-            description = "NPM package for the provider (optional, e.g., @ai-sdk/openai-compatible)";
+            description = "Legacy provider package field for existing configurations; use package for OpenCode V2.";
           };
           apiKey = lib.mkOption {
             type = lib.types.nullOr lib.types.str;

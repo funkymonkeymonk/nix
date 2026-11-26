@@ -75,6 +75,8 @@ with lib; let
   hasDynamicModels = providersWithDynamicModels != {};
 
   # Build provider config with API key references (only if onePasswordItem is set)
+  legacyProviders = lib.filterAttrs (_name: provider: (provider.package or null) == null) cfg.providers;
+  v2Providers = lib.filterAttrs (_name: provider: (provider.package or null) != null) cfg.providers;
   providerConfig =
     lib.mapAttrs (
       _name: provider: let
@@ -120,7 +122,29 @@ with lib; let
       in
         baseConfig // (optionalAttrs (provider.npm != null) {inherit (provider) npm;})
     )
-    cfg.providers;
+    legacyProviders;
+
+  v2ProviderConfig =
+    lib.mapAttrs (
+      _name: provider: let
+        hasSecretApiKey = (provider.onePasswordItem or "") != "";
+        hasApiKey = hasSecretApiKey || provider.apiKey != null;
+        settings =
+          (lib.optionalAttrs (provider.baseURL != "") {inherit (provider) baseURL;})
+          // (lib.optionalAttrs hasApiKey {
+            apiKey =
+              if hasSecretApiKey
+              then "{file:~/.config/opencode/secrets/${_name}-apikey}"
+              else provider.apiKey;
+          });
+      in
+        {
+          inherit (provider) name package;
+        }
+        // (lib.optionalAttrs (settings != {}) {inherit settings;})
+        // (lib.optionalAttrs (provider.models != {}) {inherit (provider) models;})
+    )
+    v2Providers;
 
   # Transform MCP server config from our options format to opencode's expected format
   transformMcpServer = _name: server:
@@ -219,8 +243,11 @@ with lib; let
     // (optionalAttrs (cfg.disabledProviders != []) {
       disabled_providers = cfg.disabledProviders;
     })
-    // (optionalAttrs (cfg.providers != {}) {
+    // (optionalAttrs (legacyProviders != {}) {
       provider = providerConfig;
+    })
+    // (optionalAttrs (v2Providers != {}) {
+      providers = v2ProviderConfig;
     })
     // (optionalAttrs (cfg.agents != {}) {
       agent = agentConfig;

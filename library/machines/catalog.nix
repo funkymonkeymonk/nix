@@ -305,6 +305,14 @@
                 group = "staff";
                 services = ["com.bifrost.service"];
               };
+              bifrostZeroApiKey = {
+                reference = "Bifrost Zero API Key/credential";
+                path = "/var/run/bifrost-zero-api-key";
+                mode = "0400";
+                owner = "monkey";
+                group = "staff";
+                services = ["com.bifrost.service"];
+              };
             };
           };
           ssh.enable = true;
@@ -350,6 +358,7 @@
             logLevel = "debug";
             auth = {
               enable = true;
+              disableAuthOnInference = true;
               adminUsernameFile = "/var/run/bifrost-admin-username";
               adminPasswordFile = "/var/run/bifrost-admin-password";
               setupTokenFile = "/var/run/bifrost-setup-token";
@@ -358,6 +367,12 @@
                 name = "OpenChamber";
                 valueFile = "/var/run/bifrost-openchamber-api-key";
                 providers = ["omlx" "opencode-go"];
+              };
+              additionalVirtualKeys.zero = {
+                id = "zero-opencode";
+                name = "Zero OpenCode";
+                valueFile = "/var/run/bifrost-zero-api-key";
+                providers = ["opencode-go"];
               };
             };
             modelMetadata."omlx/qwen3.8-27b" = {

@@ -62,8 +62,14 @@ or changing a `myConfig.*` option.
 |--------|------|---------|-------------|
 | `appDir` | string | `"$HOME/.config/bifrost"` | Directory for Bifrost data (config.json, SQLite DB, request logs) |
 | `auth` | submodule | `{ }` | Bifrost dashboard and inference authentication, populated from runtime secret files. |
+| `auth.additionalVirtualKeys` | attribute set of (submodule) | `{ }` | Additional inference virtual keys keyed by a safe environment-variable suffix. |
+| `auth.additionalVirtualKeys.<name>.id` | string | *required* | Stable Bifrost virtual-key ID. |
+| `auth.additionalVirtualKeys.<name>.name` | string | *required* | Human-readable Bifrost virtual-key name. |
+| `auth.additionalVirtualKeys.<name>.providers` | list of string | `[ ]` | Bifrost providers permitted for this virtual key. |
+| `auth.additionalVirtualKeys.<name>.valueFile` | string | *required* | Runtime file containing the virtual-key value. |
 | `auth.adminPasswordFile` | null or string | `null` | Runtime file containing the Bifrost dashboard/admin password. |
 | `auth.adminUsernameFile` | null or string | `null` | Runtime file containing the Bifrost dashboard/admin username. |
+| `auth.disableAuthOnInference` | boolean | `false` | Skip HTTP authentication on inference routes. Keep client.enforce_auth_on_inference enabled to require virtual keys. |
 | `auth.enable` | boolean | `false` | Enable Bifrost dashboard authentication and inference virtual-key enforcement. |
 | `auth.setupTokenFile` | null or string | `null` | Runtime file containing the first-admin setup token, exported as BIFROST_SETUP_TOKEN. |
 | `auth.virtualKey` | null or (submodule) | `null` | Optional inference virtual key, required when auth.enable is true. |
@@ -414,8 +420,9 @@ or changing a `myConfig.*` option.
 | `providers.<name>.models` | attribute set of (submodule) | `{ }` | Available models for this provider |
 | `providers.<name>.models.<name>.name` | string | *required* | Display name of the model |
 | `providers.<name>.name` | string | *required* | Display name of the provider |
-| `providers.<name>.npm` | null or string | `null` | NPM package for the provider (optional, e.g., @ai-sdk/openai-compatible) |
+| `providers.<name>.npm` | null or string | `null` | Legacy provider package field for existing configurations; use package for OpenCode V2. |
 | `providers.<name>.onePasswordItem` | string | `""` | 1Password item reference (e.g., 'op://vault/item/field') to retrieve API key from 1Password CLI |
+| `providers.<name>.package` | null or string | `null` | OpenCode V2 provider package (e.g., @opencode/ai/providers/openai-compatible). |
 | `theme` | string | `"system"` | UI theme for opencode |
 
 ### myConfig.pi

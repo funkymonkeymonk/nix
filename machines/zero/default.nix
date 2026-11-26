@@ -96,15 +96,16 @@ in {
         };
       };
 
-      # Cloud-only LLM access via OpenCode Go (falls back to OpenCode Zen).
-      # Mirrors the MegamanX setup: no local models on this machine.
+      # Route OpenCode through MegamanX's authenticated Bifrost gateway.
       opencode = {
-        model = "opencode-go/gpt-5.6-luna";
-        # Replace the role's local model default with the cloud provider.
+        model = "megamanx-bifrost/opencode-go/gpt-6-luna";
         providers = lib.mkForce {
-          "opencode-go" = {
-            name = "OpenCode Go";
-            onePasswordItem = "OpenCode Service Account - Zero/credential";
+          megamanx-bifrost = {
+            name = "MegamanX Bifrost";
+            package = "@opencode/ai/providers/openai-compatible";
+            baseURL = "http://megamanx:8081/v1";
+            onePasswordItem = "Bifrost Zero API Key/credential";
+            models."opencode-go/gpt-6-luna".name = "GPT-6 Luna";
           };
         };
       };

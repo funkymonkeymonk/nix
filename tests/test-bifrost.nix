@@ -1,6 +1,10 @@
 # Bifrost AI gateway option tests
 # Validates option defaults, custom values, and generated provider config
-{pkgs, ...}: let
+{
+  pkgs,
+  inputs ? {},
+  ...
+}: let
   inherit (pkgs) lib;
   stubs = import ./stubs.nix {inherit pkgs;};
 
@@ -99,6 +103,7 @@
             };
             auth = {
               enable = true;
+              disableAuthOnInference = true;
               adminUsernameFile = "/run/secrets/bifrost-admin-username";
               adminPasswordFile = "/run/secrets/bifrost-admin-password";
               setupTokenFile = "/run/secrets/bifrost-setup-token";
@@ -107,6 +112,12 @@
                 name = "OpenChamber";
                 valueFile = "/run/secrets/bifrost-openchamber-api-key";
                 providers = ["omlx" "opencode-go"];
+              };
+              additionalVirtualKeys.zero = {
+                id = "zero-opencode";
+                name = "Zero OpenCode";
+                valueFile = "/run/secrets/bifrost-zero-api-key";
+                providers = ["opencode-go"];
               };
             };
           };
@@ -298,12 +309,17 @@ in {
 
   # Confirm overlay package metadata matches the pinned upstream transport.
   bifrostPackageVersionTest = pkgs.runCommand "test-bifrost-package-version" {} ''
-    test "${pkgs.bifrost-http.version}" = "2.5.1"
-    if ${lib.boolToString (builtins.elem "-X main.Version=2.5.1" pkgs.bifrost-http.drvAttrs.ldflags)}; then
-      echo "Bifrost binary version linker flag is 2.5.1: OK"
+    test "${pkgs.bifrost-http.version}" = "2.6.0"
+    if ${lib.boolToString (builtins.elem "-X main.Version=2.6.0" pkgs.bifrost-http.drvAttrs.ldflags)}; then
+      echo "Bifrost binary version linker flag is 2.6.0: OK"
     else
-      echo "FAIL: Bifrost binary version linker flag must be 2.5.1"; exit 1
+      echo "FAIL: Bifrost binary version linker flag must be 2.6.0"; exit 1
     fi
+    touch $out
+  '';
+
+  bifrostSessionResolverTest = pkgs.runCommand "test-bifrost-session-resolver" {} ''
+    ${pkgs.gnugrep}/bin/grep -q "ResolveOpencodeSession" "${inputs.bifrost.outPath}/core/providers/opencode/utils.go"
     touch $out
   '';
 
@@ -420,20 +436,29 @@ in {
     assert config["client"]["enforce_auth_on_inference"] is True, config
     auth = config["governance"]["auth_config"]
     assert auth["is_enabled"] is True, auth
-    assert auth["disable_auth_on_inference"] is False, auth
+    assert auth["disable_auth_on_inference"] is True, auth
     assert auth["admin_username"] == "env.BIFROST_ADMIN_USERNAME", auth
     assert auth["admin_password"] == "env.BIFROST_ADMIN_PASSWORD", auth
 
     assert set(config["providers"]) == {"omlx", "opencode-go"}, config["providers"]
     assert config["providers"]["opencode-go"]["keys"][0]["value"] == "env.BIFROST_OPENCODE_GO_API_KEY"
 
-    key = config["governance"]["virtual_keys"][0]
-    assert key["id"] == "openchamber", key
-    assert key["name"] == "OpenChamber", key
-    assert key["value"] == "env.BIFROST_OPENCHAMBER_API_KEY", key
-    assert key["is_active"] is True, key
-    assert {entry["provider"] for entry in key["provider_configs"]} == {"omlx", "opencode-go"}, key
-    assert all(entry["allowed_models"] == ["*"] and entry["key_ids"] == ["*"] for entry in key["provider_configs"]), key
+    keys = {key["id"]: key for key in config["governance"]["virtual_keys"]}
+    assert set(keys) == {"openchamber", "zero-opencode"}, keys
+
+    openchamber_key = keys["openchamber"]
+    assert openchamber_key["name"] == "OpenChamber", openchamber_key
+    assert openchamber_key["value"] == "env.BIFROST_OPENCHAMBER_API_KEY", openchamber_key
+    assert openchamber_key["is_active"] is True, openchamber_key
+    assert {entry["provider"] for entry in openchamber_key["provider_configs"]} == {"omlx", "opencode-go"}, openchamber_key
+    assert all(entry["allowed_models"] == ["*"] and entry["key_ids"] == ["*"] for entry in openchamber_key["provider_configs"]), openchamber_key
+
+    zero_key = keys["zero-opencode"]
+    assert zero_key["name"] == "Zero OpenCode", zero_key
+    assert zero_key["value"] == "env.BIFROST_VIRTUAL_KEY_ZERO_API_KEY", zero_key
+    assert zero_key["is_active"] is True, zero_key
+    assert {entry["provider"] for entry in zero_key["provider_configs"]} == {"opencode-go"}, zero_key
+    assert all(entry["allowed_models"] == ["*"] and entry["key_ids"] == ["*"] for entry in zero_key["provider_configs"]), zero_key
     assert "BIFROST_SETUP_TOKEN" in script, script
 
     for path in (
@@ -441,11 +466,13 @@ in {
         "/run/secrets/bifrost-admin-password",
         "/run/secrets/bifrost-setup-token",
         "/run/secrets/bifrost-openchamber-api-key",
+        "/run/secrets/bifrost-zero-api-key",
         "/run/secrets/opencode-go-api-key",
     ):
         assert path in script, path
 
     assert "FIXTURE_UPSTREAM_KEY_MUST_NOT_LEAK" not in script, script
+    assert "FIXTURE_ZERO_KEY_MUST_NOT_LEAK" not in script, script
     PY
 
     echo "Bifrost inference/admin auth and existing providers are declarative: OK"

@@ -142,6 +142,8 @@
     && !(megamanxConfig.launchd.daemons ? tailscale-serve-bifrost);
   megamanxBifrostAuth = megamanxConfig.myConfig.bifrost.auth;
   megamanxBifrostSecrets = megamanxConfig.myConfig.onepassword.secrets;
+  megamanxBifrostZeroKey = lib.attrByPath ["additionalVirtualKeys" "zero"] {} megamanxBifrostAuth;
+  megamanxBifrostZeroSecret = megamanxBifrostSecrets.bifrostZeroApiKey or {};
   megamanxBifrostLanAuthValid =
     !(megamanxConfig.myConfig.tailscale.enable or false)
     && megamanxConfig.myConfig.bifrost.host == "0.0.0.0"
@@ -149,13 +151,20 @@
     && megamanxBifrostAuth.adminUsernameFile == "/var/run/bifrost-admin-username"
     && megamanxBifrostAuth.adminPasswordFile == "/var/run/bifrost-admin-password"
     && megamanxBifrostAuth.setupTokenFile == "/var/run/bifrost-setup-token"
+    && (megamanxBifrostAuth.disableAuthOnInference or false)
     && megamanxBifrostAuth.virtualKey.valueFile == "/var/run/bifrost-openchamber-api-key"
     && megamanxBifrostAuth.virtualKey.providers == ["omlx" "opencode-go"]
+    && (megamanxBifrostZeroKey.id or null) == "zero-opencode"
+    && (megamanxBifrostZeroKey.name or null) == "Zero OpenCode"
+    && (megamanxBifrostZeroKey.valueFile or null) == "/var/run/bifrost-zero-api-key"
+    && (megamanxBifrostZeroKey.providers or []) == ["opencode-go"]
     && megamanxConfig.myConfig.onepassword.defaultVault == "Opnix"
     && megamanxBifrostSecrets.bifrostAdminUsername.reference == "Bifrost Admin Username/username"
     && megamanxBifrostSecrets.bifrostAdminPassword.reference == "Bifrost Admin Password/password"
     && megamanxBifrostSecrets.bifrostSetupToken.reference == "Bifrost Setup Token/credential"
-    && megamanxBifrostSecrets.bifrostOpenChamberApiKey.reference == "Bifrost OpenChamber API Key/credential";
+    && megamanxBifrostSecrets.bifrostOpenChamberApiKey.reference == "Bifrost OpenChamber API Key/credential"
+    && (megamanxBifrostZeroSecret.reference or null) == "Bifrost Zero API Key/credential"
+    && (megamanxBifrostZeroSecret.path or null) == "/var/run/bifrost-zero-api-key";
 
   darwinScriptChecks =
     if pkgs.stdenv.hostPlatform.isDarwin
