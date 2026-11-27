@@ -274,7 +274,7 @@
             sudoPasswordRef = "MegamanX Sudo Password/password";
             secrets = {
               bifrostAdminUsername = {
-                reference = "Bifrost Admin Username/username";
+                reference = "Bifrost Admin/username";
                 path = "/var/run/bifrost-admin-username";
                 mode = "0400";
                 owner = "monkey";
@@ -282,7 +282,7 @@
                 services = ["com.bifrost.service"];
               };
               bifrostAdminPassword = {
-                reference = "Bifrost Admin Password/password";
+                reference = "Bifrost Admin/password";
                 path = "/var/run/bifrost-admin-password";
                 mode = "0400";
                 owner = "monkey";
