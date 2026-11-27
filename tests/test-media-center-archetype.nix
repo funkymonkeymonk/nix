@@ -141,6 +141,10 @@
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.cleanup.enable = lib.mkForce false;}];
         }).config;
+      drlightWithSpaceGuardWithoutStaging =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.ultraMediaDownloadStage.enable = lib.mkForce false;}];
+        }).config;
       drlightWithSpaceGuardWithoutRemoteDisk =
         (self.nixosConfigurations.drlight.extendModules {
           modules = [{myConfig.ultraMediaDownloadStage.remoteDisk.enable = lib.mkForce false;}];
@@ -220,6 +224,7 @@
       drlightAssertionResults = map (assertion: assertion.assertion) drlight.assertions;
       invalidSpaceGuardThresholdAssertionResults = map (assertion: assertion.assertion) drlightWithInvalidSpaceGuardThresholds.assertions;
       spaceGuardCleanupAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutCleanup.assertions;
+      spaceGuardStagingAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutStaging.assertions;
       spaceGuardRemoteDiskAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutRemoteDisk.assertions;
       ultraRemoteDiskConfig = drlight.myConfig.ultraMediaDownloadStage.remoteDisk or {};
       ultraRemoteDiskMetricsDirectory = "/run/ultra-media-metrics";
@@ -877,6 +882,7 @@
             ${checkTrue "quota guard command passes live-quota and Transmission secret paths" (lib.hasInfix "ultra_media_space_guard.py" ultraSpaceGuardCommand && lib.hasInfix "--rpc-url /run/secrets/ultra-media-stage-rpc-url" ultraSpaceGuardCommand && lib.hasInfix "--ssh-host /run/secrets/ultra-media-stage-host" ultraSpaceGuardCommand && lib.hasInfix "--pause-at-bytes 3800000000000" ultraSpaceGuardCommand && lib.hasInfix "--resume-below-bytes 3500000000000" ultraSpaceGuardCommand)}
             ${checkTrue "inverted quota guard thresholds add a validation failure" (builtins.length (builtins.filter (valid: !valid) invalidSpaceGuardThresholdAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
             ${checkTrue "quota guard requires automatic cleanup" (builtins.length (builtins.filter (valid: !valid) spaceGuardCleanupAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "quota guard requires the hourly staging timer" (builtins.length (builtins.filter (valid: !valid) spaceGuardStagingAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
             ${checkTrue "quota guard requires live remote-disk monitoring" (builtins.length (builtins.filter (valid: !valid) spaceGuardRemoteDiskAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
             ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
