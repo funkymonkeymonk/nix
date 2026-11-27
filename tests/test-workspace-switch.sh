@@ -284,21 +284,14 @@ mkdir -p "$MAIN_FLAKE_ROOT" "$WORKSPACE_FLAKE_ROOT" "$INVALID_FLAKE_ROOT"
 : > "$MAIN_FLAKE_ROOT/flake.nix"
 : > "$WORKSPACE_FLAKE_ROOT/flake.nix"
 
-MOCK_BIN_DIR="$TMPDIR/mock-bin"
-mkdir -p "$MOCK_BIN_DIR"
 JJ_MOCK_ARGS_FILE="$TMPDIR/jj-args"
 JJ_MOCK_REV="0123456789abcdef0123456789abcdef01234567"
 export JJ_MOCK_ARGS_FILE JJ_MOCK_REV
 : > "$JJ_MOCK_ARGS_FILE"
-cat > "$MOCK_BIN_DIR/jj" <<'MOCK_JJ'
-#!/usr/bin/env bash
-set -euo pipefail
-printf '%s\n' "$@" > "$JJ_MOCK_ARGS_FILE"
-printf '%s\n' "$JJ_MOCK_REV"
-MOCK_JJ
-chmod +x "$MOCK_BIN_DIR/jj"
-PATH="$MOCK_BIN_DIR:$PATH"
-export PATH
+jj() {
+  printf '%s\n' "$@" > "$JJ_MOCK_ARGS_FILE"
+  printf '%s\n' "$JJ_MOCK_REV"
+}
 
 JJ_WORKSPACE_ROOT="$WORKSPACE_FLAKE_ROOT"
 JJ_REPO_ROOT="$MAIN_FLAKE_ROOT"
