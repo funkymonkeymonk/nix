@@ -428,6 +428,12 @@ def run_guard_cycle(
 
     pause_hashes = decision["pause_hashes"]
     resume_hashes = decision["resume_hashes"]
+    if pause_hashes:
+        intent_state = dict(state)
+        intent_state["active"] = decision["active"]
+        intent_state["paused_hashes"] = decision["paused_hashes"]
+        save_guard_state(state_path, intent_state)
+        state = intent_state
     try:
         if pause_hashes:
             transmission_rpc.stop_torrents(pause_hashes)

@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     import ultra_media_space_guard as guard
@@ -426,6 +427,26 @@ class SpaceGuardPolicyTests(unittest.TestCase):
             self.assertEqual(result["status"], "state_invalid")
             self.assertEqual(rpc.started, [])
             self.assertEqual(rpc.stopped, [])
+
+    def test_state_write_failure_prevents_stopping_downloads(self):
+        runner = self.require_function("run_guard_cycle")
+        if runner is None:
+            return
+        rpc = FakeTransmissionRPC([torrent("A" * 40, 4, False)])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(guard, "save_guard_state", side_effect=OSError("state unavailable")):
+                with self.assertRaises(OSError):
+                    runner(
+                        lambda: {"used_bytes": PAUSE_AT},
+                        rpc,
+                        root / "state.json",
+                        root / "guard.prom",
+                        pause_at_bytes=PAUSE_AT,
+                        resume_below_bytes=RESUME_BELOW,
+                        sample_timestamp_seconds=1_800_000_000,
+                    )
+        self.assertEqual(rpc.stopped, [])
 
     def test_run_cycle_probe_failure_never_starts_guard_owned_torrents(self):
         runner = self.require_function("run_guard_cycle")
