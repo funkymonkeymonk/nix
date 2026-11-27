@@ -1,15 +1,16 @@
-"""Read-only Transmission RPC transport and metadata normalization.
+"""Transmission RPC transport and metadata normalization.
 
-This module deliberately exposes no torrent-removal operation. File mapping is
-not established here, so normalized file-safety facts remain false until a
-separate verifier proves them.
+The client exposes read operations, explicit quota-guard stop/start actions,
+and retention cleanup removal. File mapping is not established here, so
+normalized file-safety facts remain false until a separate verifier proves
+them.
 """
 
 import json
 import math
 import re
 from numbers import Real
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPBasicAuthHandler, HTTPPasswordMgrWithDefaultRealm, Request, build_opener
@@ -26,6 +27,7 @@ BASE_TORRENT_FIELDS = (
     "trackers",
     "files",
 )
+TORRENT_HASH_PATTERN = re.compile(r"[0-9a-fA-F]{40}")
 
 
 def torrent_fields_for_rpc_version(rpc_version: int) -> tuple[str, ...]:
@@ -51,7 +53,7 @@ class TransmissionRPCError(RuntimeError):
 
 
 class TransmissionRPC:
-    """Client for the read-only Transmission RPC operations used by retention."""
+    """Client for the narrowly scoped Transmission RPC operations we require."""
 
     def __init__(
         self,
@@ -84,10 +86,12 @@ class TransmissionRPC:
         arguments: Mapping[str, Any] | None = None,
         *,
         allow_torrent_removal: bool = False,
+        allow_torrent_control: bool = False,
     ) -> dict[str, Any]:
         read_only_method = method in ("session-get", "torrent-get")
         authorized_removal = method == "torrent-remove" and allow_torrent_removal
-        if not read_only_method and not authorized_removal:
+        authorized_control = method in ("torrent-stop", "torrent-start") and allow_torrent_control
+        if not read_only_method and not authorized_removal and not authorized_control:
             raise TransmissionRPCError("Transmission RPC operation is not allowed")
         request_arguments = dict(arguments or {})
         for _attempt in range(2):
@@ -124,7 +128,7 @@ class TransmissionRPC:
         return self._rpc("session-get")
 
     def get_torrents(self) -> list[dict[str, Any]]:
-        """Fetch and normalize torrent state using only the documented get method."""
+        """Fetch and normalize torrent state using the documented get methods."""
         session = self.get_session()
         fields = torrent_fields_for_rpc_version(session.get("rpc-version"))
         response = self._rpc("torrent-get", {"fields": list(fields)})
@@ -132,6 +136,27 @@ class TransmissionRPC:
         if not isinstance(torrents, list):
             raise TransmissionRPCError("Transmission RPC torrent response is malformed")
         return [normalize_torrent(torrent, self._tracker_classifier) for torrent in torrents]
+
+    @staticmethod
+    def _validated_torrent_hashes(hashes: Sequence[str]) -> list[str]:
+        if (
+            not isinstance(hashes, Sequence)
+            or isinstance(hashes, (str, bytes))
+            or not hashes
+            or any(not isinstance(value, str) or TORRENT_HASH_PATTERN.fullmatch(value) is None for value in hashes)
+        ):
+            raise ValueError("Transmission torrent hashes must be a non-empty list of 40-hex hashes")
+        return list(hashes)
+
+    def stop_torrents(self, hashes: Sequence[str]) -> None:
+        """Stop only the explicitly named torrents selected by the quota guard."""
+        ids = self._validated_torrent_hashes(hashes)
+        self._rpc("torrent-stop", {"ids": ids}, allow_torrent_control=True)
+
+    def start_torrents(self, hashes: Sequence[str]) -> None:
+        """Start only the explicitly named torrents previously paused by the guard."""
+        ids = self._validated_torrent_hashes(hashes)
+        self._rpc("torrent-start", {"ids": ids}, allow_torrent_control=True)
 
     def remove_torrent(self, torrent_id: int, *, delete_local_data: bool) -> None:
         """Remove one verified torrent and its payload through Transmission RPC."""
@@ -248,6 +273,10 @@ def normalize_torrent(
     if not _is_finite_number(torrent_ratio):
         torrent_ratio = None
 
+    status = torrent.get("status")
+    if not isinstance(status, int) or isinstance(status, bool) or status not in range(7):
+        status = None
+
     tracker_details = _tracker_details(torrent)
     classifier = tracker_classifier or (lambda _host: "unknown")
     policy_trackers = []
@@ -300,6 +329,7 @@ def normalize_torrent(
 
     return {
         "id": torrent_id,
+        "status": status,
         "download_id": (
             torrent["hashString"].upper()
             if isinstance(torrent.get("hashString"), str)

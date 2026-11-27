@@ -1130,7 +1130,7 @@ def _probe_remote_disk_usage_from_runtime(
     ssh_port: Any = 22,
     process_runner: Callable[..., Any] = subprocess.run,
 ) -> dict[str, int] | None:
-    """Read account-level disk usage over the existing strict SSH credentials."""
+    """Read live account quota usage over the existing strict SSH credentials."""
     try:
         staging = _load_runtime_module(
             "ultra_media_download_stage", "ultra-media-download-stage.py"

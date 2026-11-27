@@ -16,14 +16,17 @@
   cleanupQueueRoot = "/var/lib/ultra-media/cleanup-queue";
   sshPort = 22;
   stageCfg = config.myConfig.ultraMediaDownloadStage;
-  stageServices = ["ultra-media-download-stage"];
+  stageServices = ["ultra-media-download-stage" "ultra-media-space-guard"];
   cleanupEnabled = stageCfg.cleanup.enable or false;
   remoteDiskConfig = stageCfg.remoteDisk;
   remoteDiskEnabled = remoteDiskConfig.enable;
   cleanupConfig = stageCfg.cleanup;
+  spaceGuardConfig = stageCfg.spaceGuard;
+  spaceGuardEnabled = spaceGuardConfig.enable;
   remoteDiskMetricsDirectory = "/run/ultra-media-metrics";
   remoteDiskMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox.prom";
   syncMetricsPath = "${remoteDiskMetricsDirectory}/ultra-media-sync.prom";
+  spaceGuardMetricsPath = "${remoteDiskMetricsDirectory}/ultra-seedbox-space-guard.prom";
   mediaApiKeyPath = name: "/run/media-app-api-keys/${name}";
   radarrUrl = "http://127.0.0.1:${toString config.services.radarr.settings.server.port}/api/v3";
   sonarrUrl = "http://127.0.0.1:${toString config.services.sonarr.settings.server.port}/api/v3";
@@ -89,6 +92,19 @@ in {
             description = "Remote seedbox storage warning threshold in bytes.";
           };
         };
+        spaceGuard = {
+          enable = lib.mkEnableOption "pause Transmission downloads while seedbox quota is high";
+          pauseAtBytes = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 3800000000000;
+            description = "Account quota usage in decimal bytes at which incomplete downloads are paused.";
+          };
+          resumeBelowBytes = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 3500000000000;
+            description = "Account quota usage in decimal bytes below which guard-paused downloads resume.";
+          };
+        };
       };
     })
   ];
@@ -115,6 +131,22 @@ in {
     {
       assertion = !remoteDiskEnabled || remoteDiskConfig.warningThresholdBytes <= remoteDiskConfig.capacityBytes;
       message = "Ultra remote disk warning threshold must not exceed the configured capacity";
+    }
+    {
+      assertion = !spaceGuardEnabled || cleanupEnabled;
+      message = "Ultra quota guard requires automatic cleanup to be enabled";
+    }
+    {
+      assertion = !spaceGuardEnabled || stageCfg.enable;
+      message = "Ultra quota guard requires completed-download staging to be enabled";
+    }
+    {
+      assertion = !spaceGuardEnabled || remoteDiskEnabled;
+      message = "Ultra quota guard requires remote disk monitoring to be enabled";
+    }
+    {
+      assertion = !spaceGuardEnabled || (spaceGuardConfig.resumeBelowBytes < spaceGuardConfig.pauseAtBytes && spaceGuardConfig.pauseAtBytes <= remoteDiskConfig.capacityBytes);
+      message = "Ultra quota guard thresholds must satisfy resumeBelowBytes < pauseAtBytes <= remoteDisk.capacityBytes";
     }
   ];
   users.users.node-exporter.extraGroups = lib.optionals remoteDiskEnabled ["ultra-media-metrics"];
@@ -208,6 +240,62 @@ in {
       AccuracySec = "1min";
       DeferReactivation = true;
       Unit = "ultra-media-download-stage.service";
+    };
+  };
+
+  systemd.services.ultra-media-space-guard = lib.mkIf spaceGuardEnabled {
+    description = "Pause Ultra downloads before the account quota is exhausted";
+    after = ["network-online.target" "opnix-secrets.service"];
+    wants = ["network-online.target"];
+    requires = ["opnix-secrets.service"];
+    serviceConfig = {
+      Type = "oneshot";
+      User = "ultra-sync";
+      Group = "users";
+      SupplementaryGroups = ["media-management-secrets" "ultra-media-metrics"];
+      UMask = "0077";
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      NoNewPrivileges = true;
+      PrivateTmp = true;
+      RestrictAddressFamilies = ["AF_INET" "AF_INET6" "AF_UNIX"];
+      RuntimeDirectory = "ultra-media-space-guard";
+      RuntimeDirectoryMode = "0700";
+      StateDirectory = "ultra-media-space-guard";
+      StateDirectoryMode = "0700";
+      ReadWritePaths = [remoteDiskMetricsDirectory];
+      TimeoutStartSec = "90s";
+    };
+    environment.TMPDIR = "/run/ultra-media-space-guard";
+    script = ''
+      set -euo pipefail
+      export PYTHONPATH=${./scripts}
+      exec ${pkgs.python3}/bin/python ${./scripts/ultra_media_space_guard.py} \
+        --rpc-url ${lib.escapeShellArg rpcUrlPath} \
+        --rpc-username ${lib.escapeShellArg rpcUsernamePath} \
+        --rpc-password ${lib.escapeShellArg rpcPasswordPath} \
+        --ssh-host ${lib.escapeShellArg hostPath} \
+        --ssh-username ${lib.escapeShellArg usernamePath} \
+        --known-hosts ${lib.escapeShellArg knownHostsPath} \
+        --ssh-key ${lib.escapeShellArg keyPath} \
+        --ssh-port ${toString sshPort} \
+        --ssh ${pkgs.openssh}/bin/ssh \
+        --ssh-keygen ${pkgs.openssh}/bin/ssh-keygen \
+        --state-file /var/lib/ultra-media-space-guard/state.json \
+        --metrics-path ${lib.escapeShellArg spaceGuardMetricsPath} \
+        --pause-at-bytes ${toString spaceGuardConfig.pauseAtBytes} \
+        --resume-below-bytes ${toString spaceGuardConfig.resumeBelowBytes}
+    '';
+  };
+
+  systemd.timers.ultra-media-space-guard = {
+    wantedBy = lib.optionals spaceGuardEnabled ["timers.target"];
+    timerConfig = {
+      OnBootSec = "1min";
+      OnUnitActiveSec = "1min";
+      AccuracySec = "10s";
+      DeferReactivation = true;
+      Unit = "ultra-media-space-guard.service";
     };
   };
 }
