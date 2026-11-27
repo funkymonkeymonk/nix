@@ -243,11 +243,13 @@ done
 : > "$BIFROST_VK_OP_LOG"
 : > "$BIFROST_VK_OPENSSL_LOG"
 : > "$BIFROST_VK_NIX_LOG"
-if run_task_exec "$BIFROST_VK_GENERIC_TASK_EXEC_SCRIPT" '{"keyName":"OpenChamber\nInjected","confirm":true}' >"$tmp/task-unsafe-name.out" 2>"$tmp/task-unsafe-name.err"; then
-  echo 'generic task unexpectedly accepted a newline-containing key name' >&2
-  exit 1
-fi
-[[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" && ! -s "$BIFROST_VK_NIX_LOG" ]]
+for unsafe_input in '{"keyName":"OpenChamber\nInjected","confirm":true}' '{"keyName":"OpenChamber\n","confirm":true}'; do
+  if run_task_exec "$BIFROST_VK_GENERIC_TASK_EXEC_SCRIPT" "$unsafe_input" >"$tmp/task-unsafe-name.out" 2>"$tmp/task-unsafe-name.err"; then
+    echo 'generic task unexpectedly accepted a newline-containing key name' >&2
+    exit 1
+  fi
+  [[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" && ! -s "$BIFROST_VK_NIX_LOG" ]]
+done
 
 # The same task uses the configured default vault, not a hard-coded Opnix value.
 rm -f "$BIFROST_VK_CAPTURE"
