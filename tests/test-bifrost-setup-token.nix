@@ -8,7 +8,8 @@
   task = devenvConfig.tasks."secrets:create-bifrost-setup-token" or {};
   taskExec = task.exec or "";
   taskValid =
-    lib.attrByPath ["input" "confirm"] null task == false
+    lib.attrByPath ["input" "confirm"] null task
+    == false
     && lib.hasInfix "jq -e '.confirm == true'" taskExec
     && lib.hasInfix "create-bifrost-setup-token.sh --confirm" taskExec;
   taskExecScript = pkgs.writeText "bifrost-setup-token-task-exec.sh" (lib.replaceStrings ["${pkgs.openssl}/bin/openssl"] ["openssl"] taskExec);

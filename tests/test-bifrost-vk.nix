@@ -10,7 +10,8 @@
   genericTaskExec = genericTask.exec or "";
   zeroTaskExec = zeroTask.exec or "";
   taskValid =
-    lib.attrByPath ["input" "confirm"] null genericTask == false
+    lib.attrByPath ["input" "confirm"] null genericTask
+    == false
     && lib.attrByPath ["input" "keyName"] null genericTask == ""
     && lib.hasInfix "DEVENV_TASK_INPUT" genericTaskExec
     && lib.hasInfix "jq -e '.confirm == true'" genericTaskExec
