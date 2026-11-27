@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Generalize Bifrost virtual-key creation by name, create its setup-token item, and align MegamanX's admin references with the Login item now in Opnix.
+**Goal:** Generalize Bifrost virtual-key creation by name, create the missing setup-token item, and align MegamanX's admin references with the Login item now in Opnix.
 
 **Architecture:** Rename the Zero-specific helper to `scripts/create-bifrost-vk.sh`, accept a validated `--key-name`, and retain the Zero task as a compatibility alias. Add a separate `scripts/create-bifrost-setup-token.sh` because setup tokens are not `sk-bf-` virtual keys. Update MegamanX's admin references to the moved `Bifrost Admin` Login item, keeping references unqualified and Opnix as the default vault.
 
@@ -26,7 +26,7 @@
 
 - Empty, whitespace-only, and newline-containing key names must fail before Nix/OpenSSL/1Password calls; test in Task 1, Step 1.
 - `keyName=OpenChamber` must create `Bifrost OpenChamber API Key`; test in Task 1, Step 1.
-- The Zero compatibility task must still create `Bifrost Zero API Key`; test in Task 1, Step 1.
+- The Zero compatibility task must still produce `Bifrost Zero API Key`; test in Task 1, Step 1.
 - The setup token must be exactly 64 lowercase hex characters without an `sk-bf-` prefix; test in Task 2, Step 1.
 - MegamanX admin references must use the moved Login item's username/password fields; test in Task 2, Step 1.
 - Confirmation failure, duplicate active/archived items, CLI errors, cleanup, and secret-output/environment protection must remain covered; test in Tasks 1 and 2, Step 1.
@@ -69,7 +69,7 @@
 **Interfaces:**
 - Task: `devenv tasks run secrets:create-bifrost-setup-token --input confirm=true`.
 - Script CLI: `scripts/create-bifrost-setup-token.sh --confirm`.
-- MegamanX references the moved Login item as `Bifrost Admin/username` and `Bifrost Admin/password`; the shared helper prefixes `Opnix`.
+- MegamanX references the moved Login item as `Bifrost Admin/username` and `Bifrost Admin/password`; the shared helper prefixes Opnix.
 
 - [ ] **Step 1: Write failing tests and register the check.** Assert the catalog uses the moved admin fields. Add mocked setup-token tests verifying confirmation, title `Bifrost Setup Token`, `API_CREDENTIAL` category, concealed `credential`, 64 lowercase hex characters without a prefix, duplicate/archived refusal, secure modes, cleanup, no output/environment leak, and CLI failure handling. Register `bifrost-setup-token` in `tests/default.nix`.
 - [ ] **Step 2: Run focused checks and confirm RED.** Run `nix build .#checks.x86_64-linux.bifrost-setup-token --no-link --impure` and `nix build .#checks.x86_64-linux.tailscale-darwin-autoconnect --no-link --impure`. Expected: FAIL because the setup-token task and admin-reference changes are absent.
@@ -81,9 +81,9 @@
 
 ### Task 3: Create the Opnix items and apply the reviewed MegamanX configuration
 
-**Files:** No additional tracked files; the tasks create the Opnix items and a reviewed machine plan activates the committed configuration.
+**Files:** No additional tracked files; the tasks create the Opnix items and a new plan applies the committed configuration.
 
-- [ ] **Step 1: Verify 1Password authorization and admin-item metadata.** Confirm the Opnix `Bifrost Admin` Login item contains username and password fields using metadata only. If authorization is dismissed or either field is absent, stop and ask; do not print field values.
+- [ ] **Step 1: Verify 1Password authorization and admin-item metadata.** Confirm the Opnix `Bifrost Admin` Login item contains username and password fields using metadata only. If authorization is dismissed or either field is absent, stop and ask; never output field values.
 - [ ] **Step 2: Create the OpenChamber virtual-key item.** Run `devenv tasks run secrets:create-bifrost-vk --input keyName=OpenChamber --input confirm=true`; verify title/category only, never read the `credential` value.
 - [ ] **Step 3: Create the setup-token item.** Run `devenv tasks run secrets:create-bifrost-setup-token --input confirm=true`; verify title/category only, never read the `credential` value.
 - [ ] **Step 4: Validate the committed tree.** Run `devenv tasks run check:lint`, `devenv tasks run test:eval`, focused checks without `--impure`, and `devenv tasks run test:build-checks`. Report the known unrelated `workspace-switch` failure if it persists.
