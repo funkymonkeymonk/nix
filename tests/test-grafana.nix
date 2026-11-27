@@ -269,7 +269,7 @@ in {
         echo "FAIL: dashboard must use title Ultra Download Staging and retain UID drlight-ultra-media-sync"; exit 1
       fi
 
-       if jq -e '[.panels[].id] | sort == [3, 4, 5, 6, 10, 11, 13, 14, 15, 16]' "$DASHBOARD" > /dev/null; then
+       if jq -e '[.panels[].id] | sort == [3, 4, 5, 6, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20]' "$DASHBOARD" > /dev/null; then
         echo "dashboard contains the manually selected compact panel set: OK"
       else
         echo "FAIL: dashboard panel set must match the manually selected compact layout"; exit 1
@@ -351,6 +351,42 @@ in {
         echo "dashboard marks the 3 TB warning threshold: OK"
       else
         echo "FAIL: remote disk dashboard must mark the 3 TB warning threshold"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Quota guard live usage") | .targets[]? | select(.datasource.type? == "prometheus") | .expr] | any(contains("ultra_seedbox_download_guard_used_bytes") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard graphs the guard's live account quota sample: OK"
+      else
+        echo "FAIL: dashboard must graph the guard's live quota metric"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Quota guard live usage") | .fieldConfig.defaults.thresholds.steps[]?.value] | any(. == 3500000000000) and any(. == 3800000000000)' "$DASHBOARD" > /dev/null; then
+        echo "live quota panel marks the 3.5 TB resume and 3.8 TB pause thresholds: OK"
+      else
+        echo "FAIL: live quota panel must mark both guard thresholds"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Quota guard state") | .targets[]?.expr] | any(contains("ultra_seedbox_download_guard_active"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard shows whether downloads are held for seeding: OK"
+      else
+        echo "FAIL: dashboard must show current quota guard state"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Guard-paused torrents") | .targets[]?.expr] | any(contains("ultra_seedbox_download_guard_paused_torrents"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard shows the number of guard-paused downloads: OK"
+      else
+        echo "FAIL: dashboard must show the guard-paused torrent count"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title == "Quota guard activity (7d)") | .targets[]?.expr] as $exprs | any($exprs[]; contains("ultra_seedbox_download_guard_pauses_total")) and any($exprs[]; contains("ultra_seedbox_download_guard_resumes_total")) and any($exprs[]; contains("ultra_seedbox_download_guard_probe_failures_total")) and any($exprs[]; contains("ultra_seedbox_download_guard_rpc_failures_total"))' "$DASHBOARD" > /dev/null; then
+        echo "dashboard exposes weekly pause, resume, and failure totals: OK"
+      else
+        echo "FAIL: dashboard must expose weekly guard activity totals"; exit 1
+      fi
+
+      if jq -e '[.panels[] | select(.title | startswith("Quota guard") or startswith("Guard-paused")) | .targets[]?.expr] | all(contains("torrent_id") | not) and all(contains("hash") | not)' "$DASHBOARD" > /dev/null; then
+        echo "quota guard panels contain aggregate metrics only: OK"
+      else
+        echo "FAIL: quota guard panels must not expose torrent identities"; exit 1
       fi
 
       if jq -e '[.panels[].targets[]? | select(.datasource.type? == "prometheus") | .expr] as $exprs | any($exprs[]; contains("ultra_media_sync_torrents_published") and contains("drlight:9100")) and any($exprs[]; contains("ultra_media_sync_torrents_total") and contains("drlight:9100"))' "$DASHBOARD" > /dev/null; then
