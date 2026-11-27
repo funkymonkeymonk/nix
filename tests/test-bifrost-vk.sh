@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-trap 'status=$?; printf "Bifrost Zero key-creation harness failed at line %s (status %s)\\n" "$LINENO" "$status" >&2' ERR
+trap 'status=$?; printf "Bifrost key-creation harness failed at line %s (status %s)\\n" "$LINENO" "$status" >&2' ERR
 
 [[ "${BIFROST_VK_TASK_VALID:-false}" == true ]] || {
-  echo "FAIL: secrets:create-bifrost-zero-vk must require confirm=true and invoke the creator script" >&2
+  echo "FAIL: generic and Zero compatibility tasks must require confirm=true and invoke the creator script" >&2
   exit 1
 }
 [[ -n "${BIFROST_VK_SCRIPT:-}" && -f "$BIFROST_VK_SCRIPT" ]] || {
-  echo 'FAIL: Bifrost Zero key creator script is missing' >&2
+  echo 'FAIL: generic Bifrost key creator script is missing' >&2
   exit 1
 }
 
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/bifrost-zero-vk-test.XXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/bifrost-vk-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/secure-temp"
 if [[ -n "${BIFROST_VK_BASH_BIN:-}" ]]; then
@@ -27,6 +27,7 @@ export BIFROST_VK_NIX_LOG="$tmp/nix.log"
 export BIFROST_VK_CAPTURE="$tmp/generated-key"
 export BIFROST_VK_TEMPLATE_SOURCE="$tmp/api-credential-template.json"
 export BIFROST_VK_TEST_DEFAULT_VAULT="Opnix"
+export BIFROST_VK_TEST_ITEM_TITLE="Bifrost OpenChamber API Key"
 export BIFROST_VK_TEST_EXISTING="false"
 export BIFROST_VK_TEST_EXISTING_ARCHIVED="false"
 export BIFROST_VK_TEST_OP_FAILURE=""
@@ -44,7 +45,7 @@ JSON
 printf '#!%s\n' "${BIFROST_VK_BASH_BIN:-$(command -v bash)}" > "$tmp/bin/nix"
 cat >> "$tmp/bin/nix" <<'MOCK'
 printf 'nix|%s\n' "$*" >> "$BIFROST_VK_NIX_LOG"
-[[ "$1" == eval && "$2" == --impure && "$3" == --raw && "$4" == '.#nixosConfigurations.zero.config.myConfig.onepassword.defaultVault' ]] || {
+[[ "$1" == eval && "$2" == --impure && "$3" == --raw && "$4" == '.#darwinConfigurations.MegamanX.config.myConfig.onepassword.defaultVault' ]] || {
   echo "unexpected nix request: $*" >&2
   exit 90
 }
@@ -68,9 +69,9 @@ case "$2" in
     [[ "$3" == --include-archive && "$4" == --vault && "$5" == "$BIFROST_VK_TEST_DEFAULT_VAULT" && "$6" == --format && "$7" == json ]] || exit 94
     [[ "$BIFROST_VK_TEST_OP_FAILURE" != list ]] || exit 95
     if [[ "$BIFROST_VK_TEST_EXISTING_ARCHIVED" == true ]]; then
-      printf '[{"id":"item-archived","title":"Bifrost Zero API Key","state":"ARCHIVED"}]\n'
+      printf '[{"id":"item-archived","title":"%s","state":"ARCHIVED"}]\n' "$BIFROST_VK_TEST_ITEM_TITLE"
     elif [[ "$BIFROST_VK_TEST_EXISTING" == true ]]; then
-      printf '[{"id":"item-existing","title":"Bifrost Zero API Key"}]\n'
+      printf '[{"id":"item-existing","title":"%s"}]\n' "$BIFROST_VK_TEST_ITEM_TITLE"
     else
       printf '[]\n'
     fi
@@ -106,7 +107,7 @@ case "$2" in
     [[ "$(stat -c '%a' "$template_dir/key")" == 600 ]] || exit 103
     [[ "$(stat -c '%a' "$template_dir/random.hex")" == 600 ]] || exit 104
     [[ "$(stat -c '%a' "$template_dir/api-credential-template.json")" == 600 ]] || exit 105
-    jq -e '.title == "Bifrost Zero API Key" and .category == "API_CREDENTIAL" and any(.fields[]; .id == "credential" and .type == "CONCEALED")' "$template" >/dev/null || exit 106
+    jq -e --arg title "$BIFROST_VK_TEST_ITEM_TITLE" '.title == $title and .category == "API_CREDENTIAL" and any(.fields[]; .id == "credential" and .type == "CONCEALED")' "$template" >/dev/null || exit 106
     jq -er '.fields[] | select(.id == "credential") | .value' "$template" > "$BIFROST_VK_CAPTURE"
     secret_for_environment=$(cat "$BIFROST_VK_CAPTURE")
     while IFS= read -r environment_name; do
@@ -124,10 +125,29 @@ esac
 MOCK
 
 chmod +x "$tmp/bin/nix" "$tmp/bin/openssl" "$tmp/bin/op"
+mkdir -p "$tmp/task-root/scripts"
+cp "$BIFROST_VK_SCRIPT" "$tmp/task-root/scripts/create-bifrost-vk.sh"
 
 run_creator() {
   NIX_BIN="$tmp/bin/nix" OPENSSL_BIN="$tmp/bin/openssl" OP_BIN="$tmp/bin/op" \
-    "${BIFROST_VK_BASH_BIN:-bash}" "$BIFROST_VK_SCRIPT" "$@"
+    "${BIFROST_VK_BASH_BIN:-bash}" "$BIFROST_VK_SCRIPT" --key-name "${BIFROST_VK_TEST_KEY_NAME:-OpenChamber}" "$@"
+}
+
+run_creator_with_name() {
+  local key_name=$1
+  shift
+  NIX_BIN="$tmp/bin/nix" OPENSSL_BIN="$tmp/bin/openssl" OP_BIN="$tmp/bin/op" \
+    "${BIFROST_VK_BASH_BIN:-bash}" "$BIFROST_VK_SCRIPT" --key-name "$key_name" "$@"
+}
+
+run_task_exec() {
+  local task_script=$1
+  local task_input=$2
+  (
+    cd "$tmp/task-root"
+    NIX_BIN="$tmp/bin/nix" OP_BIN="$tmp/bin/op" DEVENV_TASK_INPUT="$task_input" \
+      "${BIFROST_VK_BASH_BIN:-bash}" "$task_script"
+  )
 }
 
 if run_creator >"$tmp/no-confirm.out" 2>"$tmp/no-confirm.err"; then
@@ -137,21 +157,23 @@ fi
 [[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" ]]
 [[ ! -s "$BIFROST_VK_NIX_LOG" ]]
 
-for task_input in '{}' '{"confirm":false}'; do
-  if DEVENV_TASK_INPUT="$task_input" "${BIFROST_VK_BASH_BIN:-bash}" "$BIFROST_VK_TASK_EXEC_SCRIPT" >"$tmp/task-no-confirm.out" 2>"$tmp/task-no-confirm.err"; then
-    echo 'Devenv task unexpectedly accepted missing or false confirmation' >&2
-    exit 1
-  else
-    task_status=$?
-  fi
-  [[ "$task_status" == 64 ]] || {
-    echo 'Devenv task did not reject missing or false confirmation with status 64' >&2
-    exit 1
-  }
-  [[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" && ! -s "$BIFROST_VK_NIX_LOG" ]]
+for task_script in "$BIFROST_VK_GENERIC_TASK_EXEC_SCRIPT" "$BIFROST_VK_ZERO_TASK_EXEC_SCRIPT"; do
+  for task_input in '{}' '{"confirm":false}'; do
+    if run_task_exec "$task_script" "$task_input" >"$tmp/task-no-confirm.out" 2>"$tmp/task-no-confirm.err"; then
+      echo 'Devenv task unexpectedly accepted missing or false confirmation' >&2
+      exit 1
+    else
+      task_status=$?
+    fi
+    [[ "$task_status" == 64 ]] || {
+      echo 'Devenv task did not reject missing or false confirmation with status 64' >&2
+      exit 1
+    }
+    [[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" && ! -s "$BIFROST_VK_NIX_LOG" ]]
+  done
 done
 
-if run_creator --confirm >"$tmp/create.out" 2>"$tmp/create.err"; then
+if run_task_exec "$BIFROST_VK_GENERIC_TASK_EXEC_SCRIPT" '{"keyName":"OpenChamber","confirm":true}' >"$tmp/create.out" 2>"$tmp/create.err"; then
   :
 else
   status=$?
@@ -179,12 +201,53 @@ assert_no_success_message() {
     exit 1
   fi
 }
+
 grep -F 'op|item list --include-archive --vault Opnix --format json' "$BIFROST_VK_OP_LOG" >/dev/null
 grep -F 'op|item template get API Credential' "$BIFROST_VK_OP_LOG" >/dev/null
 grep -F 'op|item create --vault Opnix --template ' "$BIFROST_VK_OP_LOG" >/dev/null
-grep -F 'nix|eval --impure --raw .#nixosConfigurations.zero.config.myConfig.onepassword.defaultVault' "$BIFROST_VK_NIX_LOG" >/dev/null
+grep -F 'nix|eval --impure --raw .#darwinConfigurations.MegamanX.config.myConfig.onepassword.defaultVault' "$BIFROST_VK_NIX_LOG" >/dev/null
 assert_no_key_leak "$tmp/create.out" "$tmp/create.err" "$BIFROST_VK_OP_LOG" "$BIFROST_VK_OPENSSL_LOG" "$BIFROST_VK_NIX_LOG"
 [[ -z "$(find "$BIFROST_VK_TMPDIR" -mindepth 1 -print -quit)" ]]
+
+# The legacy task remains a working alias for the Zero key.
+export BIFROST_VK_TEST_ITEM_TITLE='Bifrost Zero API Key'
+: > "$BIFROST_VK_OP_LOG"
+rm -f "$BIFROST_VK_CAPTURE"
+if run_task_exec "$BIFROST_VK_ZERO_TASK_EXEC_SCRIPT" '{"confirm":true}' >"$tmp/zero-create.out" 2>"$tmp/zero-create.err"; then
+  :
+else
+  status=$?
+  printf 'Zero compatibility task failed with status %s\n' "$status" >&2
+  exit "$status"
+fi
+zero_key=$(cat "$BIFROST_VK_CAPTURE")
+[[ "$zero_key" =~ ^sk-bf-[0-9a-f]{64}$ ]]
+if grep -Fq "$zero_key" "$tmp/zero-create.out" "$tmp/zero-create.err" "$BIFROST_VK_OP_LOG" "$BIFROST_VK_OPENSSL_LOG" "$BIFROST_VK_NIX_LOG"; then
+  echo 'generated Zero Bifrost key leaked to command output or logs' >&2
+  exit 1
+fi
+export BIFROST_VK_TEST_ITEM_TITLE='Bifrost OpenChamber API Key'
+
+for unsafe_name in '' '   ' $'OpenChamber\nSecondLine'; do
+  : > "$BIFROST_VK_OP_LOG"
+  : > "$BIFROST_VK_OPENSSL_LOG"
+  : > "$BIFROST_VK_NIX_LOG"
+  if run_creator_with_name "$unsafe_name" --confirm >"$tmp/unsafe-name.out" 2>"$tmp/unsafe-name.err"; then
+    echo 'creator unexpectedly accepted an empty, whitespace-only, or newline-containing key name' >&2
+    exit 1
+  fi
+  [[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" && ! -s "$BIFROST_VK_NIX_LOG" ]]
+done
+
+# The task rejects control characters before invoking the creator's dependencies.
+: > "$BIFROST_VK_OP_LOG"
+: > "$BIFROST_VK_OPENSSL_LOG"
+: > "$BIFROST_VK_NIX_LOG"
+if run_task_exec "$BIFROST_VK_GENERIC_TASK_EXEC_SCRIPT" '{"keyName":"OpenChamber\nInjected","confirm":true}' >"$tmp/task-unsafe-name.out" 2>"$tmp/task-unsafe-name.err"; then
+  echo 'generic task unexpectedly accepted a newline-containing key name' >&2
+  exit 1
+fi
+[[ ! -s "$BIFROST_VK_OP_LOG" && ! -s "$BIFROST_VK_OPENSSL_LOG" && ! -s "$BIFROST_VK_NIX_LOG" ]]
 
 # The same task uses the configured default vault, not a hard-coded Opnix value.
 rm -f "$BIFROST_VK_CAPTURE"
@@ -267,4 +330,4 @@ assert_no_success_message "$tmp/invalid-vault.out" "$tmp/invalid-vault.err"
   exit 1
 }
 
-printf 'Bifrost Zero key creation safety tests passed\n'
+printf 'Bifrost generic virtual-key creation safety tests passed\n'

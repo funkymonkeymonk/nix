@@ -6,19 +6,38 @@ fail() {
   exit 1
 }
 
-[[ $# -eq 1 && "$1" == --confirm ]] || fail 'pass --confirm to create the 1Password item'
+key_name=''
+confirmed=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --key-name)
+      [[ $# -ge 2 && -z "$key_name" ]] || fail 'pass --key-name <name> exactly once'
+      key_name=$2
+      shift 2
+      ;;
+    --confirm)
+      [[ "$confirmed" == false ]] || fail 'pass --confirm exactly once'
+      confirmed=true
+      shift
+      ;;
+    *) fail "unexpected argument: $1" ;;
+  esac
+done
+[[ "$confirmed" == true ]] || fail 'pass --confirm to create the 1Password item'
+[[ -n "${key_name//[[:space:]]/}" ]] || fail 'key name must not be empty or whitespace-only'
+[[ ! "$key_name" =~ [[:cntrl:]] ]] || fail 'key name must not contain control characters'
 
 nix_bin=${NIX_BIN:-nix}
 op_bin=${OP_BIN:-op}
 openssl_bin=${OPENSSL_BIN:-openssl}
-item_title='Bifrost Zero API Key'
+item_title="Bifrost ${key_name} API Key"
 
 command -v "$nix_bin" >/dev/null 2>&1 || fail 'Nix CLI is required'
 command -v "$op_bin" >/dev/null 2>&1 || fail '1Password CLI (op) is required'
 command -v "$openssl_bin" >/dev/null 2>&1 || fail 'OpenSSL is required'
 
-default_vault=$("$nix_bin" eval --impure --raw '.#nixosConfigurations.zero.config.myConfig.onepassword.defaultVault') || fail 'unable to resolve Zero defaultVault'
-[[ -n "$default_vault" && "$default_vault" != *$'\n'* && "$default_vault" != *$'\r'* ]] || fail 'Zero defaultVault is invalid'
+default_vault=$("$nix_bin" eval --impure --raw '.#darwinConfigurations.MegamanX.config.myConfig.onepassword.defaultVault') || fail 'unable to resolve MegamanX defaultVault'
+[[ -n "$default_vault" && "$default_vault" != *$'\n'* && "$default_vault" != *$'\r'* ]] || fail 'MegamanX defaultVault is invalid'
 
 items_json=$("$op_bin" item list --include-archive --vault "$default_vault" --format json) || fail "unable to list items in the default vault $default_vault"
 jq -e 'type == "array"' <<<"$items_json" >/dev/null || fail '1Password returned an invalid item list'
@@ -29,7 +48,7 @@ fi
 tmp_root=${BIFROST_VK_TMPDIR:-/tmp/opencode}
 mkdir -p -- "$tmp_root" || fail 'unable to create the temporary-file parent directory'
 umask 077
-tmpdir=$(mktemp -d "$tmp_root/bifrost-zero-vk.XXXXXX") || fail 'unable to create a private temporary directory'
+tmpdir=$(mktemp -d "$tmp_root/bifrost-vk.XXXXXX") || fail 'unable to create a private temporary directory'
 
 cleanup() {
   if [[ -n "${tmpdir:-}" && -d "$tmpdir" ]]; then
