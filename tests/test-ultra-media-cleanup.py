@@ -916,31 +916,35 @@ class CleanupRuntimeTests(unittest.TestCase):
             finally:
                 sys.modules.pop(module_name, None)
 
-    def test_app_stats_disk_usage_parser_uses_decimal_gigabytes(self):
+    def test_quota_usage_parser_converts_kib_blocks_to_bytes(self):
         output = (
-            " *** disk stats ***\n"
-            "                           date  value\n"
-            "1413 2026-11-17 22:06:27.438047   4000.5\n"
+            "Disk quotas for user seed-user (uid 1110):\n"
+            "Filesystem blocks quota limit grace files quota limit grace\n"
+            "/dev/sdv1 3905945648* 3905945600 3905945600 1796110067 8858 0 0 0\n"
         )
 
         self.assertEqual(
-            file_stat.parse_app_stats_disk_usage(output),
-            {"used_bytes": 4_000_500_000_000},
+            file_stat.parse_quota_usage(output),
+            {"used_bytes": 3_999_688_343_552},
         )
 
-    def test_app_stats_disk_usage_parser_fails_closed_on_missing_or_malformed_rows(self):
+    def test_quota_usage_parser_fails_closed_on_missing_or_malformed_rows(self):
         for output in (
             "",
-            " *** disk stats ***\n date value\n",
-            "1413 2026-11-17 22:06:27.438047 NaN\n",
-            "1413 2026-11-17 22:06:27.438047 -2\n",
+            "Filesystem blocks quota limit grace files quota limit grace\n",
+            "/dev/sdv1 not-a-count 3905945600 3905945600 0 8858 0 0 0\n",
+            "/dev/sdv1 -1 3905945600 3905945600 0 8858 0 0 0\n",
+            "/dev/sdv1 2.5 3905945600 3905945600 0 8858 0 0 0\n",
         ):
             with self.subTest(output=output):
-                self.assertIsNone(file_stat.parse_app_stats_disk_usage(output))
+                self.assertIsNone(file_stat.parse_quota_usage(output))
 
-    def test_remote_disk_usage_probe_uses_fixed_app_stats_command_and_strict_ssh_args(self):
+    def test_remote_disk_usage_probe_uses_live_quota_command_and_strict_ssh_args(self):
         commands = []
-        sample = "header\n1413 2026-11-17 22:06:27.438047 4000\n"
+        sample = (
+            "Filesystem blocks quota limit grace files quota limit grace\n"
+            "/dev/sdv1 3905945648* 3905945600 3905945600 1796110067 8858 0 0 0\n"
+        )
 
         def runner(arguments, **kwargs):
             commands.append((arguments, kwargs))
@@ -953,8 +957,8 @@ class CleanupRuntimeTests(unittest.TestCase):
             process_runner=runner,
         )
 
-        self.assertEqual(probe(), {"used_bytes": 4_000_000_000_000})
-        self.assertEqual(commands[0][0][-1], "app-stats show -s disk -t hour -c 1")
+        self.assertEqual(probe(), {"used_bytes": 3_999_688_343_552})
+        self.assertEqual(commands[0][0][-1], "quota -p")
         self.assertEqual(commands[0][0][-2], "seed-user@seed.example")
         self.assertIs(commands[0][1]["stderr"], subprocess.DEVNULL)
 
@@ -993,7 +997,10 @@ class CleanupRuntimeTests(unittest.TestCase):
                     return SimpleNamespace(returncode=0, stdout="")
                 return SimpleNamespace(
                     returncode=0,
-                    stdout="header\n1413 2026-11-17 22:06:27.438047 4000\n",
+                    stdout=(
+                        "Filesystem blocks quota limit grace files quota limit grace\n"
+                        "/dev/sdv1 3905945648* 3905945600 3905945600 1796110067 8858 0 0 0\n"
+                    ),
                 )
 
             usage = policy._probe_remote_disk_usage_from_runtime(
@@ -1004,9 +1011,9 @@ class CleanupRuntimeTests(unittest.TestCase):
                 process_runner=runner,
             )
 
-            self.assertEqual(usage, {"used_bytes": 4_000_000_000_000})
+            self.assertEqual(usage, {"used_bytes": 3_999_688_343_552})
             ssh_call = commands[-1]
-            self.assertEqual(ssh_call[-1], "app-stats show -s disk -t hour -c 1")
+            self.assertEqual(ssh_call[-1], "quota -p")
             self.assertIn("StrictHostKeyChecking=yes", ssh_call)
             self.assertIn("GlobalKnownHostsFile=/dev/null", ssh_call)
             self.assertNotIn("fixture", json.dumps(usage))
