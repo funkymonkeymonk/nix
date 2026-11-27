@@ -155,6 +155,8 @@ class FakeTransmissionRPCServer:
                 response = {"result": "success", "arguments": arguments}
         elif payload["method"] == "torrent-remove":
             response = {"result": "success", "arguments": {}}
+        elif payload["method"] in ("torrent-stop", "torrent-start"):
+            response = {"result": "success", "arguments": {}}
         else:
             raise AssertionError("unexpected RPC operation")
         return FakeRPCResponse(json.dumps(response).encode())
@@ -184,6 +186,7 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
+        self.assertEqual(torrent["status"], 6)
         self.assertEqual(torrent["download_id"], "A" * 40)
         self.assertEqual(torrent["name"], "Example release")
         self.assertEqual(torrent["done_date"], 1_700_000_000)
@@ -285,8 +288,14 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertNotIn("torrent-remove", [request["method"] for request in self.server.requests])
 
     def test_rejects_non_read_rpc_operations_before_sending_them(self):
-        with self.assertRaises(transmission_rpc.TransmissionRPCError):
-            self.client._rpc("torrent-remove", {"ids": [17]})
+        for method, arguments in (
+            ("torrent-remove", {"ids": [17]}),
+            ("torrent-stop", {"ids": ["a" * 40]}),
+            ("torrent-start", {"ids": ["a" * 40]}),
+        ):
+            with self.subTest(method=method):
+                with self.assertRaises(transmission_rpc.TransmissionRPCError):
+                    self.client._rpc(method, arguments)
         self.assertEqual(self.server.requests, [])
 
     def test_remove_torrent_requests_both_torrent_and_seedbox_payload_removal(self):
@@ -395,6 +404,67 @@ class TransmissionRPCTests(unittest.TestCase):
             tracker_classifier=lambda _host: "public",
         )
         self.assertEqual(torrent["candidate"]["trackers"], [{"classification": "unknown"}])
+
+    def test_stop_torrents_sends_only_the_explicit_hashes(self):
+        hashes = ["a" * 40, "b" * 40]
+        stop_torrents = getattr(self.client, "stop_torrents", None)
+        self.assertTrue(callable(stop_torrents), "TransmissionRPC must expose scoped stop_torrents")
+        if not callable(stop_torrents):
+            return
+
+        stop_torrents(hashes)
+
+        request = self.server.requests[-1]
+        self.assertEqual(request["method"], "torrent-stop")
+        self.assertEqual(request["arguments"], {"ids": hashes})
+
+    def test_start_torrents_sends_only_the_explicit_hashes(self):
+        hashes = ["c" * 40]
+        start_torrents = getattr(self.client, "start_torrents", None)
+        self.assertTrue(callable(start_torrents), "TransmissionRPC must expose scoped start_torrents")
+        if not callable(start_torrents):
+            return
+
+        start_torrents(hashes)
+
+        request = self.server.requests[-1]
+        self.assertEqual(request["method"], "torrent-start")
+        self.assertEqual(request["arguments"], {"ids": hashes})
+
+    def test_torrent_control_rejects_empty_or_invalid_hash_lists_before_rpc(self):
+        stop_torrents = getattr(self.client, "stop_torrents", None)
+        start_torrents = getattr(self.client, "start_torrents", None)
+        self.assertTrue(callable(stop_torrents), "TransmissionRPC must expose scoped stop_torrents")
+        self.assertTrue(callable(start_torrents), "TransmissionRPC must expose scoped start_torrents")
+        if not callable(stop_torrents) or not callable(start_torrents):
+            return
+        for method in ("stop_torrents", "start_torrents"):
+            for hashes in ([], ["not-a-hash"], ["a" * 40, "bad"], "a" * 40):
+                with self.subTest(method=method, hashes=hashes):
+                    with self.assertRaises(ValueError):
+                        getattr(self.client, method)(hashes)
+        self.assertEqual(self.server.requests, [])
+
+    def test_normalize_torrent_preserves_status_for_the_quota_guard(self):
+        torrent = transmission_rpc.normalize_torrent(
+            {
+                "id": 21,
+                "hashString": "d" * 40,
+                "status": 3,
+                "doneDate": 0,
+                "secondsSeeding": 0,
+                "uploadRatio": 0.0,
+                "leftUntilDone": 1,
+                "percentDone": 0.5,
+                "trackers": [],
+                "files": [],
+            }
+        )
+        self.assertIn("status", torrent, "normalized torrents must retain status for the quota guard")
+        if "status" not in torrent:
+            return
+        self.assertEqual(torrent["status"], 3)
+        self.assertFalse(torrent["candidate"]["complete"])
 
 
 class RetentionPolicyTests(unittest.TestCase):
