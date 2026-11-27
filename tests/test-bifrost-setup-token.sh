@@ -29,7 +29,7 @@ export BIFROST_SETUP_TEST_DEFAULT_VAULT='Opnix'
 export BIFROST_SETUP_TEST_EXISTING='false'
 export BIFROST_SETUP_TEST_ARCHIVED='false'
 export BIFROST_SETUP_TEST_FAILURE=''
-export BIFROST_SETUP_TEST_RANDOM_HEX='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+expected_token='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 : > "$BIFROST_SETUP_OP_LOG"
 : > "$BIFROST_SETUP_OPENSSL_LOG"
 : > "$BIFROST_SETUP_NIX_LOG"
@@ -39,25 +39,25 @@ cat > "$BIFROST_SETUP_TEMPLATE_SOURCE" <<'JSON'
 {"title":"","category":"API_CREDENTIAL","fields":[{"id":"credential","type":"CONCEALED","label":"credential","value":""}]}
 JSON
 
-cat > "$tmp/bin/nix" <<'MOCK'
-#!/usr/bin/env bash
+printf '#!%s\n' "${BIFROST_SETUP_BASH_BIN:-$(command -v bash)}" > "$tmp/bin/nix"
+cat >> "$tmp/bin/nix" <<'MOCK'
 printf 'nix|%s\n' "$*" >> "$BIFROST_SETUP_NIX_LOG"
 [[ "$*" == 'eval --impure --raw .#darwinConfigurations.MegamanX.config.myConfig.onepassword.defaultVault' ]] || exit 90
 printf '%s' "$BIFROST_SETUP_TEST_DEFAULT_VAULT"
 MOCK
-cat > "$tmp/bin/openssl" <<'MOCK'
-#!/usr/bin/env bash
+printf '#!%s\n' "${BIFROST_SETUP_BASH_BIN:-$(command -v bash)}" > "$tmp/bin/openssl"
+cat >> "$tmp/bin/openssl" <<'MOCK'
 printf 'openssl|%s\n' "$*" >> "$BIFROST_SETUP_OPENSSL_LOG"
 [[ "$*" == 'rand -hex 32' && "$BIFROST_SETUP_TEST_FAILURE" != openssl ]] || exit 91
-printf '%s\n' "$BIFROST_SETUP_TEST_RANDOM_HEX"
+printf '%s\n' '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 MOCK
-cat > "$tmp/bin/op" <<'MOCK'
-#!/usr/bin/env bash
+printf '#!%s\n' "${BIFROST_SETUP_BASH_BIN:-$(command -v bash)}" > "$tmp/bin/op"
+cat >> "$tmp/bin/op" <<'MOCK'
 printf 'op|%s\n' "$*" >> "$BIFROST_SETUP_OP_LOG"
 [[ "$1" == item ]] || exit 92
 case "$2" in
   list)
-    [[ "$*" == 'list --include-archive --vault Opnix --format json' || "$*" == "list --include-archive --vault $BIFROST_SETUP_TEST_DEFAULT_VAULT --format json" ]] || exit 93
+    [[ "$*" == "item list --include-archive --vault $BIFROST_SETUP_TEST_DEFAULT_VAULT --format json" ]] || exit 93
     [[ "$BIFROST_SETUP_TEST_FAILURE" != list ]] || exit 94
     if [[ "$BIFROST_SETUP_TEST_ARCHIVED" == true ]]; then
       printf '[{"title":"Bifrost Setup Token","state":"ARCHIVED"}]\n'
@@ -84,7 +84,7 @@ case "$2" in
       esac
     done
     [[ "$BIFROST_SETUP_TEST_FAILURE" != create ]] || {
-      printf 'mock create response leaked %s\n' "$BIFROST_SETUP_TEST_RANDOM_HEX" >&2
+      printf 'mock create response leaked %s\n' '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' >&2
       exit 98
     }
     [[ "$vault" == "$BIFROST_SETUP_TEST_DEFAULT_VAULT" && -f "$template" ]] || exit 99
@@ -171,7 +171,7 @@ for failure in list template create openssl; do
     echo "setup-token creator unexpectedly succeeded after $failure failure" >&2
     exit 1
   fi
-  if grep -Fq "$BIFROST_SETUP_TEST_RANDOM_HEX" "$tmp/failure.out" "$tmp/failure.err" "$BIFROST_SETUP_OP_LOG" "$BIFROST_SETUP_OPENSSL_LOG"; then
+  if grep -Fq "$expected_token" "$tmp/failure.out" "$tmp/failure.err" "$BIFROST_SETUP_OP_LOG" "$BIFROST_SETUP_OPENSSL_LOG"; then
     echo "setup token leaked after $failure failure" >&2
     exit 1
   fi
