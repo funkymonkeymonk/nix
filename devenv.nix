@@ -545,10 +545,11 @@ in {
           echo "Pass --input confirm=true to create the Bifrost virtual key in 1Password" >&2
           exit 64
         fi
-        if ! key_name=$(jq -er 'if (.keyName | type) == "string" then .keyName else error("keyName must be a string") end' <<< "$task_input"); then
+        if ! key_name_with_sentinel=$(jq -erj 'if (.keyName | type) == "string" then .keyName + "__BIFROST_KEY_NAME_END__" else error("keyName must be a string") end' <<< "$task_input"); then
           echo "Pass --input keyName=<name> to identify the Bifrost virtual key" >&2
           exit 64
         fi
+        key_name=''${key_name_with_sentinel%__BIFROST_KEY_NAME_END__}
         [[ -n "''${key_name//[[:space:]]/}" && ! "$key_name" =~ [[:cntrl:]] ]] || {
           echo "Bifrost keyName must be non-empty and contain no control characters" >&2
           exit 64
