@@ -531,6 +531,21 @@ in {
       input = {machine = "";};
       exec = "bash scripts/machine-chart.sh";
     };
+    "machines:facts" = machinesTask "facts" false;
+    "secrets:create-bifrost-zero-vk" = {
+      description = "Generate and store Zero's Bifrost virtual key in its default 1Password vault";
+      input = {confirm = false;};
+      exec = ''
+        set -euo pipefail
+        task_input=''${DEVENV_TASK_INPUT:-'{}'}
+        if ! jq -e '.confirm == true' <<< "$task_input" >/dev/null; then
+          echo "Pass --input confirm=true to create the Bifrost Zero API key in 1Password" >&2
+          exit 64
+        fi
+        export OPENSSL_BIN="${pkgs.openssl}/bin/openssl"
+        exec bash scripts/create-bifrost-zero-vk.sh --confirm
+      '';
+    };
     "machines:build" = machinesTask "build" false;
     "machines:check" = machinesTask "check" false;
     "machines:plan" = machinesTask "plan" false;

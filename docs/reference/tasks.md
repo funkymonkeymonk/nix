@@ -67,6 +67,18 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 | `system:switch` | Apply configuration to current system (platform-aware) |
 | `system:init` | Initial nix-darwin setup (macOS only) |
 
+### Secrets
+
+| Task | Description |
+|------|-------------|
+| `secrets:create-bifrost-zero-vk` | Generate a `sk-bf-` virtual key for Zero's Bifrost access and store it in the `Bifrost Zero API Key` item in Zero's configured default vault. Requires `--input confirm=true`; refuses to overwrite an existing item, never prints the key, and does not deploy or restart Bifrost. |
+
+Run explicitly when Bifrost's Zero credential is missing:
+
+```sh
+devenv tasks run secrets:create-bifrost-zero-vk --input confirm=true
+```
+
 ### Validation
 
 | Task | Description |
