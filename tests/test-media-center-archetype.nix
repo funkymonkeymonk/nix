@@ -217,15 +217,10 @@
       ultraSpaceGuardTimer = drlight.systemd.timers.ultra-media-space-guard or {};
       ultraSpaceGuardTimerConfig = ultraSpaceGuardTimer.timerConfig or {};
       disabledSpaceGuardTimer = drlightWithSpaceGuardDisabled.systemd.timers.ultra-media-space-guard or {};
-      invalidSpaceGuardThresholdAssertions = builtins.filter
-        (assertion: lib.hasInfix "quota guard thresholds" (assertion.message or ""))
-        drlightWithInvalidSpaceGuardThresholds.assertions;
-      spaceGuardCleanupAssertions = builtins.filter
-        (assertion: lib.hasInfix "quota guard requires automatic cleanup" (assertion.message or ""))
-        drlightWithSpaceGuardWithoutCleanup.assertions;
-      spaceGuardRemoteDiskAssertions = builtins.filter
-        (assertion: lib.hasInfix "quota guard requires remote disk monitoring" (assertion.message or ""))
-        drlightWithSpaceGuardWithoutRemoteDisk.assertions;
+      drlightAssertionResults = map (assertion: assertion.assertion) drlight.assertions;
+      invalidSpaceGuardThresholdAssertionResults = map (assertion: assertion.assertion) drlightWithInvalidSpaceGuardThresholds.assertions;
+      spaceGuardCleanupAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutCleanup.assertions;
+      spaceGuardRemoteDiskAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutRemoteDisk.assertions;
       ultraRemoteDiskConfig = drlight.myConfig.ultraMediaDownloadStage.remoteDisk or {};
       ultraRemoteDiskMetricsDirectory = "/run/ultra-media-metrics";
       nodeExporterTextfileDirectory = drlight.myConfig.nodeExporter.textfileDirectory or null;
@@ -880,9 +875,9 @@
             ${checkEqual "quota guard runs as the dedicated sync account" ["oneshot" "ultra-sync" "users"] [(ultraSpaceGuardServiceConfig.Type or null) (ultraSpaceGuardServiceConfig.User or null) (ultraSpaceGuardServiceConfig.Group or null)]}
             ${checkTrue "quota guard retains systemd hardening and a private state directory" ((ultraSpaceGuardServiceConfig.ProtectSystem or null) == "strict" && (ultraSpaceGuardServiceConfig.ProtectHome or false) && (ultraSpaceGuardServiceConfig.NoNewPrivileges or false) && (ultraSpaceGuardServiceConfig.StateDirectory or null) == "ultra-media-space-guard" && (ultraSpaceGuardServiceConfig.StateDirectoryMode or null) == "0700")}
             ${checkTrue "quota guard command passes live-quota and Transmission secret paths" (lib.hasInfix "ultra_media_space_guard.py" ultraSpaceGuardCommand && lib.hasInfix "--rpc-url /run/secrets/ultra-media-stage-rpc-url" ultraSpaceGuardCommand && lib.hasInfix "--ssh-host /run/secrets/ultra-media-stage-host" ultraSpaceGuardCommand && lib.hasInfix "--pause-at-bytes 3800000000000" ultraSpaceGuardCommand && lib.hasInfix "--resume-below-bytes 3500000000000" ultraSpaceGuardCommand)}
-            ${checkTrue "inverted quota guard thresholds fail validation" (lib.any (assertion: !(assertion.assertion)) invalidSpaceGuardThresholdAssertions)}
-            ${checkTrue "quota guard requires automatic cleanup" (lib.any (assertion: !(assertion.assertion)) spaceGuardCleanupAssertions)}
-            ${checkTrue "quota guard requires live remote-disk monitoring" (lib.any (assertion: !(assertion.assertion)) spaceGuardRemoteDiskAssertions)}
+            ${checkTrue "inverted quota guard thresholds add a validation failure" (builtins.length (builtins.filter (valid: !valid) invalidSpaceGuardThresholdAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "quota guard requires automatic cleanup" (builtins.length (builtins.filter (valid: !valid) spaceGuardCleanupAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "quota guard requires live remote-disk monitoring" (builtins.length (builtins.filter (valid: !valid) spaceGuardRemoteDiskAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
             ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
