@@ -72,11 +72,11 @@
 - MegamanX references the moved Login item as `Bifrost Admin/username` and `Bifrost Admin/password`; the shared helper prefixes Opnix.
 
 - [ ] **Step 1: Write failing tests and register the check.** Assert the catalog uses the moved admin fields. Add mocked setup-token tests verifying confirmation, title `Bifrost Setup Token`, `API_CREDENTIAL` category, concealed `credential`, 64 lowercase hex characters without a prefix, duplicate/archived refusal, secure modes, cleanup, no output/environment leak, and CLI failure handling. Register `bifrost-setup-token` in `tests/default.nix`.
-- [ ] **Step 2: Run focused checks and confirm RED.** Run `nix build .#checks.x86_64-linux.bifrost-setup-token --no-link --impure` and `nix build .#checks.x86_64-linux.tailscale-darwin-autoconnect --no-link --impure`. Expected: FAIL because the setup-token task and admin-reference changes are absent.
+- [ ] **Step 2: Run focused checks and confirm RED.** Run `nix build .#checks.x86_64-linux.bifrost-setup-token --no-link --impure` and `nix build .#checks.x86_64-linux.tailscale-gateway-policy --no-link --impure`. Expected: FAIL because the setup-token task and admin-reference changes are absent.
 - [ ] **Step 3: Implement the setup-token creator.** Generate 32 random bytes as 64 lowercase hex characters, without `sk-bf-`; create an Opnix API Credential in the concealed `credential` field, refusing an existing active or archived item.
 - [ ] **Step 4: Register the task and update MegamanX references.** Add the confirmation-gated task and change admin references to `Bifrost Admin/username` and `Bifrost Admin/password` without hard-coding a vault.
 - [ ] **Step 5: Update task documentation.** Document that setup tokens differ from virtual keys and that creation does not activate Bifrost.
-- [ ] **Step 6: Run focused checks and confirm GREEN.** Run the checks from Step 2 with `--impure`; both must pass.
+- [ ] **Step 6: Run focused checks and confirm GREEN.** Run the checks from Step 2 without `--impure` after committing the changes; both must pass.
 - [ ] **Step 7: Commit the implementation.** Run `jj describe -m "feat: generalize Bifrost Opnix credential creation"` and `jj new`.
 
 ### Task 3: Create the Opnix items and apply the reviewed MegamanX configuration

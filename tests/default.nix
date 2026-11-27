@@ -44,6 +44,7 @@
   testPi = import ./test-pi.nix {inherit pkgs;};
   testBifrost = import ./test-bifrost.nix {inherit pkgs inputs;};
   testBifrostVkCreation = import ./test-bifrost-vk.nix {inherit pkgs inputs;};
+  testBifrostSetupToken = import ./test-bifrost-setup-token.nix {inherit pkgs inputs;};
   testCaddy = import ./test-caddy.nix {inherit pkgs;};
   testSearxng = import ./test-searxng.nix {inherit pkgs;};
   testLume = import ./test-lume.nix {inherit pkgs;};
@@ -389,6 +390,7 @@ in
     bifrost-tailscale-serve = testBifrost.bifrostTailscaleServeTest;
     bifrost-network-auth = testBifrost.bifrostNetworkAuthConfigTest;
     bifrost-vk-creation = testBifrostVkCreation.bifrostVkCreation;
+    bifrost-setup-token = testBifrostSetupToken.bifrostSetupToken;
 
     # Caddy reverse proxy module tests
     caddy-options = testCaddy.caddyOptionsTest;

@@ -159,8 +159,8 @@
     && (megamanxBifrostZeroKey.valueFile or null) == "/var/run/bifrost-zero-api-key"
     && (megamanxBifrostZeroKey.providers or []) == ["opencode-go"]
     && megamanxConfig.myConfig.onepassword.defaultVault == "Opnix"
-    && megamanxBifrostSecrets.bifrostAdminUsername.reference == "Bifrost Admin Username/username"
-    && megamanxBifrostSecrets.bifrostAdminPassword.reference == "Bifrost Admin Password/password"
+    && megamanxBifrostSecrets.bifrostAdminUsername.reference == "Bifrost Admin/username"
+    && megamanxBifrostSecrets.bifrostAdminPassword.reference == "Bifrost Admin/password"
     && megamanxBifrostSecrets.bifrostSetupToken.reference == "Bifrost Setup Token/credential"
     && megamanxBifrostSecrets.bifrostOpenChamberApiKey.reference == "Bifrost OpenChamber API Key/credential"
     && (megamanxBifrostZeroSecret.reference or null) == "Bifrost Zero API Key/credential"
