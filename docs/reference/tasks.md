@@ -71,11 +71,13 @@ Run the aggregate when you want everything in a category. Run the leaf when you 
 
 | Task | Description |
 |------|-------------|
-| `secrets:create-bifrost-zero-vk` | Generate a `sk-bf-` virtual key for Zero's Bifrost access and store it in the `Bifrost Zero API Key` item in Zero's configured default vault. Requires `--input confirm=true`; refuses to overwrite an existing item, never prints the key, and does not deploy or restart Bifrost. |
+| `secrets:create-bifrost-vk` | Generate a `sk-bf-` virtual key named for the supplied purpose and store it in `Bifrost <keyName> API Key` in MegamanX's configured default vault. Requires `--input keyName=<name> --input confirm=true`; refuses existing active or archived items, never prints the key, and does not deploy or restart Bifrost. |
+| `secrets:create-bifrost-zero-vk` | Compatibility alias for creating `Bifrost Zero API Key`. Requires `--input confirm=true`; refuses existing active or archived items and does not deploy or restart Bifrost. |
 
-Run explicitly when Bifrost's Zero credential is missing:
+Create a named key, or use the legacy Zero alias:
 
 ```sh
+devenv tasks run secrets:create-bifrost-vk --input keyName=OpenChamber --input confirm=true
 devenv tasks run secrets:create-bifrost-zero-vk --input confirm=true
 ```
 
