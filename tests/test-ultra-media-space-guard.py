@@ -474,5 +474,85 @@ class SpaceGuardPolicyTests(unittest.TestCase):
             self.assertEqual(json.loads(state_path.read_text())["paused_hashes"], [first])
 
 
+class RuntimeModuleLoadingTests(unittest.TestCase):
+    def load_module(self, entrypoint, filename, search_paths):
+        module_name = f"test_guard_runtime_dependency_{id(self)}"
+        guard.sys.modules.pop(module_name, None)
+        try:
+            with patch.object(guard, "__file__", str(entrypoint)), patch.object(
+                guard.sys, "path", [str(path) for path in search_paths]
+            ):
+                return guard._load_runtime_module(module_name, filename)
+        finally:
+            guard.sys.modules.pop(module_name, None)
+
+    def test_loads_runtime_helper_from_python_path_if_entrypoint_is_separate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entrypoint = root / "guard-store-path" / "ultra_media_space_guard.py"
+            bundle = root / "shared-scripts"
+            bundle.mkdir(parents=True)
+            (bundle / "guard_helper.py").write_text("VALUE = 'shared bundle'\n", encoding="utf-8")
+
+            try:
+                module = self.load_module(entrypoint, "guard_helper.py", [bundle])
+            except RuntimeError as error:
+                self.fail(f"expected helper from the shared bundle to load: {error}")
+
+            self.assertEqual(module.VALUE, "shared bundle")
+
+    def test_prefers_runtime_helper_beside_entrypoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entrypoint_dir = root / "guard-store-path"
+            bundle = root / "shared-scripts"
+            entrypoint_dir.mkdir()
+            bundle.mkdir()
+            (entrypoint_dir / "guard_helper.py").write_text("VALUE = 'sibling'\n", encoding="utf-8")
+            (bundle / "guard_helper.py").write_text("VALUE = 'bundle'\n", encoding="utf-8")
+
+            module = self.load_module(
+                entrypoint_dir / "ultra_media_space_guard.py",
+                "guard_helper.py",
+                [bundle],
+            )
+
+            self.assertEqual(module.VALUE, "sibling")
+
+    def test_ignores_empty_and_relative_python_path_entries(self):
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            root = Path(directory)
+            relative_bundle = root / "relative-scripts"
+            absolute_bundle = root / "absolute-scripts"
+            relative_bundle.mkdir()
+            absolute_bundle.mkdir()
+            (relative_bundle / "guard_helper.py").write_text(
+                "VALUE = 'relative'\n", encoding="utf-8"
+            )
+            (absolute_bundle / "guard_helper.py").write_text(
+                "VALUE = 'absolute'\n", encoding="utf-8"
+            )
+            relative_path = relative_bundle.relative_to(Path.cwd())
+
+            try:
+                module = self.load_module(
+                    root / "guard-store-path" / "ultra_media_space_guard.py",
+                    "guard_helper.py",
+                    ["", relative_path, absolute_bundle],
+                )
+            except RuntimeError as error:
+                self.fail(f"expected helper from the absolute bundle to load: {error}")
+
+            self.assertEqual(module.VALUE, "absolute")
+
+    def test_missing_runtime_helper_remains_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entrypoint = root / "guard-store-path" / "ultra_media_space_guard.py"
+
+            with self.assertRaisesRegex(RuntimeError, "runtime dependency is unavailable"):
+                self.load_module(entrypoint, "missing_guard_helper.py", [""])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

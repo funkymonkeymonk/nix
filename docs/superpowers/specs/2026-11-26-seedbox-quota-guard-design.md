@@ -29,6 +29,9 @@ production.
   stopped remain untouched.
 - Persist the guard's state on Drlight. If the quota probe or RPC is unavailable
   or malformed, do not resume torrents based on stale or unknown usage.
+- Resolve the guard's cleanup and staging runtime helpers from the configured
+  Python path when the guard entrypoint is packaged separately; missing helpers
+  remain fail-closed.
 - Keep the existing hourly staging and verified cleanup policy responsible for
   freeing space. The guard never deletes payloads or changes seeding behavior.
 - Export live usage, guard state, and pause/resume/failure counts for a week-one

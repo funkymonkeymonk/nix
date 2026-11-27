@@ -483,7 +483,20 @@ def _load_runtime_module(name: str, filename: str) -> Any:
     module = sys.modules.get(name)
     if module is not None:
         return module
-    path = Path(__file__).with_name(filename)
+    if not isinstance(filename, str) or Path(filename).name != filename:
+        raise RuntimeError("quota guard runtime dependency is unavailable")
+    search_roots = [Path(__file__).parent]
+    search_roots.extend(
+        Path(directory)
+        for directory in sys.path
+        if isinstance(directory, str) and directory and Path(directory).is_absolute()
+    )
+    path = next(
+        (root / filename for root in search_roots if (root / filename).is_file()),
+        None,
+    )
+    if path is None:
+        raise RuntimeError("quota guard runtime dependency is unavailable")
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError("quota guard runtime dependency is unavailable")
