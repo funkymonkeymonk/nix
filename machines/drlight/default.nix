@@ -77,6 +77,11 @@ in {
       nodeExporter.openFirewallInterfaces = ["tailscale0" "eno1"];
       ultraMediaDownloadStage = {
         enable = true;
+        spaceGuard = {
+          enable = true;
+          pauseAtBytes = 3800000000000;
+          resumeBelowBytes = 3500000000000;
+        };
         cleanup = {
           enable = true;
           privateTrackerRatioProtection.enable = false;
