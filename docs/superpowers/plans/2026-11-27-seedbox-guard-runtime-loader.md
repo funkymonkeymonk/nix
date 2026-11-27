@@ -39,20 +39,20 @@
 **Interfaces:**
 - Preserve `_load_runtime_module(name: str, filename: str) -> Any` and its module caching. Resolve `filename` beside the guard entrypoint first, then from absolute directories in `sys.path`; retain the existing error when no file is found or loading fails.
 
-- [ ] Add tests for helper lookup from a separate `PYTHONPATH` directory, same-directory precedence, ignored relative/empty search entries, and missing-helper failure.
-- [ ] Run `PYTHONPATH=modules/nixos/scripts python tests/test-ultra-media-space-guard.py` and confirm the packaged-layout case fails before the fix.
-- [ ] Implement the narrow helper-path fallback without changing guard pause/resume policy.
-- [ ] Run the focused guard suite and the cleanup/RPC Python tests; confirm all pass.
-- [ ] Commit the tested fix with `jj describe`.
+- [x] Add tests for helper lookup from a separate `PYTHONPATH` directory, same-directory precedence, ignored relative/empty search entries, and missing-helper failure.
+- [x] Run `PYTHONPATH=modules/nixos/scripts python tests/test-ultra-media-space-guard.py` and confirm the packaged-layout case fails before the fix.
+- [x] Implement the narrow helper-path fallback without changing guard pause/resume policy.
+- [x] Run the focused guard suite and the cleanup/RPC Python tests; confirm all pass.
+- [x] Commit the tested fix with `jj describe`.
 
 ### Task 2: Validate and deploy the repaired guard
 
 **Files:**
 - No additional source files.
 
-- [ ] Commit the design and plan documentation changes before Nix validation.
-- [ ] Run `devenv tasks run check:lint`, `devenv tasks run test:build-checks`, `devenv tasks run test:eval`, and `devenv tasks run test:all`.
-- [ ] Create a fresh plan with `devenv tasks run machines:plan --input machine=drlight`; verify it targets only Drlight and review the complete plan plus closure diff.
-- [ ] Apply only that reviewed plan with its exact plan ID.
-- [ ] Run `devenv tasks run machines:check --input machine=drlight`; verify the guard timer is active and the service reports `status=ok` without resuming torrents outside guard-owned state.
-- [ ] Confirm the current generation is the requested one and record the initial live usage and guard metrics for the one-week review.
+- [x] Commit the design and plan documentation changes before Nix validation.
+- [x] Run `devenv tasks run check:lint`, `devenv tasks run test:build-checks`, `devenv tasks run test:eval`, and `devenv tasks run test:all`.
+- [x] Create a fresh plan with `devenv tasks run machines:plan --input machine=drlight`; verify it targets only Drlight and review the complete plan plus closure diff.
+- [x] Apply only that reviewed plan with its exact plan ID.
+- [x] Run `devenv tasks run machines:check --input machine=drlight`; verify the guard timer is active and the service reports `status=ok` without resuming torrents outside guard-owned state.
+- [x] Confirm the current generation is the requested one and record the initial live usage and guard metrics for the one-week review.
