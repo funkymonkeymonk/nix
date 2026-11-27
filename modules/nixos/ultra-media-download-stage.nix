@@ -137,6 +137,10 @@ in {
       message = "Ultra quota guard requires automatic cleanup to be enabled";
     }
     {
+      assertion = !spaceGuardEnabled || stageCfg.enable;
+      message = "Ultra quota guard requires completed-download staging to be enabled";
+    }
+    {
       assertion = !spaceGuardEnabled || remoteDiskEnabled;
       message = "Ultra quota guard requires remote disk monitoring to be enabled";
     }
