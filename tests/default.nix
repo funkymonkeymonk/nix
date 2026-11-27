@@ -35,6 +35,7 @@
   testObsidian = import ./test-obsidian.nix {inherit pkgs;};
   testOmlx = import ./test-omlx.nix {inherit pkgs;};
   testUltraMediaCleanup = import ./test-ultra-media-cleanup.nix {inherit pkgs;};
+  testUltraMediaSpaceGuard = import ./test-ultra-media-space-guard.nix {inherit pkgs;};
   testMediaAppReconciliation = import ./test-media-app-reconciliation.nix {inherit pkgs;};
   testMediaLibraryStatus = import ./test-media-library-status.nix {inherit pkgs;};
   testDevenvGrafanaSkills = import ./test-devenv-grafana-skills.nix {inherit pkgs;};
@@ -450,6 +451,7 @@ in
 
     # Drlight Ultra.cc media retention policy tests
     drlight-ultra-media-cleanup = testUltraMediaCleanup.drlightUltraMediaCleanup;
+    drlight-ultra-media-space-guard = testUltraMediaSpaceGuard.drlightUltraMediaSpaceGuard;
 
     # NixOS observability (Prometheus + Alertmanager) module tests
     nixos-prometheus-options = testNixosObservability.prometheusOptionsTest;
