@@ -19,19 +19,28 @@
       grep -q 'sudo -S' "$devenv"
       grep -q 'op read' "$devenv"
 
+      # Machine lookup and sudo reference resolution are shared by system tasks.
+      grep -q 'resolve_machine_config_name()' "$devenv"
+      grep -q 'get_sudo_password_path()' "$devenv"
+      grep -q 'config.system.primaryUser' "$devenv"
+      grep -Fq 'nix eval --impure --json "path:.#' "$devenv"
+      grep -Fq 'nix eval --impure --raw "path:.#' "$devenv"
+      [ "$(grep -c 'CONFIG_NAME=$(resolve_machine_config_name' "$devenv")" -eq 2 ]
+      [ "$(grep -c 'PASSWORD_PATH=$(get_sudo_password_path' "$devenv")" -eq 2 ]
+
       # Custom unqualified sudo references resolve against the machine's default vault.
       grep -q 'resolve_sudo_password_ref()' "$devenv"
       grep -q 'op://.*default_vault' "$devenv"
-      [ "$(grep -c 'PASSWORD_PATH=$(resolve_sudo_password_ref' "$devenv")" -eq 3 ]
 
       # system:switch includes the shared helper in its task body.
       linux_task=$(sed -n '/"system:switch" = {/,/^[[:space:]]*};/p' "$devenv")
       grep -q 'runWithSudoPassword' <<< "$linux_task"
 
-      # Every lookup and rebuild uses one immutable workspace flake reference.
+      # The switch rebuild uses the immutable workspace commit; config and
+      # sudo-reference lookups stay in the shared path-based helpers.
       grep -q 'source ./modules/common/scripts/jj-workspace-lib' <<< "$linux_task"
       grep -q 'FLAKE_REF=$(resolve_jj_flake_ref)' <<< "$linux_task"
-      [ "$(grep -c '"\$FLAKE_REF#' <<< "$linux_task")" -eq 8 ]
+      [ "$(grep -c '"\$FLAKE_REF#' <<< "$linux_task")" -eq 2 ]
       ! grep -Eq 'nix eval.*"?\.#' <<< "$linux_task"
       grep -Fq -- '--flake "$FLAKE_REF#$CONFIG_NAME"' <<< "$linux_task"
       grep -q 'export JJ_WORKSPACE_ROOT=' "$devenv"

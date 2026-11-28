@@ -45,6 +45,37 @@
     })
     grafanaSkillPaths);
   runWithSudoPassword = ''
+    resolve_machine_config_name() {
+      local config_set="$1"
+      local hostname="$2"
+
+      if [[ "$config_set" != "darwinConfigurations" ]]; then
+        printf '%s' "$hostname"
+        return 0
+      fi
+
+      local configs cfg primary_user
+      configs=$(nix eval --impure --json "path:.#''${config_set}" --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]') || return 1
+
+      for cfg in $configs; do
+        if [[ "$cfg" == "$hostname" ]]; then
+          printf '%s' "$cfg"
+          return 0
+        fi
+      done
+
+      for cfg in $configs; do
+        primary_user=$(nix eval --impure --raw "path:.#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || true)
+        if [[ -n "$primary_user" && "$hostname" == *"$primary_user"* ]]; then
+          printf '%s' "$cfg"
+          return 0
+        fi
+      done
+
+      echo "ERROR: No Darwin configuration found for host: $hostname (available: $configs)" >&2
+      return 1
+    }
+
     resolve_sudo_password_ref() {
       local reference="$1"
       local default_vault="$2"
@@ -54,6 +85,21 @@
       else
         printf 'op://%s/%s' "$default_vault" "$reference"
       fi
+    }
+
+    get_sudo_password_path() {
+      local config_set="$1"
+      local config_name="$2"
+      local hostname="$3"
+      local custom_ref default_vault
+
+      custom_ref=$(nix eval --impure --raw "path:.#''${config_set}.''${config_name}.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || true)
+      default_vault=$(nix eval --impure --raw "path:.#''${config_set}.''${config_name}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
+      if [[ -z "$custom_ref" ]]; then
+        custom_ref="''${hostname} Sudo Password/password"
+      fi
+
+      resolve_sudo_password_ref "$custom_ref" "$default_vault"
     }
 
     run_with_sudo_password() {
@@ -304,12 +350,8 @@ in {
     else
       CONFIG_SET="nixosConfigurations"
     fi
-    CUSTOM_REF=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-    DEFAULT_VAULT=$(nix eval --impure --raw ".#''${CONFIG_SET}.''${HOSTNAME}.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
-    if [[ -z "$CUSTOM_REF" ]]; then
-      CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
-    fi
-    PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
+    CONFIG_NAME=$(resolve_machine_config_name "$CONFIG_SET" "$HOSTNAME") || exit 1
+    PASSWORD_PATH=$(get_sudo_password_path "$CONFIG_SET" "$CONFIG_NAME" "$HOSTNAME")
     run_with_sudo_password "$PASSWORD_PATH" \
       nix-collect-garbage --delete-older-than "''${KEEP_DAYS}d"
   '';
@@ -567,47 +609,17 @@ in {
         echo "Hostname: $HOSTNAME"
 
         if [[ "$PLATFORM" == "Darwin" ]]; then
-          # Try hostname directly, then scan Darwin configs for a match
-          DARWIN_CONFIGS=$(nix eval --impure --json "$FLAKE_REF#darwinConfigurations" --apply 'builtins.attrNames' 2>/dev/null | jq -r '.[]')
-          CONFIG_NAME=""
-          for cfg in $DARWIN_CONFIGS; do
-            if [[ "$cfg" == "$HOSTNAME" ]]; then
-              CONFIG_NAME="$cfg"
-              break
-            fi
-          done
+          CONFIG_SET="darwinConfigurations"
+        else
+          CONFIG_SET="nixosConfigurations"
+        fi
+        CONFIG_NAME=$(resolve_machine_config_name "$CONFIG_SET" "$HOSTNAME") || exit 1
+        echo "Configuration: $CONFIG_NAME"
+        echo ""
 
-          # If no direct match, check if any config's primaryUser matches hostname prefix
-          if [[ -z "$CONFIG_NAME" ]]; then
-            # Fallback: check known hostname aliases
-            for cfg in $DARWIN_CONFIGS; do
-              # Try to evaluate primaryUser and match against hostname
-              PRIMARY_USER=$(nix eval --impure --raw "$FLAKE_REF#darwinConfigurations.$cfg.config.system.primaryUser" 2>/dev/null || echo "")
-              if [[ -n "$PRIMARY_USER" && "$HOSTNAME" == *"$PRIMARY_USER"* ]]; then
-                CONFIG_NAME="$cfg"
-                break
-              fi
-            done
-          fi
+        PASSWORD_PATH=$(get_sudo_password_path "$CONFIG_SET" "$CONFIG_NAME" "$HOSTNAME")
 
-          if [[ -z "$CONFIG_NAME" ]]; then
-            echo ""
-            echo "ERROR: No Darwin configuration found for host: $HOSTNAME"
-            echo "Available configurations: $DARWIN_CONFIGS"
-            echo "Either rename a configuration to match this hostname or add a mapping"
-            exit 1
-          fi
-          echo "Configuration: $CONFIG_NAME"
-          echo ""
-
-          # Get sudo password from 1Password
-          # Check if config defines a custom sudoPasswordRef, otherwise use default pattern
-          CUSTOM_REF=$(nix eval --impure --raw "$FLAKE_REF#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-          DEFAULT_VAULT=$(nix eval --impure --raw "$FLAKE_REF#darwinConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
-          if [[ -z "$CUSTOM_REF" ]]; then
-            CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
-          fi
-          PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
+        if [[ "$PLATFORM" == "Darwin" ]]; then
           # Build and switch with output logging
           SWITCH_LOG="/tmp/system-switch-$(date +%Y%m%d-%H%M%S).log"
           echo "Build log: $SWITCH_LOG"
@@ -633,18 +645,8 @@ in {
 
         else
           # Linux/NixOS
-          CONFIG_NAME="$HOSTNAME"
-          echo "Configuration: $CONFIG_NAME"
-          echo ""
-
           # devenv tasks do not guarantee an interactive terminal, so provide
           # sudo with the configured password just as the Darwin path does.
-          CUSTOM_REF=$(nix eval --impure --raw "$FLAKE_REF#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.sudoPasswordRef" 2>/dev/null || echo "")
-          DEFAULT_VAULT=$(nix eval --impure --raw "$FLAKE_REF#nixosConfigurations.$CONFIG_NAME.config.myConfig.onepassword.defaultVault" 2>/dev/null || echo "Opnix")
-          if [[ -z "$CUSTOM_REF" ]]; then
-            CUSTOM_REF="''${HOSTNAME} Sudo Password/password"
-          fi
-          PASSWORD_PATH=$(resolve_sudo_password_ref "$CUSTOM_REF" "$DEFAULT_VAULT")
           echo "--- Building Configuration ---"
           echo "Running: nixos-rebuild switch --flake $FLAKE_REF#$CONFIG_NAME"
           echo ""
