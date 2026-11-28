@@ -281,6 +281,8 @@ in {
     if command -v jj &>/dev/null; then
       _JJ_WORKSPACE_ROOT=$(jj root 2>/dev/null || pwd)
       _JJ_REPO_ROOT=$(detect_jj_repo_root "$_JJ_WORKSPACE_ROOT" || echo "$_JJ_WORKSPACE_ROOT")
+      export JJ_WORKSPACE_ROOT="''${JJ_WORKSPACE_ROOT-$_JJ_WORKSPACE_ROOT}"
+      export JJ_REPO_ROOT="''${JJ_REPO_ROOT-$_JJ_REPO_ROOT}"
 
       if is_jj_workspace "$_JJ_WORKSPACE_ROOT" "$_JJ_REPO_ROOT"; then
         # In workspace - create functions that run from repo root
@@ -289,8 +291,8 @@ in {
         echo ""
 
         # Use functions instead of aliases for better compatibility
-        s() { (cd "$_JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
-        switch() { (cd "$_JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
+        s() { (cd "$JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
+        switch() { (cd "$JJ_REPO_ROOT" && devenv tasks run system:switch "$@"); }
       else
         # In main repo - use normal functions
         s() { devenv tasks run system:switch "$@"; }
