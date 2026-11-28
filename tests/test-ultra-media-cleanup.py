@@ -155,6 +155,8 @@ class FakeTransmissionRPCServer:
                 response = {"result": "success", "arguments": arguments}
         elif payload["method"] == "torrent-remove":
             response = {"result": "success", "arguments": {}}
+        elif payload["method"] in ("torrent-stop", "torrent-start"):
+            response = {"result": "success", "arguments": {}}
         else:
             raise AssertionError("unexpected RPC operation")
         return FakeRPCResponse(json.dumps(response).encode())
@@ -184,6 +186,7 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertEqual(len(torrents), 1)
         torrent = torrents[0]
         self.assertEqual(torrent["id"], 17)
+        self.assertEqual(torrent["status"], 6)
         self.assertEqual(torrent["download_id"], "A" * 40)
         self.assertEqual(torrent["name"], "Example release")
         self.assertEqual(torrent["done_date"], 1_700_000_000)
@@ -285,8 +288,14 @@ class TransmissionRPCTests(unittest.TestCase):
         self.assertNotIn("torrent-remove", [request["method"] for request in self.server.requests])
 
     def test_rejects_non_read_rpc_operations_before_sending_them(self):
-        with self.assertRaises(transmission_rpc.TransmissionRPCError):
-            self.client._rpc("torrent-remove", {"ids": [17]})
+        for method, arguments in (
+            ("torrent-remove", {"ids": [17]}),
+            ("torrent-stop", {"ids": ["a" * 40]}),
+            ("torrent-start", {"ids": ["a" * 40]}),
+        ):
+            with self.subTest(method=method):
+                with self.assertRaises(transmission_rpc.TransmissionRPCError):
+                    self.client._rpc(method, arguments)
         self.assertEqual(self.server.requests, [])
 
     def test_remove_torrent_requests_both_torrent_and_seedbox_payload_removal(self):
@@ -396,6 +405,67 @@ class TransmissionRPCTests(unittest.TestCase):
         )
         self.assertEqual(torrent["candidate"]["trackers"], [{"classification": "unknown"}])
 
+    def test_stop_torrents_sends_only_the_explicit_hashes(self):
+        hashes = ["a" * 40, "b" * 40]
+        stop_torrents = getattr(self.client, "stop_torrents", None)
+        self.assertTrue(callable(stop_torrents), "TransmissionRPC must expose scoped stop_torrents")
+        if not callable(stop_torrents):
+            return
+
+        stop_torrents(hashes)
+
+        request = self.server.requests[-1]
+        self.assertEqual(request["method"], "torrent-stop")
+        self.assertEqual(request["arguments"], {"ids": hashes})
+
+    def test_start_torrents_sends_only_the_explicit_hashes(self):
+        hashes = ["c" * 40]
+        start_torrents = getattr(self.client, "start_torrents", None)
+        self.assertTrue(callable(start_torrents), "TransmissionRPC must expose scoped start_torrents")
+        if not callable(start_torrents):
+            return
+
+        start_torrents(hashes)
+
+        request = self.server.requests[-1]
+        self.assertEqual(request["method"], "torrent-start")
+        self.assertEqual(request["arguments"], {"ids": hashes})
+
+    def test_torrent_control_rejects_empty_or_invalid_hash_lists_before_rpc(self):
+        stop_torrents = getattr(self.client, "stop_torrents", None)
+        start_torrents = getattr(self.client, "start_torrents", None)
+        self.assertTrue(callable(stop_torrents), "TransmissionRPC must expose scoped stop_torrents")
+        self.assertTrue(callable(start_torrents), "TransmissionRPC must expose scoped start_torrents")
+        if not callable(stop_torrents) or not callable(start_torrents):
+            return
+        for method in ("stop_torrents", "start_torrents"):
+            for hashes in ([], ["not-a-hash"], ["a" * 40, "bad"], "a" * 40):
+                with self.subTest(method=method, hashes=hashes):
+                    with self.assertRaises(ValueError):
+                        getattr(self.client, method)(hashes)
+        self.assertEqual(self.server.requests, [])
+
+    def test_normalize_torrent_preserves_status_for_the_quota_guard(self):
+        torrent = transmission_rpc.normalize_torrent(
+            {
+                "id": 21,
+                "hashString": "d" * 40,
+                "status": 3,
+                "doneDate": 0,
+                "secondsSeeding": 0,
+                "uploadRatio": 0.0,
+                "leftUntilDone": 1,
+                "percentDone": 0.5,
+                "trackers": [],
+                "files": [],
+            }
+        )
+        self.assertIn("status", torrent, "normalized torrents must retain status for the quota guard")
+        if "status" not in torrent:
+            return
+        self.assertEqual(torrent["status"], 3)
+        self.assertFalse(torrent["candidate"]["complete"])
+
 
 class RetentionPolicyTests(unittest.TestCase):
     def candidate(self, **overrides):
@@ -457,6 +527,51 @@ class RetentionPolicyTests(unittest.TestCase):
                 self.candidate(done_date=now_seconds - 1, torrent_ratio=3.0)
             )
         self.assertTrue(decision["eligible"])
+
+    def test_configured_aggressive_age_threshold_qualifies(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - 24 * 60 * 60,
+                    torrent_ratio=0.1,
+                ),
+                min_completion_age_seconds=24 * 60 * 60,
+                min_torrent_ratio=1.0,
+            )
+        self.assertTrue(decision["eligible"])
+
+    def test_configured_aggressive_ratio_threshold_qualifies(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(done_date=now_seconds - 1, torrent_ratio=1.0),
+                min_completion_age_seconds=24 * 60 * 60,
+                min_torrent_ratio=1.0,
+            )
+        self.assertTrue(decision["eligible"])
+
+    def test_configured_thresholds_still_block_candidates_below_both(self):
+        now_seconds = 1_800_000_000
+        with patch.object(policy.time, "time", return_value=now_seconds):
+            decision = policy.evaluate_retention(
+                self.candidate(
+                    done_date=now_seconds - (24 * 60 * 60) + 1,
+                    torrent_ratio=0.99,
+                ),
+                min_completion_age_seconds=24 * 60 * 60,
+                min_torrent_ratio=1.0,
+            )
+        self.assertFalse(decision["eligible"])
+        self.assertIn("below_retention_threshold", decision["reasons"])
+
+    def test_invalid_configured_thresholds_are_rejected(self):
+        with self.assertRaises(ValueError):
+            policy.evaluate_retention(
+                self.candidate(), min_completion_age_seconds=0
+            )
+        with self.assertRaises(ValueError):
+            policy.evaluate_retention(self.candidate(), min_torrent_ratio=0)
 
     def test_mapped_file_requires_explicit_verified_source_provenance(self):
         for provenance in (None, False):
@@ -871,31 +986,35 @@ class CleanupRuntimeTests(unittest.TestCase):
             finally:
                 sys.modules.pop(module_name, None)
 
-    def test_app_stats_disk_usage_parser_uses_decimal_gigabytes(self):
+    def test_quota_usage_parser_converts_kib_blocks_to_bytes(self):
         output = (
-            " *** disk stats ***\n"
-            "                           date  value\n"
-            "1413 2026-11-17 22:06:27.438047   4000.5\n"
+            "Disk quotas for user seed-user (uid 1110):\n"
+            "Filesystem blocks quota limit grace files quota limit grace\n"
+            "/dev/sdv1 3905945648* 3905945600 3905945600 1796110067 8858 0 0 0\n"
         )
 
         self.assertEqual(
-            file_stat.parse_app_stats_disk_usage(output),
-            {"used_bytes": 4_000_500_000_000},
+            file_stat.parse_quota_usage(output),
+            {"used_bytes": 3_999_688_343_552},
         )
 
-    def test_app_stats_disk_usage_parser_fails_closed_on_missing_or_malformed_rows(self):
+    def test_quota_usage_parser_fails_closed_on_missing_or_malformed_rows(self):
         for output in (
             "",
-            " *** disk stats ***\n date value\n",
-            "1413 2026-11-17 22:06:27.438047 NaN\n",
-            "1413 2026-11-17 22:06:27.438047 -2\n",
+            "Filesystem blocks quota limit grace files quota limit grace\n",
+            "/dev/sdv1 not-a-count 3905945600 3905945600 0 8858 0 0 0\n",
+            "/dev/sdv1 -1 3905945600 3905945600 0 8858 0 0 0\n",
+            "/dev/sdv1 2.5 3905945600 3905945600 0 8858 0 0 0\n",
         ):
             with self.subTest(output=output):
-                self.assertIsNone(file_stat.parse_app_stats_disk_usage(output))
+                self.assertIsNone(file_stat.parse_quota_usage(output))
 
-    def test_remote_disk_usage_probe_uses_fixed_app_stats_command_and_strict_ssh_args(self):
+    def test_remote_disk_usage_probe_uses_live_quota_command_and_strict_ssh_args(self):
         commands = []
-        sample = "header\n1413 2026-11-17 22:06:27.438047 4000\n"
+        sample = (
+            "Filesystem blocks quota limit grace files quota limit grace\n"
+            "/dev/sdv1 3905945648* 3905945600 3905945600 1796110067 8858 0 0 0\n"
+        )
 
         def runner(arguments, **kwargs):
             commands.append((arguments, kwargs))
@@ -908,8 +1027,8 @@ class CleanupRuntimeTests(unittest.TestCase):
             process_runner=runner,
         )
 
-        self.assertEqual(probe(), {"used_bytes": 4_000_000_000_000})
-        self.assertEqual(commands[0][0][-1], "app-stats show -s disk -t hour -c 1")
+        self.assertEqual(probe(), {"used_bytes": 3_999_688_343_552})
+        self.assertEqual(commands[0][0][-1], "quota -p")
         self.assertEqual(commands[0][0][-2], "seed-user@seed.example")
         self.assertIs(commands[0][1]["stderr"], subprocess.DEVNULL)
 
@@ -948,7 +1067,10 @@ class CleanupRuntimeTests(unittest.TestCase):
                     return SimpleNamespace(returncode=0, stdout="")
                 return SimpleNamespace(
                     returncode=0,
-                    stdout="header\n1413 2026-11-17 22:06:27.438047 4000\n",
+                    stdout=(
+                        "Filesystem blocks quota limit grace files quota limit grace\n"
+                        "/dev/sdv1 3905945648* 3905945600 3905945600 1796110067 8858 0 0 0\n"
+                    ),
                 )
 
             usage = policy._probe_remote_disk_usage_from_runtime(
@@ -959,9 +1081,9 @@ class CleanupRuntimeTests(unittest.TestCase):
                 process_runner=runner,
             )
 
-            self.assertEqual(usage, {"used_bytes": 4_000_000_000_000})
+            self.assertEqual(usage, {"used_bytes": 3_999_688_343_552})
             ssh_call = commands[-1]
-            self.assertEqual(ssh_call[-1], "app-stats show -s disk -t hour -c 1")
+            self.assertEqual(ssh_call[-1], "quota -p")
             self.assertIn("StrictHostKeyChecking=yes", ssh_call)
             self.assertIn("GlobalKnownHostsFile=/dev/null", ssh_call)
             self.assertNotIn("fixture", json.dumps(usage))

@@ -195,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--jellyfin-password-file")
     parser.add_argument("--cleanup-enabled", action="store_true")
     parser.add_argument("--private-tracker-ratio-protection", action="store_true")
+    parser.add_argument("--min-completion-age-hours", type=int, default=240)
+    parser.add_argument("--min-torrent-ratio", type=float, default=3.0)
     parser.add_argument("--remote-disk-monitoring", action="store_true")
     parser.add_argument("--remote-disk-capacity-bytes", type=int, default=4_000_000_000_000)
     parser.add_argument("--remote-disk-warning-threshold-bytes", type=int, default=3_000_000_000_000)
@@ -203,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
         default="/run/ultra-media-metrics/ultra-seedbox.prom",
     )
     args = parser.parse_args(argv)
+    if args.min_completion_age_hours <= 0 or args.min_torrent_ratio <= 0:
+        parser.error("cleanup thresholds must be positive")
 
     secret_paths = {
         "rpc_url": args.rpc_url,
@@ -275,6 +279,8 @@ def main(argv: list[str] | None = None) -> int:
                 private_tracker_ratio_protection=args.private_tracker_ratio_protection,
                 queue_root=args.queue_root,
                 runtime_root=staging.RUNTIME_ROOT,
+                min_completion_age_seconds=args.min_completion_age_hours * 60 * 60,
+                min_torrent_ratio=args.min_torrent_ratio,
             )
             _emit_json({"event": "cleanup_queue_summary", **report})
             return report

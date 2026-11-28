@@ -401,6 +401,148 @@
           }
         ];
       }
+      {
+        id = 17;
+        title = "Quota guard live usage";
+        type = "timeseries";
+        gridPos = {
+          h = 8;
+          w = 12;
+          x = 0;
+          y = 35;
+        };
+        fieldConfig.defaults = {
+          unit = "decbytes";
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                color = "green";
+                value = null;
+              }
+              {
+                color = "orange";
+                value = 3500000000000;
+              }
+              {
+                color = "red";
+                value = 3800000000000;
+              }
+            ];
+          };
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_seedbox_download_guard_used_bytes{job="node",instance="drlight:9100"}'';
+            refId = "A";
+          }
+        ];
+      }
+      {
+        id = 18;
+        title = "Quota guard state";
+        type = "stat";
+        gridPos = {
+          h = 8;
+          w = 6;
+          x = 12;
+          y = 35;
+        };
+        fieldConfig.defaults = {
+          mappings = [
+            {
+              type = "value";
+              options = {
+                "0" = {
+                  text = "Downloads allowed";
+                  color = "green";
+                };
+                "1" = {
+                  text = "Seeding only";
+                  color = "orange";
+                };
+              };
+            }
+          ];
+          thresholds = {
+            mode = "absolute";
+            steps = [
+              {
+                color = "green";
+                value = null;
+              }
+              {
+                color = "orange";
+                value = 1;
+              }
+            ];
+          };
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_seedbox_download_guard_active{job="node",instance="drlight:9100"}'';
+            refId = "A";
+          }
+        ];
+      }
+      {
+        id = 19;
+        title = "Guard-paused torrents";
+        type = "stat";
+        gridPos = {
+          h = 8;
+          w = 6;
+          x = 18;
+          y = 35;
+        };
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''ultra_seedbox_download_guard_paused_torrents{job="node",instance="drlight:9100"}'';
+            refId = "A";
+          }
+        ];
+      }
+      {
+        id = 20;
+        title = "Quota guard activity (7d)";
+        type = "timeseries";
+        gridPos = {
+          h = 8;
+          w = 24;
+          x = 0;
+          y = 43;
+        };
+        fieldConfig.defaults.unit = "short";
+        targets = [
+          {
+            datasource.type = "prometheus";
+            expr = ''sum(increase(ultra_seedbox_download_guard_pauses_total{job="node",instance="drlight:9100"}[7d]))'';
+            legendFormat = "pause events";
+            refId = "A";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''sum(increase(ultra_seedbox_download_guard_resumes_total{job="node",instance="drlight:9100"}[7d]))'';
+            legendFormat = "resume events";
+            refId = "B";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''sum(increase(ultra_seedbox_download_guard_probe_failures_total{job="node",instance="drlight:9100"}[7d]))'';
+            legendFormat = "quota probe failures";
+            refId = "C";
+          }
+          {
+            datasource.type = "prometheus";
+            expr = ''sum(increase(ultra_seedbox_download_guard_rpc_failures_total{job="node",instance="drlight:9100"}[7d]))'';
+            legendFormat = "RPC failures";
+            refId = "D";
+          }
+        ];
+      }
     ];
   });
 

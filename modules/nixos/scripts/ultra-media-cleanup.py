@@ -161,6 +161,8 @@ def evaluate_retention(
     candidate: Mapping[str, Any],
     *,
     now_seconds: int | float | None = None,
+    min_completion_age_seconds: int = MIN_COMPLETION_AGE_SECONDS,
+    min_torrent_ratio: float = MIN_TORRENT_RATIO,
 ) -> dict[str, Any]:
     """Return an eligibility decision and safe reason codes for normalized metadata.
 
@@ -179,6 +181,15 @@ def evaluate_retention(
     missing or malformed safety fact fails closed. Private tracker checks are
     independent from the per-torrent sharing threshold.
     """
+    if (
+        not isinstance(min_completion_age_seconds, int)
+        or isinstance(min_completion_age_seconds, bool)
+        or min_completion_age_seconds <= 0
+        or not _finite_number(min_torrent_ratio)
+        or min_torrent_ratio <= 0
+    ):
+        raise ValueError("retention thresholds must be positive")
+
     reasons: list[str] = []
 
     def block(reason: str) -> None:
@@ -199,12 +210,12 @@ def evaluate_retention(
     reached_completion_age = (
         done_date_valid
         and now_valid
-        and now_seconds - done_date >= MIN_COMPLETION_AGE_SECONDS
+        and now_seconds - done_date >= min_completion_age_seconds
     )
     torrent_ratio = candidate.get("torrent_ratio")
     reached_torrent_ratio = (
         _finite_number(torrent_ratio)
-        and torrent_ratio >= MIN_TORRENT_RATIO
+        and torrent_ratio >= min_torrent_ratio
     )
     if not (reached_completion_age or reached_torrent_ratio):
         if not done_date_valid or not now_valid:
@@ -735,9 +746,18 @@ def build_legacy_library_inventory_report(records: Sequence[Any]) -> dict[str, A
     return report(len(normalized_records))
 
 
-def _retention_preflight_reasons(candidate: Mapping[str, Any]) -> list[str]:
+def _retention_preflight_reasons(
+    candidate: Mapping[str, Any],
+    *,
+    min_completion_age_seconds: int = MIN_COMPLETION_AGE_SECONDS,
+    min_torrent_ratio: float = MIN_TORRENT_RATIO,
+) -> list[str]:
     """Reject incomplete, below-policy, or tracker-unsafe candidates before I/O."""
-    decision = evaluate_retention(candidate)
+    decision = evaluate_retention(
+        candidate,
+        min_completion_age_seconds=min_completion_age_seconds,
+        min_torrent_ratio=min_torrent_ratio,
+    )
     preflight_reasons = {
         "incomplete_torrent",
         "below_retention_threshold",
@@ -763,6 +783,8 @@ def build_cleanup_report(
     *,
     staged_copy_prover: Callable[[Mapping[str, Any]], StagedCopyProof],
     staged_file_verifier: Callable[[Mapping[str, Any]], Mapping[str, Any] | None],
+    min_completion_age_seconds: int = MIN_COMPLETION_AGE_SECONDS,
+    min_torrent_ratio: float = MIN_TORRENT_RATIO,
 ) -> dict[str, Any]:
     """Return aggregate eligibility only; this function has no side effects."""
     candidate_count = len(candidates) if isinstance(candidates, Sequence) else 0
@@ -805,7 +827,13 @@ def build_cleanup_report(
             for file_record in candidate.get("files", [])
         ):
             reasons = ["shared_file_unsafe"]
-        elif (preflight_reasons := _retention_preflight_reasons(candidate)):
+        elif (
+            preflight_reasons := _retention_preflight_reasons(
+                candidate,
+                min_completion_age_seconds=min_completion_age_seconds,
+                min_torrent_ratio=min_torrent_ratio,
+            )
+        ):
             reasons = preflight_reasons
         else:
             try:
@@ -846,7 +874,11 @@ def build_cleanup_report(
                     )
                     verified_files.append(verified_file)
                 candidate_with_proofs["files"] = verified_files
-                decision = evaluate_retention(candidate_with_proofs)
+                decision = evaluate_retention(
+                    candidate_with_proofs,
+                    min_completion_age_seconds=min_completion_age_seconds,
+                    min_torrent_ratio=min_torrent_ratio,
+                )
                 reasons = decision["reasons"]
                 if decision["eligible"]:
                     eligible += 1
@@ -914,6 +946,8 @@ def execute_cleanup(
     allowed_torrent_ids: set[int] | frozenset[int] | None = None,
     candidate_lock: Callable[[int], Any] | None = None,
     on_candidate_result: Callable[[int, str, Sequence[str]], None] | None = None,
+    min_completion_age_seconds: int = MIN_COMPLETION_AGE_SECONDS,
+    min_torrent_ratio: float = MIN_TORRENT_RATIO,
 ) -> dict[str, Any]:
     """Report or remove eligible queued torrents after per-torrent revalidation."""
     prepared = _prepare_cleanup_candidates(candidates)
@@ -971,6 +1005,8 @@ def execute_cleanup(
                 [candidate],
                 staged_copy_prover=staged_copy_prover,
                 staged_file_verifier=staged_file_verifier,
+                min_completion_age_seconds=min_completion_age_seconds,
+                min_torrent_ratio=min_torrent_ratio,
             )
             if report["eligible"] != 1:
                 counts["blocked"] += 1
@@ -1094,7 +1130,7 @@ def _probe_remote_disk_usage_from_runtime(
     ssh_port: Any = 22,
     process_runner: Callable[..., Any] = subprocess.run,
 ) -> dict[str, int] | None:
-    """Read account-level disk usage over the existing strict SSH credentials."""
+    """Read live account quota usage over the existing strict SSH credentials."""
     try:
         staging = _load_runtime_module(
             "ultra_media_download_stage", "ultra-media-download-stage.py"
@@ -1261,10 +1297,20 @@ def run_runtime_cleanup(
     runtime_root: str = RUNTIME_ROOT,
     process_runner: Callable[..., Any] = subprocess.run,
     now_ns: int | None = None,
+    min_completion_age_seconds: int = MIN_COMPLETION_AGE_SECONDS,
+    min_torrent_ratio: float = MIN_TORRENT_RATIO,
 ) -> dict[str, Any]:
     """Read live state, prove Drlight staging copies, and optionally clean the seedbox."""
     if type(private_tracker_ratio_protection) is not bool:
         raise RuntimeError("runtime_configuration_unavailable")
+    try:
+        evaluate_retention(
+            {},
+            min_completion_age_seconds=min_completion_age_seconds,
+            min_torrent_ratio=min_torrent_ratio,
+        )
+    except ValueError:
+        raise RuntimeError("runtime_configuration_unavailable") from None
     if now_ns is None:
         now_ns = time.time_ns()
     if not isinstance(now_ns, int) or isinstance(now_ns, bool) or now_ns <= 0:
@@ -1478,6 +1524,8 @@ def run_runtime_cleanup(
                 [current],
                 staged_copy_prover=staged_copy_prover,
                 staged_file_verifier=staged_file_verifier,
+                min_completion_age_seconds=min_completion_age_seconds,
+                min_torrent_ratio=min_torrent_ratio,
             )
             return report["eligible"] == 1
 
@@ -1513,6 +1561,8 @@ def run_runtime_cleanup(
                 runtime_root, torrent_id, blocking=False
             ),
             on_candidate_result=record_queue_result,
+            min_completion_age_seconds=min_completion_age_seconds,
+            min_torrent_ratio=min_torrent_ratio,
         )
         report["queued"] = queued_count
         report["stale_or_missing"] = stale_or_missing
@@ -1599,7 +1649,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--remote-disk-metrics-path", default=REMOTE_DISK_METRICS_PATH)
     parser.add_argument("--remote-disk-monitoring", action="store_true")
     parser.add_argument("--private-tracker-ratio-protection", action="store_true")
+    parser.add_argument(
+        "--min-completion-age-hours",
+        type=int,
+        default=MIN_COMPLETION_AGE_SECONDS // (60 * 60),
+    )
+    parser.add_argument("--min-torrent-ratio", type=float, default=MIN_TORRENT_RATIO)
     args = parser.parse_args(argv)
+    if args.min_completion_age_hours <= 0 or args.min_torrent_ratio <= 0:
+        parser.error("cleanup thresholds must be positive")
     if args.apply and args.report_only:
         print("cleanup failed reason=mode_conflict")
         return 2
@@ -1651,6 +1709,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 apply=True,
                 private_tracker_ratio_protection=args.private_tracker_ratio_protection,
                 queue_root=args.queue_root,
+                min_completion_age_seconds=args.min_completion_age_hours * 60 * 60,
+                min_torrent_ratio=args.min_torrent_ratio,
             )
         else:
             report = _runtime_unverified_report()

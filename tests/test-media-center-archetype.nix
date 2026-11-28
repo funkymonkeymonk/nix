@@ -120,8 +120,34 @@
             {
               myConfig.ultraMediaDownloadStage.enable = lib.mkForce false;
               myConfig.ultraMediaDownloadStage.cleanup.enable = lib.mkForce false;
+              myConfig.ultraMediaDownloadStage.spaceGuard.enable = lib.mkForce false;
             }
           ];
+        }).config;
+      drlightWithSpaceGuardDisabled =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.ultraMediaDownloadStage.spaceGuard.enable = lib.mkForce false;}];
+        }).config;
+      drlightWithInvalidSpaceGuardThresholds =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [
+            {
+              myConfig.ultraMediaDownloadStage.spaceGuard.pauseAtBytes = lib.mkForce 3500000000000;
+              myConfig.ultraMediaDownloadStage.spaceGuard.resumeBelowBytes = lib.mkForce 3800000000000;
+            }
+          ];
+        }).config;
+      drlightWithSpaceGuardWithoutCleanup =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.ultraMediaDownloadStage.cleanup.enable = lib.mkForce false;}];
+        }).config;
+      drlightWithSpaceGuardWithoutStaging =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.ultraMediaDownloadStage.enable = lib.mkForce false;}];
+        }).config;
+      drlightWithSpaceGuardWithoutRemoteDisk =
+        (self.nixosConfigurations.drlight.extendModules {
+          modules = [{myConfig.ultraMediaDownloadStage.remoteDisk.enable = lib.mkForce false;}];
         }).config;
       drlightWithRadarrAuthOnly =
         (self.nixosConfigurations.drlight.extendModules {
@@ -188,6 +214,18 @@
       ultraDisabledDownloadStageCommand = ultraDisabledDownloadStageService.script or (ultraDisabledDownloadStageService.serviceConfig.ExecStart or "");
       ultraDownloadStageTimer = drlight.systemd.timers.ultra-media-download-stage or {};
       ultraDownloadStageTimerConfig = ultraDownloadStageTimer.timerConfig or {};
+      ultraSpaceGuardConfig = drlight.myConfig.ultraMediaDownloadStage.spaceGuard or {};
+      ultraSpaceGuardService = drlight.systemd.services.ultra-media-space-guard or {};
+      ultraSpaceGuardServiceConfig = ultraSpaceGuardService.serviceConfig or {};
+      ultraSpaceGuardCommand = ultraSpaceGuardService.script or (ultraSpaceGuardServiceConfig.ExecStart or "");
+      ultraSpaceGuardTimer = drlight.systemd.timers.ultra-media-space-guard or {};
+      ultraSpaceGuardTimerConfig = ultraSpaceGuardTimer.timerConfig or {};
+      disabledSpaceGuardTimer = drlightWithSpaceGuardDisabled.systemd.timers.ultra-media-space-guard or {};
+      drlightAssertionResults = map (assertion: assertion.assertion) drlight.assertions;
+      invalidSpaceGuardThresholdAssertionResults = map (assertion: assertion.assertion) drlightWithInvalidSpaceGuardThresholds.assertions;
+      spaceGuardCleanupAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutCleanup.assertions;
+      spaceGuardStagingAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutStaging.assertions;
+      spaceGuardRemoteDiskAssertionResults = map (assertion: assertion.assertion) drlightWithSpaceGuardWithoutRemoteDisk.assertions;
       ultraRemoteDiskConfig = drlight.myConfig.ultraMediaDownloadStage.remoteDisk or {};
       ultraRemoteDiskMetricsDirectory = "/run/ultra-media-metrics";
       nodeExporterTextfileDirectory = drlight.myConfig.nodeExporter.textfileDirectory or null;
@@ -691,8 +729,10 @@
         ${checkEqual "OpenChamber listener stays on loopback" "127.0.0.1" (openchamberService.host or null)}
         ${checkEqual "OpenChamber uses a non-Grafana port" 3001 (openchamberService.port or null)}
         ${checkEqual "OpenChamber gets its UI password through systemd credentials" "ui-password:/run/secrets/openchamber-ui-password" (openchamberSystemdServiceConfig.LoadCredential or null)}
-        ${checkEqual "OpenChamber UI password reference uses the Opnix vault" "OpenChamber UI Password/password" (openchamberUiPasswordSecret.reference or null)}
-        ${checkEqual "OpenChamber UI password is provided to the service" "/run/secrets/openchamber-ui-password" (openchamberService.uiPasswordFile or null)}
+           ${checkEqual "OpenChamber UI password reference uses the Opnix vault" "OpenChamber UI Password/password" (openchamberUiPasswordSecret.reference or null)}
+           ${checkEqual "OpenChamber UI password is provided to the service" "/run/secrets/openchamber-ui-password" (openchamberService.uiPasswordFile or null)}
+           ${checkTrue "OpenChamber waits for OpNix secrets" (builtins.elem "opnix-secrets.service" (openchamberSystemdService.after or []) && builtins.elem "opnix-secrets.service" (openchamberSystemdService.requires or []))}
+           ${checkEqual "OpenChamber waits for its password file" "/run/secrets/openchamber-ui-password" (openchamberSystemdService.unitConfig.ConditionPathExists or null)}
         ${checkFalse "OpenChamber does not open its raw port globally" (builtins.elem 3001 (drlight.networking.firewall.allowedTCPPorts or []))}
         ${checkFalse "OpenChamber does not open its raw port on the LAN interface" (builtins.elem 3001 (drlight.networking.firewall.interfaces.eno1.allowedTCPPorts or []))}
         ${checkTrue "OpenChamber Caddy route flushes SSE responses" (lib.hasInfix "flush_interval -1" openchamberVirtualHostConfig)}
@@ -822,12 +862,29 @@
            ${checkFalse "legacy library source Opnix references are removed" (onePasswordSecrets ? ultraMediaStageMoviesSource || onePasswordSecrets ? ultraMediaStageShowsSource || onePasswordSecrets ? ultraMediaStageMusicSource || onePasswordSecrets ? ultraMediaStageComicsSource)}
            ${checkFalse "SSH port is no longer an Opnix secret" (onePasswordSecrets ? ultraMediaStagePort)}
            ${checkTrue "staging uses the default SSH port 22" (lib.hasInfix "--ssh-port 22" ultraDownloadStageCommand)}
-           ${checkTrue "Drlight enables completed-download staging" (drlight.myConfig.ultraMediaDownloadStage.enable or false)}
-           ${checkTrue "Drlight enables automatic seedbox cleanup" (drlight.myConfig.ultraMediaDownloadStage.cleanup.enable or false)}
-           ${checkTrue "Drlight keeps the future private-tracker ratio extension inactive" (!(drlight.myConfig.ultraMediaDownloadStage.cleanup.privateTrackerRatioProtection.enable or false))}
+            ${checkTrue "Drlight enables completed-download staging" (drlight.myConfig.ultraMediaDownloadStage.enable or false)}
+            ${checkTrue "Drlight enables automatic seedbox cleanup" (drlight.myConfig.ultraMediaDownloadStage.cleanup.enable or false)}
+            ${checkEqual "Drlight uses the aggressive 24-hour cleanup age" 24 (drlight.myConfig.ultraMediaDownloadStage.cleanup.minCompletionAgeHours or null)}
+            ${checkEqual "Drlight uses the aggressive 1.0 cleanup ratio" 1.0 (drlight.myConfig.ultraMediaDownloadStage.cleanup.minTorrentRatio or null)}
+            ${checkTrue "the worker receives the configured cleanup thresholds" (lib.hasInfix "--min-completion-age-hours 24" ultraDownloadStageCommand && lib.hasInfix "--min-torrent-ratio 1.0" ultraDownloadStageCommand)}
+            ${checkTrue "Drlight enables the seedbox quota guard" (ultraSpaceGuardConfig.enable or false)}
+            ${checkEqual "quota guard pauses at decimal 3.8 TB" 3800000000000 (ultraSpaceGuardConfig.pauseAtBytes or null)}
+            ${checkEqual "quota guard resumes below decimal 3.5 TB" 3500000000000 (ultraSpaceGuardConfig.resumeBelowBytes or null)}
+            ${checkTrue "Drlight keeps the future private-tracker ratio extension inactive" (!(drlight.myConfig.ultraMediaDownloadStage.cleanup.privateTrackerRatioProtection.enable or false))}
            ${checkFalse "explicitly disabling completed-download staging removes its timer link" (builtins.elem "timers.target" ((drlightWithDownloadAutomationDisabled.systemd.timers.ultra-media-download-stage or {}).wantedBy or []))}
-           ${checkTrue "Drlight's completed-download staging timer is enabled" (builtins.elem "timers.target" (ultraDownloadStageTimer.wantedBy or []))}
-           ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
+            ${checkTrue "Drlight's completed-download staging timer is enabled" (builtins.elem "timers.target" (ultraDownloadStageTimer.wantedBy or []))}
+            ${checkTrue "Drlight's one-minute quota guard timer is enabled" (builtins.elem "timers.target" (ultraSpaceGuardTimer.wantedBy or []))}
+            ${checkEqual "quota guard timer polls every minute" ["1min" "1min"] [(ultraSpaceGuardTimerConfig.OnBootSec or null) (ultraSpaceGuardTimerConfig.OnUnitActiveSec or null)]}
+            ${checkEqual "quota guard timer activates its separate service" "ultra-media-space-guard.service" (ultraSpaceGuardTimerConfig.Unit or null)}
+            ${checkFalse "disabling the quota guard removes its timer link" (builtins.elem "timers.target" (disabledSpaceGuardTimer.wantedBy or []))}
+            ${checkEqual "quota guard runs as the dedicated sync account" ["oneshot" "ultra-sync" "users"] [(ultraSpaceGuardServiceConfig.Type or null) (ultraSpaceGuardServiceConfig.User or null) (ultraSpaceGuardServiceConfig.Group or null)]}
+            ${checkTrue "quota guard retains systemd hardening and a private state directory" ((ultraSpaceGuardServiceConfig.ProtectSystem or null) == "strict" && (ultraSpaceGuardServiceConfig.ProtectHome or false) && (ultraSpaceGuardServiceConfig.NoNewPrivileges or false) && (ultraSpaceGuardServiceConfig.StateDirectory or null) == "ultra-media-space-guard" && (ultraSpaceGuardServiceConfig.StateDirectoryMode or null) == "0700")}
+            ${checkTrue "quota guard command passes live-quota and Transmission secret paths" (lib.hasInfix "ultra_media_space_guard.py" ultraSpaceGuardCommand && lib.hasInfix "--rpc-url /run/secrets/ultra-media-stage-rpc-url" ultraSpaceGuardCommand && lib.hasInfix "--ssh-host /run/secrets/ultra-media-stage-host" ultraSpaceGuardCommand && lib.hasInfix "--pause-at-bytes 3800000000000" ultraSpaceGuardCommand && lib.hasInfix "--resume-below-bytes 3500000000000" ultraSpaceGuardCommand)}
+            ${checkTrue "inverted quota guard thresholds add a validation failure" (builtins.length (builtins.filter (valid: !valid) invalidSpaceGuardThresholdAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "quota guard requires automatic cleanup" (builtins.length (builtins.filter (valid: !valid) spaceGuardCleanupAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "quota guard requires the hourly staging timer" (builtins.length (builtins.filter (valid: !valid) spaceGuardStagingAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "quota guard requires live remote-disk monitoring" (builtins.length (builtins.filter (valid: !valid) spaceGuardRemoteDiskAssertionResults) > builtins.length (builtins.filter (valid: !valid) drlightAssertionResults))}
+            ${checkTrue "explicitly enabling completed-download staging enables its timer" (builtins.elem "timers.target" (ultraDownloadStageEnabledTimer.wantedBy or []))}
            ${checkEqual "completed-download staging timer activates its separate service" "ultra-media-download-stage.service" (ultraDownloadStageTimerConfig.Unit or null)}
            ${checkEqual "completed-download staging timer uses an hourly schedule" "hourly" (ultraDownloadStageTimerConfig.OnCalendar or null)}
            ${checkTrue "completed-download staging timer defers while its service is active" (ultraDownloadStageTimerConfig.DeferReactivation or false)}
@@ -859,10 +916,10 @@
            ${checkFalse "stage rsync never deletes seedbox or local files" (lib.hasInfix "--delete" ultraSyncStagingSource || lib.hasInfix "--remove-source-files" ultraSyncStagingSource)}
            ${checkEqual "Transmission RPC username uses the unqualified OpNix field" "Ultra - Transmission/username" (ultraStageRpcUsernameSecret.reference or null)}
            ${checkEqual "Transmission RPC password uses the unqualified OpNix field" "Ultra - Transmission/password" (ultraStageRpcPasswordSecret.reference or null)}
-           ${checkTrue "Transmission RPC credentials are scoped to the unified sync worker and local Arr reconciliation" ((ultraStageRpcUsernameSecret.services or []) == (["ultra-media-download-stage"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]) && (ultraStageRpcPasswordSecret.services or []) == (["ultra-media-download-stage"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]))}
+            ${checkTrue "Transmission RPC credentials are scoped to the sync workers and local Arr reconciliation" ((ultraStageRpcUsernameSecret.services or []) == (["ultra-media-download-stage" "ultra-media-space-guard"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]) && (ultraStageRpcPasswordSecret.services or []) == (["ultra-media-download-stage" "ultra-media-space-guard"] ++ ["radarr-media-config-sync" "sonarr-media-config-sync" "lidarr-media-config-sync"]))}
            ${checkEqual "Transmission RPC username resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/username" (opnixUltraStageRpcUsernameSecret.reference or null)}
            ${checkEqual "Transmission RPC password resolves through the Opnix default vault" "op://Opnix/Ultra - Transmission/password" (opnixUltraStageRpcPasswordSecret.reference or null)}
-           ${checkTrue "the SSH key is scoped only to the unified sync worker" ((ultraStageKeySecret.services or []) == ["ultra-media-download-stage"])}
+            ${checkTrue "the SSH key is scoped only to the seedbox sync and quota guard workers" ((ultraStageKeySecret.services or []) == ["ultra-media-download-stage" "ultra-media-space-guard"])}
            ${checkEqual "Drlight uses Opnix as its default vault" "Opnix" (drlight.myConfig.onepassword.defaultVault or null)}
            ${checkEqual "Drlight Cloudflare secret uses the Opnix item and field" "Cloudflare DNS API Token/credential" (onePasswordSecrets.cloudflareApiToken.reference or null)}
            ${checkEqual "Drlight Cloudflare secret resolves to the Opnix vault" "op://Opnix/Cloudflare DNS API Token/credential" (opnixSecrets.cloudflareApiToken.reference or null)}

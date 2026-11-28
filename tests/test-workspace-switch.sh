@@ -60,6 +60,17 @@ assert_false() {
   fi
 }
 
+assert_contains() {
+  local desc="$1"
+  local expected="$2"
+  local actual="$3"
+  if [[ "$actual" == *"$expected"* ]]; then
+    pass "$desc"
+  else
+    fail "$desc (expected output to contain '$expected', got '$actual')"
+  fi
+}
+
 section() {
   echo ""
   echo "=== $1 ==="
@@ -259,6 +270,73 @@ assert_eq "s defined in non-workspace context" "direct-switch" "$(s)"
 assert_eq "switch defined in non-workspace context" "direct-switch" "$(switch)"
 assert_eq "b defined in non-workspace context" "direct-build" "$(b)"
 assert_eq "q defined in non-workspace context" "direct-check" "$(q)"
+
+# ============================================================
+# Tests: resolve_jj_flake_ref
+# ============================================================
+
+section "resolve_jj_flake_ref: workspace and fallback"
+
+MAIN_FLAKE_ROOT="$TMPDIR/main-flake"
+WORKSPACE_FLAKE_ROOT="$TMPDIR/workspace-flake"
+INVALID_FLAKE_ROOT="$TMPDIR/not-a-flake"
+mkdir -p "$MAIN_FLAKE_ROOT" "$WORKSPACE_FLAKE_ROOT" "$INVALID_FLAKE_ROOT"
+: > "$MAIN_FLAKE_ROOT/flake.nix"
+: > "$WORKSPACE_FLAKE_ROOT/flake.nix"
+
+JJ_MOCK_ARGS_FILE="$TMPDIR/jj-args"
+JJ_MOCK_REV="0123456789abcdef0123456789abcdef01234567"
+export JJ_MOCK_ARGS_FILE JJ_MOCK_REV
+: > "$JJ_MOCK_ARGS_FILE"
+jj() {
+  printf '%s\n' "$@" > "$JJ_MOCK_ARGS_FILE"
+  printf '%s\n' "$JJ_MOCK_REV"
+}
+
+JJ_WORKSPACE_ROOT="$WORKSPACE_FLAKE_ROOT"
+JJ_REPO_ROOT="$MAIN_FLAKE_ROOT"
+export JJ_WORKSPACE_ROOT JJ_REPO_ROOT
+resolver_rc=0
+workspace_flake_ref=$(resolve_jj_flake_ref 2>/dev/null) || resolver_rc=$?
+assert_eq "resolver succeeds for a workspace with flake.nix" "0" "$resolver_rc"
+assert_eq "resolver pins the workspace commit from the repository root" \
+  "git+file://$MAIN_FLAKE_ROOT?rev=$JJ_MOCK_REV" "$workspace_flake_ref"
+jj_args=$(cat "$JJ_MOCK_ARGS_FILE")
+assert_contains "resolver ignores unsnapshotted working-copy changes" "--ignore-working-copy" "$jj_args"
+assert_contains "resolver asks jj for the workspace root" "$WORKSPACE_FLAKE_ROOT" "$jj_args"
+assert_contains "resolver selects the current jj revision" "@" "$jj_args"
+assert_contains "resolver requests the Git commit ID" "commit_id" "$jj_args"
+
+unset JJ_WORKSPACE_ROOT
+cd "$MAIN_FLAKE_ROOT"
+resolver_rc=0
+fallback_flake_ref=$(resolve_jj_flake_ref 2>/dev/null) || resolver_rc=$?
+assert_eq "resolver succeeds when no workspace root is set" "0" "$resolver_rc"
+assert_eq "resolver falls back to the current directory" \
+  "git+file://$MAIN_FLAKE_ROOT?rev=$JJ_MOCK_REV" "$fallback_flake_ref"
+
+JJ_WORKSPACE_ROOT=""
+export JJ_WORKSPACE_ROOT
+: > "$JJ_MOCK_ARGS_FILE"
+resolver_rc=0
+empty_output=$(resolve_jj_flake_ref 2>&1) || resolver_rc=$?
+assert_false "resolver rejects an explicitly empty workspace root" "$resolver_rc"
+assert_contains "empty workspace error identifies the variable" "JJ_WORKSPACE_ROOT" "$empty_output"
+assert_eq "empty workspace fails before jj resolves a revision" "" "$(cat "$JJ_MOCK_ARGS_FILE")"
+
+JJ_WORKSPACE_ROOT="$INVALID_FLAKE_ROOT"
+export JJ_WORKSPACE_ROOT
+resolver_rc=0
+invalid_output=$(resolve_jj_flake_ref 2>&1) || resolver_rc=$?
+assert_false "resolver rejects an explicit non-flake workspace root" "$resolver_rc"
+if [[ "$invalid_output" == *"flake.nix"* ]]; then
+  pass "invalid workspace error explains the missing flake.nix"
+else
+  fail "invalid workspace error should mention flake.nix (got '$invalid_output')"
+fi
+assert_eq "invalid workspace fails before jj resolves a revision" "" "$(cat "$JJ_MOCK_ARGS_FILE")"
+unset JJ_WORKSPACE_ROOT JJ_REPO_ROOT
+cd "$SCRIPT_DIR"
 
 # ============================================================
 # Summary

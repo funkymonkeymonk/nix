@@ -41,6 +41,12 @@ in {
   # dependents. Its output-directory watcher launches a duplicate resolver.
   systemd.paths.opnix-secrets-watcher.enable = lib.mkForce false;
 
+  systemd.services.openchamber = {
+    after = ["opnix-secrets.service"];
+    requires = ["opnix-secrets.service"];
+    unitConfig.ConditionPathExists = "/run/secrets/openchamber-ui-password";
+  };
+
   services.openchamber = {
     enable = true;
     user = "monkey";
@@ -71,9 +77,16 @@ in {
       nodeExporter.openFirewallInterfaces = ["tailscale0" "eno1"];
       ultraMediaDownloadStage = {
         enable = true;
+        spaceGuard = {
+          enable = true;
+          pauseAtBytes = 3800000000000;
+          resumeBelowBytes = 3500000000000;
+        };
         cleanup = {
           enable = true;
           privateTrackerRatioProtection.enable = false;
+          minCompletionAgeHours = 24;
+          minTorrentRatio = 1.0;
         };
         remoteDisk = {
           enable = true;

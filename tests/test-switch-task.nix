@@ -2,6 +2,7 @@
   switchTaskTest =
     pkgs.runCommand "test-switch-task" {
       devenv = ../devenv.nix;
+      workspaceLib = ../modules/common/scripts/jj-workspace-lib;
     } ''
       source=$(cat "$devenv")
 
@@ -34,6 +35,20 @@
       # system:switch includes the shared helper in its task body.
       linux_task=$(sed -n '/"system:switch" = {/,/^[[:space:]]*};/p' "$devenv")
       grep -q 'runWithSudoPassword' <<< "$linux_task"
+
+      # The switch rebuild uses the immutable workspace commit; config and
+      # sudo-reference lookups stay in the shared path-based helpers.
+      grep -q 'source ./modules/common/scripts/jj-workspace-lib' <<< "$linux_task"
+      grep -q 'FLAKE_REF=$(resolve_jj_flake_ref)' <<< "$linux_task"
+      [ "$(grep -c '"\$FLAKE_REF#' <<< "$linux_task")" -eq 2 ]
+      ! grep -Eq 'nix eval.*"?\.#' <<< "$linux_task"
+      grep -Fq -- '--flake "$FLAKE_REF#$CONFIG_NAME"' <<< "$linux_task"
+      grep -q 'export JJ_WORKSPACE_ROOT=' "$devenv"
+      grep -q 'JJ_WORKSPACE_ROOT-' "$devenv"
+      grep -q 'cd "\$JJ_REPO_ROOT"' "$devenv"
+      grep -q 'resolve_jj_flake_ref()' "$workspaceLib"
+      grep -q 'jj --ignore-working-copy --repository' "$workspaceLib"
+      grep -q '?rev=' "$workspaceLib"
 
       touch "$out"
     '';

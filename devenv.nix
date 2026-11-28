@@ -587,6 +587,8 @@ in {
       description = "Apply configuration to current system (platform-aware)";
       exec = ''
         set -euo pipefail
+        source ./modules/common/scripts/jj-workspace-lib
+        FLAKE_REF=$(resolve_jj_flake_ref)
         ${runWithSudoPassword}
 
         echo "=== System Switch ==="
@@ -624,7 +626,7 @@ in {
           set -o pipefail
           run_with_sudo_password "$PASSWORD_PATH" \
             env NIXPKGS_ALLOW_UNFREE=1 darwin-rebuild switch \
-            --flake "./#$CONFIG_NAME" \
+            --flake "$FLAKE_REF#$CONFIG_NAME" \
             --impure \
             --show-trace 2>&1 | tee "$SWITCH_LOG" || {
             EXIT_CODE=$?
@@ -644,12 +646,12 @@ in {
           # devenv tasks do not guarantee an interactive terminal, so provide
           # sudo with the configured password just as the Darwin path does.
           echo "--- Building Configuration ---"
-          echo "Running: nixos-rebuild switch --flake ./#$CONFIG_NAME"
+          echo "Running: nixos-rebuild switch --flake $FLAKE_REF#$CONFIG_NAME"
           echo ""
 
           run_with_sudo_password "$PASSWORD_PATH" \
             nixos-rebuild switch \
-            --flake "./#$CONFIG_NAME" \
+            --flake "$FLAKE_REF#$CONFIG_NAME" \
             --impure \
             --show-trace 2>&1 || {
             EXIT_CODE=$?

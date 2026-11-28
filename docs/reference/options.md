@@ -543,11 +543,16 @@ or changing a `myConfig.*` option.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `cleanup.enable` | boolean | `false` | Whether to enable remove retention-eligible seedbox torrents after verified staging. |
+| `cleanup.minCompletionAgeHours` | positive integer, meaning >0 | `240` | Minimum completion age in hours before a verified torrent may be removed. |
+| `cleanup.minTorrentRatio` | floating point number | `3.0` | Minimum upload/download ratio before a verified torrent may be removed. |
 | `cleanup.privateTrackerRatioProtection.enable` | boolean | `false` | Whether to enable future private-tracker account-ratio cleanup gate (unknown trackers fail closed). |
 | `enable` | boolean | `false` | Whether to enable completed Ultra download staging timer. |
 | `remoteDisk.capacityBytes` | positive integer, meaning >0 | `4000000000000` | Nominal remote seedbox account capacity in decimal bytes. |
 | `remoteDisk.enable` | boolean | `false` | Whether to enable Ultra seedbox account storage monitoring. |
 | `remoteDisk.warningThresholdBytes` | positive integer, meaning >0 | `3000000000000` | Remote seedbox storage warning threshold in bytes. |
+| `spaceGuard.enable` | boolean | `false` | Whether to enable pause Transmission downloads while seedbox quota is high. |
+| `spaceGuard.pauseAtBytes` | positive integer, meaning >0 | `3800000000000` | Account quota usage in decimal bytes at which incomplete downloads are paused. |
+| `spaceGuard.resumeBelowBytes` | positive integer, meaning >0 | `3500000000000` | Account quota usage in decimal bytes below which guard-paused downloads resume. |
 
 ### myConfig.users
 
