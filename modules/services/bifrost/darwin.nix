@@ -49,6 +49,27 @@ with lib; let
       fi
     '')
     secretUpstreams);
+  authVirtualKeyEnvVar = keyName:
+    assert builtins.match "[A-Za-z0-9-]+" keyName != null; "BIFROST_VIRTUAL_KEY_${lib.toUpper (lib.replaceStrings ["-"] ["_"] keyName)}_API_KEY";
+  virtualKeyProviderConfigs = providers:
+    map (provider: {
+      inherit provider;
+      allowed_models = ["*"];
+      key_ids = ["*"];
+      weight = 1.0;
+    })
+    providers;
+  additionalVirtualKeyConfigs =
+    lib.mapAttrsToList (keyName: virtualKey: {
+      inherit (virtualKey) id name;
+      value = "env.${authVirtualKeyEnvVar keyName}";
+      is_active = true;
+      provider_configs = virtualKeyProviderConfigs virtualKey.providers;
+    })
+    cfg.auth.additionalVirtualKeys;
+  additionalAuthSecretFiles = lib.mapAttrs' (keyName: virtualKey:
+    lib.nameValuePair (authVirtualKeyEnvVar keyName) virtualKey.valueFile)
+  cfg.auth.additionalVirtualKeys;
   authIsValid =
     !cfg.auth.enable
     || (
@@ -58,16 +79,19 @@ with lib; let
       && cfg.auth.setupTokenFile != null
       && cfg.auth.virtualKey != null
       && cfg.auth.virtualKey.providers != []
+      && builtins.all (virtualKey: virtualKey.providers != []) (builtins.attrValues cfg.auth.additionalVirtualKeys)
     );
   authSecretFiles =
     if cfg.auth.enable
     then
-      assert authIsValid; {
-        BIFROST_ADMIN_USERNAME = cfg.auth.adminUsernameFile;
-        BIFROST_ADMIN_PASSWORD = cfg.auth.adminPasswordFile;
-        BIFROST_SETUP_TOKEN = cfg.auth.setupTokenFile;
-        BIFROST_OPENCHAMBER_API_KEY = cfg.auth.virtualKey.valueFile;
-      }
+      assert authIsValid;
+        {
+          BIFROST_ADMIN_USERNAME = cfg.auth.adminUsernameFile;
+          BIFROST_ADMIN_PASSWORD = cfg.auth.adminPasswordFile;
+          BIFROST_SETUP_TOKEN = cfg.auth.setupTokenFile;
+          BIFROST_OPENCHAMBER_API_KEY = cfg.auth.virtualKey.valueFile;
+        }
+        // additionalAuthSecretFiles
     else {};
   authSecretFileExports = lib.concatStringsSep "\n" (lib.mapAttrsToList (envName: secretFile: ''
       secret_file=${lib.escapeShellArg secretFile}
@@ -193,23 +217,18 @@ with lib; let
             is_enabled = true;
             admin_username = "env.BIFROST_ADMIN_USERNAME";
             admin_password = "env.BIFROST_ADMIN_PASSWORD";
-            disable_auth_on_inference = false;
+            disable_auth_on_inference = cfg.auth.disableAuthOnInference;
           };
-          virtual_keys = [
-            {
-              inherit (cfg.auth.virtualKey) id name;
-              value = "env.BIFROST_OPENCHAMBER_API_KEY";
-              is_active = true;
-              provider_configs =
-                map (provider: {
-                  inherit provider;
-                  allowed_models = ["*"];
-                  key_ids = ["*"];
-                  weight = 1.0;
-                })
-                cfg.auth.virtualKey.providers;
-            }
-          ];
+          virtual_keys =
+            [
+              {
+                inherit (cfg.auth.virtualKey) id name;
+                value = "env.BIFROST_OPENCHAMBER_API_KEY";
+                is_active = true;
+                provider_configs = virtualKeyProviderConfigs cfg.auth.virtualKey.providers;
+              }
+            ]
+            ++ additionalVirtualKeyConfigs;
         };
       }
     else {};
@@ -392,6 +411,12 @@ in {
             description = "Runtime file containing the first-admin setup token, exported as BIFROST_SETUP_TOKEN.";
           };
 
+          disableAuthOnInference = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Skip HTTP authentication on inference routes. Keep client.enforce_auth_on_inference enabled to require virtual keys.";
+          };
+
           virtualKey = mkOption {
             type = types.nullOr (types.submodule {
               options = {
@@ -416,6 +441,32 @@ in {
             });
             default = null;
             description = "Optional inference virtual key, required when auth.enable is true.";
+          };
+
+          additionalVirtualKeys = mkOption {
+            type = types.attrsOf (types.submodule {
+              options = {
+                id = mkOption {
+                  type = types.str;
+                  description = "Stable Bifrost virtual-key ID.";
+                };
+                name = mkOption {
+                  type = types.str;
+                  description = "Human-readable Bifrost virtual-key name.";
+                };
+                valueFile = mkOption {
+                  type = types.str;
+                  description = "Runtime file containing the virtual-key value.";
+                };
+                providers = mkOption {
+                  type = types.listOf types.str;
+                  default = [];
+                  description = "Bifrost providers permitted for this virtual key.";
+                };
+              };
+            });
+            default = {};
+            description = "Additional inference virtual keys keyed by a safe environment-variable suffix.";
           };
         };
       };

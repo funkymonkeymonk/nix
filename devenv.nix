@@ -531,6 +531,61 @@ in {
       input = {machine = "";};
       exec = "bash scripts/machine-chart.sh";
     };
+    "machines:facts" = machinesTask "facts" false;
+    "secrets:create-bifrost-vk" = {
+      description = "Generate and store a named Bifrost virtual key in MegamanX's default 1Password vault";
+      input = {
+        keyName = "";
+        confirm = false;
+      };
+      exec = ''
+        set -euo pipefail
+        task_input=''${DEVENV_TASK_INPUT:-'{}'}
+        if ! jq -e '.confirm == true' <<< "$task_input" >/dev/null; then
+          echo "Pass --input confirm=true to create the Bifrost virtual key in 1Password" >&2
+          exit 64
+        fi
+        if ! key_name_with_sentinel=$(jq -erj 'if (.keyName | type) == "string" then .keyName + "__BIFROST_KEY_NAME_END__" else error("keyName must be a string") end' <<< "$task_input"); then
+          echo "Pass --input keyName=<name> to identify the Bifrost virtual key" >&2
+          exit 64
+        fi
+        key_name=''${key_name_with_sentinel%__BIFROST_KEY_NAME_END__}
+        [[ -n "''${key_name//[[:space:]]/}" && ! "$key_name" =~ [[:cntrl:]] ]] || {
+          echo "Bifrost keyName must be non-empty and contain no control characters" >&2
+          exit 64
+        }
+        export OPENSSL_BIN="${pkgs.openssl}/bin/openssl"
+        exec bash scripts/create-bifrost-vk.sh --key-name "$key_name" --confirm
+      '';
+    };
+    "secrets:create-bifrost-zero-vk" = {
+      description = "Compatibility alias for creating the Zero Bifrost virtual key";
+      input = {confirm = false;};
+      exec = ''
+        set -euo pipefail
+        task_input=''${DEVENV_TASK_INPUT:-'{}'}
+        if ! jq -e '.confirm == true' <<< "$task_input" >/dev/null; then
+          echo "Pass --input confirm=true to create the Bifrost Zero API key in 1Password" >&2
+          exit 64
+        fi
+        export OPENSSL_BIN="${pkgs.openssl}/bin/openssl"
+        exec bash scripts/create-bifrost-vk.sh --key-name Zero --confirm
+      '';
+    };
+    "secrets:create-bifrost-setup-token" = {
+      description = "Generate and store the Bifrost setup token in MegamanX's default 1Password vault";
+      input = {confirm = false;};
+      exec = ''
+        set -euo pipefail
+        task_input=''${DEVENV_TASK_INPUT:-'{}'}
+        if ! jq -e '.confirm == true' <<< "$task_input" >/dev/null; then
+          echo "Pass --input confirm=true to create the Bifrost setup token in 1Password" >&2
+          exit 64
+        fi
+        export OPENSSL_BIN="${pkgs.openssl}/bin/openssl"
+        exec bash scripts/create-bifrost-setup-token.sh --confirm
+      '';
+    };
     "machines:build" = machinesTask "build" false;
     "machines:check" = machinesTask "check" false;
     "machines:plan" = machinesTask "plan" false;

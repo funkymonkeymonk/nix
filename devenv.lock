@@ -7,17 +7,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1794297465,
-        "narHash": "sha256-FLSJpgb1NOmHpKmui+1CSK2wrZfJlNO+4SW9xLT8zpc=",
+        "lastModified": 1795045833,
+        "narHash": "sha256-JikVH/zHMPuSF05xCGZQKfwxmkq4G+9n9fCqj7hULFU=",
         "owner": "maximhq",
         "repo": "bifrost",
-        "rev": "7cb75fb2f8276ca48d0792c857fecb67b8879e2f",
+        "rev": "172617bb045c6f43d697843c115e64f0155ed143",
         "type": "github"
       },
       "original": {
         "owner": "maximhq",
         "repo": "bifrost",
-        "rev": "7cb75fb2f8276ca48d0792c857fecb67b8879e2f",
+        "rev": "172617bb045c6f43d697843c115e64f0155ed143",
         "type": "github"
       }
     },

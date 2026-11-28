@@ -36,7 +36,7 @@
     zellij-pane-tracker.url = "github:funkymonkeymonk/zellij-pane-tracker";
 
     # Bifrost AI Gateway - high-performance LLM gateway
-    bifrost.url = "github:maximhq/bifrost";
+    bifrost.url = "github:maximhq/bifrost?ref=transports/v2.6.0";
 
     # OpenChamber web workspace for OpenCode
     openchamber.url = "github:openchamber/openchamber";

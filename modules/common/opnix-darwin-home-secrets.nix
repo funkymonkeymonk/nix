@@ -94,7 +94,7 @@
         accumulated
         // lib.mapAttrs' (name: secret:
           lib.nameValuePair "${user.name}${lib.toUpper (lib.substring 0 1 name)}${lib.substring 1 (-1) name}" (
-            secret // {path = "Users/${user.name}/${secret.path}";}
+            secret // {path = "/Users/${user.name}/${secret.path}";}
           ))
         secrets
     ) {}
@@ -107,7 +107,7 @@ in {
     services.onepassword-secrets = {
       enable = lib.mkDefault (userSecrets != {});
       users = usersWithSecrets;
-      outputDir = "/";
+      outputDir = "/usr/local/var/opnix/secrets";
       secrets = userSecrets;
     };
 

@@ -133,10 +133,10 @@
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.reference == "op://Opnix/OpenCode Service Account - MegamanX/credential"
           && megamanx.home-manager.users.monkey.programs.onepassword-secrets.secrets.pijevApiKey.path == ".pi/agent/secrets/typesafe_api_key"
           && !megamanx.home-manager.users.monkey.programs.onepassword-secrets.enable
-          && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.path == "Users/monkey/.pi/agent/secrets/typesafe_api_key"
+          && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.path == "/Users/monkey/.pi/agent/secrets/typesafe_api_key"
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.owner == "monkey"
           && megamanx.services.onepassword-secrets.secrets.monkeyPijevApiKey.mode == "0600"
-          && megamanx.services.onepassword-secrets.secrets.monkeyPiopencodeGoApiKey.path == "Users/monkey/.pi/agent/secrets/opencode-go-apikey"
+          && megamanx.services.onepassword-secrets.secrets.monkeyPiopencodeGoApiKey.path == "/Users/monkey/.pi/agent/secrets/opencode-go-apikey"
           && megamanx.home-manager.users.monkey.home.file.".pi/agent/auth.json".text
           == builtins.toJSON {
             "opencode-go" = {
@@ -196,6 +196,23 @@
         else ''echo "FAIL: MegamanX Opnix must not restart after a failed secret resolution"; exit 1''
     }
     echo "  MegamanX Opnix runs at load without failure restarts ✓"
+
+    ${
+      let
+        megamanx = self.darwinConfigurations.MegamanX.config;
+        opnixConfig = megamanx.services.onepassword-secrets;
+      in
+        if
+          opnixConfig.outputDir
+          == "/usr/local/var/opnix/secrets"
+          && opnixConfig.outputDir != "/"
+          && opnixConfig.secrets.monkeyPijevApiKey.path == "/Users/monkey/.pi/agent/secrets/typesafe_api_key"
+          && opnixConfig.secrets.monkeyPiopencodeGoApiKey.path == "/Users/monkey/.pi/agent/secrets/opencode-go-apikey"
+          && opnixConfig.secrets.bifrostZeroApiKey.path == "/var/run/bifrost-zero-api-key"
+        then ""
+        else ''echo "FAIL: MegamanX Opnix must use a dedicated output directory and preserve absolute secret paths"; exit 1''
+    }
+    echo "  MegamanX Opnix avoids chmod on filesystem root ✓"
 
     ${
       let
